@@ -3,7 +3,7 @@
 return [
 
     'app' => [
-        'tagline' => 'Il social network federato, semplice e senza padroni.',
+        'tagline' => 'Il social network federato, semplice e libero.',
     ],
 
     'nav' => [

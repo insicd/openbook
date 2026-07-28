@@ -27,6 +27,7 @@
         'globe' => '<circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a13.6 13.6 0 0 1 3.5 9 13.6 13.6 0 0 1-3.5 9 13.6 13.6 0 0 1-3.5-9A13.6 13.6 0 0 1 12 3Z"/>',
         'chevron-down' => '<polyline points="6 9 12 15 18 9"/>',
         'search' => '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+        'more' => '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
     ];
     $path = $paths[$name] ?? $paths['info'];
 @endphp

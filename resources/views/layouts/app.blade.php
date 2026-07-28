@@ -24,29 +24,37 @@
             </div>
 
             @auth
-                <nav class="ob-nav ob-nav--icons" aria-label="Navigazione principale">
-                    <a href="{{ route('feed.index') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.home') }}">
-                        <x-icon name="home" />
-                    </a>
-                    <a href="{{ route('search.create') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.search') }}">
-                        <x-icon name="search" />
-                    </a>
-                    <a href="{{ route('notifications.index') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.notifications') }}">
-                        <x-icon name="bell" />
-                        @if (($unreadNotificationsCount ?? 0) > 0)
-                            <span class="ob-badge-dot">{{ $unreadNotificationsCount > 9 ? '9+' : $unreadNotificationsCount }}</span>
-                        @endif
-                    </a>
-                    <a href="{{ route('profile.show', auth()->user()->username) }}" class="ob-header__avatar-link" aria-label="{{ __('openbook.nav.profile') }}">
-                        <x-avatar :user="auth()->user()" style="width:36px;height:36px;font-size:0.95rem" />
-                    </a>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit" class="ob-icon-btn" aria-label="{{ __('openbook.nav.logout') }}">
-                            <x-icon name="logout" />
-                        </button>
-                    </form>
-                </nav>
+                <div class="ob-header__end">
+                    <button type="button" class="ob-icon-btn ob-nav-toggle" id="ob-nav-toggle"
+                        aria-label="Altre opzioni" aria-controls="ob-nav-icons" aria-expanded="false">
+                        <x-icon name="more" />
+                    </button>
+
+                    <nav class="ob-nav ob-nav--icons" id="ob-nav-icons" aria-label="Navigazione principale">
+                        <a href="{{ route('feed.index') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.home') }}">
+                            <x-icon name="home" /><span class="ob-nav__label">{{ __('openbook.nav.home') }}</span>
+                        </a>
+                        <a href="{{ route('search.create') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.search') }}">
+                            <x-icon name="search" /><span class="ob-nav__label">{{ __('openbook.nav.search') }}</span>
+                        </a>
+                        <a href="{{ route('notifications.index') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.notifications') }}">
+                            <x-icon name="bell" /><span class="ob-nav__label">{{ __('openbook.nav.notifications') }}</span>
+                            @if (($unreadNotificationsCount ?? 0) > 0)
+                                <span class="ob-badge-dot">{{ $unreadNotificationsCount > 9 ? '9+' : $unreadNotificationsCount }}</span>
+                            @endif
+                        </a>
+                        <a href="{{ route('profile.show', auth()->user()->username) }}" class="ob-header__avatar-link" aria-label="{{ __('openbook.nav.profile') }}">
+                            <x-avatar :user="auth()->user()" style="width:36px;height:36px;font-size:0.95rem" />
+                            <span class="ob-nav__label">{{ __('openbook.nav.profile') }}</span>
+                        </a>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="ob-icon-btn" aria-label="{{ __('openbook.nav.logout') }}">
+                                <x-icon name="logout" /><span class="ob-nav__label">{{ __('openbook.nav.logout') }}</span>
+                            </button>
+                        </form>
+                    </nav>
+                </div>
             @else
                 <nav class="ob-nav" aria-label="Navigazione principale">
                     <a href="{{ route('login') }}" class="ob-nav__link">{{ __('openbook.nav.login') }}</a>
@@ -97,34 +105,49 @@
         <div class="ob-sidebar-overlay" id="ob-sidebar-overlay" hidden></div>
         <script>
             (function () {
-                var toggle = document.getElementById('ob-sidebar-toggle');
-                var sidebar = document.getElementById('ob-sidebar-left');
                 var overlay = document.getElementById('ob-sidebar-overlay');
-                if (!toggle || !sidebar || !overlay) {
+                if (!overlay) {
                     return;
                 }
 
-                function closeSidebar() {
-                    sidebar.classList.remove('is-open');
-                    overlay.hidden = true;
-                    toggle.setAttribute('aria-expanded', 'false');
-                }
-
-                function openSidebar() {
-                    sidebar.classList.add('is-open');
-                    overlay.hidden = false;
-                    toggle.setAttribute('aria-expanded', 'true');
-                }
-
-                toggle.addEventListener('click', function () {
-                    if (sidebar.classList.contains('is-open')) {
-                        closeSidebar();
-                    } else {
-                        openSidebar();
-                    }
+                var panels = [
+                    { toggle: document.getElementById('ob-sidebar-toggle'), panel: document.getElementById('ob-sidebar-left') },
+                    { toggle: document.getElementById('ob-nav-toggle'), panel: document.getElementById('ob-nav-icons') },
+                ].filter(function (entry) {
+                    return entry.toggle && entry.panel;
                 });
 
-                overlay.addEventListener('click', closeSidebar);
+                function closeAll() {
+                    panels.forEach(function (entry) {
+                        entry.panel.classList.remove('is-open');
+                        entry.toggle.setAttribute('aria-expanded', 'false');
+                    });
+                    overlay.hidden = true;
+                }
+
+                function open(entry) {
+                    closeAll();
+                    entry.panel.classList.add('is-open');
+                    entry.toggle.setAttribute('aria-expanded', 'true');
+                    overlay.hidden = false;
+                }
+
+                panels.forEach(function (entry) {
+                    entry.toggle.addEventListener('click', function () {
+                        if (entry.panel.classList.contains('is-open')) {
+                            closeAll();
+                        } else {
+                            open(entry);
+                        }
+                    });
+                });
+
+                overlay.addEventListener('click', closeAll);
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape') {
+                        closeAll();
+                    }
+                });
             })();
         </script>
     @endauth
