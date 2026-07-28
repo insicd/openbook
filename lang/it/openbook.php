@@ -144,6 +144,7 @@ return [
         'account_updated' => 'Preferenze aggiornate.',
         'profile_section_title' => 'Profilo pubblico',
         'avatar_label' => 'Immagine del profilo',
+        'image_preview_help' => 'Dopo aver scelto un file ne vedrai subito un\'anteprima, anche prima di salvare.',
         'cover_label' => 'Immagine di copertina',
         'display_name_label' => 'Nome visualizzato',
         'bio_label' => 'Biografia',

@@ -461,6 +461,13 @@ sul proprio profilo) le rende finalmente modificabili:
   nome visualizzato aggiorna anche il campo `name` dell'Actor ActivityPub locale, che e'
   il valore effettivamente esposto ai server remoti (`ActorSerializer`); avatar e
   copertina erano gia' federati automaticamente dalla Fase 3 non appena valorizzati.
+  Prima di salvare, il file scelto viene mostrato subito in anteprima (lato client,
+  via `FileReader`, senza upload). `Profile::avatarUrl()`/`coverUrl()` costruiscono
+  l'URL pubblico tramite il disco "public" configurato (`Storage::disk('public')->url()`),
+  come gia' avviene per gli allegati dei post (`Media::url()`), invece di affidarsi
+  all'helper `asset()`: quest'ultimo dipende dallo schema/host rilevati sulla singola
+  richiesta e puo' produrre URL incoerenti (es. `http://` invece di `https://`) dietro
+  proxy o load balancer che non riportano correttamente lo schema originale.
 - **Lingua dell'interfaccia**: ogni utente puo' scegliere tra le lingue elencate in
   `config('openbook.locales')` (italiano e inglese al momento). Il middleware
   `SetUserLocale`, applicato a tutte le richieste web, imposta la lingua dell'app in
@@ -537,7 +544,9 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   quando l'account non e' piu' "discoverable"; il servizio di caricamento immagini di
   profilo (`ProfileImageUploaderTest`): percorsi separati per avatar/copertina,
   rimozione del file precedente, validazione di tipo e dimensione, ridimensionamento
-  delle immagini sovradimensionate.
+  delle immagini sovradimensionate; la costruzione dell'URL di avatar/copertina
+  (`Tests\Unit\Domain\Profiles\ProfileTest`), per evitare regressioni sulla scelta del
+  disco "public" al posto dell'helper `asset()`.
 
 Un piccolo sottoinsieme di test (`Tests\Feature\Installer\InstallerMysqlFlowTest`)
 verifica specificamente il passo 2 dell'installer (connessione e migration) contro un

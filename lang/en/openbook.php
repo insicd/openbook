@@ -144,6 +144,7 @@ return [
         'account_updated' => 'Preferences updated.',
         'profile_section_title' => 'Public profile',
         'avatar_label' => 'Profile picture',
+        'image_preview_help' => "You'll see a preview as soon as you choose a file, even before saving.",
         'cover_label' => 'Cover image',
         'display_name_label' => 'Display name',
         'bio_label' => 'Bio',

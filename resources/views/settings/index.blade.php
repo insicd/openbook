@@ -15,9 +15,10 @@
             <div class="ob-field">
                 <label>{{ __('openbook.settings.avatar_label') }}</label>
                 <div class="ob-settings-avatar-picker">
-                    <x-avatar :user="$viewer" style="width:64px;height:64px;font-size:1.5rem" />
-                    <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp,image/gif">
+                    <x-avatar id="settings-avatar-preview" :user="$viewer" style="width:64px;height:64px;font-size:1.5rem" />
+                    <input type="file" name="avatar" id="settings-avatar-input" accept="image/jpeg,image/png,image/webp,image/gif">
                 </div>
+                <p class="ob-field__help">{{ __('openbook.settings.image_preview_help') }}</p>
                 @error('avatar')
                     <p class="ob-field__error">{{ $message }}</p>
                 @enderror
@@ -25,10 +26,12 @@
 
             <div class="ob-field">
                 <label>{{ __('openbook.settings.cover_label') }}</label>
-                @if ($viewer->profile?->coverUrl())
-                    <img src="{{ $viewer->profile->coverUrl() }}" alt="" class="ob-settings-cover-preview">
-                @endif
-                <input type="file" name="cover" accept="image/jpeg,image/png,image/webp,image/gif">
+                <div id="settings-cover-preview">
+                    @if ($viewer->profile?->coverUrl())
+                        <img src="{{ $viewer->profile->coverUrl() }}" alt="" class="ob-settings-cover-preview">
+                    @endif
+                </div>
+                <input type="file" name="cover" id="settings-cover-input" accept="image/jpeg,image/png,image/webp,image/gif">
                 @error('cover')
                     <p class="ob-field__error">{{ $message }}</p>
                 @enderror
@@ -128,4 +131,41 @@
             <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.settings.save') }}</button>
         </form>
     </div>
+
+    <script>
+        (function () {
+            function previewImage(inputId, containerId, imgClass) {
+                var input = document.getElementById(inputId);
+                var container = document.getElementById(containerId);
+
+                if (!input || !container || !window.FileReader) {
+                    return;
+                }
+
+                input.addEventListener('change', function () {
+                    var file = input.files && input.files[0];
+
+                    if (!file || file.type.indexOf('image/') !== 0) {
+                        return;
+                    }
+
+                    var reader = new FileReader();
+                    reader.onload = function (event) {
+                        var img = document.createElement('img');
+                        img.src = event.target.result;
+                        img.alt = '';
+                        if (imgClass) {
+                            img.className = imgClass;
+                        }
+                        container.innerHTML = '';
+                        container.appendChild(img);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            previewImage('settings-avatar-input', 'settings-avatar-preview', null);
+            previewImage('settings-cover-input', 'settings-cover-preview', 'ob-settings-cover-preview');
+        })();
+    </script>
 @endsection
