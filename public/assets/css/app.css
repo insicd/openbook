@@ -106,7 +106,7 @@ p {
   border-bottom: 1px solid var(--ob-color-border);
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 30;
 }
 
 .ob-header__inner {
@@ -156,10 +156,6 @@ p {
   position: relative;
   display: flex;
   align-items: center;
-}
-
-.ob-nav-toggle {
-  display: none;
 }
 
 .ob-nav__label {
@@ -212,7 +208,8 @@ p {
   flex-shrink: 0;
 }
 
-.ob-sidebar-toggle {
+.ob-sidebar-toggle,
+.ob-nav-toggle {
   display: none;
 }
 
