@@ -1,0 +1,175 @@
+<?php
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Versione del software
+    |--------------------------------------------------------------------------
+    |
+    | Riportata nel documento NodeInfo pubblico. Aggiornata manualmente a ogni
+    | fase della roadmap.
+    */
+    'version' => '0.4.0',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Dominio federato dell'istanza
+    |--------------------------------------------------------------------------
+    |
+    | Deve corrispondere all'host pubblico dell'istanza e viene utilizzato
+    | per comporre gli indirizzi federati (utente@dominio), gli identificatori
+    | ActivityPub e le risposte WebFinger. Non deve cambiare dopo l'avvio.
+    |
+    */
+    'domain' => env('OPENBOOK_DOMAIN', parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Stato di installazione
+    |--------------------------------------------------------------------------
+    |
+    | Determina se l'installer guidato deve essere ancora eseguito. Viene
+    | impostato a true dall'installer stesso al termine della procedura e
+    | non deve essere modificato manualmente in produzione.
+    */
+    'installed' => (bool) env('OPENBOOK_INSTALLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cron via web (opzionale)
+    |--------------------------------------------------------------------------
+    |
+    | Su hosting privi di cron job reali o accesso CLI, i processi periodici
+    | possono essere richiamati tramite una richiesta HTTP autenticata da un
+    | token segreto: /cron/run?token=...
+    */
+    'web_cron' => [
+        'enabled' => (bool) env('OPENBOOK_WEB_CRON_ENABLED', false),
+        'token' => env('OPENBOOK_WEB_CRON_TOKEN'),
+        'min_interval_seconds' => (int) env('OPENBOOK_WEB_CRON_MIN_INTERVAL', 55),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Registrazioni
+    |--------------------------------------------------------------------------
+    */
+    'registration' => [
+        'open' => (bool) env('OPENBOOK_REGISTRATION_OPEN', true),
+        'requires_approval' => (bool) env('OPENBOOK_REGISTRATION_REQUIRES_APPROVAL', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Media
+    |--------------------------------------------------------------------------
+    */
+    'media' => [
+        'max_size_kb' => (int) env('OPENBOOK_MEDIA_MAX_SIZE_KB', 8192),
+        'max_attachments_per_post' => (int) env('OPENBOOK_MEDIA_MAX_ATTACHMENTS', 4),
+        'allowed_mime_types' => [
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'image/gif',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Contenuti
+    |--------------------------------------------------------------------------
+    */
+    'posts' => [
+        'max_length' => (int) env('OPENBOOK_POST_MAX_LENGTH', 5000),
+    ],
+
+    'comments' => [
+        'max_visible_depth' => (int) env('OPENBOOK_COMMENT_MAX_DEPTH', 8),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Feed
+    |--------------------------------------------------------------------------
+    */
+    'feed' => [
+        'per_page' => (int) env('OPENBOOK_FEED_PER_PAGE', 20),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Chiavi crittografiche degli Actor
+    |--------------------------------------------------------------------------
+    |
+    | Dimensione (in bit) delle coppie di chiavi RSA generate per ogni nuovo
+    | Actor locale (utenti e, in futuro, community). 2048 bit e' considerato
+    | il minimo accettabile per l'interoperabilita' con il resto del Fediverso.
+    */
+    'actor_key_bits' => (int) env('OPENBOOK_ACTOR_KEY_BITS', 2048),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Coda federativa (usata dalle fasi successive)
+    |--------------------------------------------------------------------------
+    |
+    | Intervalli di retry con backoff esponenziale per le consegne federate
+    | fallite, espressi in minuti. L'ultimo valore rappresenta anche il tetto
+    | massimo per i tentativi successivi.
+    */
+    'delivery' => [
+        'retry_intervals_minutes' => [1, 5, 15, 60, 360, 1440],
+        'max_attempts' => (int) env('OPENBOOK_DELIVERY_MAX_ATTEMPTS', 10),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Federazione ActivityPub
+    |--------------------------------------------------------------------------
+    |
+    | Parametri comuni a firme HTTP, recupero di risorse remote (Actor) e
+    | ricezione delle attivita' nell'inbox. Valori prudenti per default,
+    | adatti a shared hosting: nessun processo permanente, timeout brevi,
+    | corpi di risposta limitati.
+    */
+    'federation' => [
+        // Intestazione User-Agent usata per le richieste HTTP in uscita verso
+        // altri server del Fediverso (recupero Actor remoti).
+        'user_agent' => sprintf('Openbook/1.0 (+%s)', env('APP_URL', 'http://localhost')),
+
+        'http_signature' => [
+            // Scarto massimo (in secondi) tollerato tra l'header "Date" di una
+            // richiesta firmata e l'orario locale, oltre il quale la firma
+            // viene rifiutata anche se crittograficamente valida.
+            'max_clock_skew_seconds' => (int) env('OPENBOOK_SIGNATURE_MAX_SKEW', 300),
+        ],
+
+        'fetch' => [
+            // Numero massimo di ridirezioni HTTP seguite durante il recupero
+            // di una risorsa remota (Actor). Ogni destinazione viene
+            // rivalidata contro la protezione SSRF.
+            'max_redirects' => (int) env('OPENBOOK_FETCH_MAX_REDIRECTS', 3),
+            'timeout_seconds' => (int) env('OPENBOOK_FETCH_TIMEOUT', 10),
+            'connect_timeout_seconds' => (int) env('OPENBOOK_FETCH_CONNECT_TIMEOUT', 5),
+            'max_response_bytes' => (int) env('OPENBOOK_FETCH_MAX_BYTES', 1_000_000),
+            // Consente lo schema "http://" soltanto in ambienti non di
+            // produzione (test locali con server del Fediverso finti):
+            // in produzione e' sempre richiesto HTTPS.
+            'allow_insecure' => (bool) env('OPENBOOK_FETCH_ALLOW_INSECURE', false),
+        ],
+
+        // Dopo quante ore un Actor remoto gia' in cache viene considerato
+        // scaduto e ri-recuperato alla prossima occasione utile.
+        'actor_cache_ttl_hours' => (int) env('OPENBOOK_ACTOR_CACHE_TTL_HOURS', 24),
+
+        'inbox' => [
+            // Limite applicativo aggiuntivo (difesa in profondita') rispetto
+            // a "post_max_size"/"client_max_body_size" del server web, che
+            // restano la protezione principale e vanno configurati a livello
+            // di hosting (vedi README).
+            'max_body_bytes' => (int) env('OPENBOOK_INBOX_MAX_BODY_BYTES', 200_000),
+            'max_json_depth' => (int) env('OPENBOOK_INBOX_MAX_JSON_DEPTH', 32),
+        ],
+    ],
+];

@@ -1,0 +1,73 @@
+<?php
+
+namespace Tests\Feature\Federation;
+
+use App\Application\Services\FollowManager;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
+use Tests\Concerns\CreatesAccounts;
+use Tests\Concerns\CreatesRemoteActors;
+use Tests\TestCase;
+
+/**
+ * Pagina profilo di comodo per un Actor remoto in cache locale (Fase 4):
+ * mostra dati/statistiche gia' note e permette di avviare/annullare un
+ * follow, ma non e' mai raggiungibile per un Actor locale (che ha sempre
+ * "/@{username}" come identificatore canonico).
+ */
+class ActorProfileTest extends TestCase
+{
+    use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
+
+    public function test_a_guest_cannot_view_a_remote_actor_profile(): void
+    {
+        $remote = $this->createRemoteActor('ophelia');
+
+        $this->get(route('actors.show', $remote))->assertRedirect(route('login'));
+    }
+
+    public function test_it_shows_a_cached_remote_actor_profile(): void
+    {
+        $viewer = $this->createFullAccount('visitatore');
+        $remote = $this->createRemoteActor('peter');
+
+        $response = $this->actingAs($viewer)->get(route('actors.show', $remote));
+
+        $response->assertOk();
+        $response->assertSee('Peter');
+        $response->assertSee('@peter@remoto.example');
+    }
+
+    public function test_visiting_a_local_actor_id_redirects_to_the_canonical_profile(): void
+    {
+        $viewer = $this->createFullAccount('visitatore2');
+        $target = $this->createFullAccount('localecanon');
+
+        $response = $this->actingAs($viewer)->get(route('actors.show', $target->actor));
+
+        $response->assertRedirect(route('profile.show', $target->username));
+    }
+
+    public function test_a_viewer_can_follow_a_remote_actor_from_its_profile_page(): void
+    {
+        Queue::fake();
+        $viewer = $this->createFullAccount('follower1');
+        $remote = $this->createRemoteActor('quentin');
+
+        $this->actingAs($viewer)->post(route('actors.follow', $remote))->assertRedirect();
+
+        $this->assertTrue(app(FollowManager::class)->hasPendingRequest($viewer->actor, $remote));
+    }
+
+    public function test_a_viewer_can_cancel_a_pending_follow_from_its_profile_page(): void
+    {
+        Queue::fake();
+        $viewer = $this->createFullAccount('follower2');
+        $remote = $this->createRemoteActor('rachel');
+
+        app(FollowManager::class)->follow($viewer->actor, $remote);
+        $this->actingAs($viewer)->delete(route('actors.unfollow', $remote))->assertRedirect();
+
+        $this->assertFalse(app(FollowManager::class)->hasPendingRequest($viewer->actor, $remote));
+    }
+}

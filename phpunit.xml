@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="APP_URL" value="https://openbook.test"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <env name="DB_DATABASE" value=":memory:"/>
+        <env name="OPENBOOK_DOMAIN" value="openbook.test"/>
+        <env name="OPENBOOK_ACTOR_KEY_BITS" value="2048"/>
+        <!--
+            Parametri opzionali per il test di integrazione reale
+            dell'installer (Tests\Feature\Installer\InstallerMysqlFlowTest).
+            Se il server indicato non e' raggiungibile il test viene
+            saltato automaticamente: non e' un requisito per l'esecuzione
+            del resto della suite.
+        -->
+        <env name="OPENBOOK_TEST_MYSQL_HOST" value="127.0.0.1"/>
+        <env name="OPENBOOK_TEST_MYSQL_PORT" value="3307"/>
+        <env name="OPENBOOK_TEST_MYSQL_DATABASE" value="openbook_test"/>
+        <env name="OPENBOOK_TEST_MYSQL_USERNAME" value="openbook_test"/>
+        <env name="OPENBOOK_TEST_MYSQL_PASSWORD" value="openbook_test_pw"/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+    </php>
+</phpunit>

@@ -1,0 +1,117 @@
+<?php
+
+namespace App\Domain\Accounts;
+
+use App\Domain\Profiles\Profile;
+use App\Federation\Actors\Actor;
+use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
+
+/**
+ * Identita' di autenticazione di un account locale.
+ *
+ * I dati di presentazione pubblica vivono in {@see Profile}, le preferenze
+ * in {@see UserSetting} e la rappresentazione ActivityPub in {@see Actor}.
+ * Questa separazione riflette la distinzione architetturale tra dominio
+ * applicativo e federazione richiesta per Openbook.
+ *
+ * @property string $id
+ * @property string $username
+ * @property string $email
+ * @property string $password
+ * @property bool $is_admin
+ * @property string $status
+ * @property Carbon|null $last_login_at
+ */
+class User extends Authenticatable implements MustVerifyEmail
+{
+    /** @use HasFactory<UserFactory> */
+    use HasFactory, HasUuids, Notifiable;
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_SUSPENDED = 'suspended';
+
+    public const STATUS_DISABLED = 'disabled';
+
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'username',
+        'email',
+        'password',
+        'is_admin',
+        'status',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
+            'password' => 'hashed',
+            'is_admin' => 'boolean',
+        ];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'username';
+    }
+
+    /**
+     * Il namespace del modello (App\Domain\Accounts) non corrisponde alla
+     * convenzione predefinita usata da Laravel per individuare la factory,
+     * quindi va indicata esplicitamente.
+     */
+    protected static function newFactory(): UserFactory
+    {
+        return UserFactory::new();
+    }
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(Profile::class);
+    }
+
+    public function settings(): HasOne
+    {
+        return $this->hasOne(UserSetting::class);
+    }
+
+    public function actor(): HasOne
+    {
+        return $this->hasOne(Actor::class);
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * Indirizzo federato "username@dominio" mostrato nell'interfaccia.
+     */
+    public function federatedHandle(): string
+    {
+        return sprintf('%s@%s', $this->username, config('openbook.domain'));
+    }
+}
