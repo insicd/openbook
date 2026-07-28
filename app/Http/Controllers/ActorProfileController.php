@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\FeedQuery;
+use App\Application\Queries\FollowListQuery;
 use App\Application\Services\FollowManager;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Http\Controllers\Concerns\RendersFollowLists;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 
@@ -20,9 +22,12 @@ use Illuminate\Http\RedirectResponse;
  */
 class ActorProfileController extends Controller
 {
+    use RendersFollowLists;
+
     public function __construct(
         private readonly FeedQuery $feedQuery,
         private readonly FollowManager $followManager,
+        private readonly FollowListQuery $followListQuery,
     ) {}
 
     public function show(Actor $actor): View|RedirectResponse
@@ -55,5 +60,23 @@ class ActorProfileController extends Controller
             'isFollowing' => $isFollowing,
             'hasPendingRequest' => $hasPendingRequest,
         ]);
+    }
+
+    public function followers(Actor $actor): View|RedirectResponse
+    {
+        if ($actor->isLocal()) {
+            return redirect()->route('profile.followers', $actor->preferred_username);
+        }
+
+        return $this->renderFollowList($this->followListQuery, $this->followManager, $actor, 'followers');
+    }
+
+    public function following(Actor $actor): View|RedirectResponse
+    {
+        if ($actor->isLocal()) {
+            return redirect()->route('profile.following', $actor->preferred_username);
+        }
+
+        return $this->renderFollowList($this->followListQuery, $this->followManager, $actor, 'following');
     }
 }

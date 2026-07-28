@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\FeedQuery;
+use App\Application\Queries\FollowListQuery;
 use App\Application\Services\FollowManager;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Serialization\ActorSerializer;
+use App\Http\Controllers\Concerns\RendersFollowLists;
 use App\Http\Support\ActivityPubNegotiation;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -16,9 +18,12 @@ use Illuminate\Http\Request;
 
 class ProfileController extends Controller
 {
+    use RendersFollowLists;
+
     public function __construct(
         private readonly FeedQuery $feedQuery,
         private readonly FollowManager $followManager,
+        private readonly FollowListQuery $followListQuery,
     ) {}
 
     /**
@@ -71,6 +76,16 @@ class ProfileController extends Controller
             'hasPendingRequest' => $hasPendingRequest,
             'pendingFollowRequests' => $pendingFollowRequests,
         ]);
+    }
+
+    public function followers(User $user): View
+    {
+        return $this->renderFollowList($this->followListQuery, $this->followManager, $user->actor, 'followers');
+    }
+
+    public function following(User $user): View
+    {
+        return $this->renderFollowList($this->followListQuery, $this->followManager, $user->actor, 'following');
     }
 
     /**

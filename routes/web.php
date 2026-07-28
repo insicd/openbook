@@ -15,6 +15,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -73,6 +74,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/notifiche', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifiche/segna-lette', [NotificationController::class, 'markAllRead'])->name('notifications.read');
+
+    Route::get('/impostazioni', [SettingsController::class, 'edit'])->name('settings.edit');
+    Route::put('/impostazioni/profilo', [SettingsController::class, 'updateProfile'])->name('settings.profile.update');
+    Route::put('/impostazioni/account', [SettingsController::class, 'updateAccount'])->name('settings.account.update');
 });
 
 // Identificatore canonico di un post: HTML oppure, tramite content
@@ -88,10 +93,19 @@ Route::get('/tag/{name}', [HashtagController::class, 'show'])->name('hashtags.sh
 // Identificatore canonico dell'Actor locale (HTML e, in futuro, ActivityPub).
 Route::get('/@{user:username}', [ProfileController::class, 'show'])->name('profile.show');
 
+// Elenchi follower/seguiti di un profilo locale: stessa visibilita' pubblica
+// della pagina profilo (vedi sopra).
+Route::get('/@{user:username}/follower', [ProfileController::class, 'followers'])->name('profile.followers');
+Route::get('/@{user:username}/seguiti', [ProfileController::class, 'following'])->name('profile.following');
+
 // Pagina profilo di comodo per un Actor remoto in cache locale (mai un
 // identificatore ActivityPub: reindirizza al profilo locale se l'id
 // corrisponde in realta' a un attore di questa istanza).
-Route::middleware('auth')->get('/attori/{actor}', [ActorProfileController::class, 'show'])->name('actors.show');
+Route::middleware('auth')->group(function () {
+    Route::get('/attori/{actor}', [ActorProfileController::class, 'show'])->name('actors.show');
+    Route::get('/attori/{actor}/follower', [ActorProfileController::class, 'followers'])->name('actors.followers');
+    Route::get('/attori/{actor}/seguiti', [ActorProfileController::class, 'following'])->name('actors.following');
+});
 
 // URL alternativo, non canonico: redirect permanente verso "/@{username}".
 Route::get('/users/{username}', [ProfileController::class, 'redirectLegacy'])

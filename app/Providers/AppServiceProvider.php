@@ -96,6 +96,7 @@ class AppServiceProvider extends ServiceProvider
                     ->where('type', Actor::TYPE_PERSON)
                     ->where('status', Actor::STATUS_ACTIVE)
                     ->whereNotIn('id', $excludedIds)
+                    ->whereHas('user.settings', fn ($query) => $query->where('discoverable', true))
                     ->with('user.profile')
                     ->latest('created_at')
                     ->limit(5)

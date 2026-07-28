@@ -474,6 +474,7 @@ p {
 .ob-field input[type='text'],
 .ob-field input[type='email'],
 .ob-field input[type='password'],
+.ob-field input[type='url'],
 .ob-field textarea,
 .ob-field select {
   width: 100%;
@@ -514,6 +515,38 @@ p {
   align-items: center;
   gap: 0.5rem;
   font-weight: 400;
+}
+
+/* Impostazioni */
+
+.ob-settings-link-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.ob-settings-link-row input[type='text'] {
+  flex: 0 0 35%;
+}
+
+.ob-settings-link-row input[type='url'] {
+  flex: 1;
+}
+
+.ob-settings-avatar-picker {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.ob-settings-cover-preview {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: var(--ob-radius);
+  margin-bottom: 0.5rem;
+  display: block;
 }
 
 /* Alerts */
@@ -601,6 +634,10 @@ p {
 .ob-profile-stats span {
   color: var(--ob-color-text-muted);
   font-size: 0.85rem;
+}
+
+.ob-profile-stats a {
+  color: var(--ob-color-text);
 }
 
 .ob-badge {
@@ -734,6 +771,13 @@ p {
   color: var(--ob-color-primary);
   overflow: hidden;
   flex-shrink: 0;
+}
+
+.ob-avatar img,
+.ob-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .ob-post__meta {

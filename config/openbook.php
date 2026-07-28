@@ -10,7 +10,7 @@ return [
     | Riportata nel documento NodeInfo pubblico. Aggiornata manualmente a ogni
     | fase della roadmap.
     */
-    'version' => '0.4.0',
+    'version' => '0.4.1',
 
     /*
     |--------------------------------------------------------------------------
@@ -58,6 +58,20 @@ return [
     'registration' => [
         'open' => (bool) env('OPENBOOK_REGISTRATION_OPEN', true),
         'requires_approval' => (bool) env('OPENBOOK_REGISTRATION_REQUIRES_APPROVAL', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Lingue dell'interfaccia
+    |--------------------------------------------------------------------------
+    |
+    | Lingue tra cui ogni utente puo' scegliere nelle impostazioni account
+    | (vedi "user_settings.locale"): devono corrispondere a una cartella
+    | presente in "lang/".
+    */
+    'locales' => [
+        'it' => 'Italiano',
+        'en' => 'English',
     ],
 
     /*

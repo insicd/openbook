@@ -1,10 +1,11 @@
 @php
     $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
+    $defaultVisibility = auth()->user()->settings?->default_post_visibility ?: 'public';
 
     $titleOpen = old('title') || $errors->has('title');
     $cwOpen = old('content_warning') || $errors->has('content_warning');
     $mediaOpen = old('alt_texts') || $errors->has('images') || $errors->has('images.*') || $errors->has('alt_texts.*');
-    $visibilityOpen = old('visibility') || $errors->has('visibility');
+    $visibilityOpen = old('visibility') || $errors->has('visibility') || $defaultVisibility !== 'public';
 @endphp
 
 <div class="ob-card ob-composer">
@@ -52,10 +53,10 @@
             <div class="ob-field">
                 <label for="composer-visibility">{{ __('openbook.composer.visibility_label') }}</label>
                 <select id="composer-visibility" name="visibility">
-                    <option value="public" @selected(old('visibility', 'public') === 'public')>{{ __('openbook.visibility.public') }}</option>
-                    <option value="unlisted" @selected(old('visibility') === 'unlisted')>{{ __('openbook.visibility.unlisted') }}</option>
-                    <option value="followers" @selected(old('visibility') === 'followers')>{{ __('openbook.visibility.followers') }}</option>
-                    <option value="direct" @selected(old('visibility') === 'direct')>{{ __('openbook.visibility.direct') }}</option>
+                    <option value="public" @selected(old('visibility', $defaultVisibility) === 'public')>{{ __('openbook.visibility.public') }}</option>
+                    <option value="unlisted" @selected(old('visibility', $defaultVisibility) === 'unlisted')>{{ __('openbook.visibility.unlisted') }}</option>
+                    <option value="followers" @selected(old('visibility', $defaultVisibility) === 'followers')>{{ __('openbook.visibility.followers') }}</option>
+                    <option value="direct" @selected(old('visibility', $defaultVisibility) === 'direct')>{{ __('openbook.visibility.direct') }}</option>
                 </select>
             </div>
         </div>

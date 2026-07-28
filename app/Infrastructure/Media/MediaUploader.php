@@ -3,11 +3,11 @@
 namespace App\Infrastructure\Media;
 
 use App\Federation\Actors\Actor;
+use App\Infrastructure\Media\Concerns\ManipulatesImagesWithGd;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-use RuntimeException;
 
 /**
  * Gestisce il caricamento di un'immagine allegata a un post: valida il tipo
@@ -18,6 +18,8 @@ use RuntimeException;
  */
 final class MediaUploader
 {
+    use ManipulatesImagesWithGd;
+
     private const ALLOWED_EXTENSIONS = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
@@ -123,14 +125,7 @@ final class MediaUploader
         $thumbWidth = max(1, (int) round($width * $ratio));
         $thumbHeight = max(1, (int) round($height * $ratio));
 
-        $thumbnail = imagecreatetruecolor($thumbWidth, $thumbHeight);
-
-        if ($mimeType === 'image/png' || $mimeType === 'image/gif') {
-            imagealphablending($thumbnail, false);
-            imagesavealpha($thumbnail, true);
-        }
-
-        imagecopyresampled($thumbnail, $source, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
+        $thumbnail = $this->resizeImage($source, $width, $height, $thumbWidth, $thumbHeight, $mimeType);
 
         ob_start();
         $this->outputImage($thumbnail, $mimeType);
@@ -152,30 +147,5 @@ final class MediaUploader
             'width' => $thumbWidth,
             'height' => $thumbHeight,
         ]);
-    }
-
-    /**
-     * @return \GdImage|null
-     */
-    private function loadImage(string $path, string $mimeType)
-    {
-        return match ($mimeType) {
-            'image/jpeg' => @imagecreatefromjpeg($path) ?: null,
-            'image/png' => @imagecreatefrompng($path) ?: null,
-            'image/webp' => @imagecreatefromwebp($path) ?: null,
-            'image/gif' => @imagecreatefromgif($path) ?: null,
-            default => null,
-        };
-    }
-
-    private function outputImage($image, string $mimeType): void
-    {
-        match ($mimeType) {
-            'image/jpeg' => imagejpeg($image, null, 88),
-            'image/png' => imagepng($image),
-            'image/webp' => imagewebp($image, null, 88),
-            'image/gif' => imagegif($image),
-            default => throw new RuntimeException("Formato immagine non gestito: {$mimeType}."),
-        };
     }
 }

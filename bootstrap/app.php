@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureApplicationIsInstalled;
+use App\Http\Middleware\SetUserLocale;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
             EnsureApplicationIsInstalled::class,
+            SetUserLocale::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

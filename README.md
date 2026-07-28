@@ -27,6 +27,7 @@ persona su qualunque altro server del Fediverso** direttamente dall'interfaccia.
 - [Architettura](#architettura)
   - [Federazione (Fase 3)](#federazione-fase-3)
   - [Federazione sociale (Fase 4)](#federazione-sociale-fase-4)
+  - [Personalizzazione del profilo e impostazioni account](#personalizzazione-del-profilo-e-impostazioni-account)
 - [Test](#test)
 - [Cron e attivita periodiche](#cron-e-attivita-periodiche)
 - [Sicurezza e privacy](#sicurezza-e-privacy)
@@ -425,11 +426,59 @@ finalmente bidirezionale.
   l'interfaccia (card dei post, commenti, notifiche) gli autori sono ora mostrati
   tramite `Actor::displayName()`/`Actor::avatarUrl()`/`Actor::profileUrl()`, che
   funzionano in modo identico per attori locali e remoti.
+- **Elenchi follower/seguiti**: i contatori "Follower" e "Seguiti" di ogni profilo
+  (locale o remoto) sono link verso una pagina paginata con l'elenco reale
+  (`FollowListQuery`), condivisa fra profili locali (`/@utente/follower`,
+  `/@utente/seguiti`) e Actor remoti (`/attori/{id}/follower`, `/attori/{id}/seguiti`
+  con redirect al profilo locale se l'Actor risulta essere di questa istanza). Ogni
+  riga mostra un pulsante segui/smetti di seguire coerente con lo stato reale del
+  visitatore (`FollowManager::statusMapFor()`, una sola query per l'intera pagina). Il
+  contatore "Community" resta un segnaposto non cliccabile finche' la Fase 5 non
+  introduce un vero sistema di community.
 
 Non fanno ancora parte di questo milestone: gli Actor di tipo `Group` (community, Fase
 5), un vero sistema di destinatari per i messaggi diretti, e un pannello di
 amministrazione per ispezionare code e fallimenti di consegna (per ora consultabili
 solo direttamente nelle tabelle `jobs`/`failed_jobs`).
+
+### Personalizzazione del profilo e impostazioni account
+
+Il database predisponeva gia' dal Milestone 1 le colonne per la personalizzazione
+dell'account (`profiles.avatar_path`/`cover_path`/`bio`/`links`,
+`user_settings.locale`/`default_post_visibility`/`manually_approves_followers`
+/`discoverable`), ma senza un'interfaccia restavano tutte inutilizzabili. Una pagina
+**Impostazioni** (`/impostazioni`, link nel menu utente e pulsante "Modifica profilo"
+sul proprio profilo) le rende finalmente modificabili:
+
+- **Profilo pubblico**: nome visualizzato, biografia (max 500 caratteri), fino a 4 link
+  con etichetta, avatar e immagine di copertina. Il caricamento delle immagini
+  (`ProfileImageUploader`) valida il tipo effettivo del file (mai la sola estensione),
+  rimuove i metadati EXIF e ridimensiona con GD quando disponibile (avatar max 512px,
+  copertina max 1600px sul lato piu' lungo), riusando la stessa logica di base gia'
+  impiegata per gli allegati dei post (`ManipulatesImagesWithGd`, trait condiviso con
+  `MediaUploader`). Il file precedente viene sempre rimosso quando se ne carica uno
+  nuovo, per non accumulare copie orfane su hosting con quota limitata. Modificare il
+  nome visualizzato aggiorna anche il campo `name` dell'Actor ActivityPub locale, che e'
+  il valore effettivamente esposto ai server remoti (`ActorSerializer`); avatar e
+  copertina erano gia' federati automaticamente dalla Fase 3 non appena valorizzati.
+- **Lingua dell'interfaccia**: ogni utente puo' scegliere tra le lingue elencate in
+  `config('openbook.locales')` (italiano e inglese al momento). Il middleware
+  `SetUserLocale`, applicato a tutte le richieste web, imposta la lingua dell'app in
+  base a `user_settings.locale` per gli utenti autenticati; chi non ha effettuato
+  l'accesso vede sempre la lingua di default dell'istanza (`app.locale`), senza alcuna
+  deduzione automatica dal browser.
+- **Visibilita' predefinita dei nuovi post**: il selettore di visibilita' nel composer
+  usa ora `user_settings.default_post_visibility` come valore iniziale (il pannello si
+  apre automaticamente se il default non e' "pubblica"), restando comunque modificabile
+  post per post.
+- **Account protetto**: la casella "Account protetto" aggiorna sia
+  `user_settings.manually_approves_followers` sia (la colonna effettivamente letta da
+  `FollowManager`) `actors.manually_approves_followers`, cosi' che le due restino
+  sempre coerenti fra loro.
+- **Presenza nei suggerimenti**: disattivando "Includi il mio account nei suggerimenti
+  e nelle ricerche" (`user_settings.discoverable`), l'account smette di comparire nel
+  riquadro "Persone da seguire" della sidebar (resta comunque raggiungibile in modo
+  diretto, ad esempio tramite ricerca federata dell'indirizzo esatto).
 
 ## Test
 
@@ -473,7 +522,22 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   eliminazione di post e commenti (inclusi i controller HTTP);
 - la ricerca remota (`/cerca`) e la pagina profilo di un Actor remoto in cache
   (`/attori/{id}`, incluso il redirect al profilo canonico quando l'id corrisponde a
-  un Actor locale).
+  un Actor locale);
+- gli elenchi follower/seguiti (`FollowListTest`): visibilita' pubblica per un profilo
+  locale, esclusione delle richieste ancora in attesa, stato corretto del pulsante
+  segui/smetti di seguire per riga, redirect dell'elenco di un Actor remoto quando
+  corrisponde in realta' a un account locale, obbligo di autenticazione per l'elenco
+  di un Actor remoto.
+- la pagina Impostazioni (`SettingsTest`): obbligo di autenticazione, aggiornamento di
+  nome/biografia/link con sincronizzazione del nome sull'Actor federato, caricamento e
+  sostituzione dell'avatar (con rimozione del file precedente), rifiuto di un file non
+  immagine, cambio della lingua dell'interfaccia effettivamente applicato dal
+  middleware, propagazione della visibilita' predefinita al composer, sincronizzazione
+  di "account protetto" fra `user_settings` e l'Actor, esclusione dai suggerimenti
+  quando l'account non e' piu' "discoverable"; il servizio di caricamento immagini di
+  profilo (`ProfileImageUploaderTest`): percorsi separati per avatar/copertina,
+  rimozione del file precedente, validazione di tipo e dimensione, ridimensionamento
+  delle immagini sovradimensionate.
 
 Un piccolo sottoinsieme di test (`Tests\Feature\Installer\InstallerMysqlFlowTest`)
 verifica specificamente il passo 2 dell'installer (connessione e migration) contro un
@@ -542,9 +606,13 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
   piace, condivisioni, follow locali, feed, notifiche.
 - ✅ **Fase 3 — Identita' federata**: Actor `Person`, WebFinger, NodeInfo, content
   negotiation, inbox/outbox, firme HTTP.
-- ✅ **Fase 4 — Federazione sociale** (questo repository): ricerca remota,
+- ✅ **Fase 4 — Federazione sociale**: ricerca remota,
   `Follow`/`Accept`/`Reject`, `Create`/`Update`/`Delete`, `Like`, `Announce`, `Undo`,
   coda MySQL, retry, cron.
+- ✅ **Personalizzazione del profilo e impostazioni account** (questo repository,
+  successiva alla Fase 4): avatar, copertina, biografia, link, lingua
+  dell'interfaccia, visibilita' predefinita dei post, account protetto,
+  presenza nei suggerimenti.
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco

@@ -11,6 +11,7 @@ return [
         'profile' => 'Profilo',
         'notifications' => 'Notifiche',
         'search' => 'Cerca',
+        'settings' => 'Impostazioni',
         'login' => 'Accedi',
         'register' => 'Registrati',
         'logout' => 'Esci',
@@ -133,6 +134,37 @@ return [
 
     'actors' => [
         'remote_notice' => 'Profilo remoto: i dati mostrati sono quelli ricevuti dal server di origine e potrebbero non essere aggiornati in tempo reale.',
+    ],
+
+    'settings' => [
+        'title' => 'Impostazioni',
+        'edit_profile' => 'Modifica profilo',
+        'save' => 'Salva',
+        'profile_updated' => 'Profilo aggiornato.',
+        'account_updated' => 'Preferenze aggiornate.',
+        'profile_section_title' => 'Profilo pubblico',
+        'avatar_label' => 'Immagine del profilo',
+        'cover_label' => 'Immagine di copertina',
+        'display_name_label' => 'Nome visualizzato',
+        'bio_label' => 'Biografia',
+        'links_label' => 'Link',
+        'link_label_placeholder' => 'Etichetta (es. Sito web)',
+        'links_help' => 'Fino a 4 link mostrati sul tuo profilo pubblico.',
+        'account_section_title' => 'Account e privacy',
+        'locale_label' => 'Lingua dell\'interfaccia',
+        'default_visibility_label' => 'Visibilita predefinita dei nuovi post',
+        'protected_account_label' => 'Account protetto',
+        'protected_account_help' => 'Se attivo, le nuove richieste di follow restano in attesa finche non le accetti manualmente.',
+        'discoverable_label' => 'Includi il mio account nei suggerimenti e nelle ricerche',
+        'discoverable_help' => 'Se disattivato, non comparirai tra "Persone da seguire" ne nei risultati di ricerca di questa istanza (resti comunque raggiungibile tramite il tuo indirizzo diretto).',
+    ],
+
+    'follows' => [
+        'followers_title' => 'Follower di :name',
+        'following_title' => 'Seguiti da :name',
+        'back_to_profile' => 'Torna al profilo',
+        'empty_followers' => 'Nessun follower per ora.',
+        'empty_following' => 'Non sta ancora seguendo nessuno.',
     ],
 
     'notifications' => [

@@ -10,7 +10,7 @@
 
 @section('content')
     <article class="ob-card" style="padding:0;overflow:hidden">
-        <div class="ob-profile-cover"></div>
+        <div class="ob-profile-cover" @if ($profileUser->profile?->coverUrl()) style="background-image:url('{{ $profileUser->profile->coverUrl() }}');background-size:cover;background-position:center" @endif></div>
         <div class="ob-profile-header">
             <div class="ob-profile-avatar" aria-hidden="true">
                 @if ($profileUser->profile?->avatarUrl())
@@ -40,8 +40,8 @@
             @endif
 
             <div class="ob-profile-stats">
-                <div><strong>{{ $followersCount }}</strong><span>{{ __('openbook.profile.followers') }}</span></div>
-                <div><strong>{{ $followingCount }}</strong><span>{{ __('openbook.profile.following') }}</span></div>
+                <a href="{{ route('profile.followers', $profileUser->username) }}"><strong>{{ $followersCount }}</strong><span>{{ __('openbook.profile.followers') }}</span></a>
+                <a href="{{ route('profile.following', $profileUser->username) }}"><strong>{{ $followingCount }}</strong><span>{{ __('openbook.profile.following') }}</span></a>
                 <div><strong>0</strong><span>{{ __('openbook.profile.communities') }}</span></div>
             </div>
 
@@ -71,6 +71,12 @@
                     @endauth
                 </div>
             @endunless
+
+            @if ($isOwnProfile)
+                <div style="margin-top:1rem">
+                    <a href="{{ route('settings.edit') }}" class="ob-btn ob-btn--ghost">{{ __('openbook.settings.edit_profile') }}</a>
+                </div>
+            @endif
 
             <p class="ob-field__help" style="margin-top:1rem">
                 {{ __('openbook.profile.joined_on', ['date' => $profileUser->created_at->translatedFormat('d F Y')]) }}

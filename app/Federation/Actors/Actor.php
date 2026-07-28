@@ -173,6 +173,19 @@ class Actor extends Model
     }
 
     /**
+     * Vedi {@see self::displayName()}: stessa uniformita' per l'immagine di
+     * copertina (campo "image" del documento Actor per i profili remoti).
+     */
+    public function coverUrl(): ?string
+    {
+        if ($this->isLocal()) {
+            return $this->user?->profile?->coverUrl();
+        }
+
+        return $this->image_url;
+    }
+
+    /**
      * URL della pagina profilo da usare nelle viste HTML: l'identificatore
      * canonico "/@{username}" per gli attori locali, la pagina di comodo
      * "/attori/{id}" per la cache locale di un attore remoto (vedi

@@ -47,6 +47,9 @@
                             <x-avatar :user="auth()->user()" style="width:36px;height:36px;font-size:0.95rem" />
                             <span class="ob-nav__label">{{ __('openbook.nav.profile') }}</span>
                         </a>
+                        <a href="{{ route('settings.edit') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.settings') }}">
+                            <x-icon name="settings" /><span class="ob-nav__label">{{ __('openbook.nav.settings') }}</span>
+                        </a>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" class="ob-icon-btn" aria-label="{{ __('openbook.nav.logout') }}">

@@ -11,7 +11,7 @@
     <div class="ob-alert ob-alert--info" role="note">{{ __('openbook.actors.remote_notice') }}</div>
 
     <article class="ob-card" style="padding:0;overflow:hidden">
-        <div class="ob-profile-cover"></div>
+            <div class="ob-profile-cover" @if ($profileActor->coverUrl()) style="background-image:url('{{ $profileActor->coverUrl() }}');background-size:cover;background-position:center" @endif></div>
         <div class="ob-profile-header">
             <div class="ob-profile-avatar" aria-hidden="true">
                 @if ($profileActor->avatarUrl())
@@ -32,10 +32,10 @@
                 <p>{{ \App\Federation\Inbox\RemoteContentSanitizer::toPlainText($profileActor->summary) }}</p>
             @endif
 
-            <div class="ob-profile-stats">
-                <div><strong>{{ $followersCount }}</strong><span>{{ __('openbook.profile.followers') }}</span></div>
-                <div><strong>{{ $followingCount }}</strong><span>{{ __('openbook.profile.following') }}</span></div>
-            </div>
+                    <div class="ob-profile-stats">
+                        <a href="{{ route('actors.followers', $profileActor) }}"><strong>{{ $followersCount }}</strong><span>{{ __('openbook.profile.followers') }}</span></a>
+                        <a href="{{ route('actors.following', $profileActor) }}"><strong>{{ $followingCount }}</strong><span>{{ __('openbook.profile.following') }}</span></a>
+                    </div>
 
             <div style="margin-top:1rem">
                 @auth

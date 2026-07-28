@@ -161,4 +161,38 @@ final class FollowManager
     {
         return $this->isFollowing($a, $b) && $this->isFollowing($b, $a);
     }
+
+    /**
+     * Stato del follow di {@see $viewer} verso ciascuno degli Actor forniti,
+     * in un'unica query: usato dagli elenchi (follower/seguiti) per evitare
+     * una coppia di query per riga.
+     *
+     * @param  iterable<Actor>  $targets
+     * @return array<string, array{following: bool, pending: bool}>
+     */
+    public function statusMapFor(Actor $viewer, iterable $targets): array
+    {
+        $targetIds = collect($targets)->pluck('id')->filter(fn ($id) => $id !== $viewer->id)->values();
+
+        if ($targetIds->isEmpty()) {
+            return [];
+        }
+
+        $rows = Follow::query()
+            ->where('follower_id', $viewer->id)
+            ->whereIn('following_id', $targetIds)
+            ->whereIn('status', [Follow::STATUS_ACCEPTED, Follow::STATUS_PENDING])
+            ->get(['following_id', 'status']);
+
+        $map = [];
+
+        foreach ($rows as $row) {
+            $map[$row->following_id] = [
+                'following' => $row->status === Follow::STATUS_ACCEPTED,
+                'pending' => $row->status === Follow::STATUS_PENDING,
+            ];
+        }
+
+        return $map;
+    }
 }
