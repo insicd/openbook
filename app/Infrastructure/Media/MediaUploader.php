@@ -4,6 +4,7 @@ namespace App\Infrastructure\Media;
 
 use App\Federation\Actors\Actor;
 use App\Infrastructure\Media\Concerns\ManipulatesImagesWithGd;
+use App\Infrastructure\Media\Concerns\NormalizesPublicDiskPermissions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -18,7 +19,7 @@ use InvalidArgumentException;
  */
 final class MediaUploader
 {
-    use ManipulatesImagesWithGd;
+    use ManipulatesImagesWithGd, NormalizesPublicDiskPermissions;
 
     private const ALLOWED_EXTENSIONS = [
         'image/jpeg' => 'jpg',
@@ -60,6 +61,8 @@ final class MediaUploader
         $contents = $this->stripMetadataIfPossible($file->getRealPath(), $mimeType) ?? file_get_contents($file->getRealPath());
 
         Storage::disk('public')->put($path, $contents);
+        $this->ensurePublicDirectoryIsTraversable($directory);
+        $this->ensurePublicFileIsReadable($path);
 
         $media = Media::query()->create([
             'actor_id' => $actor->id,
@@ -138,6 +141,7 @@ final class MediaUploader
         $thumbnailPath = preg_replace('/(\.[a-z0-9]+)$/i', '_thumb$1', $media->path) ?? $media->path.'_thumb';
 
         Storage::disk($media->disk)->put($thumbnailPath, $contents);
+        $this->ensurePublicFileIsReadable($thumbnailPath);
 
         MediaVariant::query()->create([
             'media_id' => $media->id,

@@ -83,6 +83,16 @@ base usa esclusivamente MySQL, cron PHP e filesystem locale.
    bootstrap/cache/
    ```
 
+   > Le nuove sottocartelle create sotto `storage/app/public/` al primo upload di ogni
+   > tipo (es. `avatars/`, `covers/`, `media/`) vengono comunque rese esplicitamente
+   > leggibili/attraversabili (`chmod` 0755/0644) subito dopo la scrittura, invece di
+   > affidarsi al solo `mkdir()`: su alcuni hosting con una `umask` del processo PHP
+   > restrittiva (es. `0077`), `mkdir($path, 0755)` puo' altrimenti produrre in pratica
+   > una cartella `0700`, illeggibile per l'utente con cui il web server serve i file
+   > statici quando e' diverso da quello con cui gira PHP (comune con suPHP/LSAPI). Se
+   > un'immagine caricata restituisse comunque un 403 "Permission denied" nel log di
+   > Apache, verifica anche i permessi della cartella `storage/app/public/` stessa.
+
 4. Apri `https://tuo-dominio.example.org/install` nel browser. L'installer guidato
    effettua, in ordine:
 
@@ -201,6 +211,40 @@ Soluzione consigliata:
 
 Questo evita di esporre pubblicamente `app/`, `config/`, `.env` e le altre cartelle
 sensibili del progetto.
+
+#### Se non puoi nemmeno uscire da `public_html` (tutto il progetto in un'unica cartella pubblica)
+
+Quando il pannello di hosting impone che *l'intero progetto* stia dentro la cartella
+pubblica del dominio (niente cartelle "sopra" `public_html/` accessibili), l'unica
+strada e' un `.htaccess` nella **radice del progetto** che instrada ogni richiesta
+verso `public/` tramite `mod_rewrite`, negando esplicitamente l'accesso diretto a
+tutto cio' che non deve mai essere raggiungibile:
+
+```apache
+# .htaccess nella root del progetto (accanto a .env, artisan, vendor/, ecc.)
+RewriteEngine On
+
+# Nega l'accesso diretto al codice e ai file sensibili del progetto, ma NON
+# tocca in alcun modo le richieste dirette a /public/. "storage" e'
+# volutamente ESCLUSO da questo elenco: il symlink public/storage espone
+# solo storage/app/public/ (avatar, copertine, allegati dei post), mai le
+# sottocartelle davvero sensibili (storage/framework, storage/logs,
+# storage/app/private), quindi bloccarlo qui romperebbe la visualizzazione
+# di ogni immagine caricata dagli utenti senza aggiungere protezione reale.
+RewriteCond %{REQUEST_URI} !^/public/
+RewriteCond %{REQUEST_URI} ^/(\.env.*|\.git|composer\.(json|lock)|artisan|app|bootstrap|config|database|resources|routes|tests|vendor)($|/)
+RewriteRule ^ - [F,L]
+
+# Instrada tutte le altre richieste (incluse quelle verso /storage/...,
+# servite tramite il symlink public/storage) verso la cartella public/
+RewriteCond %{REQUEST_URI} !^/public/
+RewriteRule ^(.*)$ public/$1 [L]
+```
+
+Questo approccio e' piu' fragile delle due opzioni precedenti (dipende da
+`mod_rewrite` e da un elenco di percorsi mantenuto a mano) e va preferito solo
+quando le altre due non sono percorribili. Se in futuro aggiungi nuove cartelle al
+progetto, ricorda di aggiungerle a questo elenco **senza mai includere `storage`**.
 
 ## Configurazione
 
@@ -544,9 +588,11 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   quando l'account non e' piu' "discoverable"; il servizio di caricamento immagini di
   profilo (`ProfileImageUploaderTest`): percorsi separati per avatar/copertina,
   rimozione del file precedente, validazione di tipo e dimensione, ridimensionamento
-  delle immagini sovradimensionate; la costruzione dell'URL di avatar/copertina
-  (`Tests\Unit\Domain\Profiles\ProfileTest`), per evitare regressioni sulla scelta del
-  disco "public" al posto dell'helper `asset()`.
+  delle immagini sovradimensionate, permessi della cartella creata al primo upload
+  corretti anche con una `umask` restrittiva del processo PHP (verificata anche per
+  gli allegati dei post in `MediaUploaderTest`); la costruzione dell'URL di
+  avatar/copertina (`Tests\Unit\Domain\Profiles\ProfileTest`), per evitare regressioni
+  sulla scelta del disco "public" al posto dell'helper `asset()`.
 
 Un piccolo sottoinsieme di test (`Tests\Feature\Installer\InstallerMysqlFlowTest`)
 verifica specificamente il passo 2 dell'installer (connessione e migration) contro un

@@ -76,6 +76,27 @@ class ProfileImageUploaderTest extends TestCase
         );
     }
 
+    public function test_it_makes_the_uploaded_directory_traversable_even_with_a_restrictive_umask(): void
+    {
+        Storage::fake('public');
+        $previousUmask = umask(0077);
+
+        try {
+            $path = app(ProfileImageUploader::class)->storeAvatar(
+                UploadedFile::fake()->image('me.jpg', 300, 300),
+                null,
+            );
+        } finally {
+            umask($previousUmask);
+        }
+
+        $directoryMode = fileperms(dirname(Storage::disk('public')->path($path))) & 0777;
+        $fileMode = fileperms(Storage::disk('public')->path($path)) & 0777;
+
+        $this->assertSame(0755, $directoryMode);
+        $this->assertSame(0644, $fileMode);
+    }
+
     public function test_it_shrinks_an_oversized_avatar(): void
     {
         Storage::fake('public');

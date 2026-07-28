@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Media;
 
 use App\Infrastructure\Media\Concerns\ManipulatesImagesWithGd;
+use App\Infrastructure\Media\Concerns\NormalizesPublicDiskPermissions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -18,7 +19,7 @@ use InvalidArgumentException;
  */
 final class ProfileImageUploader
 {
-    use ManipulatesImagesWithGd;
+    use ManipulatesImagesWithGd, NormalizesPublicDiskPermissions;
 
     private const ALLOWED_EXTENSIONS = [
         'image/jpeg' => 'jpg',
@@ -70,6 +71,8 @@ final class ProfileImageUploader
             ?? file_get_contents($file->getRealPath());
 
         Storage::disk('public')->put($path, $contents);
+        $this->ensurePublicDirectoryIsTraversable($directory);
+        $this->ensurePublicFileIsReadable($path);
 
         if (filled($previousPath)) {
             Storage::disk('public')->delete($previousPath);

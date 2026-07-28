@@ -75,4 +75,23 @@ class MediaUploaderTest extends TestCase
 
         $this->assertNull($media->thumbnail);
     }
+
+    public function test_it_makes_the_uploaded_directory_traversable_even_with_a_restrictive_umask(): void
+    {
+        Storage::fake('public');
+        $author = $this->createFullAccount('uploader6');
+        $previousUmask = umask(0077);
+
+        try {
+            $media = app(MediaUploader::class)->store(UploadedFile::fake()->image('originale.jpg', 800, 600), $author->actor);
+        } finally {
+            umask($previousUmask);
+        }
+
+        $directoryMode = fileperms(dirname(Storage::disk('public')->path($media->path))) & 0777;
+        $fileMode = fileperms(Storage::disk('public')->path($media->path)) & 0777;
+
+        $this->assertSame(0755, $directoryMode);
+        $this->assertSame(0644, $fileMode);
+    }
 }
