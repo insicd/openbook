@@ -614,8 +614,21 @@ sul proprio profilo) le rende finalmente modificabili:
   eventi su tutta la pagina, cosi' funziona identico su feed, profilo, pagina del
   singolo post e sezione "Mondo". Colto anche l'occasione per usare finalmente in
   feed la miniatura gia' generata al caricamento (`MediaUploader`, mai sfruttata
-  finora): il post mostra un file piu' leggero, il lightbox recupera invece
-  l'originale tramite l'attributo `data-full-src`.
+  finora): l'anteprima nel post mostra la miniatura per intero (mai ritagliata:
+  `object-fit: contain` con sfondo neutro a riempire eventuali bande laterali/
+  superiori quando le proporzioni non coincidono con il riquadro), il lightbox
+  recupera invece l'originale a piena risoluzione tramite l'attributo
+  `data-full-src` e lo mostra il piu' grande possibile senza mai ingrandirlo oltre
+  la sua dimensione naturale.
+- **Versionamento degli asset statici (`App\Support\Assets`)**: `app.css` e
+  `lightbox.js` sono serviti da `public/` senza alcuna pipeline di build (niente
+  Vite/webpack, per restare compatibili con l'hosting condiviso): senza una query
+  string che cambi ad ogni modifica, il browser puo' continuare a servire dalla
+  cache una copia vecchia del file anche dopo un aggiornamento del software (causa
+  tipica di "l'ho aggiornato ma non cambia nulla", o peggio di markup nuovo abbinato
+  a CSS/JS vecchi che si comporta in modo incoerente). Le viste ora referenziano
+  questi due file tramite `App\Support\Assets::url()`, che aggiunge automaticamente
+  `?v=<ultima modifica del file>` alla URL.
 
 ### Sezione "Mondo"
 

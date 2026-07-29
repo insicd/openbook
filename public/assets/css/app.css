@@ -972,11 +972,16 @@ p {
 }
 
 .ob-post__media img {
+  display: block;
   border-radius: var(--ob-radius);
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  max-height: 360px;
+  height: 320px;
+  /* "contain" invece di "cover": l'anteprima deve mostrare l'immagine
+     per intero (mai ritagliata), riempiendo lo spazio residuo con lo
+     sfondo qui sotto quando le proporzioni non coincidono con il
+     riquadro. */
+  object-fit: contain;
+  background: var(--ob-color-bg);
   cursor: zoom-in;
 }
 
