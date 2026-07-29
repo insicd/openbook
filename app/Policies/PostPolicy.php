@@ -14,6 +14,14 @@ class PostPolicy
 
     public function delete(User $user, Post $post): bool
     {
+        // I post remoti sono una cache locale di Note altrui: non si
+        // "eliminano" da Openbook (andrebbero eventualmente solo
+        // invalidati dalla federazione). Solo l'autore di un post locale,
+        // o un amministratore, puo' cancellarlo.
+        if ($post->isRemote()) {
+            return false;
+        }
+
         return $post->actor->user_id === $user->id || $user->is_admin;
     }
 }

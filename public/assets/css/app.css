@@ -870,9 +870,68 @@ p {
 
 .ob-post__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+.ob-post__meta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ob-post__menu {
+  position: relative;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.ob-post__menu > summary {
+  list-style: none;
+}
+
+.ob-post__menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ob-post__menu-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 5;
+  min-width: 10rem;
+  padding: 0.35rem;
+  background: var(--ob-color-surface);
+  border: 1px solid var(--ob-color-border);
+  border-radius: var(--ob-radius);
+  box-shadow: 0 8px 24px rgba(28, 30, 33, 0.12);
+}
+
+.ob-post__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: none;
+  border-radius: calc(var(--ob-radius) - 2px);
+  background: transparent;
+  color: var(--ob-color-text);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ob-post__menu-item:hover,
+.ob-post__menu-item:focus-visible {
+  background: var(--ob-color-bg);
+  color: #b42318;
+}
+
+.ob-post__menu form {
+  display: block;
+  margin: 0;
 }
 
 .ob-post__shared-by {
@@ -913,10 +972,6 @@ p {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.ob-post__meta {
-  min-width: 0;
 }
 
 .ob-post__author {
@@ -997,25 +1052,58 @@ p {
 
 .ob-post__actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
   margin-top: 1rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--ob-color-border);
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .ob-post__actions form {
   display: inline-flex;
+  margin: 0;
 }
 
-.ob-post__actions .ob-btn {
-  flex: 1 1 auto;
+.ob-post__action {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  gap: 0.35rem;
+  min-width: 2.5rem;
+  height: 2.25rem;
+  padding: 0 0.55rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ob-color-text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
 }
 
-.ob-post__actions .ob-btn--active {
+.ob-post__action:hover,
+.ob-post__action:focus-visible {
+  background: var(--ob-color-bg);
+  color: var(--ob-color-primary);
+  text-decoration: none;
+}
+
+.ob-post__action--active {
   background: var(--ob-color-primary-soft);
   color: var(--ob-color-primary);
+}
+
+.ob-post__action .ob-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.ob-post__action-count {
+  font-variant-numeric: tabular-nums;
+  min-width: 0.75rem;
 }
 
 /* Comments */

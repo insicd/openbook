@@ -106,6 +106,8 @@ return [
         'deleted' => 'This post has been deleted.',
         'content_warning_label' => 'Content warning',
         'confirm_delete' => 'Are you sure you want to delete this post?',
+        'menu' => 'More post actions',
+        'open_original' => 'Open original post',
     ],
 
     'actions' => [

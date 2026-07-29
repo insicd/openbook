@@ -645,6 +645,16 @@ sul proprio profilo) le rende finalmente modificabili:
   nello stesso secondo potevano finire duplicati o saltati passando da una pagina
   all'altra, difetto gia' presente con la paginazione classica ma molto piu'
   evidente con lo scorrimento continuo.
+- **Card del post**: like / commento / condivisione sono solo icone (con il
+  contatore numerico accanto; i testi restano come `aria-label` per
+  l'accessibilita'). L'eliminazione non e' piu' in linea con le altre azioni:
+  compare solo per i *propri post locali* (mai per Note remote in cache, ne'
+  per un admin: `PostPolicy::delete` rifiuta i post con `uri` valorizzato) e
+  vive in un menu a tre puntini verticali in alto a destra della card
+  (`<details class="ob-post__menu">`, con `post-menu.js` per chiudere al click
+  fuori). Sui post remoti, il click sull'orario apre l'`uri` ActivityPub
+  originale in una nuova scheda (`target="_blank" rel="noopener noreferrer"`);
+  sui post locali continua a portare alla pagina Openbook del post.
 
 ### Sezione "Mondo"
 

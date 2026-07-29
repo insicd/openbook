@@ -118,6 +118,7 @@
     </div>
     <script src="{{ \App\Support\Assets::url('assets/js/lightbox.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/infinite-scroll.js') }}" defer></script>
+    <script src="{{ \App\Support\Assets::url('assets/js/post-menu.js') }}" defer></script>
 
     @auth
         <div class="ob-sidebar-overlay" id="ob-sidebar-overlay" hidden></div>

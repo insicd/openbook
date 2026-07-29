@@ -106,6 +106,8 @@ return [
         'deleted' => 'Questo post e stato eliminato.',
         'content_warning_label' => 'Avviso sul contenuto',
         'confirm_delete' => 'Vuoi davvero eliminare questo post?',
+        'menu' => 'Altre azioni sul post',
+        'open_original' => 'Apri il post originale',
     ],
 
     'actions' => [
