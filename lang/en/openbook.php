@@ -56,7 +56,7 @@ return [
         'joined_on' => 'Joined on :date',
         'protected' => 'Protected account',
         'pinned_posts' => 'Pinned posts',
-        'no_posts_yet' => 'There are no posts to show yet. This feature will land in the next development phase.',
+        'no_posts_yet' => 'There are no posts to show yet.',
     ],
 
     'feed' => [

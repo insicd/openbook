@@ -56,7 +56,7 @@ return [
         'joined_on' => 'Iscritto dal :date',
         'protected' => 'Account protetto',
         'pinned_posts' => 'Post fissati',
-        'no_posts_yet' => 'Non ci sono ancora post da mostrare. Questa funzione arrivera nella prossima fase di sviluppo.',
+        'no_posts_yet' => 'Non ci sono ancora post da mostrare.',
     ],
 
     'feed' => [
