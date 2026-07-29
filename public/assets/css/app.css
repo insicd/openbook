@@ -446,6 +446,30 @@ p {
   padding-top: 0;
 }
 
+.ob-hashtag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ob-hashtag-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--ob-color-border);
+}
+
+.ob-hashtag-list li:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.ob-hashtag-list a {
+  font-weight: 600;
+}
+
 /* Menu mobile */
 
 .ob-sidebar-overlay {

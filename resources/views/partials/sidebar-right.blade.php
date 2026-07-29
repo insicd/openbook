@@ -4,7 +4,19 @@
         <strong>{{ config('app.name') }}</strong>
         <span class="ob-post__handle">{{ config('openbook.domain') }}</span>
     </p>
-    <p class="ob-field__help">{{ trans_choice('openbook.sidebar.members_count', $membersCount ?? 0, ['count' => $membersCount ?? 0]) }}</p>
+
+    @if (($popularHashtags ?? collect())->isNotEmpty())
+        <ul class="ob-hashtag-list">
+            @foreach ($popularHashtags as $hashtag)
+                <li>
+                    <a href="{{ route('hashtags.show', $hashtag->name) }}">#{{ $hashtag->name }}</a>
+                    <span class="ob-field__help">{{ trans_choice('openbook.sidebar.hashtag_uses', $hashtag->usage_count, ['count' => $hashtag->usage_count]) }}</span>
+                </li>
+            @endforeach
+        </ul>
+    @else
+        <p class="ob-field__help">{{ __('openbook.sidebar.no_popular_hashtags') }}</p>
+    @endif
 </div>
 
 @if (($suggestedActors ?? collect())->isNotEmpty())

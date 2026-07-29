@@ -193,7 +193,8 @@ return [
 
     'sidebar' => [
         'instance_title' => 'This instance',
-        'members_count' => '{0} No members yet|{1} :count member|[2,*] :count members',
+        'hashtag_uses' => '{1} :count post|[2,*] :count posts',
+        'no_popular_hashtags' => 'No hashtags used on this instance yet.',
         'people_to_follow' => 'People to follow',
     ],
 

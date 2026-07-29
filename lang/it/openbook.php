@@ -193,7 +193,8 @@ return [
 
     'sidebar' => [
         'instance_title' => 'Questa istanza',
-        'members_count' => '{0} Nessun membro iscritto|{1} :count membro iscritto|[2,*] :count membri iscritti',
+        'hashtag_uses' => '{1} :count post|[2,*] :count post',
+        'no_popular_hashtags' => 'Ancora nessun tag usato su questa istanza.',
         'people_to_follow' => 'Persone da seguire',
     ],
 

@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Domain\Accounts\User;
+use App\Application\Queries\PopularHashtagsQuery;
 use App\Domain\Comments\Comment;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
@@ -105,7 +105,7 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with([
                 'suggestedActors' => $suggestions,
-                'membersCount' => User::query()->count(),
+                'popularHashtags' => app(PopularHashtagsQuery::class)->top(),
             ]);
         });
     }

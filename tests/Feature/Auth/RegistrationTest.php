@@ -14,7 +14,11 @@ class RegistrationTest extends TestCase
 
     public function test_registration_screen_can_be_rendered(): void
     {
-        $response = $this->get(route('register'));
+        // Header esplicito: questo test verifica il contenuto della pagina,
+        // non la deduzione della lingua dal browser (vedi GuestLocaleTest),
+        // quindi non deve dipendere dall'Accept-Language di default che il
+        // client di test invia quando non specificato altrimenti.
+        $response = $this->withHeaders(['Accept-Language' => 'it'])->get(route('register'));
 
         $response->assertOk();
         $response->assertSee('Crea il tuo account');

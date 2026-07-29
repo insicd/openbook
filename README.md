@@ -581,9 +581,13 @@ sul proprio profilo) le rende finalmente modificabili:
 - **Lingua dell'interfaccia**: ogni utente puo' scegliere tra le lingue elencate in
   `config('openbook.locales')` (italiano e inglese al momento). Il middleware
   `SetUserLocale`, applicato a tutte le richieste web, imposta la lingua dell'app in
-  base a `user_settings.locale` per gli utenti autenticati; chi non ha effettuato
-  l'accesso vede sempre la lingua di default dell'istanza (`app.locale`), senza alcuna
-  deduzione automatica dal browser.
+  base a `user_settings.locale` per gli utenti autenticati; chi non ha ancora
+  effettuato   l'accesso vede invece la lingua dedotta dall'header `Accept-Language`
+  del browser (italiano se preferito, inglese in ogni altro caso), cosi' anche
+  la homepage pubblica si presenta gia' nella lingua giusta prima della
+  registrazione. Una richiesta priva di quell'intestazione (mai un browser
+  reale, tipico di crawler/monitoraggi) non viene forzata e resta sulla lingua
+  di default dell'istanza (`app.locale`).
 - **Visibilita' predefinita dei nuovi post**: il selettore di visibilita' nel composer
   usa ora `user_settings.default_post_visibility` come valore iniziale (il pannello si
   apre automaticamente se il default non e' "pubblica"), restando comunque modificabile
@@ -596,6 +600,12 @@ sul proprio profilo) le rende finalmente modificabili:
   e nelle ricerche" (`user_settings.discoverable`), l'account smette di comparire nel
   riquadro "Persone da seguire" della sidebar (resta comunque raggiungibile in modo
   diretto, ad esempio tramite ricerca federata dell'indirizzo esatto).
+- **Riquadro "Questa istanza"**: non mostra piu' il numero di iscritti (un dato che
+  espone inutilmente le dimensioni reali dell'istanza), ma i tag piu' usati di
+  recente dalla community locale (`App\Application\Queries\PopularHashtagsQuery`):
+  solo hashtag su post pubblicati da Actor *locali*, con visibilita' pubblica o non
+  elencata, mai da contenuto remoto semplicemente in cache o da post riservati a
+  follower/destinatari diretti.
 
 ### Sezione "Mondo"
 
