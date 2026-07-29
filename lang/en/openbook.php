@@ -144,10 +144,21 @@ return [
     ],
 
     'search' => [
-        'title' => 'Search the Fediverse',
-        'placeholder' => 'user@domain or profile URL',
-        'help' => 'Enter the federated address of a person (e.g. person@otherinstance.social) to find them, view their profile and follow them, even if they are not on this instance.',
+        'title' => 'Search',
+        'placeholder' => 'Keyword, or user@domain',
+        'help' => 'Search this instance (people, posts, comments, hashtags), or enter a federated address (e.g. person@otherinstance.social) to find someone on the Fediverse.',
         'submit' => 'Search',
+        'people' => 'People',
+        'posts' => 'Posts',
+        'comments' => 'Comments',
+        'hashtags' => 'Hashtags',
+        'empty' => 'No local results for ":query".',
+        'view_in_post' => 'View in post',
+        'errors' => [
+            'too_short' => 'Enter at least :min characters.',
+            'local_not_found' => 'No local account found with this address.',
+            'remote_not_found' => 'No account found at this address, or the remote server is not responding.',
+        ],
     ],
 
     'actors' => [

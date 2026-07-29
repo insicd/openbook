@@ -509,21 +509,30 @@ finalmente bidirezionale.
   restare in ascolto indefinitamente; `openbook:cron` li invoca entrambi in sequenza
   dividendo un budget di tempo massimo configurabile, ed e' il comando pensato per
   essere schedulato (vedi [Cron e attivita periodiche](#cron-e-attivita-periodiche)).
-- **Ricerca remota e profili federati**: la pagina "Cerca" (`/cerca`) accetta un
-  indirizzo `utente@dominio` (con o senza `@` iniziale, o l'URL di un profilo), lo
-  risolve localmente se il dominio corrisponde a questa istanza, altrimenti tramite
-  WebFinger + recupero del documento Actor (`RemoteActorResolver::resolveByHandle()`).
-  Un Actor remoto risolto ha una pagina profilo di comodo (`/attori/{id}`, mai un
-  identificatore ActivityPub canonico) con statistiche, eventuale biografia e un
-  pulsante di follow che avvia il flusso `Follow`/`Accept` reale. In tutta
-  l'interfaccia (card dei post, commenti, notifiche) gli autori sono ora mostrati
-  tramite `Actor::displayName()`/`Actor::avatarUrl()`/`Actor::profileUrl()`, che
-  funzionano in modo identico per attori locali e remoti. La pagina profilo recupera
-  anche (`RemoteOutboxFetcher`, cache con TTL separato in `actors.posts_fetched_at`)
-  la prima pagina dell'outbox reale dell'Actor, cosi' da mostrarne i post pubblici
-  piu' recenti anche se nessun Actor locale lo segue ancora: senza questo passaggio
-  un profilo appena scoperto risulterebbe sempre senza post, dato che l'inbox mette in
-  cache solo contenuto gia' ritenuto rilevante (vedi limitazioni note piu' sotto).
+- **Ricerca**: la pagina "Cerca" (`/cerca?q=...`, form in GET) ha due percorsi.
+  Se la query e' un indirizzo federato (`utente@dominio`, con o senza `@`
+  iniziale, `acct:...`, o l'URL di un profilo), lo risolve localmente se il
+  dominio corrisponde a questa istanza, altrimenti tramite WebFinger + recupero
+  del documento Actor (`RemoteActorResolver::resolveByHandle()`), poi
+  reindirizza al profilo. Se invece la query ha una forma diversa (parola
+  chiave, frase, username senza dominio), esegue una ricerca *solo locale*
+  (`LocalSearchQuery`) su persone (username, nome visualizzato, bio; rispetta
+  `discoverable`), post e commenti di Actor locali (visibilita' rispettata), e
+  hashtag. Nessun Elasticsearch: LIKE case-insensitive con jolly escapati,
+  limiti configurabili (`OPENBOOK_SEARCH_MIN_LENGTH`,
+  `OPENBOOK_SEARCH_PER_SECTION`). Un Actor remoto risolto ha una pagina profilo
+  di comodo (`/attori/{id}`, mai un identificatore ActivityPub canonico) con
+  statistiche, eventuale biografia e un pulsante di follow che avvia il flusso
+  `Follow`/`Accept` reale. In tutta l'interfaccia (card dei post, commenti,
+  notifiche) gli autori sono ora mostrati tramite
+  `Actor::displayName()`/`Actor::avatarUrl()`/`Actor::profileUrl()`, che
+  funzionano in modo identico per attori locali e remoti. La pagina profilo
+  recupera anche (`RemoteOutboxFetcher`, cache con TTL separato in
+  `actors.posts_fetched_at`) la prima pagina dell'outbox reale dell'Actor,
+  cosi' da mostrarne i post pubblici piu' recenti anche se nessun Actor locale
+  lo segue ancora: senza questo passaggio un profilo appena scoperto
+  risulterebbe sempre senza post, dato che l'inbox mette in cache solo
+  contenuto gia' ritenuto rilevante (vedi limitazioni note piu' sotto).
 - **Elenchi follower/seguiti**: i contatori "Follower" e "Seguiti" di ogni profilo
   (locale o remoto) sono link verso una pagina paginata con l'elenco reale
   (`FollowListQuery`), condivisa fra profili locali (`/@utente/follower`,
@@ -886,8 +895,10 @@ verdi.
   pagina del suo outbox reale, cosi' da mostrare i suoi post pubblici piu' recenti
   anche se nessun Actor locale lo segue ancora. Resta comunque vero che Openbook non
   replica mai un intero timeline remoto (solo la prima pagina, solo post originali,
-  mai le risposte) ne' offre ricerca full-text sui contenuti, locali o remoti che
-  siano.
+  mai le risposte). La ricerca per parole chiave (`LocalSearchQuery`) copre solo i
+  contenuti *locali* di questa istanza: non c'e' un indice full-text dedicato ne'
+  una ricerca sui contenuti remoti in cache (per quelli resta la risoluzione
+  diretta `utente@dominio`).
 - Le immagini/allegati di un post remoto non vengono ancora recuperati ne' mostrati:
   solo il testo della Note viene messo in cache. Gli allegati locali restano serviti
   direttamente dal disco pubblico (`storage/app/public`, collegato a

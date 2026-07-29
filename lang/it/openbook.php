@@ -144,10 +144,21 @@ return [
     ],
 
     'search' => [
-        'title' => 'Cerca sul Fediverso',
-        'placeholder' => 'utente@dominio o URL del profilo',
-        'help' => 'Inserisci l\'indirizzo federato di una persona (es. persona@altraistanza.social) per trovarla, vedere il suo profilo e seguirla, anche se non fa parte di questa istanza.',
+        'title' => 'Cerca',
+        'placeholder' => 'Parola chiave, oppure utente@dominio',
+        'help' => 'Cerca tra i contenuti di questa istanza (persone, post, commenti, hashtag), oppure inserisci un indirizzo federato (es. persona@altraistanza.social) per trovare qualcuno sul Fediverso.',
         'submit' => 'Cerca',
+        'people' => 'Persone',
+        'posts' => 'Post',
+        'comments' => 'Commenti',
+        'hashtags' => 'Hashtag',
+        'empty' => 'Nessun risultato locale per ":query".',
+        'view_in_post' => 'Vedi nel post',
+        'errors' => [
+            'too_short' => 'Inserisci almeno :min caratteri.',
+            'local_not_found' => 'Nessun account locale trovato con questo indirizzo.',
+            'remote_not_found' => 'Nessun account trovato a questo indirizzo, o il server remoto non risponde.',
+        ],
     ],
 
     'actors' => [

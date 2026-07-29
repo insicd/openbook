@@ -1108,10 +1108,14 @@ p {
 
 /* Comments */
 
-.ob-comment {
+.ob-search-comment {
+  padding: 0.9rem 0;
   border-top: 1px solid var(--ob-color-border);
-  padding-top: 0.9rem;
-  margin-top: 0.9rem;
+}
+
+.ob-search-comment:first-of-type {
+  border-top: none;
+  padding-top: 0;
 }
 
 .ob-comment__body {

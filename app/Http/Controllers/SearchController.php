@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Queries\LocalSearchQuery;
 use App\Domain\Accounts\User;
 use App\Federation\Actors\RemoteActorResolver;
 use Illuminate\Contracts\View\View;
@@ -10,45 +11,73 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Ricerca federata (sezione "ricerca remota" della Fase 4): accetta un
- * indirizzo "utente@dominio" (con o senza "@" iniziale, o un URL di profilo)
- * e, se non corrisponde a un account locale, lo risolve tramite WebFinger
- * sul dominio remoto. Volutamente minimale: nessun indice di ricerca
- * full-text, nessuna ricerca per parole chiave nei contenuti, solo
- * risoluzione diretta di un indirizzo federato.
+ * Motore di ricerca interno, con due percorsi distinti:
+ *
+ * 1. Indirizzo federato (`utente@dominio`, `acct:...`, URL di profilo):
+ *    risoluzione diretta locale o via WebFinger + {@see RemoteActorResolver},
+ *    poi redirect al profilo (comportamento originale della Fase 4).
+ * 2. Qualunque altra stringa: ricerca *locale* per parole chiave su persone,
+ *    post, commenti e hashtag di questa istanza ({@see LocalSearchQuery}),
+ *    senza mai interrogare server remoti.
+ *
+ * Il form usa GET (`/cerca?q=...`) cosi' i risultati sono bookmarkabili e un
+ * refresh non ripete un POST.
  */
 class SearchController extends Controller
 {
     public function __construct(
         private readonly RemoteActorResolver $resolver,
+        private readonly LocalSearchQuery $localSearch,
     ) {}
 
-    public function create(): View
+    public function create(Request $request): View|RedirectResponse
     {
-        return view('search.index');
-    }
-
-    public function search(Request $request): RedirectResponse
-    {
-        $query = trim((string) $request->input('q', ''));
+        $query = trim((string) $request->query('q', ''));
 
         if ($query === '') {
-            throw ValidationException::withMessages(['q' => 'Inserisci un indirizzo nella forma utente@dominio.']);
+            return view('search.index', [
+                'query' => '',
+                'results' => null,
+            ]);
+        }
+
+        if (mb_strlen($query) < (int) config('openbook.search.min_length', 2)) {
+            throw ValidationException::withMessages([
+                'q' => __('openbook.search.errors.too_short', [
+                    'min' => (int) config('openbook.search.min_length', 2),
+                ]),
+            ]);
         }
 
         $handle = $this->extractHandle($query);
 
-        if ($handle === null) {
-            throw ValidationException::withMessages(['q' => 'Formato non riconosciuto: usa "utente@dominio" oppure l\'URL del profilo.']);
+        if ($handle !== null) {
+            return $this->resolveHandle($handle);
         }
 
+        $viewer = $request->user()?->actor;
+        $results = $this->localSearch->search($query, $viewer);
+
+        return view('search.index', [
+            'query' => $query,
+            'results' => $results,
+        ]);
+    }
+
+    /**
+     * @param  array{0: string, 1: string}  $handle
+     */
+    private function resolveHandle(array $handle): RedirectResponse
+    {
         [$username, $domain] = $handle;
 
         if (strcasecmp($domain, (string) config('openbook.domain')) === 0) {
             $user = User::query()->where('username', mb_strtolower($username))->first();
 
             if ($user === null) {
-                throw ValidationException::withMessages(['q' => 'Nessun account locale trovato con questo indirizzo.']);
+                throw ValidationException::withMessages([
+                    'q' => __('openbook.search.errors.local_not_found'),
+                ]);
             }
 
             return redirect()->route('profile.show', $user->username);
@@ -57,7 +86,9 @@ class SearchController extends Controller
         $actor = $this->resolver->resolveByHandle($username.'@'.$domain);
 
         if ($actor === null) {
-            throw ValidationException::withMessages(['q' => 'Nessun account trovato a questo indirizzo, o il server remoto non risponde.']);
+            throw ValidationException::withMessages([
+                'q' => __('openbook.search.errors.remote_not_found'),
+            ]);
         }
 
         return redirect()->route('actors.show', $actor);
@@ -85,6 +116,13 @@ class SearchController extends Controller
             }
 
             return [$lastSegment, $host];
+        }
+
+        // Un handle federato e' "utente@dominio" senza spazi: qualunque
+        // altra forma (parole libere, frasi, un solo username senza dominio)
+        // cade nella ricerca locale per parole chiave.
+        if (preg_match('/\s/', $query) === 1) {
+            return null;
         }
 
         $parts = explode('@', $query, 2);

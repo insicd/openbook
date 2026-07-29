@@ -6,13 +6,14 @@ use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\Concerns\CreatesAccounts;
+use Tests\Feature\LocalSearchTest;
 use Tests\TestCase;
 
 /**
- * Ricerca federata (Fase 4): un indirizzo "utente@dominio" locale
- * reindirizza direttamente al profilo, uno remoto passa da una risoluzione
- * WebFinger + recupero del documento Actor (entrambi simulati con
- * Http::fake, nessuna richiesta di rete reale).
+ * Ricerca federata: un indirizzo "utente@dominio" locale reindirizza
+ * direttamente al profilo, uno remoto passa da WebFinger + recupero del
+ * documento Actor. Le ricerche a testo libero (non-handle) sono coperte da
+ * {@see LocalSearchTest}.
  */
 class SearchTest extends TestCase
 {
@@ -31,9 +32,9 @@ class SearchTest extends TestCase
         $target = $this->createFullAccount('trovato');
         $domain = config('openbook.domain');
 
-        $response = $this->actingAs($viewer)->post(route('search.perform'), [
+        $response = $this->actingAs($viewer)->get(route('search.create', [
             'q' => "trovato@{$domain}",
-        ]);
+        ]));
 
         $response->assertRedirect(route('profile.show', $target->username));
     }
@@ -43,9 +44,9 @@ class SearchTest extends TestCase
         $viewer = $this->createFullAccount('cercatore2');
         $domain = config('openbook.domain');
 
-        $response = $this->actingAs($viewer)->post(route('search.perform'), [
+        $response = $this->actingAs($viewer)->from(route('search.create'))->get(route('search.create', [
             'q' => "fantasma@{$domain}",
-        ]);
+        ]));
 
         $response->assertSessionHasErrors('q');
     }
@@ -75,9 +76,9 @@ class SearchTest extends TestCase
             ], 200, ['Content-Type' => 'application/activity+json']),
         ]);
 
-        $response = $this->actingAs($viewer)->post(route('search.perform'), [
+        $response = $this->actingAs($viewer)->get(route('search.create', [
             'q' => 'nora@social.example',
-        ]);
+        ]));
 
         $actor = Actor::query()->where('uri', self::REMOTE_ACTOR_URI)->firstOrFail();
         $this->assertFalse($actor->is_local);
@@ -90,20 +91,9 @@ class SearchTest extends TestCase
 
         Http::fake(['*' => Http::response('', 404)]);
 
-        $response = $this->actingAs($viewer)->post(route('search.perform'), [
+        $response = $this->actingAs($viewer)->from(route('search.create'))->get(route('search.create', [
             'q' => 'chiunque@irraggiungibile.example',
-        ]);
-
-        $response->assertSessionHasErrors('q');
-    }
-
-    public function test_a_malformed_query_fails_validation(): void
-    {
-        $viewer = $this->createFullAccount('cercatore5');
-
-        $response = $this->actingAs($viewer)->post(route('search.perform'), [
-            'q' => 'non e un indirizzo valido',
-        ]);
+        ]));
 
         $response->assertSessionHasErrors('q');
     }

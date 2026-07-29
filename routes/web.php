@@ -69,10 +69,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/attori/{actor}/segui', [FollowController::class, 'storeForActor'])->name('actors.follow');
     Route::delete('/attori/{actor}/segui', [FollowController::class, 'destroyForActor'])->name('actors.unfollow');
 
-    Route::get('/cerca', [SearchController::class, 'create'])->name('search.create');
-    Route::post('/cerca', [SearchController::class, 'search'])
-        ->middleware('throttle:20,1')
-        ->name('search.perform');
+    Route::get('/cerca', [SearchController::class, 'create'])
+        ->middleware('throttle:30,1')
+        ->name('search.create');
 
     Route::get('/notifiche', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifiche/segna-lette', [NotificationController::class, 'markAllRead'])->name('notifications.read');

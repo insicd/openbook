@@ -6,7 +6,7 @@
 // sia nel documento NodeInfo sia nello User-Agent delle richieste in uscita:
 // due software del Fediverso che si scambiano segnali di versione diversi
 // per la stessa istanza sono un sintomo classico di misconfigurazione.
-$version = '0.4.14';
+$version = '0.4.15';
 
 return [
 
@@ -133,6 +133,20 @@ return [
     */
     'feed' => [
         'per_page' => (int) env('OPENBOOK_FEED_PER_PAGE', 20),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ricerca locale
+    |--------------------------------------------------------------------------
+    |
+    | Limiti della ricerca per parole chiave su contenuti di questa istanza
+    | (persone, post, commenti, hashtag). La risoluzione federata
+    | utente@dominio non usa questi valori.
+    */
+    'search' => [
+        'min_length' => (int) env('OPENBOOK_SEARCH_MIN_LENGTH', 2),
+        'per_section' => (int) env('OPENBOOK_SEARCH_PER_SECTION', 10),
     ],
 
     /*
