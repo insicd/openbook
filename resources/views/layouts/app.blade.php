@@ -35,15 +35,8 @@
                         <a href="{{ route('feed.index') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.home') }}">
                             <x-icon name="home" /><span class="ob-nav__label">{{ __('openbook.nav.home') }}</span>
                         </a>
-                        <a href="{{ route('search.create') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.search') }}">
-                            <x-icon name="search" /><span class="ob-nav__label">{{ __('openbook.nav.search') }}</span>
-                        </a>
-                        <a href="{{ route('notifications.index') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.notifications') }}">
-                            <x-icon name="bell" /><span class="ob-nav__label">{{ __('openbook.nav.notifications') }}</span>
-                            @if (($unreadNotificationsCount ?? 0) > 0)
-                                <span class="ob-badge-dot">{{ $unreadNotificationsCount > 9 ? '9+' : $unreadNotificationsCount }}</span>
-                            @endif
-                        </a>
+                        @include('partials.header-search')
+                        @include('partials.header-notifications')
                         <a href="{{ route('profile.show', auth()->user()->username) }}" class="ob-header__avatar-link" aria-label="{{ __('openbook.nav.profile') }}">
                             <x-avatar :user="auth()->user()" style="width:36px;height:36px;font-size:0.95rem" />
                             <span class="ob-nav__label">{{ __('openbook.nav.profile') }}</span>
@@ -120,6 +113,7 @@
     <script src="{{ \App\Support\Assets::url('assets/js/lightbox.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/infinite-scroll.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/post-menu.js') }}" defer></script>
+    <script src="{{ \App\Support\Assets::url('assets/js/header-panels.js') }}" defer></script>
 
     @auth
         <div class="ob-sidebar-overlay" id="ob-sidebar-overlay" hidden></div>

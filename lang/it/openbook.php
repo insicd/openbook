@@ -201,6 +201,7 @@ return [
         'title' => 'Notifiche',
         'empty' => 'Non hai ancora notifiche.',
         'view' => 'Vedi',
+        'view_all' => 'Vedi tutte le notifiche',
         'someone' => 'Qualcuno',
         'messages' => [
             'new_follower' => ':name ha iniziato a seguirti.',

@@ -201,6 +201,7 @@ return [
         'title' => 'Notifications',
         'empty' => 'You have no notifications yet.',
         'view' => 'View',
+        'view_all' => 'View all notifications',
         'someone' => 'Someone',
         'messages' => [
             'new_follower' => ':name started following you.',

@@ -44,4 +44,58 @@ class NotificationTest extends TestCase
         $notification = Notification::query()->where('recipient_id', $target->id)->firstOrFail();
         $this->assertNotNull($notification->read_at);
     }
+
+    public function test_the_header_exposes_notification_and_search_panels_instead_of_direct_links(): void
+    {
+        $user = $this->createFullAccount('headerpanels');
+
+        $response = $this->actingAs($user)->get(route('feed.index'));
+
+        $response->assertOk();
+        $response->assertSee('data-header-panel="notifications"', false);
+        $response->assertSee('data-header-panel="search"', false);
+        $response->assertSee('id="ob-header-search-form"', false);
+        $response->assertSee('id="ob-notifications-panel"', false);
+        $response->assertSee('assets/js/header-panels.js', false);
+        // La campanella della navbar non e' piu' un link diretto alla pagina.
+        $response->assertDontSee(
+            'href="'.route('notifications.index').'" class="ob-icon-btn"',
+            false
+        );
+        $response->assertDontSee(
+            'href="'.route('search.create').'" class="ob-icon-btn"',
+            false
+        );
+    }
+
+    public function test_marking_notifications_read_via_ajax_returns_json(): void
+    {
+        $follower = $this->createFullAccount('notiffollower3');
+        $target = $this->createFullAccount('notiftarget3');
+
+        app(FollowManager::class)->follow($follower->actor, $target->actor);
+
+        $response = $this->actingAs($target)
+            ->postJson(route('notifications.read'));
+
+        $response->assertOk();
+        $response->assertJson(['ok' => true]);
+
+        $notification = Notification::query()->where('recipient_id', $target->id)->firstOrFail();
+        $this->assertNotNull($notification->read_at);
+    }
+
+    public function test_the_header_dropdown_lists_a_recent_notification(): void
+    {
+        $follower = $this->createFullAccount('notiffollower4');
+        $target = $this->createFullAccount('notiftarget4');
+
+        app(FollowManager::class)->follow($follower->actor, $target->actor);
+
+        $response = $this->actingAs($target)->get(route('feed.index'));
+
+        $response->assertOk();
+        $response->assertSee('notiffollower4', false);
+        $response->assertSee(__('openbook.notifications.view_all'), false);
+    }
 }

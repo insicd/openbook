@@ -73,12 +73,29 @@ class AppServiceProvider extends ServiceProvider
     private function registerViewComposers(): void
     {
         View::composer('layouts.app', function ($view): void {
-            $view->with('unreadNotificationsCount', auth()->check()
-                ? Notification::query()
+            if (! auth()->check()) {
+                $view->with([
+                    'unreadNotificationsCount' => 0,
+                    'headerNotifications' => collect(),
+                ]);
+
+                return;
+            }
+
+            $view->with([
+                'unreadNotificationsCount' => Notification::query()
                     ->where('recipient_id', auth()->id())
                     ->whereNull('read_at')
-                    ->count()
-                : 0);
+                    ->count(),
+                // Anteprima per il dropdown della navbar: la pagina completa
+                // resta raggiungibile dalla sidebar sinistra.
+                'headerNotifications' => Notification::query()
+                    ->where('recipient_id', auth()->id())
+                    ->with('actor.user.profile')
+                    ->orderByDesc('created_at')
+                    ->limit(8)
+                    ->get(),
+            ]);
         });
 
         View::composer('partials.sidebar-right', function ($view): void {

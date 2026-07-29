@@ -668,6 +668,11 @@ sul proprio profilo) le rende finalmente modificabili:
   sui post locali continua a portare alla pagina Openbook del post. Lo stesso
   schema (icone + menu a tre puntini per Elimina, mai sui remoti) e' applicato
   anche ai commenti (`comments/_comment.blade.php`, `CommentPolicy`).
+- **Navbar**: l'icona campanella apre un dropdown con le notifiche recenti
+  (la pagina completa resta nella sidebar sinistra); l'icona search apre un
+  campo di input inline invece di andare subito a `/cerca` (l'invio del form
+  usa comunque la stessa ricerca locale/federata). Script dedicato:
+  `public/assets/js/header-panels.js`.
 
 ### Sezione "Mondo"
 
