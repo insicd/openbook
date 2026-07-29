@@ -13,6 +13,12 @@ return [
         'next' => 'Immagine successiva',
     ],
 
+    'infinite_scroll' => [
+        'loading' => 'Caricamento altri post...',
+        'end' => 'Non ci sono altri post da mostrare.',
+        'error' => 'Impossibile caricare altri post. Riprova ricaricando la pagina.',
+    ],
+
     'nav' => [
         'home' => 'Home',
         'world' => 'Mondo',

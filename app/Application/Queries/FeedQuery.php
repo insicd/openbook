@@ -20,6 +20,20 @@ use Illuminate\Support\Facades\DB;
 final class FeedQuery
 {
     /**
+     * Aggiunta come criterio di ordinamento secondario dopo la data (di
+     * pubblicazione o di condivisione a seconda del metodo) ovunque i
+     * risultati siano paginati: con LIMIT/OFFSET, un ORDER BY che puo'
+     * avere valori uguali fra piu' righe (es. post pubblicati nello stesso
+     * secondo, tutt'altro che raro con lo scorrimento infinito, che
+     * richiede pagine coerenti fra una richiesta e la successiva) non
+     * garantisce un ordine stabile: pagine diverse potrebbero restituire la
+     * stessa riga due volte, o saltarne una. L'id non ha alcun significato
+     * cronologico (e' un UUID casuale, non un contatore), ma essendo unico
+     * per riga rende l'ordinamento complessivo deterministico.
+     */
+    private const TIEBREAKER_COLUMN = 'id';
+
+    /**
      * @return LengthAwarePaginator<int, Post>
      */
     public function forActor(Actor $viewer, int $perPage = 0): LengthAwarePaginator
@@ -48,6 +62,7 @@ final class FeedQuery
 
         $posts = $this->withShareMetadata($query, $relevantActorIds)
             ->orderByRaw('coalesce(shared_at, published_at) desc')
+            ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN)
             ->paginate($perPage);
 
         Post::attachSharedBy($posts->getCollection());
@@ -71,6 +86,7 @@ final class FeedQuery
             ->where('visibility', Post::VISIBILITY_PUBLIC)
             ->whereHas('actor', fn ($query) => $query->where('is_local', true))
             ->orderByDesc('published_at')
+            ->orderByDesc(self::TIEBREAKER_COLUMN)
             ->paginate($perPage);
     }
 
@@ -95,6 +111,7 @@ final class FeedQuery
             ->where('visibility', Post::VISIBILITY_PUBLIC)
             ->whereHas('actor', fn ($query) => $query->where('is_local', false))
             ->orderByDesc('published_at')
+            ->orderByDesc(self::TIEBREAKER_COLUMN)
             ->paginate($perPage);
     }
 
@@ -125,6 +142,7 @@ final class FeedQuery
 
         $posts = $this->withShareMetadata($query, collect([$profileActor->id]))
             ->orderByRaw('coalesce(shared_at, published_at) desc')
+            ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN)
             ->paginate((int) config('openbook.feed.per_page'));
 
         Post::attachSharedBy($posts->getCollection());

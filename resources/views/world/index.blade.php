@@ -29,19 +29,5 @@
         </div>
     @endif
 
-    @forelse ($posts as $post)
-        @include('posts._card', ['post' => $post])
-    @empty
-        <div class="ob-card">
-            <div class="ob-empty-state">
-                <p>{{ __('openbook.world.empty') }}</p>
-            </div>
-        </div>
-    @endforelse
-
-    @if ($posts->hasPages())
-        <div class="ob-pagination">
-            {{ $posts->onEachSide(1)->links() }}
-        </div>
-    @endif
+    @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.world.empty')])
 @endsection

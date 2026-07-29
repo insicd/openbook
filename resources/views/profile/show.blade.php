@@ -112,20 +112,5 @@
         </div>
     @endif
 
-    @forelse ($posts as $post)
-        @include('posts._card', ['post' => $post])
-    @empty
-        <div class="ob-card">
-            <h2>{{ __('openbook.profile.pinned_posts') }}</h2>
-            <div class="ob-empty-state">
-                <p>{{ __('openbook.profile.no_posts_yet') }}</p>
-            </div>
-        </div>
-    @endforelse
-
-    @if ($posts->hasPages())
-        <div class="ob-pagination">
-            {{ $posts->onEachSide(1)->links() }}
-        </div>
-    @endif
+    @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.profile.no_posts_yet')])
 @endsection

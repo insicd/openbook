@@ -117,6 +117,7 @@
         <button type="button" class="ob-lightbox__nav ob-lightbox__nav--next" id="ob-lightbox-next" aria-label="{{ __('openbook.lightbox.next') }}" hidden>&rsaquo;</button>
     </div>
     <script src="{{ \App\Support\Assets::url('assets/js/lightbox.js') }}" defer></script>
+    <script src="{{ \App\Support\Assets::url('assets/js/infinite-scroll.js') }}" defer></script>
 
     @auth
         <div class="ob-sidebar-overlay" id="ob-sidebar-overlay" hidden></div>

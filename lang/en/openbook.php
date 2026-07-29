@@ -13,6 +13,12 @@ return [
         'next' => 'Next image',
     ],
 
+    'infinite_scroll' => [
+        'loading' => 'Loading more posts...',
+        'end' => 'There are no more posts to show.',
+        'error' => 'Could not load more posts. Try reloading the page.',
+    ],
+
     'nav' => [
         'home' => 'Home',
         'world' => 'World',

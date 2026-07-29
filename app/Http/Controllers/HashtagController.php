@@ -21,6 +21,11 @@ class HashtagController extends Controller
                 ->where('status', Post::STATUS_PUBLISHED)
                 ->visibleTo($viewer)
                 ->orderByDesc('published_at')
+                // Tiebreaker deterministico: senza di esso, con LIMIT/OFFSET,
+                // piu' post pubblicati nello stesso secondo potrebbero finire
+                // ordinati diversamente da una pagina all'altra (vedi
+                // FeedQuery::TIEBREAKER_COLUMN per lo stesso problema altrove).
+                ->orderByDesc('posts.id')
                 ->paginate((int) config('openbook.feed.per_page'))
             : null;
 

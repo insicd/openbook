@@ -629,6 +629,22 @@ sul proprio profilo) le rende finalmente modificabili:
   a CSS/JS vecchi che si comporta in modo incoerente). Le viste ora referenziano
   questi due file tramite `App\Support\Assets::url()`, che aggiunge automaticamente
   `?v=<ultima modifica del file>` alla URL.
+- **Scorrimento infinito al posto della paginazione a numeri**: feed, "Mondo",
+  profilo (locale o remoto) e pagina di un hashtag non mostrano piu' frecce/numeri
+  di pagina in fondo all'elenco dei post. Quando l'utente si avvicina alla fine
+  della pagina, `public/assets/js/infinite-scroll.js` scarica in background la
+  pagina successiva (lo stesso URL "?page=N" di sempre) e ne innesta i soli post
+  in coda all'elenco corrente, senza alcuna route/API dedicata ne' libreria
+  esterna. La paginazione classica resta comunque disponibile dentro un
+  `<noscript>`, per chi naviga senza JavaScript. Impostare `data-infinite-scroll`
+  e "data-next-url" su un contenitore di post e' sufficiente perche' lo script si
+  attivi: vedi `resources/views/posts/_feed.blade.php`, il parziale condiviso da
+  tutte queste pagine. Approfittata anche l'occasione per dare a
+  `FeedQuery`/`HashtagController` un ordinamento davvero deterministico
+  (`ORDER BY ... , id DESC`): senza un criterio di spareggio, due post pubblicati
+  nello stesso secondo potevano finire duplicati o saltati passando da una pagina
+  all'altra, difetto gia' presente con la paginazione classica ma molto piu'
+  evidente con lo scorrimento continuo.
 
 ### Sezione "Mondo"
 

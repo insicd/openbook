@@ -1086,6 +1086,22 @@ p {
   margin-top: 1.5rem;
 }
 
+.ob-infinite-scroll__sentinel {
+  height: 1px;
+}
+
+.ob-infinite-scroll__status {
+  margin: 1rem 0;
+  padding: 0.5rem;
+  text-align: center;
+  color: var(--ob-color-text-muted);
+  font-size: 0.9rem;
+}
+
+.ob-infinite-scroll__status[hidden] {
+  display: none;
+}
+
 @media (max-width: 1023px) {
   .ob-shell--with-sidebars {
     grid-template-columns: 240px minmax(0, 1fr);
