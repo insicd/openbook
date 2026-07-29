@@ -165,22 +165,24 @@ final class LocalSearchQuery
     }
 
     /**
-     * LIKE con ESCAPE esplicito: necessario per trattare letteralmente
-     * `%` e `_` digitati dall'utente sia su MySQL/MariaDB sia su SQLite
-     * (nei test), dove il backslash non e' l'escape di default.
+     * LIKE con ESCAPE esplicito su un carattere neutro (`!`), non sul
+     * backslash: su MySQL/MariaDB `ESCAPE '\'` e' sintassi invalida perche'
+     * il backslash escapa la virgoletta di chiusura della stringa, e su
+     * SQLite (usato nei test) il backslash non e' comunque l'escape di
+     * default di LIKE. Con `!` restiamo portabili su entrambi i driver.
      *
      * @param  Builder<Model>  $query
      */
     private function whereContains(Builder $query, string $column, string $pattern): void
     {
-        $query->whereRaw("{$query->getGrammar()->wrap($column)} LIKE ? ESCAPE '\\'", [$pattern]);
+        $query->whereRaw("{$query->getGrammar()->wrap($column)} LIKE ? ESCAPE '!'", [$pattern]);
     }
 
     private function likePattern(string $term): string
     {
         $escaped = str_replace(
-            ['\\', '%', '_'],
-            ['\\\\', '\%', '\_'],
+            ['!', '%', '_'],
+            ['!!', '!%', '!_'],
             $term
         );
 
