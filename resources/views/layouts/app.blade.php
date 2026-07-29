@@ -101,7 +101,11 @@
     </div>
 
     <footer class="ob-footer">
-        <p>{{ config('app.name') }} &middot; software libero sotto licenza AGPL-3.0-or-later</p>
+        <p>
+            {{ config('app.name') }} &middot;
+            <a href="{{ config('openbook.homepage') }}">Openbook</a> v{{ config('openbook.version') }} &middot;
+            {{ __('openbook.footer.license') }}
+        </p>
     </footer>
 
     @auth

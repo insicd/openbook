@@ -687,6 +687,11 @@ p {
   padding: 2rem 1rem;
 }
 
+.ob-footer a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 /* Composer */
 
 .ob-composer__main {
@@ -757,6 +762,25 @@ p {
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+.ob-post__shared-by {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ob-color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.ob-post__shared-by .ob-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.ob-post__shared-by a {
+  color: inherit;
 }
 
 .ob-avatar {

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Posts;
 
+use App\Application\Queries\FeedQuery;
 use App\Domain\Reactions\Announce;
 use App\Domain\Reactions\Like;
 use App\Federation\Actors\Actor;
@@ -35,6 +36,9 @@ use Illuminate\Support\Carbon;
  * @property int $announces_count
  * @property Carbon $published_at
  * @property Carbon|null $edited_at
+ * @property string|null $shared_by_actor_id solo quando la riga proviene da {@see FeedQuery}, che lo valorizza con una subquery su "announces"
+ * @property Carbon|null $shared_at vedi $shared_by_actor_id
+ * @property-read Actor|null $sharedBy vedi {@see self::attachSharedBy()}
  */
 class Post extends Model
 {
@@ -78,6 +82,7 @@ class Post extends Model
             'likes_count' => 'integer',
             'comments_count' => 'integer',
             'announces_count' => 'integer',
+            'shared_at' => 'datetime',
         ];
     }
 
@@ -223,6 +228,39 @@ class Post extends Model
         foreach ($posts as $post) {
             $post->setAttribute('liked_by_viewer', in_array($post->id, $likedIds, true));
             $post->setAttribute('announced_by_viewer', in_array($post->id, $announcedIds, true));
+        }
+    }
+
+    /**
+     * Trasforma "shared_by_actor_id" (colonna virtuale valorizzata da
+     * {@see FeedQuery} con una subquery su
+     * "announces", presente solo su post che compaiono in un feed/profilo
+     * *perche'* qualcuno li ha condivisi) nella relazione "sharedBy" usata
+     * dalla card per mostrare "X ha condiviso", con un'unica query
+     * indipendentemente dal numero di post (stesso approccio di
+     * {@see self::annotateViewerState()}). Una condivisione del proprio
+     * stesso post non genera l'indicazione: sarebbe ridondante, il post
+     * compare gia' come proprio.
+     *
+     * @param  iterable<int, Post>  $posts
+     */
+    public static function attachSharedBy(iterable $posts): void
+    {
+        $posts = collect($posts);
+
+        $actorIds = $posts
+            ->filter(fn (self $post) => $post->shared_by_actor_id !== null && $post->shared_by_actor_id !== $post->actor_id)
+            ->pluck('shared_by_actor_id')
+            ->unique()
+            ->values();
+
+        $actors = $actorIds->isEmpty()
+            ? collect()
+            : Actor::query()->with('user.profile')->whereIn('id', $actorIds)->get()->keyBy('id');
+
+        foreach ($posts as $post) {
+            $sharerId = $post->shared_by_actor_id;
+            $post->setRelation('sharedBy', ($sharerId !== null && $sharerId !== $post->actor_id) ? $actors->get($sharerId) : null);
         }
     }
 }

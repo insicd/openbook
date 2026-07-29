@@ -102,6 +102,7 @@ return [
         'comment_submit' => 'Pubblica commento',
         'announce' => 'Condividi (:count)',
         'announced' => 'Condiviso (:count)',
+        'shared_this' => 'ha condiviso questo post',
         'reply' => 'Rispondi',
         'delete' => 'Elimina',
     ],
@@ -201,6 +202,10 @@ return [
         'subtitle' => 'Post pubblici arrivati da altre istanze del fediverso verso questa piattaforma: solo cio\' che e\' gia\' rilevante qui (autori seguiti, risposte, menzioni), non un indice completo del fediverso.',
         'suggested_title' => 'Da scoprire nel fediverso',
         'empty' => 'Ancora nessun post dal resto del fediverso. Segui qualcuno su un\'altra istanza per iniziare a vederne i contenuti qui.',
+    ],
+
+    'footer' => [
+        'license' => 'software libero sotto licenza AGPL-3.0-or-later',
     ],
 
 ];

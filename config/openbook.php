@@ -1,5 +1,13 @@
 <?php
 
+// Definita come variabile (anziche' riletta con config('openbook.version')
+// piu' sotto, che durante il caricamento di *questo stesso* file
+// restituirebbe ancora un valore vuoto) cosi' da comparire in modo coerente
+// sia nel documento NodeInfo sia nello User-Agent delle richieste in uscita:
+// due software del Fediverso che si scambiano segnali di versione diversi
+// per la stessa istanza sono un sintomo classico di misconfigurazione.
+$version = '0.4.6';
+
 return [
 
     /*
@@ -7,10 +15,25 @@ return [
     | Versione del software
     |--------------------------------------------------------------------------
     |
-    | Riportata nel documento NodeInfo pubblico. Aggiornata manualmente a ogni
+    | Riportata nel documento NodeInfo pubblico, nel footer e nello
+    | User-Agent delle richieste in uscita. Aggiornata manualmente a ogni
     | fase della roadmap.
     */
-    'version' => '0.4.4',
+    'version' => $version,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sito ufficiale del software
+    |--------------------------------------------------------------------------
+    |
+    | Non e' il dominio di *questa istanza* (vedi "domain" qui sotto) ma la
+    | pagina del progetto Openbook stesso: usata nel footer (il nome
+    | "Openbook" linka sempre qui, a prescindere da come l'amministratore ha
+    | chiamato la propria istanza) e come "software.homepage" nel documento
+    | NodeInfo, cosi' chi guarda un'istanza sconosciuta puo' risalire
+    | facilmente al software che la fa funzionare.
+    */
+    'homepage' => 'https://about.openb.app',
 
     /*
     |--------------------------------------------------------------------------
@@ -149,8 +172,10 @@ return [
     */
     'federation' => [
         // Intestazione User-Agent usata per le richieste HTTP in uscita verso
-        // altri server del Fediverso (recupero Actor remoti).
-        'user_agent' => sprintf('Openbook/1.0 (+%s)', env('APP_URL', 'http://localhost')),
+        // altri server del Fediverso (recupero Actor remoti, consegna delle
+        // attivita'): riporta la vera versione del software (vedi sopra),
+        // non un valore fisso scollegato da essa.
+        'user_agent' => sprintf('Openbook/%s (+%s)', $version, env('APP_URL', 'http://localhost')),
 
         'http_signature' => [
             // Scarto massimo (in secondi) tollerato tra l'header "Date" di una

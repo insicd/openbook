@@ -102,6 +102,7 @@ return [
         'comment_submit' => 'Post comment',
         'announce' => 'Share (:count)',
         'announced' => 'Shared (:count)',
+        'shared_this' => 'shared this post',
         'reply' => 'Reply',
         'delete' => 'Delete',
     ],
@@ -201,6 +202,10 @@ return [
         'subtitle' => 'Public posts that reached this instance from other servers in the fediverse: only what is already relevant here (accounts you follow, replies, mentions), not a full index of the fediverse.',
         'suggested_title' => 'Discover on the fediverse',
         'empty' => 'No posts from the rest of the fediverse yet. Follow someone on another instance to start seeing their content here.',
+    ],
+
+    'footer' => [
+        'license' => 'free software licensed under AGPL-3.0-or-later',
     ],
 
 ];

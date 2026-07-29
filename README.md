@@ -22,6 +22,7 @@ persona su qualunque altro server del Fediverso** direttamente dall'interfaccia.
 - [Requisiti](#requisiti)
 - [Installazione guidata (consigliata)](#installazione-guidata-consigliata)
 - [Installazione manuale / CLI](#installazione-manuale--cli)
+- [Aggiornamento di un'istanza esistente](#aggiornamento-di-unistanza-esistente)
 - [Configurazione del server web](#configurazione-del-server-web)
 - [Configurazione](#configurazione)
 - [Architettura](#architettura)
@@ -138,6 +139,31 @@ Il comando `openbook:make-admin` puo' anche promuovere un account gia' esistente
 
 ```bash
 php artisan openbook:make-admin --promote=nome-utente
+```
+
+## Aggiornamento di un'istanza esistente
+
+Una volta che l'installer si e' bloccato (`storage/installed.lock`), l'unico modo per
+applicare le migration di una versione successiva e' da riga di comando (richiede
+quindi accesso SSH/CLI all'hosting; su shared hosting privi di CLI non esiste oggi
+un percorso equivalente via web):
+
+```bash
+# 1. backup del database prima di qualunque migration
+mysqldump -u UTENTE -p NOME_DB > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# 2. aggiorna il codice sorgente (git pull, upload, ecc.)
+
+# 3. se sono cambiate le dipendenze PHP
+composer install --no-dev --optimize-autoloader
+
+# 4. applica le migration pendenti
+php artisan migrate --force
+
+# 5. se usi le cache di config/route/view, ricostruiscile
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
 ```
 
 ## Configurazione del server web
@@ -357,6 +383,12 @@ basato su `APP_KEY`) e non vengono mai esposte da API, log o messaggi di errore.
 - Le condivisioni (`announces`) non duplicano mai il post originale: sono un
   semplice riferimento "attore ha condiviso questo post", che il feed usa per
   mostrare il contenuto anche a chi segue chi ha condiviso (non l'autore originale).
+  Compaiono anche nel feed personale e nel profilo di chi condivide (`FeedQuery`),
+  con l'indicazione "ha condiviso questo post" sopra la card — ordinate per il
+  momento della condivisione, non per la data di pubblicazione originale del post,
+  cosi' una condivisione recente di un post vecchio compare comunque in cima.
+  Condividere un post proprio non aggiunge l'indicazione (sarebbe ridondante:
+  compare gia' come post proprio).
 - I contatori (`likes_count`, `comments_count`, `announces_count`) sono
   denormalizzati sulle righe di post/commento e aggiornati transazionalmente, per
   evitare conteggi pesanti a ogni richiesta del feed.
@@ -374,7 +406,19 @@ essere consumati da altri server e non da browser:
 
 - **Scoperta**: `/.well-known/webfinger?resource=` (risolve `acct:utente@dominio` o
   l'URL canonico dell'Actor) e `/.well-known/nodeinfo` + `/nodeinfo/2.1`
-  (metadati dell'istanza e statistiche d'uso aggregate, senza dati personali).
+  (metadati dell'istanza e statistiche d'uso aggregate, senza dati personali). Il
+  documento NodeInfo dichiara sempre `software.name: "openbook"`, la versione
+  reale (`config('openbook.version')`, la stessa riportata nel footer) e un link a
+  `software.homepage`, cosi' gli strumenti del Fediverso che leggono NodeInfo
+  riconoscono correttamente il software dietro l'istanza (non un fork/derivato di
+  altre piattaforme). Per lo stesso motivo lo User-Agent delle richieste in uscita
+  (`config('openbook.federation.user_agent')`) riporta la versione reale del
+  software, non un valore fisso scollegato da essa. Questi endpoint pubblici (piu'
+  il profilo/post/commento canonico sotto, vedi content negotiation) espongono
+  anche l'intestazione CORS `Access-Control-Allow-Origin: *` (`config/cors.php`):
+  sono documenti pubblici per definizione, e senza quell'intestazione un browser
+  bloccherebbe la lettura cross-origin da parte di strumenti di verifica del
+  software federato eseguiti lato client.
 - **Content negotiation**: le pagine profilo (`/@utente`), post (`/posts/{uuid}`) e
   commento (`/comments/{uuid}`) restituiscono HTML a un browser e un documento
   ActivityPub (`Person`/`Note`/`Tombstone`) quando l'header `Accept` richiede
@@ -657,6 +701,13 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   autenticazione; classifica degli account da scoprire (priorita' ai follower locali
   accettati, poi all'attivita' piu' recente), esclusione di chi non ha ne' un follower
   locale ne' un post in cache, esclusione di chi e' gia' seguito dal visitatore.
+- visibilita' delle condivisioni (`AnnounceVisibilityTest`): un post condiviso (locale,
+  di un altro Actor locale, o remoto) compare sul profilo e nel feed personale di chi
+  lo ha condiviso con l'indicazione "ha condiviso questo post"; ordinamento per momento
+  della condivisione anche quando il post originale e' molto piu' vecchio; nessuna
+  indicazione ridondante quando si condivide un proprio post; scomparsa dal profilo
+  dopo aver ritirato la condivisione; nessuna indicazione sul profilo dell'autore
+  originale.
 
 Un piccolo sottoinsieme di test (`Tests\Feature\Installer\InstallerMysqlFlowTest`)
 verifica specificamente il passo 2 dell'installer (connessione e migration) contro un
@@ -740,6 +791,8 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
   la pagina profilo di un Actor remoto recupera al bisogno la prima pagina del suo
   outbox reale, cosi' da mostrare i suoi post pubblici piu' recenti anche prima che
   un qualunque Actor locale inizi a seguirlo.
+- ✅ **Condivisioni visibili su profilo e feed di chi condivide** (questo repository,
+  successiva alla Fase 4): prima comparivano solo nel feed di chi segue chi condivide.
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco

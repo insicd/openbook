@@ -2,10 +2,13 @@
 
 namespace App\Application\Queries;
 
+use App\Application\Services\AnnounceManager;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxActivityProcessor;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -34,16 +37,22 @@ final class FeedQuery
             ->whereIn('actor_id', $relevantActorIds)
             ->pluck('post_id');
 
-        return Post::query()
+        $query = Post::query()
             ->with(['actor.user.profile', 'media', 'hashtags'])
             ->where('status', Post::STATUS_PUBLISHED)
             ->where(function ($query) use ($relevantActorIds, $announcedPostIds) {
                 $query->whereIn('actor_id', $relevantActorIds)
                     ->orWhereIn('id', $announcedPostIds);
             })
-            ->visibleTo($viewer)
-            ->orderByDesc('published_at')
+            ->visibleTo($viewer);
+
+        $posts = $this->withShareMetadata($query, $relevantActorIds)
+            ->orderByRaw('coalesce(shared_at, published_at) desc')
             ->paginate($perPage);
+
+        Post::attachSharedBy($posts->getCollection());
+
+        return $posts;
     }
 
     /**
@@ -90,16 +99,71 @@ final class FeedQuery
     }
 
     /**
+     * Post del profilo: quelli di cui l'Actor e' autore, piu' quelli che ha
+     * semplicemente condiviso (vedi {@see AnnounceManager}).
+     * Una condivisione compare in cima o in fondo secondo il momento in cui
+     * e' stata fatta, non la data di pubblicazione originale del post: e'
+     * quello, dal punto di vista di chi guarda questo profilo, il fatto
+     * "recente" da mostrare.
+     *
      * @return LengthAwarePaginator<int, Post>
      */
     public function forProfile(Actor $profileActor, ?Actor $viewer): LengthAwarePaginator
     {
-        return Post::query()
-            ->with(['actor.user.profile', 'media', 'hashtags'])
+        $announcedPostIds = DB::table('announces')
             ->where('actor_id', $profileActor->id)
+            ->pluck('post_id');
+
+        $query = Post::query()
+            ->with(['actor.user.profile', 'media', 'hashtags'])
             ->where('status', Post::STATUS_PUBLISHED)
-            ->visibleTo($viewer)
-            ->orderByDesc('published_at')
+            ->where(function ($query) use ($profileActor, $announcedPostIds) {
+                $query->where('actor_id', $profileActor->id)
+                    ->orWhereIn('id', $announcedPostIds);
+            })
+            ->visibleTo($viewer);
+
+        $posts = $this->withShareMetadata($query, collect([$profileActor->id]))
+            ->orderByRaw('coalesce(shared_at, published_at) desc')
             ->paginate((int) config('openbook.feed.per_page'));
+
+        Post::attachSharedBy($posts->getCollection());
+
+        return $posts;
+    }
+
+    /**
+     * Arricchisce la query con due colonne virtuali calcolate da subquery
+     * correlate su "announces", limitate agli Actor indicati in
+     * "$sharerIds": "shared_by_actor_id" (chi, fra loro, ha condiviso questo
+     * post piu' di recente) e "shared_at" (quando). Un post puo' comparire
+     * in questo risultato sia perche' ne e' autore un Actor rilevante sia
+     * perche' e' stato condiviso da uno di loro (o entrambe le cose): in
+     * quest'ultimo caso {@see Post::attachSharedBy()} decide se mostrare
+     * comunque l'indicazione "ha condiviso".
+     *
+     * @param  Builder<Post>  $query
+     * @param  Collection<int, string>  $sharerIds
+     * @return Builder<Post>
+     */
+    private function withShareMetadata(Builder $query, Collection $sharerIds): Builder
+    {
+        $announcerId = DB::table('announces')
+            ->select('actor_id')
+            ->whereColumn('post_id', 'posts.id')
+            ->whereIn('actor_id', $sharerIds)
+            ->orderByDesc('created_at')
+            ->limit(1);
+
+        $announcedAt = DB::table('announces')
+            ->select('created_at')
+            ->whereColumn('post_id', 'posts.id')
+            ->whereIn('actor_id', $sharerIds)
+            ->orderByDesc('created_at')
+            ->limit(1);
+
+        return $query
+            ->addSelect(['shared_by_actor_id' => $announcerId])
+            ->addSelect(['shared_at' => $announcedAt]);
     }
 }

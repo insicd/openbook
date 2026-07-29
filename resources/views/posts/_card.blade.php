@@ -5,9 +5,18 @@
     $handle = $author ? '@'.$author->handle() : '';
     $isDeleted = $post->status === \App\Domain\Posts\Post::STATUS_DELETED;
     $linkToPost = $linkToPost ?? true;
+    $sharedBy = $post->sharedBy ?? null;
 @endphp
 
 <article class="ob-card ob-post">
+    @if ($sharedBy)
+        <div class="ob-post__shared-by">
+            <x-icon name="share" />
+            <a href="{{ $sharedBy->profileUrl() }}">{{ $sharedBy->displayName() }}</a>
+            {{ __('openbook.actions.shared_this') }}
+        </div>
+    @endif
+
     <div class="ob-post__header">
         <x-avatar :actor="$author" />
         <div class="ob-post__meta">
