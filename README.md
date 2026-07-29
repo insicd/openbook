@@ -654,7 +654,9 @@ sul proprio profilo) le rende finalmente modificabili:
   (`<details class="ob-post__menu">`, con `post-menu.js` per chiudere al click
   fuori). Sui post remoti, il click sull'orario apre l'`uri` ActivityPub
   originale in una nuova scheda (`target="_blank" rel="noopener noreferrer"`);
-  sui post locali continua a portare alla pagina Openbook del post.
+  sui post locali continua a portare alla pagina Openbook del post. Lo stesso
+  schema (icone + menu a tre puntini per Elimina, mai sui remoti) e' applicato
+  anche ai commenti (`comments/_comment.blade.php`, `CommentPolicy`).
 
 ### Sezione "Mondo"
 

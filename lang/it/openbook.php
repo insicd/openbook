@@ -128,6 +128,7 @@ return [
         'empty' => 'Nessun commento. Sii il primo a commentare.',
         'deleted' => 'Questo commento e stato eliminato.',
         'confirm_delete' => 'Vuoi davvero eliminare questo commento?',
+        'menu' => 'Altre azioni sul commento',
         'reply_to' => 'Rispondi a :name',
         'login_to_comment' => 'Accedi per lasciare un commento.',
     ],

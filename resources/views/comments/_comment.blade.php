@@ -15,6 +15,24 @@
                 <div class="ob-post__time">{{ $comment->created_at->diffForHumans() }}</div>
             @endif
         </div>
+
+        @can('delete', $comment)
+            <details class="ob-post__menu">
+                <summary class="ob-icon-btn" aria-label="{{ __('openbook.comments.menu') }}">
+                    <x-icon name="more-vertical" />
+                </summary>
+                <div class="ob-post__menu-panel" role="menu">
+                    <form method="POST" action="{{ route('comments.destroy', $comment) }}" onsubmit="return confirm('{{ __('openbook.comments.confirm_delete') }}')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="ob-post__menu-item" role="menuitem">
+                            <x-icon name="trash" />
+                            {{ __('openbook.actions.delete') }}
+                        </button>
+                    </form>
+                </div>
+            </details>
+        @endcan
     </div>
 
     @if ($isDeleted)
@@ -28,29 +46,35 @@
                     <form method="POST" action="{{ route('comments.unlike', $comment) }}">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="ob-btn ob-btn--ghost ob-btn--active ob-btn--small"><x-icon name="heart" /> {{ __('openbook.actions.liked', ['count' => $comment->likes_count]) }}</button>
+                        <button type="submit" class="ob-post__action ob-post__action--active" aria-label="{{ __('openbook.actions.liked', ['count' => $comment->likes_count]) }}">
+                            <x-icon name="heart" />
+                            <span class="ob-post__action-count">{{ $comment->likes_count }}</span>
+                        </button>
                     </form>
                 @else
                     <form method="POST" action="{{ route('comments.like', $comment) }}">
                         @csrf
-                        <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small"><x-icon name="heart" /> {{ __('openbook.actions.like', ['count' => $comment->likes_count]) }}</button>
+                        <button type="submit" class="ob-post__action" aria-label="{{ __('openbook.actions.like', ['count' => $comment->likes_count]) }}">
+                            <x-icon name="heart" />
+                            <span class="ob-post__action-count">{{ $comment->likes_count }}</span>
+                        </button>
                     </form>
                 @endif
 
-                <button type="button" class="ob-btn ob-btn--ghost ob-btn--small" onclick="document.getElementById('risposta-{{ $comment->id }}').hidden = false">
-                    {{ __('openbook.actions.reply') }}
+                <button
+                    type="button"
+                    class="ob-post__action"
+                    aria-label="{{ __('openbook.actions.reply') }}"
+                    onclick="document.getElementById('risposta-{{ $comment->id }}').hidden = false"
+                >
+                    <x-icon name="comment" />
                 </button>
-
-                @can('delete', $comment)
-                    <form method="POST" action="{{ route('comments.destroy', $comment) }}" onsubmit="return confirm('{{ __('openbook.comments.confirm_delete') }}')">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small"><x-icon name="trash" /> {{ __('openbook.actions.delete') }}</button>
-                    </form>
-                @endcan
             @else
-                <span class="ob-post__time">{{ __('openbook.actions.like', ['count' => $comment->likes_count]) }}</span>
-            @endif
+                <span class="ob-post__action" aria-label="{{ __('openbook.actions.like', ['count' => $comment->likes_count]) }}">
+                    <x-icon name="heart" />
+                    <span class="ob-post__action-count">{{ $comment->likes_count }}</span>
+                </span>
+            @endauth
         </div>
 
         @auth

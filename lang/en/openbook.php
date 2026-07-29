@@ -128,6 +128,7 @@ return [
         'empty' => 'No comments yet. Be the first to comment.',
         'deleted' => 'This comment has been deleted.',
         'confirm_delete' => 'Are you sure you want to delete this comment?',
+        'menu' => 'More comment actions',
         'reply_to' => 'Reply to :name',
         'login_to_comment' => 'Log in to leave a comment.',
     ],
