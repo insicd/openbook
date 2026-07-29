@@ -606,6 +606,16 @@ sul proprio profilo) le rende finalmente modificabili:
   solo hashtag su post pubblicati da Actor *locali*, con visibilita' pubblica o non
   elencata, mai da contenuto remoto semplicemente in cache o da post riservati a
   follower/destinatari diretti.
+- **Lightbox sulle immagini dei post**: cliccando su un'immagine allegata a un post
+  si apre un overlay a schermo intero con l'originale a piena risoluzione (frecce
+  precedente/successiva se il post ne ha piu' di una, chiusura con Esc, click fuori
+  dall'immagine o pulsante dedicato). Nessuna libreria esterna: markup condiviso in
+  `layouts.app` e un solo script (`public/assets/js/lightbox.js`) che delega gli
+  eventi su tutta la pagina, cosi' funziona identico su feed, profilo, pagina del
+  singolo post e sezione "Mondo". Colto anche l'occasione per usare finalmente in
+  feed la miniatura gia' generata al caricamento (`MediaUploader`, mai sfruttata
+  finora): il post mostra un file piu' leggero, il lightbox recupera invece
+  l'originale tramite l'attributo `data-full-src`.
 
 ### Sezione "Mondo"
 

@@ -108,6 +108,16 @@
         </p>
     </footer>
 
+    <div class="ob-lightbox" id="ob-lightbox" role="dialog" aria-modal="true" aria-label="{{ __('openbook.lightbox.label') }}" hidden>
+        <button type="button" class="ob-lightbox__close" id="ob-lightbox-close" aria-label="{{ __('openbook.lightbox.close') }}">
+            <x-icon name="close" />
+        </button>
+        <button type="button" class="ob-lightbox__nav ob-lightbox__nav--prev" id="ob-lightbox-prev" aria-label="{{ __('openbook.lightbox.previous') }}" hidden>&lsaquo;</button>
+        <img class="ob-lightbox__img" id="ob-lightbox-img" src="" alt="">
+        <button type="button" class="ob-lightbox__nav ob-lightbox__nav--next" id="ob-lightbox-next" aria-label="{{ __('openbook.lightbox.next') }}" hidden>&rsaquo;</button>
+    </div>
+    <script src="{{ asset('assets/js/lightbox.js') }}" defer></script>
+
     @auth
         <div class="ob-sidebar-overlay" id="ob-sidebar-overlay" hidden></div>
         <script>

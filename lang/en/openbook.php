@@ -6,6 +6,13 @@ return [
         'tagline' => 'The federated, simple, no-masters social network.',
     ],
 
+    'lightbox' => [
+        'label' => 'Enlarged image',
+        'close' => 'Close',
+        'previous' => 'Previous image',
+        'next' => 'Next image',
+    ],
+
     'nav' => [
         'home' => 'Home',
         'world' => 'World',

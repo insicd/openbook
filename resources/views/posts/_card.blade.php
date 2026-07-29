@@ -54,9 +54,15 @@
         @endif
 
         @if ($post->media->isNotEmpty())
-            <div class="ob-post__media">
+            <div class="ob-post__media" data-lightbox-group>
                 @foreach ($post->media as $media)
-                    <img src="{{ $media->url() }}" alt="{{ $media->alt_text }}" loading="lazy">
+                    <img
+                        src="{{ $media->thumbnailUrl() }}"
+                        data-full-src="{{ $media->url() }}"
+                        alt="{{ $media->alt_text }}"
+                        loading="lazy"
+                        data-lightbox-trigger
+                    >
                 @endforeach
             </div>
         @endif

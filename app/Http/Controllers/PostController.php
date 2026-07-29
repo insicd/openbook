@@ -55,7 +55,7 @@ class PostController extends Controller
             );
         }
 
-        $post->load(['actor.user.profile', 'media', 'hashtags']);
+        $post->load(['actor.user.profile', 'media.thumbnail', 'hashtags']);
         Post::annotateViewerState([$post], $viewer);
 
         $comments = Comment::query()

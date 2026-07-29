@@ -6,6 +6,13 @@ return [
         'tagline' => 'Il social network federato, semplice e libero.',
     ],
 
+    'lightbox' => [
+        'label' => 'Immagine ingrandita',
+        'close' => 'Chiudi',
+        'previous' => 'Immagine precedente',
+        'next' => 'Immagine successiva',
+    ],
+
     'nav' => [
         'home' => 'Home',
         'world' => 'Mondo',
