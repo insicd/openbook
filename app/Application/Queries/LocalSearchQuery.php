@@ -21,8 +21,12 @@ use Illuminate\Support\Collection;
  * motore di ricerca dedicato, e le tabelle tipiche di un'istanza di
  * questa scala restano gestibili con query semplici. I caratteri jolly
  * LIKE (`%`, `_`) digitati dall'utente vengono escapati (con clausola
- * ESCAPE, portabile fra MySQL/MariaDB e SQLite usato nei test), cosi' una
- * ricerca di "100%" non diventa un pattern "qualsiasi cosa".
+ * ESCAPE su un carattere neutro, portabile fra MySQL/MariaDB e SQLite).
+ *
+ * Le query usano JOIN al posto di whereHas annidati dove possibile, per
+ * ridurre il carico sul database: su hosting con limite di nuove
+ * connessioni/secondo, query lunghe che fanno cadere la connessione
+ * vengono poi ripresentate come `SQLSTATE 2002 Operation not permitted`.
  *
  * La ricerca federata per indirizzo `utente@dominio` resta fuori da questa
  * classe: la gestisce direttamente {@see SearchController}.
@@ -49,7 +53,7 @@ final class LocalSearchQuery
         $pattern = $this->likePattern($term);
 
         return [
-            'people' => $this->people($pattern, $limit),
+            'people' => $this->people($term, $pattern, $limit),
             'posts' => $this->posts($pattern, $viewer, $limit),
             'comments' => $this->comments($pattern, $viewer, $limit),
             'hashtags' => $this->hashtags($this->likePattern(ltrim($term, '#')), $limit),
@@ -77,22 +81,30 @@ final class LocalSearchQuery
     /**
      * @return Collection<int, User>
      */
-    private function people(string $pattern, int $limit): Collection
+    private function people(string $term, string $pattern, int $limit): Collection
     {
+        $normalizedUsername = mb_strtolower($term);
+
         return User::query()
+            ->select('users.*')
             ->with(['profile', 'actor', 'settings'])
-            ->where('status', User::STATUS_ACTIVE)
-            ->whereHas('settings', fn ($query) => $query->where('discoverable', true))
+            ->leftJoin('profiles', 'profiles.user_id', '=', 'users.id')
+            ->join('user_settings', 'user_settings.user_id', '=', 'users.id')
+            ->where('users.status', User::STATUS_ACTIVE)
+            ->where('user_settings.discoverable', true)
             ->where(function ($query) use ($pattern) {
-                $this->whereContains($query, 'username', $pattern);
-                $query->orWhereHas('profile', function ($query) use ($pattern) {
-                    $this->whereContains($query, 'display_name', $pattern);
-                    $query->orWhere(function ($query) use ($pattern) {
-                        $this->whereContains($query, 'bio', $pattern);
-                    });
+                $this->whereContains($query, 'users.username', $pattern);
+                $query->orWhere(function ($query) use ($pattern) {
+                    $this->whereContains($query, 'profiles.display_name', $pattern);
+                });
+                $query->orWhere(function ($query) use ($pattern) {
+                    $this->whereContains($query, 'profiles.bio', $pattern);
                 });
             })
-            ->orderBy('username')
+            // Un match esatto sul username (caso tipico: si cerca "mario"
+            // senza "@dominio") resta in cima, sfruttando anche l'indice unico.
+            ->orderByRaw('case when users.username = ? then 0 else 1 end', [$normalizedUsername])
+            ->orderBy('users.username')
             ->limit($limit)
             ->get();
     }
@@ -103,22 +115,24 @@ final class LocalSearchQuery
     private function posts(string $pattern, ?Actor $viewer, int $limit): Collection
     {
         $posts = Post::query()
+            ->select('posts.*')
             ->with(['actor.user.profile', 'media.thumbnail', 'hashtags'])
-            ->where('status', Post::STATUS_PUBLISHED)
-            ->whereNull('uri')
-            ->whereHas('actor', fn ($query) => $query->where('is_local', true))
+            ->join('actors', 'actors.id', '=', 'posts.actor_id')
+            ->where('actors.is_local', true)
+            ->where('posts.status', Post::STATUS_PUBLISHED)
+            ->whereNull('posts.uri')
             ->where(function ($query) use ($pattern) {
-                $this->whereContains($query, 'body', $pattern);
+                $this->whereContains($query, 'posts.body', $pattern);
                 $query->orWhere(function ($query) use ($pattern) {
-                    $this->whereContains($query, 'title', $pattern);
+                    $this->whereContains($query, 'posts.title', $pattern);
                 });
                 $query->orWhere(function ($query) use ($pattern) {
-                    $this->whereContains($query, 'content_warning', $pattern);
+                    $this->whereContains($query, 'posts.content_warning', $pattern);
                 });
             })
             ->visibleTo($viewer)
-            ->orderByDesc('published_at')
-            ->orderByDesc('id')
+            ->orderByDesc('posts.published_at')
+            ->orderByDesc('posts.id')
             ->limit($limit)
             ->get();
 
@@ -133,19 +147,52 @@ final class LocalSearchQuery
     private function comments(string $pattern, ?Actor $viewer, int $limit): Collection
     {
         return Comment::query()
+            ->select('comments.*')
             ->with(['actor.user.profile', 'post.actor.user.profile'])
-            ->where('status', Comment::STATUS_PUBLISHED)
-            ->whereNull('uri')
-            ->whereHas('actor', fn ($query) => $query->where('is_local', true))
+            ->join('actors', 'actors.id', '=', 'comments.actor_id')
+            ->join('posts', 'posts.id', '=', 'comments.post_id')
+            ->where('actors.is_local', true)
+            ->where('comments.status', Comment::STATUS_PUBLISHED)
+            ->whereNull('comments.uri')
+            ->where('posts.status', Post::STATUS_PUBLISHED)
             ->where(function ($query) use ($pattern) {
-                $this->whereContains($query, 'body', $pattern);
+                $this->whereContains($query, 'comments.body', $pattern);
             })
-            ->whereHas('post', function ($query) use ($viewer) {
-                $query->where('status', Post::STATUS_PUBLISHED)
-                    ->visibleTo($viewer);
+            ->where(function ($query) use ($viewer) {
+                // Stesse regole di Post::visibleTo, ma con colonne
+                // qualificate: qui "posts" e' in JOIN, non la tabella base.
+                $query->whereIn('posts.visibility', [
+                    Post::VISIBILITY_PUBLIC,
+                    Post::VISIBILITY_UNLISTED,
+                ]);
+
+                if ($viewer === null) {
+                    return;
+                }
+
+                $query->orWhere('posts.actor_id', $viewer->id)
+                    ->orWhere(function ($query) use ($viewer) {
+                        $query->where('posts.visibility', Post::VISIBILITY_FOLLOWERS)
+                            ->whereIn('posts.actor_id', function ($sub) use ($viewer) {
+                                $sub->select('following_id')
+                                    ->from('follows')
+                                    ->where('follower_id', $viewer->id)
+                                    ->where('status', 'accepted');
+                            });
+                    })
+                    ->orWhere(function ($query) use ($viewer) {
+                        $query->where('posts.visibility', Post::VISIBILITY_DIRECT)
+                            ->whereExists(function ($sub) use ($viewer) {
+                                $sub->selectRaw('1')
+                                    ->from('mentions')
+                                    ->whereColumn('mentions.mentionable_id', 'posts.id')
+                                    ->where('mentions.mentionable_type', 'post')
+                                    ->where('mentions.actor_id', $viewer->id);
+                            });
+                    });
             })
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
+            ->orderByDesc('comments.created_at')
+            ->orderByDesc('comments.id')
             ->limit($limit)
             ->get();
     }

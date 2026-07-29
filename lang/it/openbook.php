@@ -218,6 +218,13 @@ return [
         'empty' => 'Nessun post pubblico con questo hashtag, per ora.',
     ],
 
+    'errors' => [
+        'database_busy_title' => 'Servizio momentaneamente occupato',
+        'database_busy_body' => 'Il database e temporaneamente sovraccarico. Di solito basta riprovare tra un istante.',
+        'database_busy_retry' => 'Riprova',
+        'database_busy_back' => 'Torna indietro',
+    ],
+
     'sidebar' => [
         'instance_title' => 'Questa istanza',
         'hashtag_uses' => '{1} :count post|[2,*] :count post',

@@ -218,6 +218,13 @@ return [
         'empty' => 'No public posts with this hashtag yet.',
     ],
 
+    'errors' => [
+        'database_busy_title' => 'Service temporarily busy',
+        'database_busy_body' => 'The database is temporarily overloaded. Trying again in a moment usually helps.',
+        'database_busy_retry' => 'Try again',
+        'database_busy_back' => 'Go back',
+    ],
+
     'sidebar' => [
         'instance_title' => 'This instance',
         'hashtag_uses' => '{1} :count post|[2,*] :count posts',

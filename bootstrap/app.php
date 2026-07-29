@@ -2,10 +2,12 @@
 
 use App\Http\Middleware\EnsureApplicationIsInstalled;
 use App\Http\Middleware\SetUserLocale;
+use App\Infrastructure\Database\TransientConnectionHandler;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -31,7 +33,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (Throwable $e, Request $request) {
+            $handler = app(TransientConnectionHandler::class);
+
+            if (! $handler->isTransient($e) || $request->expectsJson()) {
+                return null;
+            }
+
+            return $handler->handle($request);
+        });
     })->create();
 
 Authenticate::redirectUsing(fn () => route('login'));

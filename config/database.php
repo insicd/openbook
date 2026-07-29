@@ -58,6 +58,14 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
+                // Su hosting condivisi con limite di nuove connessioni/secondo
+                // (es. Hostinger: errore 2002 "Operation not permitted"), le
+                // connessioni PDO persistenti riducono drasticamente i
+                // connect() ripetuti. Disattivate di default: attivarle con
+                // DB_PERSISTENT=true nel .env di produzione.
+                ...(filter_var(env('DB_PERSISTENT', false), FILTER_VALIDATE_BOOL) ? [
+                    PDO::ATTR_PERSISTENT => true,
+                ] : []),
                 (defined('Pdo\\Mysql::ATTR_SSL_CA') ? constant('Pdo\\Mysql::ATTR_SSL_CA') : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
@@ -78,6 +86,9 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
+                ...(filter_var(env('DB_PERSISTENT', false), FILTER_VALIDATE_BOOL) ? [
+                    PDO::ATTR_PERSISTENT => true,
+                ] : []),
                 (defined('Pdo\\Mysql::ATTR_SSL_CA') ? constant('Pdo\\Mysql::ATTR_SSL_CA') : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
