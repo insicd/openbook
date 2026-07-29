@@ -7,6 +7,7 @@ use App\Domain\Posts\Post;
 use App\Domain\Reactions\Announce;
 use App\Domain\Reactions\Like;
 use App\Domain\SocialGraph\Follow;
+use App\Federation\Actors\Actor;
 
 /**
  * Costruisce le attivita' ActivityStreams che Openbook invia verso altri
@@ -185,6 +186,33 @@ final class ActivitySerializer
             'to' => $note['to'] ?? [],
             'cc' => $note['cc'] ?? [],
             'object' => $note,
+        ];
+    }
+
+    /**
+     * Notifica un cambio al profilo pubblico di un Actor locale (nome,
+     * biografia, link, avatar, copertina, account protetto): l'"object" e'
+     * lo stesso documento Person completo restituito dall'endpoint canonico
+     * dell'Actor, cosi' chi riceve puo' applicarlo direttamente senza dover
+     * rifare una richiesta HTTP aggiuntiva. A differenza di Follow/Like/
+     * Announce non esiste una riga di dominio dedicata da cui derivare un id
+     * stabile, quindi ne viene generato uno nuovo a ogni chiamata: non serve
+     * essere referenziabile da un successivo Accept/Undo come per le altre
+     * attivita'.
+     *
+     * @return array<string, mixed>
+     */
+    public static function updateActor(Actor $actor): array
+    {
+        $object = ActorSerializer::serialize($actor);
+
+        return [
+            '@context' => self::CONTEXT,
+            'id' => $object['id'].'/aggiornamenti/'.now()->getTimestampMs(),
+            'type' => 'Update',
+            'actor' => $object['id'],
+            'to' => [NoteSerializer::PUBLIC_STREAM],
+            'object' => $object,
         ];
     }
 

@@ -433,6 +433,11 @@ finalmente bidirezionale.
     esplicitamente un Actor locale): nessun contenuto remoto viene conservato "a
     caso". Il contenuto HTML viene ridotto a testo semplice (`RemoteContentSanitizer`)
     prima di passare dalla stessa pipeline di rendering sicura dei post locali;
+  - `Update` con oggetto `Person`/`Group` (un altro server che notifica un cambio al
+    profilo di un proprio utente) aggiorna direttamente la cache locale dell'Actor
+    remoto (`actors`/`actor_keys`/`actor_endpoints`) applicando il documento
+    incorporato, senza bisogno di un ulteriore fetch HTTP; accettato solo se l'id
+    dichiarato nel documento coincide con l'Actor firmatario;
   - `Delete` marca come eliminato un post/commento locale o la sua copia remota in
     cache, esattamente come un'eliminazione locale (mai una cancellazione fisica
     della riga, per preservare l'id).
@@ -469,7 +474,12 @@ finalmente bidirezionale.
   pulsante di follow che avvia il flusso `Follow`/`Accept` reale. In tutta
   l'interfaccia (card dei post, commenti, notifiche) gli autori sono ora mostrati
   tramite `Actor::displayName()`/`Actor::avatarUrl()`/`Actor::profileUrl()`, che
-  funzionano in modo identico per attori locali e remoti.
+  funzionano in modo identico per attori locali e remoti. La pagina profilo recupera
+  anche (`RemoteOutboxFetcher`, cache con TTL separato in `actors.posts_fetched_at`)
+  la prima pagina dell'outbox reale dell'Actor, cosi' da mostrarne i post pubblici
+  piu' recenti anche se nessun Actor locale lo segue ancora: senza questo passaggio
+  un profilo appena scoperto risulterebbe sempre senza post, dato che l'inbox mette in
+  cache solo contenuto gia' ritenuto rilevante (vedi limitazioni note piu' sotto).
 - **Elenchi follower/seguiti**: i contatori "Follower" e "Seguiti" di ogni profilo
   (locale o remoto) sono link verso una pagina paginata con l'elenco reale
   (`FollowListQuery`), condivisa fra profili locali (`/@utente/follower`,
@@ -503,9 +513,21 @@ sul proprio profilo) le rende finalmente modificabili:
   `MediaUploader`). Il file precedente viene sempre rimosso quando se ne carica uno
   nuovo, per non accumulare copie orfane su hosting con quota limitata. Modificare il
   nome visualizzato aggiorna anche il campo `name` dell'Actor ActivityPub locale, che e'
-  il valore effettivamente esposto ai server remoti (`ActorSerializer`); avatar e
-  copertina erano gia' federati automaticamente dalla Fase 3 non appena valorizzati.
-  Prima di salvare, il file scelto viene mostrato subito in anteprima (lato client,
+  il valore effettivamente esposto ai server remoti (`ActorSerializer`). Ogni modifica
+  al profilo pubblico (nome, biografia, link, avatar, copertina) o all'opzione "Account
+  protetto" invia inoltre un `Update` ActivityPub a tutti i follower remoti
+  (`ProfileUpdater`/`AccountPreferencesUpdater` + `ActivityDelivery::deliverToFollowers()`),
+  con l'intero documento Actor aggiornato come oggetto incorporato: senza questo
+  passaggio i server remoti avrebbero continuato a mostrare una copia obsoleta del
+  profilo fino alla scadenza della loro cache locale (fino a
+  `openbook.federation.actor_cache_ttl_hours`, 24 ore di default). Simmetricamente, un
+  `Update` con oggetto `Person`/`Group` ricevuto da un'altra istanza (perche' un utente
+  remoto ha modificato il proprio profilo) aggiorna subito la copia in cache del suo
+  Actor (`InboxActivityProcessor::handleUpdateActor()`), applicando direttamente il
+  documento incorporato invece di aspettare un nuovo fetch; viene accettato solo se
+  l'id dichiarato nel documento coincide con l'Actor che ha firmato la richiesta, cosi'
+  nessuno puo' aggiornare il profilo di un altro. Prima di salvare, il file scelto viene
+  mostrato subito in anteprima (lato client,
   via `FileReader`, senza upload). `Profile::avatarUrl()`/`coverUrl()` costruiscono
   l'URL pubblico tramite il disco "public" configurato (`Storage::disk('public')->url()`),
   come gia' avviene per gli allegati dei post (`Media::url()`), invece di affidarsi
@@ -530,6 +552,30 @@ sul proprio profilo) le rende finalmente modificabili:
   e nelle ricerche" (`user_settings.discoverable`), l'account smette di comparire nel
   riquadro "Persone da seguire" della sidebar (resta comunque raggiungibile in modo
   diretto, ad esempio tramite ricerca federata dell'indirizzo esatto).
+
+### Sezione "Mondo"
+
+Una nuova voce "Mondo" nella sidebar sinistra (`/mondo`) da' una finestra su cio' che
+arriva dal resto del fediverso verso questa istanza. **Non e' ne' puo' essere un indice
+completo del fediverso**: Openbook non lo esplora ne' lo indicizza attivamente, quindi
+questa pagina mostra solo cio' che e' gia' stato messo in cache localmente perche'
+rilevante (`InboxActivityProcessor::isRelevant()` — autore seguito da un Actor locale,
+risposta a un contenuto gia' noto, o menzione di un Actor locale). E' un limite dichiarato
+in interfaccia, non un dettaglio implementativo nascosto.
+
+- **Timeline**: tutti i post pubblici di Actor *remoti* gia' in cache
+  (`FeedQuery::world()`), ordinati per data di pubblicazione decrescente, a prescindere
+  da chi li segue (a differenza del feed personale). I post locali non compaiono: vivono
+  gia' nella Home.
+- **Account da scoprire**: un piccolo elenco di Actor remoti proposti
+  (`PopularRemoteActorsQuery`), con lo stesso pulsante "Segui" usato altrove
+  (`actors.follow`). Non esistendo un conteggio follower autoritativo per un Actor
+  remoto (ne' un indice di "popolarita' reale" nel fediverso), la classifica usa solo
+  segnali visibili da questa istanza, in ordine: quanti Actor locali lo seguono gia'
+  (`follows.status = accepted`), poi la data del suo post pubblico piu' recente in
+  cache. Un Actor senza nessuno dei due segnali (mai seguito localmente, mai un post
+  pubblico in cache) non viene proposto, e chi e' gia' seguito dal visitatore viene
+  escluso.
 
 ## Test
 
@@ -559,8 +605,10 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   corpo troppo grande, deduplicazione, inbox condiviso);
 - `InboxActivityProcessor`: ogni tipo di attivita' (`Follow` verso account aperti e
   protetti, `Accept`/`Reject` di un follow in uscita, `Undo`, `Like`/`Announce` e i
-  relativi `Undo`, `Create` di un post o di una risposta rilevante, `Delete`) e il
-  caso di un Actor firmatario sconosciuto;
+  relativi `Undo`, `Create` di un post o di una risposta rilevante, `Delete`, `Update`
+  con oggetto `Note` e con oggetto `Person`/`Group` incluso il rifiuto di un documento
+  che dichiara un id diverso dall'Actor firmatario) e il caso di un Actor firmatario
+  sconosciuto;
 - `ActivityDelivery` e `DeliverActivityJob`: deduplicazione delle inbox condivise,
   esclusione di follower locali/non ancora accettati, regole di consegna per i
   messaggi diretti, firma HTTP corretta della richiesta in uscita, fallimento
@@ -574,6 +622,14 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
 - la ricerca remota (`/cerca`) e la pagina profilo di un Actor remoto in cache
   (`/attori/{id}`, incluso il redirect al profilo canonico quando l'id corrisponde a
   un Actor locale);
+- `RemoteOutboxFetcher` (`RemoteOutboxFetcherTest`): al primo caricamento della pagina
+  profilo di un Actor remoto (o dopo la scadenza della cache) i post pubblici piu'
+  recenti del suo outbox reale vengono recuperati e mostrati, esclusi risposte, post
+  non pubblici e qualunque item che dichiari un autore diverso dal titolare
+  dell'outbox; nessuna nuova richiesta prima della scadenza della cache; il tentativo
+  viene comunque registrato quando il server remoto non risponde, per non rallentare i
+  caricamenti successivi; nessuna notifica di menzione viene generata per contenuto
+  recuperato in questo modo (non e' un evento "appena successo");
 - gli elenchi follower/seguiti (`FollowListTest`): visibilita' pubblica per un profilo
   locale, esclusione delle richieste ancora in attesa, stato corretto del pulsante
   segui/smetti di seguire per riga, redirect dell'elenco di un Actor remoto quando
@@ -585,7 +641,10 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   immagine, cambio della lingua dell'interfaccia effettivamente applicato dal
   middleware, propagazione della visibilita' predefinita al composer, sincronizzazione
   di "account protetto" fra `user_settings` e l'Actor, esclusione dai suggerimenti
-  quando l'account non e' piu' "discoverable"; il servizio di caricamento immagini di
+  quando l'account non e' piu' "discoverable", invio di un `Update` federato ai
+  follower remoti quando cambia il profilo pubblico o l'opzione "Account protetto" (e
+  la sua assenza quando cambiano solo preferenze puramente locali); il servizio di
+  caricamento immagini di
   profilo (`ProfileImageUploaderTest`): percorsi separati per avatar/copertina,
   rimozione del file precedente, validazione di tipo e dimensione, ridimensionamento
   delle immagini sovradimensionate, permessi della cartella creata al primo upload
@@ -593,6 +652,11 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   gli allegati dei post in `MediaUploaderTest`); la costruzione dell'URL di
   avatar/copertina (`Tests\Unit\Domain\Profiles\ProfileTest`), per evitare regressioni
   sulla scelta del disco "public" al posto dell'helper `asset()`.
+- la sezione "Mondo" (`WorldTest`): la timeline mostra solo post remoti pubblici gia' in
+  cache ed esclude sia i post locali sia quelli remoti non pubblici; obbligo di
+  autenticazione; classifica degli account da scoprire (priorita' ai follower locali
+  accettati, poi all'attivita' piu' recente), esclusione di chi non ha ne' un follower
+  locale ne' un post in cache, esclusione di chi e' gia' seguito dal visitatore.
 
 Un piccolo sottoinsieme di test (`Tests\Feature\Installer\InstallerMysqlFlowTest`)
 verifica specificamente il passo 2 dell'installer (connessione e migration) contro un
@@ -667,7 +731,15 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 - ✅ **Personalizzazione del profilo e impostazioni account** (questo repository,
   successiva alla Fase 4): avatar, copertina, biografia, link, lingua
   dell'interfaccia, visibilita' predefinita dei post, account protetto,
-  presenza nei suggerimenti.
+  presenza nei suggerimenti, federazione via `Update` (in entrambe le direzioni) di
+  ogni cambio al profilo pubblico e all'account protetto.
+- ✅ **Sezione "Mondo"** (questo repository, successiva alla Fase 4): timeline dei post
+  remoti pubblici gia' in cache locale e account remoti da scoprire, classificati sui
+  soli segnali visibili da questa istanza (nessun indice globale del fediverso).
+- ✅ **Post recenti su un profilo remoto** (questo repository, successiva alla Fase 4):
+  la pagina profilo di un Actor remoto recupera al bisogno la prima pagina del suo
+  outbox reale, cosi' da mostrare i suoi post pubblici piu' recenti anche prima che
+  un qualunque Actor locale inizi a seguirlo.
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco
@@ -693,10 +765,15 @@ verdi.
   pronti) viene preservata, per evitare di introdurre un sanitizzatore HTML completo
   solo per contenuto proveniente da server non fidati. E' una scelta esplicita, non
   un difetto temporaneo.
-- Un contenuto remoto (post o risposta) viene messo in cache solo se rilevante per
-  questa istanza (autore seguito, risposta a qualcosa gia' noto, o menzione esplicita
-  di un Actor locale): Openbook non replica mai un intero timeline remoto ne' offre
-  ricerca full-text sui contenuti, locali o remoti che siano.
+- Un contenuto remoto (post o risposta) arrivato via inbox viene messo in cache solo
+  se rilevante per questa istanza (autore seguito, risposta a qualcosa gia' noto, o
+  menzione esplicita di un Actor locale). L'unica eccezione mirata e' la pagina
+  profilo di un Actor remoto (`RemoteOutboxFetcher`): visitarla recupera la prima
+  pagina del suo outbox reale, cosi' da mostrare i suoi post pubblici piu' recenti
+  anche se nessun Actor locale lo segue ancora. Resta comunque vero che Openbook non
+  replica mai un intero timeline remoto (solo la prima pagina, solo post originali,
+  mai le risposte) ne' offre ricerca full-text sui contenuti, locali o remoti che
+  siano.
 - Le immagini/allegati di un post remoto non vengono ancora recuperati ne' mostrati:
   solo il testo della Note viene messo in cache. Gli allegati locali restano serviti
   direttamente dal disco pubblico (`storage/app/public`, collegato a

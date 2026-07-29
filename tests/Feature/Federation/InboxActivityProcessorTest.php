@@ -393,6 +393,77 @@ class InboxActivityProcessorTest extends TestCase
         $this->assertSame('', $post->body);
     }
 
+    public function test_an_update_person_from_remote_refreshes_the_cached_actor(): void
+    {
+        Queue::fake();
+        $remote = $this->createRemoteActor('nadia', overrides: [
+            'name' => 'Nadia',
+            'manually_approves_followers' => false,
+        ]);
+        $publicKeyPem = $remote->key->public_key;
+
+        $activity = [
+            'id' => $remote->uri.'/aggiornamenti/1',
+            'type' => 'Update',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $remote->uri,
+                'type' => 'Person',
+                'preferredUsername' => 'nadia',
+                'name' => 'Nadia Rinominata',
+                'summary' => '<p>Nuova biografia.</p>',
+                'icon' => ['type' => 'Image', 'url' => 'https://remoto.example/avatars/nadia.png'],
+                'manuallyApprovesFollowers' => true,
+                'inbox' => $remote->uri.'/inbox',
+                'outbox' => $remote->uri.'/outbox',
+                'followers' => $remote->uri.'/followers',
+                'following' => $remote->uri.'/following',
+                'publicKey' => [
+                    'id' => $remote->uri.'#main-key',
+                    'owner' => $remote->uri,
+                    'publicKeyPem' => $publicKeyPem,
+                ],
+            ],
+        ];
+
+        $status = $this->process($activity, $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $remote->refresh();
+        $this->assertSame('Nadia Rinominata', $remote->name);
+        $this->assertSame('<p>Nuova biografia.</p>', $remote->summary);
+        $this->assertSame('https://remoto.example/avatars/nadia.png', $remote->icon_url);
+        $this->assertTrue($remote->manually_approves_followers);
+    }
+
+    public function test_an_update_person_impersonating_another_actor_is_ignored(): void
+    {
+        Queue::fake();
+        $remote = $this->createRemoteActor('oscar');
+        $other = $this->createRemoteActor('paula');
+
+        $activity = [
+            'id' => $remote->uri.'/aggiornamenti/1',
+            'type' => 'Update',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $other->uri,
+                'type' => 'Person',
+                'name' => 'Furto di identita',
+                'publicKey' => [
+                    'id' => $other->uri.'#main-key',
+                    'owner' => $other->uri,
+                    'publicKeyPem' => $other->key->public_key,
+                ],
+            ],
+        ];
+
+        $status = $this->process($activity, $remote);
+
+        $this->assertSame(InboxItem::STATUS_IGNORED, $status);
+        $this->assertSame('Paula', $other->fresh()->name);
+    }
+
     public function test_an_unknown_signer_is_ignored(): void
     {
         // Nessun Actor "fantasma" in cache: il resolver tentera' di

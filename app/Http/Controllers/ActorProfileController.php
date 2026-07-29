@@ -8,6 +8,7 @@ use App\Application\Services\FollowManager;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Federation\Outbox\RemoteOutboxFetcher;
 use App\Http\Controllers\Concerns\RendersFollowLists;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -28,6 +29,7 @@ class ActorProfileController extends Controller
         private readonly FeedQuery $feedQuery,
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
+        private readonly RemoteOutboxFetcher $outboxFetcher,
     ) {}
 
     public function show(Actor $actor): View|RedirectResponse
@@ -35,6 +37,8 @@ class ActorProfileController extends Controller
         if ($actor->isLocal()) {
             return redirect()->route('profile.show', $actor->preferred_username);
         }
+
+        $this->outboxFetcher->fetchRecentPosts($actor);
 
         $viewerActor = auth()->user()?->actor;
 

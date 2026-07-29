@@ -4,15 +4,18 @@ namespace Tests\Feature;
 
 use App\Application\Services\FollowManager;
 use App\Domain\SocialGraph\Follow;
+use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesAccounts;
+use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
 
 class SettingsTest extends TestCase
 {
-    use CreatesAccounts, RefreshDatabase;
+    use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
     public function test_a_guest_cannot_view_the_settings_page(): void
     {
@@ -61,6 +64,27 @@ class SettingsTest extends TestCase
         ]);
 
         $this->assertSame('Alice Wonderland', $user->actor->fresh()->name);
+    }
+
+    public function test_updating_the_profile_notifies_remote_followers_with_an_update_activity(): void
+    {
+        Queue::fake();
+        $user = $this->createFullAccount('alice');
+        $remoteFollower = $this->createRemoteActor('marco');
+        app(FollowManager::class)->follow($remoteFollower, $user->actor);
+
+        $this->actingAs($user)->put(route('settings.profile.update'), [
+            'display_name' => 'Alice Wonderland',
+            'bio' => 'Nuova biografia.',
+        ]);
+
+        Queue::assertPushed(DeliverActivityJob::class, function (DeliverActivityJob $job) use ($user, $remoteFollower): bool {
+            return $job->inboxUrl === $remoteFollower->endpoints->shared_inbox
+                && $job->signingActorId === $user->actor->id
+                && $job->activity['type'] === 'Update'
+                && $job->activity['object']['type'] === 'Person'
+                && $job->activity['object']['name'] === 'Alice Wonderland';
+        });
     }
 
     public function test_a_user_can_upload_an_avatar_and_the_previous_one_is_removed(): void
@@ -151,6 +175,38 @@ class SettingsTest extends TestCase
         $follow = app(FollowManager::class)->follow($bob->actor, $alice->actor->fresh());
 
         $this->assertTrue($follow->status === Follow::STATUS_PENDING);
+    }
+
+    public function test_changing_the_protected_account_option_notifies_remote_followers_with_an_update_activity(): void
+    {
+        Queue::fake();
+        $alice = $this->createFullAccount('alice');
+        $remoteFollower = $this->createRemoteActor('marco');
+        app(FollowManager::class)->follow($remoteFollower, $alice->actor);
+
+        $this->actingAs($alice)->put(route('settings.account.update'), [
+            'locale' => 'it',
+            'default_post_visibility' => 'public',
+            'manually_approves_followers' => '1',
+        ]);
+
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Update'
+            && $job->activity['object']['manuallyApprovesFollowers'] === true);
+    }
+
+    public function test_changing_only_local_preferences_does_not_notify_remote_followers(): void
+    {
+        Queue::fake();
+        $alice = $this->createFullAccount('alice');
+        $remoteFollower = $this->createRemoteActor('marco');
+        app(FollowManager::class)->follow($remoteFollower, $alice->actor);
+
+        $this->actingAs($alice)->put(route('settings.account.update'), [
+            'locale' => 'en',
+            'default_post_visibility' => 'followers',
+        ]);
+
+        Queue::assertNotPushed(DeliverActivityJob::class);
     }
 
     public function test_disabling_discoverable_removes_the_account_from_suggestions(): void

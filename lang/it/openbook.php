@@ -8,6 +8,7 @@ return [
 
     'nav' => [
         'home' => 'Home',
+        'world' => 'Mondo',
         'profile' => 'Profilo',
         'notifications' => 'Notifiche',
         'search' => 'Cerca',
@@ -193,6 +194,13 @@ return [
         'instance_title' => 'Questa istanza',
         'members_count' => '{0} Nessun membro iscritto|{1} :count membro iscritto|[2,*] :count membri iscritti',
         'people_to_follow' => 'Persone da seguire',
+    ],
+
+    'world' => [
+        'title' => 'Mondo',
+        'subtitle' => 'Post pubblici arrivati da altre istanze del fediverso verso questa piattaforma: solo cio\' che e\' gia\' rilevante qui (autori seguiti, risposte, menzioni), non un indice completo del fediverso.',
+        'suggested_title' => 'Da scoprire nel fediverso',
+        'empty' => 'Ancora nessun post dal resto del fediverso. Segui qualcuno su un\'altra istanza per iniziare a vederne i contenuti qui.',
     ],
 
 ];

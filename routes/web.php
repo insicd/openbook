@@ -16,6 +16,7 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\WorldController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -33,6 +34,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/esci', [SessionController::class, 'destroy'])->name('logout');
 
     Route::get('/home', [FeedController::class, 'index'])->name('feed.index');
+    Route::get('/mondo', [WorldController::class, 'index'])->name('world.index');
 
     Route::get('/email/verifica', [EmailVerificationController::class, 'notice'])
         ->name('verification.notice');

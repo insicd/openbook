@@ -8,6 +8,7 @@ return [
 
     'nav' => [
         'home' => 'Home',
+        'world' => 'World',
         'profile' => 'Profile',
         'notifications' => 'Notifications',
         'search' => 'Search',
@@ -193,6 +194,13 @@ return [
         'instance_title' => 'This instance',
         'members_count' => '{0} No members yet|{1} :count member|[2,*] :count members',
         'people_to_follow' => 'People to follow',
+    ],
+
+    'world' => [
+        'title' => 'World',
+        'subtitle' => 'Public posts that reached this instance from other servers in the fediverse: only what is already relevant here (accounts you follow, replies, mentions), not a full index of the fediverse.',
+        'suggested_title' => 'Discover on the fediverse',
+        'empty' => 'No posts from the rest of the fediverse yet. Follow someone on another instance to start seeing their content here.',
     ],
 
 ];

@@ -4,6 +4,7 @@ namespace Tests\Feature\Federation;
 
 use App\Application\Services\FollowManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
@@ -28,6 +29,10 @@ class ActorProfileTest extends TestCase
 
     public function test_it_shows_a_cached_remote_actor_profile(): void
     {
+        // La pagina profilo tenta anche un recupero dell'outbox reale
+        // (RemoteOutboxFetcher): qui non ci interessa, quindi simuliamo una
+        // risposta qualunque senza fare una richiesta di rete reale.
+        Http::fake(['*' => Http::response('', 404)]);
         $viewer = $this->createFullAccount('visitatore');
         $remote = $this->createRemoteActor('peter');
 

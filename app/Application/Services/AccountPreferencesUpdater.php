@@ -4,6 +4,8 @@ namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
 use App\Federation\Actors\Actor;
+use App\Federation\Delivery\ActivityDelivery;
+use App\Federation\Serialization\ActivitySerializer;
 
 /**
  * Applica le preferenze personali dell'account (lingua, fuso orario
@@ -16,6 +18,10 @@ use App\Federation\Actors\Actor;
  */
 final class AccountPreferencesUpdater
 {
+    public function __construct(
+        private readonly ActivityDelivery $delivery,
+    ) {}
+
     /**
      * @param  array{locale: string, default_post_visibility: string, manually_approves_followers?: bool|null, discoverable?: bool|null}  $data
      */
@@ -30,6 +36,22 @@ final class AccountPreferencesUpdater
             'discoverable' => (bool) ($data['discoverable'] ?? false),
         ]);
 
-        $user->actor?->update(['manually_approves_followers' => $manuallyApprovesFollowers]);
+        $actor = $user->actor;
+
+        // "locale", "default_post_visibility" e "discoverable" sono
+        // preferenze puramente locali, assenti dal documento Actor: un
+        // "Update" federato serve solo se cambia l'unico campo di questo
+        // form che vi compare davvero.
+        if ($actor === null) {
+            return;
+        }
+
+        $manuallyApprovesFollowersChanged = $actor->manually_approves_followers !== $manuallyApprovesFollowers;
+
+        $actor->update(['manually_approves_followers' => $manuallyApprovesFollowers]);
+
+        if ($manuallyApprovesFollowersChanged) {
+            $this->delivery->deliverToFollowers($actor, ActivitySerializer::updateActor($actor));
+        }
     }
 }

@@ -10,7 +10,7 @@ return [
     | Riportata nel documento NodeInfo pubblico. Aggiornata manualmente a ogni
     | fase della roadmap.
     */
-    'version' => '0.4.1',
+    'version' => '0.4.4',
 
     /*
     |--------------------------------------------------------------------------
@@ -176,6 +176,12 @@ return [
         // Dopo quante ore un Actor remoto gia' in cache viene considerato
         // scaduto e ri-recuperato alla prossima occasione utile.
         'actor_cache_ttl_hours' => (int) env('OPENBOOK_ACTOR_CACHE_TTL_HOURS', 24),
+
+        // Dopo quante ore, visitando la pagina profilo di un Actor remoto,
+        // viene ritentato il recupero dei suoi post pubblici piu' recenti
+        // dal suo outbox (vedi RemoteOutboxFetcher). Piu' breve della cache
+        // dell'Actor stesso perche' i post cambiano piu' spesso del profilo.
+        'posts_cache_ttl_hours' => (int) env('OPENBOOK_POSTS_CACHE_TTL_HOURS', 6),
 
         'inbox' => [
             // Limite applicativo aggiuntivo (difesa in profondita') rispetto

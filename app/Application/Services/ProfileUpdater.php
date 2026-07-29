@@ -3,6 +3,9 @@
 namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
+use App\Federation\Actors\RemoteActorResolver;
+use App\Federation\Delivery\ActivityDelivery;
+use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\ActorSerializer;
 use App\Infrastructure\Media\ProfileImageUploader;
 use Illuminate\Http\UploadedFile;
@@ -13,12 +16,16 @@ use Illuminate\Http\UploadedFile;
  * viene replicato anche sull'Actor ActivityPub ("name"), che e' il campo
  * effettivamente esposto ai server remoti da {@see ActorSerializer}
  * e sarebbe altrimenti rimasto bloccato allo username scelto in fase di
- * registrazione.
+ * registrazione. Ogni modifica viene inoltre notificata ai follower remoti
+ * con un "Update" (vedi {@see ActivitySerializer::updateActor()}), altrimenti
+ * resterebbero con una copia obsoleta del profilo fino alla scadenza della
+ * loro cache locale (fino a 24 ore, {@see RemoteActorResolver}).
  */
 final class ProfileUpdater
 {
     public function __construct(
         private readonly ProfileImageUploader $imageUploader,
+        private readonly ActivityDelivery $delivery,
     ) {}
 
     /**
@@ -42,7 +49,12 @@ final class ProfileUpdater
 
         $profile->save();
 
-        $user->actor?->update(['name' => $data['display_name']]);
+        $actor = $user->actor;
+        $actor?->update(['name' => $data['display_name']]);
+
+        if ($actor !== null) {
+            $this->delivery->deliverToFollowers($actor, ActivitySerializer::updateActor($actor));
+        }
     }
 
     /**

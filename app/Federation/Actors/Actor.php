@@ -37,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property bool $manually_approves_followers
  * @property string $status
  * @property Carbon|null $last_fetched_at
+ * @property Carbon|null $posts_fetched_at
  */
 class Actor extends Model
 {
@@ -69,6 +70,7 @@ class Actor extends Model
         'manually_approves_followers',
         'status',
         'last_fetched_at',
+        'posts_fetched_at',
     ];
 
     /**
@@ -80,6 +82,7 @@ class Actor extends Model
             'is_local' => 'boolean',
             'manually_approves_followers' => 'boolean',
             'last_fetched_at' => 'datetime',
+            'posts_fetched_at' => 'datetime',
         ];
     }
 

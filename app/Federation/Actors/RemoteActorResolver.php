@@ -180,9 +180,30 @@ final class RemoteActorResolver
             return null;
         }
 
-        $document = $response->json();
+        return $this->applyRemoteDocument($response->json(), $actorUri);
+    }
 
-        if (! $this->isValidActorDocument($document, $actorUri)) {
+    /**
+     * Salva (creando o aggiornando) un Actor remoto a partire da un
+     * documento Person/Group gia' disponibile, senza doverlo recuperare via
+     * HTTP: usato sia dopo un fetch riuscito da {@see fetchAndStore()}, sia
+     * da chi elabora un'attivita' "Update" in ingresso, il cui "object" e'
+     * gia' il documento completo dell'Actor che l'ha inviata. "$expectedUri"
+     * e' sempre l'identita' gia' verificata per altra via (l'URI richiesto
+     * via HTTP, oppure l'Actor la cui firma sull'attivita' e' stata
+     * validata): il documento viene scartato se dichiara un id diverso, cosi'
+     * nessuno puo' spacciarsi per un Actor differente da quello per cui si e'
+     * autenticato.
+     *
+     * @param  array<string, mixed>|null  $document
+     */
+    public function applyRemoteDocument(?array $document, string $expectedUri): ?Actor
+    {
+        if (! $this->isValidActorDocument($document, $expectedUri)) {
+            return null;
+        }
+
+        if (Actor::query()->where('uri', $expectedUri)->where('is_local', true)->exists()) {
             return null;
         }
 

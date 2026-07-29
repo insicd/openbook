@@ -4,19 +4,15 @@ namespace App\Federation\Inbox;
 
 use App\Application\Services\AnnounceManager;
 use App\Application\Services\FollowManager;
-use App\Application\Services\NotificationCreator;
 use App\Application\Services\ReactionManager;
 use App\Domain\Comments\Comment;
-use App\Domain\Notifications\Notification;
-use App\Domain\Posts\Hashtag;
-use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Resolution\ObjectResolver;
 use App\Federation\Serialization\ActivitySerializer;
-use App\Federation\Serialization\NoteSerializer;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -47,7 +43,8 @@ final class InboxActivityProcessor
         private readonly FollowManager $followManager,
         private readonly ReactionManager $reactionManager,
         private readonly AnnounceManager $announceManager,
-        private readonly NotificationCreator $notificationCreator,
+        private readonly RemoteActorResolver $remoteActorResolver,
+        private readonly RemoteNoteUpserter $noteUpserter,
     ) {}
 
     public function process(InboxItem $item): string
@@ -73,8 +70,8 @@ final class InboxActivityProcessor
             'Accept' => $this->handleAccept($activity, $signer),
             'Reject' => $this->handleReject($activity, $signer),
             'Undo' => $this->handleUndo($activity, $signer),
-            'Create' => $this->handleCreateOrUpdate($activity, $signer, isUpdate: false),
-            'Update' => $this->handleCreateOrUpdate($activity, $signer, isUpdate: true),
+            'Create' => $this->handleCreateOrUpdate($activity, $signer),
+            'Update' => $this->handleUpdate($activity, $signer),
             'Delete' => $this->handleDelete($activity, $signer),
             'Like' => $this->handleLike($activity, $signer),
             'Announce' => $this->handleAnnounce($activity, $signer),
@@ -341,15 +338,59 @@ final class InboxActivityProcessor
     }
 
     /**
-     * Gestisce sia "Create" sia "Update": entrambi trasportano la stessa
-     * rappresentazione "Note" completa nell'"object" e differiscono solo per
-     * l'eventuale presenza di una riga gia' esistente (identificata dal suo
-     * "uri"). Attivita' non incorporate (solo un id remoto da recuperare) non
-     * sono supportate in questa fase: vengono ignorate.
+     * Un "Update" trasporta rappresentazioni diverse a seconda del tipo del
+     * suo "object": una Note (post o commento gia' noto, o nuovo se mai
+     * ricevuto) oppure un intero documento Person/Group, usato dagli altri
+     * server per notificare un cambio al profilo di un proprio utente (nome,
+     * biografia, avatar, copertina, account protetto). In quest'ultimo caso
+     * il documento viene applicato direttamente alla cache locale
+     * dell'Actor, senza bisogno di rifare la richiesta HTTP che
+     * {@see RemoteActorResolver} farebbe comunque al prossimo utilizzo (ma
+     * solo dopo la scadenza della cache).
      *
      * @param  array<string, mixed>  $activity
      */
-    private function handleCreateOrUpdate(array $activity, Actor $actor, bool $isUpdate): string
+    private function handleUpdate(array $activity, Actor $signer): string
+    {
+        $object = $activity['object'] ?? null;
+        $type = is_array($object) ? ($object['type'] ?? null) : null;
+
+        return match ($type) {
+            'Note' => $this->handleCreateOrUpdate($activity, $signer),
+            'Person', 'Group', 'Service', 'Application', 'Organization' => $this->handleUpdateActor($object, $signer),
+            default => InboxItem::STATUS_IGNORED,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     */
+    private function handleUpdateActor(array $document, Actor $signer): string
+    {
+        $documentId = is_string($document['id'] ?? null) ? $document['id'] : null;
+
+        if ($documentId === null || $documentId !== $signer->uri) {
+            // Un Actor puo' aggiornare solo il proprio documento: l'id
+            // dichiarato deve coincidere con chi ha firmato la richiesta,
+            // gia' verificata a livello di trasporto.
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $updated = $this->remoteActorResolver->applyRemoteDocument($document, $signer->uri);
+
+        return $updated !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
+    }
+
+    /**
+     * Gestisce sia "Create" sia "Update" di una Note: entrambi trasportano
+     * la stessa rappresentazione completa nell'"object" e differiscono solo
+     * per l'eventuale presenza di una riga gia' esistente (identificata dal
+     * suo "uri"). Attivita' non incorporate (solo un id remoto da
+     * recuperare) non sono supportate in questa fase: vengono ignorate.
+     *
+     * @param  array<string, mixed>  $activity
+     */
+    private function handleCreateOrUpdate(array $activity, Actor $actor): string
     {
         $note = $activity['object'] ?? null;
 
@@ -394,88 +435,15 @@ final class InboxActivityProcessor
 
         return DB::transaction(function () use ($isReply, $note, $noteUri, $actor, $body, $publishedAt, $parentPost, $parentComment) {
             if ($isReply) {
-                return $this->upsertRemoteComment($note, $noteUri, $actor, $body, $parentPost, $parentComment);
+                $comment = $this->noteUpserter->upsertComment($note, $noteUri, $actor, $body, $parentPost, $parentComment);
+
+                return $comment !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
             }
 
-            return $this->upsertRemotePost($note, $noteUri, $actor, $body, $publishedAt);
+            $this->noteUpserter->upsertPost($note, $noteUri, $actor, $body, $publishedAt);
+
+            return InboxItem::STATUS_PROCESSED;
         });
-    }
-
-    /**
-     * @param  array<string, mixed>  $note
-     */
-    private function upsertRemotePost(array $note, string $noteUri, Actor $actor, string $body, Carbon $publishedAt): string
-    {
-        $sensitive = (bool) ($note['sensitive'] ?? false);
-
-        /** @var Post $post */
-        $post = Post::query()->where('uri', $noteUri)->first() ?? new Post(['uri' => $noteUri]);
-        $wasNew = ! $post->exists;
-
-        $post->fill([
-            'actor_id' => $actor->id,
-            'content_warning' => $sensitive ? (is_string($note['summary'] ?? null) ? mb_substr($note['summary'], 0, 255) : null) : null,
-            'body' => $body,
-            'visibility' => $this->visibilityFromAudience($note),
-            'status' => Post::STATUS_PUBLISHED,
-            'published_at' => $publishedAt,
-        ]);
-
-        if (! $wasNew) {
-            $post->edited_at = now();
-        }
-
-        $post->save();
-
-        if ($wasNew) {
-            $this->attachTags($post, $note);
-        }
-
-        return InboxItem::STATUS_PROCESSED;
-    }
-
-    /**
-     * @param  array<string, mixed>  $note
-     */
-    private function upsertRemoteComment(array $note, string $noteUri, Actor $actor, string $body, ?Post $parentPost, ?Comment $parentComment): string
-    {
-        $postId = $parentComment?->post_id ?? $parentPost?->id;
-
-        if ($postId === null) {
-            return InboxItem::STATUS_IGNORED;
-        }
-
-        /** @var Comment $comment */
-        $comment = Comment::query()->where('uri', $noteUri)->first() ?? new Comment(['uri' => $noteUri]);
-        $wasNew = ! $comment->exists;
-
-        $comment->fill([
-            'post_id' => $postId,
-            'parent_comment_id' => $parentComment?->id,
-            'actor_id' => $actor->id,
-            'body' => $body,
-            'status' => Comment::STATUS_PUBLISHED,
-        ]);
-
-        if (! $wasNew) {
-            $comment->edited_at = now();
-        }
-
-        $comment->save();
-
-        if ($wasNew) {
-            if ($parentComment !== null) {
-                $parentComment->increment('replies_count');
-                $this->notificationCreator->notify($parentComment->actor, Notification::TYPE_REPLY, $actor, $comment);
-            } elseif ($parentPost !== null) {
-                $parentPost->increment('comments_count');
-                $this->notificationCreator->notify($parentPost->actor, Notification::TYPE_COMMENT, $actor, $comment);
-            }
-
-            $this->attachTags($comment, $note);
-        }
-
-        return InboxItem::STATUS_PROCESSED;
     }
 
     /**
@@ -526,71 +494,6 @@ final class InboxActivityProcessor
         }
 
         return false;
-    }
-
-    /**
-     * @param  array<string, mixed>  $note
-     */
-    private function attachTags(Post|Comment $target, array $note): void
-    {
-        $tags = is_array($note['tag'] ?? null) ? $note['tag'] : [];
-
-        foreach ($tags as $tag) {
-            if (! is_array($tag)) {
-                continue;
-            }
-
-            if ($target instanceof Post && ($tag['type'] ?? null) === 'Hashtag' && is_string($tag['name'] ?? null)) {
-                $hashtag = Hashtag::query()->firstOrCreate(['name' => Hashtag::normalize($tag['name'])]);
-                $target->hashtags()->syncWithoutDetaching([$hashtag->id]);
-
-                continue;
-            }
-
-            if (($tag['type'] ?? null) === 'Mention' && is_string($tag['href'] ?? null)) {
-                $mentionedActor = Actor::query()->where('uri', $tag['href'])->where('is_local', true)->first();
-
-                if ($mentionedActor === null) {
-                    continue;
-                }
-
-                Mention::query()->create([
-                    'mentionable_type' => $target->getMorphClass(),
-                    'mentionable_id' => $target->id,
-                    'actor_id' => $mentionedActor->id,
-                ]);
-
-                $this->notificationCreator->notify($mentionedActor, Notification::TYPE_MENTION, $target->actor, $target);
-            }
-        }
-    }
-
-    /**
-     * Deduce la visibilita' locale a partire dagli indirizzi "to"/"cc" di una
-     * Note remota, rispecchiando la logica inversa di
-     * {@see NoteSerializer}.
-     *
-     * @param  array<string, mixed>  $note
-     */
-    private function visibilityFromAudience(array $note): string
-    {
-        $to = is_array($note['to'] ?? null) ? $note['to'] : [];
-        $cc = is_array($note['cc'] ?? null) ? $note['cc'] : [];
-        $public = NoteSerializer::PUBLIC_STREAM;
-
-        if (in_array($public, $to, true)) {
-            return Post::VISIBILITY_PUBLIC;
-        }
-
-        if (in_array($public, $cc, true)) {
-            return Post::VISIBILITY_UNLISTED;
-        }
-
-        if ($to === [] && $cc === []) {
-            return Post::VISIBILITY_DIRECT;
-        }
-
-        return Post::VISIBILITY_FOLLOWERS;
     }
 
     /**
