@@ -804,9 +804,10 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   recuperato in questo modo (non e' un evento "appena successo");
 - `RemoteRepliesFetcher` (`RemoteRepliesFetcherTest`): aprendo un post remoto (es. dal
   feed di chi si segue) viene interrogata la collection `replies` della Note originale
-  (TTL `OPENBOOK_REPLIES_CACHE_TTL_HOURS`); i commenti pubblici/non elencati di terzi
-  vengono messi in cache senza generare notifiche; le risposte a commenti gia' noti
-  sotto lo stesso post vengono annidate correttamente;
+  (TTL `OPENBOOK_REPLIES_CACHE_TTL_HOURS`), seguendo anche la paginazione `next` tipica
+  di Mastodon (dove la prima pagina e' spesso vuota); i commenti pubblici/non elencati
+  di terzi vengono messi in cache senza generare notifiche; le risposte a commenti gia'
+  noti sotto lo stesso post vengono annidate correttamente;
 - gli elenchi follower/seguiti (`FollowListTest`): visibilita' pubblica per un profilo
   locale, esclusione delle richieste ancora in attesa, stato corretto del pulsante
   segui/smetti di seguire per riga, redirect dell'elenco di un Actor remoto quando
@@ -934,8 +935,10 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
   regole istanza in Markdown (`/regole`), blocchi dominio federato, ispezione
   coda (`jobs`/`failed_jobs`/`inbox_items`), promozione admin da UI, segnalazioni
   commenti, registro azioni staff.
-- ✅ **Recupero replies su post remoti (v0.6.1)**: aprendo un post remoto si
-  interroga la collection `replies` della Note originale (`RemoteRepliesFetcher`).
+- ✅ **Recupero replies su post remoti (v0.6.1–0.6.2)**: aprendo un post remoto si
+  interroga la collection `replies` della Note originale (`RemoteRepliesFetcher`),
+  seguendo la paginazione `next` (Mastodon). L'orario del post apre il dettaglio
+  Openbook; l'originale remoto e' nel menu «Apri post originale».
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco
@@ -966,8 +969,9 @@ verdi.
   menzione esplicita di un Actor locale). Eccezioni mirate: la pagina profilo di un
   Actor remoto (`RemoteOutboxFetcher`) recupera la prima pagina del suo outbox; la
   pagina di un post remoto (`RemoteRepliesFetcher`) recupera la collection `replies`
-  della Note originale (prima pagina, solo risposte pubbliche/non elencate
-  agganciabili al thread). Openbook non replica comunque un intero timeline remoto.
+  della Note originale (fino a poche pagine successive via `next`, solo risposte
+  pubbliche/non elencate agganciabili al thread). Openbook non replica comunque un
+  intero timeline remoto.
   La ricerca per parole chiave (`LocalSearchQuery`) copre solo i contenuti *locali*
   di questa istanza: non c'e' un indice full-text dedicato ne' una ricerca sui
   contenuti remoti in cache (per quelli resta la risoluzione diretta

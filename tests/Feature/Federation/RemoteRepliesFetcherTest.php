@@ -183,4 +183,52 @@ class RemoteRepliesFetcherTest extends TestCase
         Http::assertNothingSent();
         $this->assertNull($post->fresh()->replies_fetched_at);
     }
+
+    public function test_it_follows_mastodon_style_next_page_when_first_page_is_empty(): void
+    {
+        $viewer = $this->createFullAccount('lettoremastodon');
+        $author = $this->createRemoteActor('mastoauthor');
+        $replier = $this->createRemoteActor('mastoreplier', 'reply.example');
+        $post = $this->createRemotePost($author, 'masto');
+
+        $firstPage = $post->uri.'/replies?only_other_accounts=false&page=true';
+        $nextPage = $post->uri.'/replies?only_other_accounts=true&page=true';
+        $reply = $this->replyNote($replier, $post->uri, 'Risposta sulla pagina next', [
+            'attributedTo' => ['id' => $replier->uri, 'type' => 'Person'],
+        ]);
+
+        Http::fake([
+            $post->uri => Http::response([
+                'id' => $post->uri,
+                'type' => 'Note',
+                'attributedTo' => $author->uri,
+                'content' => '<p>Post remoto seguito.</p>',
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+                'replies' => [
+                    'id' => $post->uri.'/replies',
+                    'type' => 'Collection',
+                    'first' => [
+                        'id' => $firstPage,
+                        'type' => 'CollectionPage',
+                        'next' => $nextPage,
+                        'partOf' => $post->uri.'/replies',
+                        'items' => [],
+                    ],
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $nextPage => Http::response([
+                'id' => $nextPage,
+                'type' => 'CollectionPage',
+                'partOf' => $post->uri.'/replies',
+                'items' => [$reply['id']],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $reply['id'] => Http::response($reply, 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $this->actingAs($viewer)->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertSee('Risposta sulla pagina next', false);
+
+        $this->assertSame(1, Comment::query()->where('post_id', $post->id)->count());
+    }
 }

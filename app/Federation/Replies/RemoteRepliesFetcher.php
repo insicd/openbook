@@ -7,21 +7,27 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Inbox\RemoteContentSanitizer;
 use App\Federation\Inbox\RemoteNoteUpserter;
-use App\Federation\Outbox\RemoteOutboxFetcher;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Recupera le risposte pubbliche dalla collection "replies" di una Note
  * remota gia' in cache locale. Necessario perche' i commenti di terzi su
- * un post seguito arrivano in inbox solo se indirizzati a questa istanza:
- * aprendo il post si interroga esplicitamente il server di origine, sullo
- * stesso modello di {@see RemoteOutboxFetcher} per i profili remoti.
+ * un post seguito arrivano in inbox solo se indirizzati a questa istanza.
+ *
+ * Su Mastodon la prima pagina di "replies" contiene solo le auto-risposte
+ * dell'autore (spesso vuota): le risposte di terzi stanno nelle pagine
+ * successive (`next`), che vanno quindi seguite.
  */
 final class RemoteRepliesFetcher
 {
     private const MAX_ITEMS = 40;
+
+    private const MAX_PAGES = 5;
+
+    private const ACCEPT = 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"';
 
     public function __construct(
         private readonly SafeHttpClient $httpClient,
@@ -47,7 +53,11 @@ final class RemoteRepliesFetcher
 
         $note = $this->fetchDocument($post->uri);
 
-        if ($note === null || ($note['type'] ?? null) !== 'Note') {
+        if ($note === null || ! $this->isType($note['type'] ?? null, 'Note')) {
+            Log::channel('single')->info('federation.replies.note_unavailable', [
+                'post_uri' => $post->uri,
+            ]);
+
             return;
         }
 
@@ -63,67 +73,67 @@ final class RemoteRepliesFetcher
      */
     private function resolveRepliesItems(mixed $replies): array
     {
-        if (is_string($replies) && $replies !== '') {
-            return $this->collectionItems($this->fetchDocument($replies));
-        }
-
-        if (! is_array($replies)) {
+        if ($replies === null) {
             return [];
         }
 
-        $direct = $this->orderedOrPlainItems($replies);
+        $collected = [];
+        $visited = [];
+        $page = null;
 
-        if ($direct !== []) {
-            return $direct;
+        if (is_string($replies) && $replies !== '') {
+            $page = $this->fetchDocument($replies);
+        } elseif (is_array($replies)) {
+            $direct = $this->pageItems($replies);
+            $this->appendItems($collected, $direct);
+
+            $first = $replies['first'] ?? null;
+
+            if (is_array($first)) {
+                $page = $first;
+            } elseif (is_string($first) && $first !== '') {
+                $page = $this->fetchDocument($first);
+            } elseif ($direct === [] && $this->isCollectionType($replies['type'] ?? null)) {
+                // Collection senza "first" ma con items/orderedItems gia' letti sopra.
+                $page = null;
+            }
         }
 
-        $first = $replies['first'] ?? null;
+        $pages = 0;
 
-        if (is_array($first)) {
-            return $this->orderedOrPlainItems($first);
+        while ($page !== null && $pages < self::MAX_PAGES && count($collected) < self::MAX_ITEMS) {
+            $pages++;
+            $this->appendItems($collected, $this->pageItems($page));
+
+            $next = $page['next'] ?? null;
+
+            if (! is_string($next) || $next === '' || isset($visited[$next])) {
+                break;
+            }
+
+            $visited[$next] = true;
+            $page = $this->fetchDocument($next);
         }
 
-        if (is_string($first) && $first !== '') {
-            return $this->collectionItems($this->fetchDocument($first));
-        }
-
-        return [];
+        return array_slice($collected, 0, self::MAX_ITEMS);
     }
 
     /**
-     * @param  array<string, mixed>|null  $document
-     * @return list<array<string, mixed>|string>
+     * @param  list<array<string, mixed>|string>  $collected
+     * @param  list<array<string, mixed>|string>  $items
      */
-    private function collectionItems(?array $document): array
+    private function appendItems(array &$collected, array $items): void
     {
-        if ($document === null) {
-            return [];
+        foreach ($items as $item) {
+            $collected[] = $item;
         }
-
-        $direct = $this->orderedOrPlainItems($document);
-
-        if ($direct !== []) {
-            return $direct;
-        }
-
-        $first = $document['first'] ?? null;
-
-        if (is_array($first)) {
-            return $this->orderedOrPlainItems($first);
-        }
-
-        if (is_string($first) && $first !== '') {
-            return $this->orderedOrPlainItems($this->fetchDocument($first) ?? []);
-        }
-
-        return [];
     }
 
     /**
      * @param  array<string, mixed>  $document
      * @return list<array<string, mixed>|string>
      */
-    private function orderedOrPlainItems(array $document): array
+    private function pageItems(array $document): array
     {
         $items = $document['orderedItems'] ?? $document['items'] ?? null;
 
@@ -131,12 +141,10 @@ final class RemoteRepliesFetcher
             return [];
         }
 
-        $filtered = array_values(array_filter(
+        return array_values(array_filter(
             $items,
             fn ($item) => is_array($item) || (is_string($item) && $item !== ''),
         ));
-
-        return array_slice($filtered, 0, self::MAX_ITEMS);
     }
 
     /**
@@ -145,12 +153,33 @@ final class RemoteRepliesFetcher
     private function fetchDocument(string $url): ?array
     {
         try {
-            $response = $this->httpClient->get($url, ['Accept' => 'application/activity+json']);
-        } catch (SsrfViolationException) {
+            $response = $this->httpClient->get($url, ['Accept' => self::ACCEPT]);
+        } catch (SsrfViolationException $exception) {
+            Log::channel('single')->info('federation.replies.fetch_blocked', [
+                'url' => $url,
+                'reason' => $exception->getMessage(),
+            ]);
+
+            return null;
+        } catch (\Throwable $exception) {
+            Log::channel('single')->info('federation.replies.fetch_error', [
+                'url' => $url,
+                'reason' => $exception->getMessage(),
+            ]);
+
             return null;
         }
 
-        return $response->successful() ? $response->json() : null;
+        if (! $response->successful()) {
+            Log::channel('single')->info('federation.replies.fetch_failed', [
+                'url' => $url,
+                'status' => $response->status,
+            ]);
+
+            return null;
+        }
+
+        return $response->json();
     }
 
     /**
@@ -164,27 +193,19 @@ final class RemoteRepliesFetcher
             return;
         }
 
-        if (($note['type'] ?? null) === 'Create' && is_array($note['object'] ?? null)) {
+        if ($this->isType($note['type'] ?? null, 'Create') && is_array($note['object'] ?? null)) {
             $note = $note['object'];
         }
 
-        if (($note['type'] ?? null) !== 'Note') {
+        if (! $this->isType($note['type'] ?? null, 'Note')) {
             return;
         }
 
-        $noteUri = $note['id'] ?? null;
-        $inReplyTo = $note['inReplyTo'] ?? null;
-        $attributedTo = $note['attributedTo'] ?? null;
+        $noteUri = is_string($note['id'] ?? null) ? $note['id'] : null;
+        $inReplyTo = is_string($note['inReplyTo'] ?? null) ? $note['inReplyTo'] : null;
+        $attributedTo = $this->actorUri($note['attributedTo'] ?? null);
 
-        if (! is_string($noteUri) || $noteUri === '') {
-            return;
-        }
-
-        if (! is_string($inReplyTo) || $inReplyTo === '') {
-            return;
-        }
-
-        if (! is_string($attributedTo) || $attributedTo === '') {
+        if ($noteUri === null || $noteUri === '' || $inReplyTo === null || $inReplyTo === '' || $attributedTo === null) {
             return;
         }
 
@@ -203,15 +224,11 @@ final class RemoteRepliesFetcher
         $actor = $this->remoteActorResolver->resolveByUri($attributedTo);
 
         if ($actor === null || $actor->isLocal()) {
-            // Autore locale: il commento dovrebbe gia' esistere sul DB;
-            // non si crea una seconda copia remota.
             return;
         }
 
         $body = RemoteContentSanitizer::toPlainText((string) ($note['content'] ?? ''));
 
-        // notifyMentions: false — backfill di thread gia' esistente, non un
-        // evento "appena successo": niente notifiche per menzioni/risposte vecchie.
         $this->noteUpserter->upsertComment(
             $note,
             $noteUri,
@@ -228,13 +245,17 @@ final class RemoteRepliesFetcher
      */
     private function resolveParents(string $inReplyTo, Post $post): array
     {
-        if ($inReplyTo === $post->uri) {
+        if ($this->sameObjectUri($inReplyTo, (string) $post->uri)) {
             return [$post, null];
         }
 
         $parentComment = Comment::query()
             ->where('post_id', $post->id)
-            ->where('uri', $inReplyTo)
+            ->where(function ($query) use ($inReplyTo) {
+                $query->where('uri', $inReplyTo)
+                    ->orWhere('uri', rtrim($inReplyTo, '/'))
+                    ->orWhere('uri', $inReplyTo.'/');
+            })
             ->first();
 
         if ($parentComment !== null) {
@@ -242,5 +263,54 @@ final class RemoteRepliesFetcher
         }
 
         return [null, null];
+    }
+
+    private function actorUri(mixed $attributedTo): ?string
+    {
+        if (is_string($attributedTo) && $attributedTo !== '') {
+            return $attributedTo;
+        }
+
+        if (! is_array($attributedTo)) {
+            return null;
+        }
+
+        if (is_string($attributedTo['id'] ?? null) && $attributedTo['id'] !== '') {
+            return $attributedTo['id'];
+        }
+
+        $first = $attributedTo[0] ?? null;
+
+        if (is_string($first) && $first !== '') {
+            return $first;
+        }
+
+        if (is_array($first) && is_string($first['id'] ?? null) && $first['id'] !== '') {
+            return $first['id'];
+        }
+
+        return null;
+    }
+
+    private function sameObjectUri(string $a, string $b): bool
+    {
+        return rtrim($a, '/') === rtrim($b, '/');
+    }
+
+    private function isType(mixed $type, string $expected): bool
+    {
+        if ($type === $expected) {
+            return true;
+        }
+
+        return is_array($type) && in_array($expected, $type, true);
+    }
+
+    private function isCollectionType(mixed $type): bool
+    {
+        return $this->isType($type, 'Collection')
+            || $this->isType($type, 'OrderedCollection')
+            || $this->isType($type, 'CollectionPage')
+            || $this->isType($type, 'OrderedCollectionPage');
     }
 }

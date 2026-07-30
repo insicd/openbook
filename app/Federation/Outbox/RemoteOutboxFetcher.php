@@ -124,6 +124,8 @@ final class RemoteOutboxFetcher
             $response = $this->httpClient->get($url, ['Accept' => 'application/activity+json']);
         } catch (SsrfViolationException) {
             return null;
+        } catch (\Throwable) {
+            return null;
         }
 
         return $response->successful() ? $response->json() : null;

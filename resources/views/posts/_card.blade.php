@@ -8,14 +8,10 @@
     $embed = $embed ?? false;
     $embedDepth = $embedDepth ?? 0;
     $sharedBy = $embed ? null : ($post->sharedBy ?? null);
-    // I post remoti puntano al loro "uri" ActivityPub (di solito anche la
-    // pagina HTML originale sull'istanza remota); i locali restano sulla
-    // pagina Openbook del post, a meno che non si sia gia' su quella pagina
-    // ($linkToPost = false, usato da posts/show).
-    $timeHref = $post->isRemote() && filled($post->uri)
-        ? $post->uri
-        : ($linkToPost ? route('posts.show', $post) : null);
-    $timeIsExternal = $post->isRemote() && filled($post->uri);
+    // Orario: sempre la pagina Openbook del post (anche se remoto). L'originale
+    // ActivityPub si apre dalla voce di menu "Apri post originale".
+    $timeHref = $linkToPost ? route('posts.show', $post) : null;
+    $canOpenOriginal = $post->isRemote() && filled($post->uri);
 @endphp
 
 <article class="ob-card ob-post{{ $embed ? ' ob-post--embed' : '' }}">
@@ -36,10 +32,7 @@
             @endif
             <div class="ob-post__time">
                 @if ($timeHref)
-                    <a
-                        href="{{ $timeHref }}"
-                        @if ($timeIsExternal) target="_blank" rel="noopener noreferrer" title="{{ __('openbook.posts.open_original') }}" @endif
-                    >{{ $post->published_at->diffForHumans() }}</a>
+                    <a href="{{ $timeHref }}">{{ $post->published_at->diffForHumans() }}</a>
                 @else
                     {{ $post->published_at->diffForHumans() }}
                 @endif
@@ -50,37 +43,41 @@
         </div>
 
         @if (! $embed)
-            @auth
-                @php
-                    $canDeletePost = auth()->user()->can('delete', $post);
-                    $canReportPost = auth()->user()->can('report', $post);
-                @endphp
-                @if ($canDeletePost || $canReportPost)
-                    <details class="ob-post__menu">
-                        <summary class="ob-icon-btn" aria-label="{{ __('openbook.posts.menu') }}">
-                            <x-icon name="more-vertical" />
-                        </summary>
-                        <div class="ob-post__menu-panel" role="menu">
-                            @if ($canReportPost)
-                                <a href="{{ route('posts.report.create', $post) }}" class="ob-post__menu-item" role="menuitem">
-                                    <x-icon name="flag" />
-                                    {{ __('openbook.actions.report') }}
-                                </a>
-                            @endif
-                            @if ($canDeletePost)
-                                <form method="POST" action="{{ route('posts.destroy', $post) }}" onsubmit="return confirm('{{ __('openbook.posts.confirm_delete') }}')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="ob-post__menu-item" role="menuitem">
-                                        <x-icon name="trash" />
-                                        {{ __('openbook.actions.delete') }}
-                                    </button>
-                                </form>
-                            @endif
-                        </div>
-                    </details>
-                @endif
-            @endauth
+            @php
+                $canDeletePost = auth()->check() && auth()->user()->can('delete', $post);
+                $canReportPost = auth()->check() && auth()->user()->can('report', $post);
+            @endphp
+            @if ($canDeletePost || $canReportPost || $canOpenOriginal)
+                <details class="ob-post__menu">
+                    <summary class="ob-icon-btn" aria-label="{{ __('openbook.posts.menu') }}">
+                        <x-icon name="more-vertical" />
+                    </summary>
+                    <div class="ob-post__menu-panel" role="menu">
+                        @if ($canOpenOriginal)
+                            <a href="{{ $post->uri }}" class="ob-post__menu-item" role="menuitem" target="_blank" rel="noopener noreferrer">
+                                <x-icon name="globe" />
+                                {{ __('openbook.posts.open_original') }}
+                            </a>
+                        @endif
+                        @if ($canReportPost)
+                            <a href="{{ route('posts.report.create', $post) }}" class="ob-post__menu-item" role="menuitem">
+                                <x-icon name="flag" />
+                                {{ __('openbook.actions.report') }}
+                            </a>
+                        @endif
+                        @if ($canDeletePost)
+                            <form method="POST" action="{{ route('posts.destroy', $post) }}" onsubmit="return confirm('{{ __('openbook.posts.confirm_delete') }}')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="ob-post__menu-item" role="menuitem">
+                                    <x-icon name="trash" />
+                                    {{ __('openbook.actions.delete') }}
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+                </details>
+            @endif
         @endif
     </div>
 

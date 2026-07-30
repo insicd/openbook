@@ -19,7 +19,7 @@ class PostCardActionsTest extends TestCase
 {
     use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
-    public function test_a_remote_post_timestamp_links_to_the_original_uri_in_a_new_tab(): void
+    public function test_a_remote_post_timestamp_links_to_the_local_post_page(): void
     {
         $viewer = $this->createFullAccount('viewerremoto');
         $remote = $this->createRemoteActor('alice');
@@ -34,12 +34,15 @@ class PostCardActionsTest extends TestCase
             'published_at' => now(),
         ]);
 
-        $response = $this->actingAs($viewer)->get(route('posts.show', $post));
+        // "Mondo" mostra i post remoti pubblici in cache con linkToPost attivo.
+        $response = $this->actingAs($viewer)->get(route('world.index'));
 
         $response->assertOk();
+        $response->assertSee('href="'.route('posts.show', $post).'"', false);
+        $response->assertDontSee('href="'.$uri.'" target="_blank"', false);
+        $response->assertSee(__('openbook.posts.open_original'), false);
         $response->assertSee('href="'.$uri.'"', false);
         $response->assertSee('target="_blank"', false);
-        $response->assertSee('rel="noopener noreferrer"', false);
     }
 
     public function test_a_local_post_timestamp_still_links_to_the_local_post_page(): void
@@ -54,7 +57,7 @@ class PostCardActionsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('href="'.route('posts.show', $post).'"', false);
-        $response->assertDontSee('target="_blank"', false);
+        $response->assertDontSee(__('openbook.posts.open_original'), false);
     }
 
     public function test_action_buttons_are_icon_only_without_word_labels(): void
