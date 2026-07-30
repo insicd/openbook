@@ -26,6 +26,7 @@ return [
         'notifications' => 'Notifications',
         'search' => 'Search',
         'settings' => 'Settings',
+        'new_post' => 'New post',
         'login' => 'Log in',
         'register' => 'Sign up',
         'logout' => 'Log out',

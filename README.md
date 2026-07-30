@@ -672,7 +672,10 @@ sul proprio profilo) le rende finalmente modificabili:
   (la pagina completa resta nella sidebar sinistra); l'icona search apre un
   campo di input inline invece di andare subito a `/cerca` (l'invio del form
   usa comunque la stessa ricerca locale/federata). Script dedicato:
-  `public/assets/js/header-panels.js`.
+  `public/assets/js/header-panels.js`. Su desktop, dopo lo scroll oltre il
+  composer, appare al centro della header un pulsante **+** che riporta
+  il focus sul composer (o alla Home se si e' altrove); su mobile lo stesso
+  controllo e' un FAB discreto in basso a destra (`compose-shortcut.js`).
 - **Embed video**: se il body di un post contiene un link YouTube
   (`youtube.com`, `youtu.be`, Shorts, ...) o PeerTube (`/w/...`,
   `/videos/watch/...`), sotto il testo viene mostrato un player iframe

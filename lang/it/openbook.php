@@ -26,6 +26,7 @@ return [
         'notifications' => 'Notifiche',
         'search' => 'Cerca',
         'settings' => 'Impostazioni',
+        'new_post' => 'Nuovo post',
         'login' => 'Accedi',
         'register' => 'Registrati',
         'logout' => 'Esci',

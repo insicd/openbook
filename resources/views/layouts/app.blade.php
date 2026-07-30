@@ -25,6 +25,20 @@
             </div>
 
             @auth
+                <div class="ob-header__center">
+                    <a
+                        href="{{ route('feed.index') }}#ob-composer"
+                        class="ob-compose-btn ob-compose-btn--header"
+                        id="ob-compose-header"
+                        aria-label="{{ __('openbook.nav.new_post') }}"
+                        title="{{ __('openbook.nav.new_post') }}"
+                        aria-hidden="true"
+                        tabindex="-1"
+                    >
+                        <x-icon name="plus" />
+                    </a>
+                </div>
+
                 <div class="ob-header__end">
                     <button type="button" class="ob-icon-btn ob-nav-toggle" id="ob-nav-toggle"
                         aria-label="Altre opzioni" aria-controls="ob-nav-icons" aria-expanded="false">
@@ -114,8 +128,21 @@
     <script src="{{ \App\Support\Assets::url('assets/js/infinite-scroll.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/post-menu.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/header-panels.js') }}" defer></script>
+    <script src="{{ \App\Support\Assets::url('assets/js/compose-shortcut.js') }}" defer></script>
 
     @auth
+        <a
+            href="{{ route('feed.index') }}#ob-composer"
+            class="ob-compose-btn ob-compose-btn--fab"
+            id="ob-compose-fab"
+            aria-label="{{ __('openbook.nav.new_post') }}"
+            title="{{ __('openbook.nav.new_post') }}"
+            aria-hidden="true"
+            tabindex="-1"
+        >
+            <x-icon name="plus" />
+        </a>
+
         <div class="ob-sidebar-overlay" id="ob-sidebar-overlay" hidden></div>
         <script>
             (function () {

@@ -117,12 +117,28 @@ p {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.6rem 1.25rem;
+  position: relative;
 }
 
 .ob-header__start {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+}
+
+.ob-header__center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.ob-header__center .ob-compose-btn {
+  pointer-events: auto;
 }
 
 .ob-brand {
@@ -156,6 +172,77 @@ p {
   position: relative;
   display: flex;
   align-items: center;
+  margin-left: auto;
+}
+
+.ob-compose-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  text-decoration: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.92);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  pointer-events: none;
+}
+
+.ob-compose-btn.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.ob-compose-btn .ob-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.ob-compose-btn--header {
+  width: 40px;
+  height: 40px;
+  background: var(--ob-color-primary);
+  color: var(--ob-color-primary-contrast);
+  box-shadow: 0 2px 8px rgba(24, 119, 242, 0.28);
+}
+
+.ob-compose-btn--header:hover,
+.ob-compose-btn--header:focus-visible {
+  background: var(--ob-color-primary-dark);
+  color: var(--ob-color-primary-contrast);
+  text-decoration: none;
+}
+
+.ob-compose-btn--fab {
+  display: none;
+  position: fixed;
+  right: 1rem;
+  bottom: 1.15rem;
+  z-index: 28;
+  width: 48px;
+  height: 48px;
+  background: var(--ob-color-surface);
+  color: var(--ob-color-primary);
+  border: 1px solid var(--ob-color-border);
+  box-shadow: 0 4px 14px rgba(28, 30, 33, 0.12);
+}
+
+.ob-compose-btn--fab:hover,
+.ob-compose-btn--fab:focus-visible {
+  background: var(--ob-color-primary);
+  color: var(--ob-color-primary-contrast);
+  border-color: var(--ob-color-primary);
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgba(28, 30, 33, 0.16);
+}
+
+.ob-compose-btn--fab .ob-icon {
+  width: 22px;
+  height: 22px;
 }
 
 .ob-nav__label {
@@ -1425,6 +1512,14 @@ a.ob-post__menu-item {
 
 @media (max-width: 767px) {
   .ob-sidebar-toggle {
+    display: inline-flex;
+  }
+
+  .ob-header__center {
+    display: none;
+  }
+
+  .ob-compose-btn--fab {
     display: inline-flex;
   }
 

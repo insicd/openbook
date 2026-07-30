@@ -9,7 +9,7 @@
     $visibilityOpen = old('visibility') || $errors->has('visibility') || $defaultVisibility !== 'public';
 @endphp
 
-<div class="ob-card ob-composer{{ $quotedPost ? ' ob-composer--quoting' : '' }}" @if ($quotedPost) id="ob-composer" @endif>
+<div class="ob-card ob-composer{{ $quotedPost ? ' ob-composer--quoting' : '' }}" id="ob-composer">
     <form method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
         @csrf
 
