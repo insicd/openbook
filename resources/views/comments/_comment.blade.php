@@ -84,6 +84,9 @@
                 <div class="ob-field">
                     <label for="risposta-testo-{{ $comment->id }}" class="ob-field__help">{{ __('openbook.comments.reply_to', ['name' => $displayName]) }}</label>
                     <textarea id="risposta-testo-{{ $comment->id }}" name="body" rows="2" required maxlength="2000"></textarea>
+                    <div class="ob-emoji-toolbar">
+                        <x-emoji-trigger target="risposta-testo-{{ $comment->id }}" />
+                    </div>
                 </div>
                 <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.actions.reply') }}</button>
             </form>

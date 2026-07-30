@@ -676,6 +676,10 @@ sul proprio profilo) le rende finalmente modificabili:
   composer, appare al centro della header un pulsante **+** che riporta
   il focus sul composer (o alla Home se si e' altrove); su mobile lo stesso
   controllo e' un FAB discreto in basso a destra (`compose-shortcut.js`).
+- **Emoji**: nei composer di post e commenti (anche risposte) un'icona
+  sorriso apre un picker locale stile Mastodon (categorie, ricerca,
+  recenti in `localStorage`). Solo Unicode nativo del sistema, nessuna
+  CDN / Twemoji (`emoji-data.js` + `emoji-picker.js`).
 - **Embed video**: se il body di un post contiene un link YouTube
   (`youtube.com`, `youtu.be`, Shorts, ...) o PeerTube (`/w/...`,
   `/videos/watch/...`), sotto il testo viene mostrato un player iframe

@@ -98,6 +98,26 @@ return [
         'submit' => 'Post',
     ],
 
+    'emoji' => [
+        'open' => 'Insert emoji',
+        'search' => 'Search emoji...',
+        'recent' => 'Recent',
+        'empty' => 'No emoji found.',
+        'close' => 'Close',
+        'categories' => [
+            'recent' => 'Recent',
+            'smileys' => 'Smileys & emotion',
+            'people' => 'People & body',
+            'nature' => 'Animals & nature',
+            'food' => 'Food & drink',
+            'activity' => 'Activity',
+            'travel' => 'Travel & places',
+            'objects' => 'Objects',
+            'symbols' => 'Symbols',
+            'flags' => 'Flags',
+        ],
+    ],
+
     'visibility' => [
         'public' => 'Public',
         'unlisted' => 'Unlisted',

@@ -98,6 +98,26 @@ return [
         'submit' => 'Pubblica',
     ],
 
+    'emoji' => [
+        'open' => 'Inserisci emoji',
+        'search' => 'Cerca emoji...',
+        'recent' => 'Recenti',
+        'empty' => 'Nessuna emoji trovata.',
+        'close' => 'Chiudi',
+        'categories' => [
+            'recent' => 'Recenti',
+            'smileys' => 'Faccine ed emozioni',
+            'people' => 'Persone e corpo',
+            'nature' => 'Animali e natura',
+            'food' => 'Cibo e bevande',
+            'activity' => 'Attivita',
+            'travel' => 'Viaggi e luoghi',
+            'objects' => 'Oggetti',
+            'symbols' => 'Simboli',
+            'flags' => 'Bandiere',
+        ],
+    ],
+
     'visibility' => [
         'public' => 'Pubblica',
         'unlisted' => 'Non elencata',

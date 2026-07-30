@@ -105,6 +105,7 @@
                     onclick="obToggleComposerPanel('composer-panel-visibility', this)">
                     <x-icon name="globe" />
                 </button>
+                <x-emoji-trigger target="composer-body" />
             </div>
 
             <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.composer.submit') }}</button>

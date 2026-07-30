@@ -131,6 +131,18 @@
     <script src="{{ \App\Support\Assets::url('assets/js/compose-shortcut.js') }}" defer></script>
 
     @auth
+        <div
+            id="ob-emoji-i18n"
+            hidden
+            data-search="{{ __('openbook.emoji.search') }}"
+            data-recent="{{ __('openbook.emoji.recent') }}"
+            data-empty="{{ __('openbook.emoji.empty') }}"
+            data-close="{{ __('openbook.emoji.close') }}"
+            data-categories='@json(__('openbook.emoji.categories'))'
+        ></div>
+        <script src="{{ \App\Support\Assets::url('assets/js/emoji-data.js') }}" defer></script>
+        <script src="{{ \App\Support\Assets::url('assets/js/emoji-picker.js') }}" defer></script>
+
         <a
             href="{{ route('feed.index') }}#ob-composer"
             class="ob-compose-btn ob-compose-btn--fab"

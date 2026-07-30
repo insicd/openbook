@@ -16,6 +16,9 @@
                 <div class="ob-field">
                     <label for="comment-body">{{ __('openbook.comments.new_label') }}</label>
                     <textarea id="comment-body" name="body" rows="3" required maxlength="2000">{{ old('body') }}</textarea>
+                    <div class="ob-emoji-toolbar">
+                        <x-emoji-trigger target="comment-body" />
+                    </div>
                 </div>
                 <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.actions.comment_submit') }}</button>
             </form>
