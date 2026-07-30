@@ -1121,6 +1121,7 @@ p {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  flex: 0 0 auto;
   padding: 0.55rem 0.55rem 0.35rem;
   border-bottom: 1px solid var(--ob-color-border);
 }
@@ -1151,6 +1152,7 @@ p {
 
 .ob-emoji-picker__tabs {
   display: flex;
+  flex: 0 0 auto;
   gap: 0.15rem;
   padding: 0.35rem 0.45rem;
   overflow-x: auto;
@@ -1181,6 +1183,8 @@ p {
 
 .ob-emoji-picker__grid {
   flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
