@@ -673,6 +673,17 @@ sul proprio profilo) le rende finalmente modificabili:
   campo di input inline invece di andare subito a `/cerca` (l'invio del form
   usa comunque la stessa ricerca locale/federata). Script dedicato:
   `public/assets/js/header-panels.js`.
+- **Embed video**: se il body di un post contiene un link YouTube
+  (`youtube.com`, `youtu.be`, Shorts, ...) o PeerTube (`/w/...`,
+  `/videos/watch/...`), sotto il testo viene mostrato un player iframe
+  (solo il *primo* link video del post). YouTube usa
+  `youtube-nocookie.com`; PeerTube e' riconosciuto dalla forma del path
+  tipica delle istanze (`VideoEmbedFinder`).
+- **Hashtag nelle bio**: hashtag (e URL/menzioni) nelle biografie dei
+  profili locali e remoti sono linkificati con lo stesso
+  `PostBodyRenderer` usato per post e commenti; vale anche per lo
+  snippet bio nei risultati di ricerca. Sui remoti il `summary` HTML
+  viene prima ridotto a testo piano (`RemoteContentSanitizer::toPlainText`).
 
 ### Sezione "Mondo"
 

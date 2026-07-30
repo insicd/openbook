@@ -54,7 +54,7 @@
                                 <div class="ob-post__author">{{ $personName }}</div>
                                 <div class="ob-post__handle">{{ '@'.$person->username.'@'.config('openbook.domain') }}</div>
                                 @if ($person->profile?->bio)
-                                    <p class="ob-field__help">{{ \Illuminate\Support\Str::limit($person->profile->bio, 120) }}</p>
+                                    <div class="ob-field__help">{{ \App\Domain\Posts\PostBodyRenderer::render(\Illuminate\Support\Str::limit($person->profile->bio, 120)) }}</div>
                                 @endif
                             </div>
                         </a>

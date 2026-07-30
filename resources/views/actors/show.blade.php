@@ -29,7 +29,7 @@
             @endif
 
             @if ($profileActor->summary)
-                <p>{{ \App\Federation\Inbox\RemoteContentSanitizer::toPlainText($profileActor->summary) }}</p>
+                <div class="ob-profile-bio">{{ \App\Domain\Posts\PostBodyRenderer::render(\App\Federation\Inbox\RemoteContentSanitizer::toPlainText($profileActor->summary)) }}</div>
             @endif
 
                     <div class="ob-profile-stats">

@@ -108,6 +108,7 @@ return [
         'confirm_delete' => 'Are you sure you want to delete this post?',
         'menu' => 'More post actions',
         'open_original' => 'Open original post',
+        'video_embed' => 'Embedded video (:provider)',
     ],
 
     'actions' => [

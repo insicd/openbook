@@ -852,6 +852,11 @@ p {
   font-size: 0.95rem;
 }
 
+.ob-profile-bio {
+  margin: 0.75rem 0 0;
+  overflow-wrap: anywhere;
+}
+
 .ob-profile-stats {
   display: flex;
   gap: 1.5rem;
@@ -1120,8 +1125,30 @@ p {
   overflow-wrap: anywhere;
 }
 
+.ob-post__video {
+  position: relative;
+  width: 100%;
+  margin: 0.85rem 0 0.25rem;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--ob-radius);
+  overflow: hidden;
+  background: #0b0d12;
+}
+
+.ob-post__video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
 .ob-post__body .hashtag,
-.ob-post__body .mention {
+.ob-post__body .mention,
+.ob-profile-bio .hashtag,
+.ob-profile-bio .mention,
+.ob-field__help .hashtag,
+.ob-field__help .mention {
   font-weight: 600;
 }
 

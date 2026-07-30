@@ -28,7 +28,7 @@
             @endif
 
             @if ($profileUser->profile?->bio)
-                <p>{{ $profileUser->profile->bio }}</p>
+                <div class="ob-profile-bio">{{ \App\Domain\Posts\PostBodyRenderer::render($profileUser->profile->bio) }}</div>
             @endif
 
             @if (! empty($profileUser->profile?->links))

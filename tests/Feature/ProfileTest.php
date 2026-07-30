@@ -53,4 +53,18 @@ class ProfileTest extends TestCase
 
         $this->get('/users/MAIUSCOLE')->assertRedirect('/@maiuscole');
     }
+
+    public function test_hashtags_in_the_bio_are_rendered_as_links(): void
+    {
+        $user = $this->createFullAccount('biotag');
+        $user->profile->update(['bio' => 'Amo #openbook e le #piante']);
+
+        $response = $this->get('/@biotag');
+
+        $response->assertOk();
+        $response->assertSee('class="hashtag"', false);
+        $response->assertSee(route('hashtags.show', 'openbook'), false);
+        $response->assertSee(route('hashtags.show', 'piante'), false);
+        $response->assertDontSee('Amo #openbook e le #piante', false);
+    }
 }

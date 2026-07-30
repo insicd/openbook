@@ -43,6 +43,22 @@ class ActorProfileTest extends TestCase
         $response->assertSee('@peter@remoto.example');
     }
 
+    public function test_hashtags_in_a_remote_actor_summary_are_rendered_as_links(): void
+    {
+        Http::fake(['*' => Http::response('', 404)]);
+        $viewer = $this->createFullAccount('visitatorebio');
+        $remote = $this->createRemoteActor('bioremote', overrides: [
+            'summary' => '<p>Scrivo di <a href="https://example.test/tags/fediverso">#fediverso</a></p>',
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('actors.show', $remote));
+
+        $response->assertOk();
+        $response->assertSee('class="hashtag"', false);
+        $response->assertSee(route('hashtags.show', 'fediverso'), false);
+        $response->assertDontSee('<a href="https://example.test/tags/fediverso">', false);
+    }
+
     public function test_visiting_a_local_actor_id_redirects_to_the_canonical_profile(): void
     {
         $viewer = $this->createFullAccount('visitatore2');

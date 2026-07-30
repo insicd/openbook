@@ -77,9 +77,11 @@
             <details class="ob-post__cw">
                 <summary>{{ __('openbook.posts.content_warning_label') }}: {{ $post->content_warning }}</summary>
                 <div class="ob-post__body">{{ \App\Domain\Posts\PostBodyRenderer::render($post->body) }}</div>
+                @include('posts._video_embed_if_any', ['body' => $post->body])
             </details>
         @else
             <div class="ob-post__body">{{ \App\Domain\Posts\PostBodyRenderer::render($post->body) }}</div>
+            @include('posts._video_embed_if_any', ['body' => $post->body])
         @endif
 
         @if ($post->media->isNotEmpty())
