@@ -689,9 +689,11 @@ sul proprio profilo) le rende finalmente modificabili:
   *Condivisione con citazione*. La citazione porta al composer della
   Home con il post originale annidato sotto il testo; alla pubblicazione
   nasce un nuovo post (`quoted_post_id`) che nel feed mostra la card
-  originale dentro la propria. Federazione in uscita: `quoteUrl` sulla
-  Note piu' link di fallback nel `content`. I commenti non hanno share
-  (solo like/risposta).
+  originale dentro la propria. La citazione alimenta anche il contatore
+  di condivisione dell'originale (stessa riga `announces` della share
+  diretta; se l'utente aveva gia' condiviso, non si doppia). Federazione
+  in uscita: `quoteUrl` sulla Note piu' link di fallback nel `content`,
+  e Announce ai follower. I commenti non hanno share (solo like/risposta).
 
 ### Sezione "Mondo"
 

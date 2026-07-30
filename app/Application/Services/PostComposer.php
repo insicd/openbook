@@ -23,6 +23,9 @@ use InvalidArgumentException;
  * upload fallito non lascia mai un post parzialmente creato. Se l'autore e'
  * locale, il post viene anche consegnato come attivita' "Create" ai
  * destinatari federati appropriati (sezione {@see ActivityDelivery::deliverContent()}).
+ * Una citazione (quoted_post_id) conta anche come condivisione sul post
+ * originale via {@see AnnounceManager}: stesso contatore della share diretta,
+ * senza una seconda notifica "ha condiviso" (resta solo TYPE_QUOTE).
  */
 final class PostComposer
 {
@@ -31,6 +34,7 @@ final class PostComposer
         private readonly ContentParser $contentParser,
         private readonly NotificationCreator $notificationCreator,
         private readonly ActivityDelivery $delivery,
+        private readonly AnnounceManager $announceManager,
     ) {}
 
     /**
@@ -86,6 +90,12 @@ final class PostComposer
 
             return $post;
         });
+
+        if ($quotedPost !== null) {
+            // Stesso contatore/Announce della share diretta; notify=false perche'
+            // l'autore ha gia' ricevuto TYPE_QUOTE qui sopra.
+            $this->announceManager->announce($author, $quotedPost, notify: false);
+        }
 
         if ($author->isLocal()) {
             $post->load(['mentions.actor', 'quotedPost']);

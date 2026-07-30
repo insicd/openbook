@@ -2,10 +2,13 @@
 
 namespace Tests\Feature\Posts;
 
+use App\Application\Services\AnnounceManager;
 use App\Application\Services\PostComposer;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
+use App\Domain\Reactions\Announce;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -87,10 +90,48 @@ class QuotePostTest extends TestCase
             'actor_id' => $quoter->actor->id,
             'notifiable_id' => $quote->id,
         ]);
+
+        $original->refresh();
+        $this->assertSame(1, $original->announces_count);
+        $this->assertDatabaseHas('announces', [
+            'actor_id' => $quoter->actor->id,
+            'post_id' => $original->id,
+        ]);
+        $this->assertDatabaseMissing('notifications', [
+            'recipient_id' => $author->id,
+            'type' => Notification::TYPE_SHARE,
+            'actor_id' => $quoter->actor->id,
+        ]);
+    }
+
+    public function test_quoting_does_not_double_count_if_already_shared_directly(): void
+    {
+        $author = $this->createFullAccount('giacondiviso');
+        $quoter = $this->createFullAccount('ricondivisore');
+        $original = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Gia condiviso.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        app(AnnounceManager::class)->announce($quoter->actor, $original);
+        $original->refresh();
+        $this->assertSame(1, $original->announces_count);
+
+        app(PostComposer::class)->compose($quoter->actor, [
+            'body' => 'Ora lo cito pure.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'quoted_post_id' => $original->id,
+        ]);
+
+        $original->refresh();
+        $this->assertSame(1, $original->announces_count);
+        $this->assertSame(1, Announce::query()->where('post_id', $original->id)->count());
     }
 
     public function test_a_remote_post_can_be_quoted(): void
     {
+        Queue::fake();
+
         $quoter = $this->createFullAccount('quotaremoto');
         $remote = $this->createRemoteActor('remotecited');
         $original = Post::query()->create([
@@ -109,6 +150,8 @@ class QuotePostTest extends TestCase
         ]);
 
         $this->assertSame($original->id, $quote->quoted_post_id);
+        $original->refresh();
+        $this->assertSame(1, $original->announces_count);
     }
 
     public function test_an_invisible_post_cannot_be_quoted(): void

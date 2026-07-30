@@ -27,9 +27,9 @@ final class AnnounceManager
         private readonly ActivityDelivery $delivery,
     ) {}
 
-    public function announce(Actor $actor, Post $post): Announce
+    public function announce(Actor $actor, Post $post, bool $notify = true): Announce
     {
-        $announce = DB::transaction(function () use ($actor, $post) {
+        $announce = DB::transaction(function () use ($actor, $post, $notify) {
             $existing = Announce::query()
                 ->where('actor_id', $actor->id)
                 ->where('post_id', $post->id)
@@ -46,7 +46,9 @@ final class AnnounceManager
 
             $post->increment('announces_count');
 
-            $this->notificationCreator->notify($post->actor, Notification::TYPE_SHARE, $actor, $post);
+            if ($notify) {
+                $this->notificationCreator->notify($post->actor, Notification::TYPE_SHARE, $actor, $post);
+            }
 
             return $announce;
         });
