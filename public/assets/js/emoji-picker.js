@@ -3,7 +3,8 @@
  * categorie, ricerca e recenti (localStorage), e inserisce il carattere
  * Unicode nel textarea collegato tramite data-emoji-target.
  *
- * Dipende da window.OB_EMOJI_DATA (emoji-data.js). Nessuna risorsa remota.
+ * Dipende da window.OB_EMOJI_DATA (emoji-data.js: {c, n} per carattere e
+ * nome CLDR). Nessuna risorsa remota. Tooltip e ricerca usano il nome.
  */
 (function () {
     'use strict';
@@ -56,6 +57,26 @@
     var searchInput = null;
     var grid = null;
     var tabs = null;
+    var nameByChar = {};
+
+    data.forEach(function (cat) {
+        (cat.emojis || []).forEach(function (item) {
+            if (item && typeof item.c === 'string' && typeof item.n === 'string') {
+                nameByChar[item.c] = item.n;
+            }
+        });
+    });
+
+    function emojiChar(item) {
+        return typeof item === 'string' ? item : (item && item.c) || '';
+    }
+
+    function emojiName(item) {
+        if (typeof item === 'string') {
+            return nameByChar[item] || item;
+        }
+        return (item && item.n) || nameByChar[item && item.c] || emojiChar(item);
+    }
 
     function loadRecent() {
         try {
@@ -162,30 +183,37 @@
         var query = (searchInput.value || '').trim().toLowerCase();
 
         if (query !== '') {
-            var all = [];
+            var matches = [];
+            var seen = {};
+
             data.forEach(function (cat) {
-                cat.emojis.forEach(function (emoji) {
-                    if (all.indexOf(emoji) === -1) {
-                        all.push(emoji);
+                var label = (categoryLabels[cat.id] || '').toLowerCase();
+                var matchesCategory = cat.id.indexOf(query) !== -1 || label.indexOf(query) !== -1;
+
+                (cat.emojis || []).forEach(function (item) {
+                    var char = emojiChar(item);
+                    var name = emojiName(item).toLowerCase();
+                    if (!char || seen[char]) {
+                        return;
+                    }
+                    if (
+                        matchesCategory
+                        || name.indexOf(query) !== -1
+                        || char.indexOf(query) !== -1
+                    ) {
+                        seen[char] = true;
+                        matches.push(item);
                     }
                 });
             });
 
-            // Filtro semplice: match sul carattere o su sottostringhe di category id.
-            return all.filter(function (emoji) {
-                if (emoji.indexOf(query) !== -1) {
-                    return true;
-                }
-                return data.some(function (cat) {
-                    var label = (categoryLabels[cat.id] || '').toLowerCase();
-                    var matchesCategory = cat.id.indexOf(query) !== -1 || label.indexOf(query) !== -1;
-                    return matchesCategory && cat.emojis.indexOf(emoji) !== -1;
-                });
-            });
+            return matches;
         }
 
         if (activeCategory === 'recent') {
-            return loadRecent();
+            return loadRecent().map(function (char) {
+                return { c: char, n: nameByChar[char] || char };
+            });
         }
 
         var cat = data.find(function (item) { return item.id === activeCategory; });
@@ -205,15 +233,18 @@
         }
 
         var fragment = document.createDocumentFragment();
-        emojis.forEach(function (emoji) {
+        emojis.forEach(function (item) {
+            var char = emojiChar(item);
+            var name = emojiName(item);
             var button = document.createElement('button');
             button.type = 'button';
             button.className = 'ob-emoji-picker__emoji';
             button.setAttribute('role', 'option');
-            button.setAttribute('aria-label', emoji);
-            button.textContent = emoji;
+            button.setAttribute('aria-label', name);
+            button.title = name;
+            button.textContent = char;
             button.addEventListener('click', function () {
-                insertEmoji(emoji);
+                insertEmoji(char);
             });
             fragment.appendChild(button);
         });
