@@ -6,7 +6,7 @@
 // sia nel documento NodeInfo sia nello User-Agent delle richieste in uscita:
 // due software del Fediverso che si scambiano segnali di versione diversi
 // per la stessa istanza sono un sintomo classico di misconfigurazione.
-$version = '0.6.0';
+$version = '0.6.1';
 
 return [
 
@@ -222,6 +222,11 @@ return [
         // dal suo outbox (vedi RemoteOutboxFetcher). Piu' breve della cache
         // dell'Actor stesso perche' i post cambiano piu' spesso del profilo.
         'posts_cache_ttl_hours' => (int) env('OPENBOOK_POSTS_CACHE_TTL_HOURS', 6),
+
+        // Dopo quante ore, aprendo un post remoto, viene ritentato il
+        // recupero della collection "replies" della Note originale
+        // (vedi RemoteRepliesFetcher).
+        'replies_cache_ttl_hours' => (int) env('OPENBOOK_REPLIES_CACHE_TTL_HOURS', 6),
 
         'inbox' => [
             // Limite applicativo aggiuntivo (difesa in profondita') rispetto

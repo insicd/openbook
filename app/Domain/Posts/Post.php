@@ -37,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property int $announces_count
  * @property Carbon $published_at
  * @property Carbon|null $edited_at
+ * @property Carbon|null $replies_fetched_at ultimo tentativo di recupero della collection replies (post remoti)
  * @property string|null $shared_by_actor_id solo quando la riga proviene da {@see FeedQuery}, che lo valorizza con una subquery su "announces"
  * @property Carbon|null $shared_at vedi $shared_by_actor_id
  * @property-read Actor|null $sharedBy vedi {@see self::attachSharedBy()}
@@ -87,6 +88,7 @@ class Post extends Model
         'visibility',
         'status',
         'published_at',
+        'replies_fetched_at',
     ];
 
     /**
@@ -97,6 +99,7 @@ class Post extends Model
         return [
             'published_at' => 'datetime',
             'edited_at' => 'datetime',
+            'replies_fetched_at' => 'datetime',
             'likes_count' => 'integer',
             'comments_count' => 'integer',
             'announces_count' => 'integer',

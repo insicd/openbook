@@ -802,6 +802,11 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   viene comunque registrato quando il server remoto non risponde, per non rallentare i
   caricamenti successivi; nessuna notifica di menzione viene generata per contenuto
   recuperato in questo modo (non e' un evento "appena successo");
+- `RemoteRepliesFetcher` (`RemoteRepliesFetcherTest`): aprendo un post remoto (es. dal
+  feed di chi si segue) viene interrogata la collection `replies` della Note originale
+  (TTL `OPENBOOK_REPLIES_CACHE_TTL_HOURS`); i commenti pubblici/non elencati di terzi
+  vengono messi in cache senza generare notifiche; le risposte a commenti gia' noti
+  sotto lo stesso post vengono annidate correttamente;
 - gli elenchi follower/seguiti (`FollowListTest`): visibilita' pubblica per un profilo
   locale, esclusione delle richieste ancora in attesa, stato corretto del pulsante
   segui/smetti di seguire per riga, redirect dell'elenco di un Actor remoto quando
@@ -929,6 +934,8 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
   regole istanza in Markdown (`/regole`), blocchi dominio federato, ispezione
   coda (`jobs`/`failed_jobs`/`inbox_items`), promozione admin da UI, segnalazioni
   commenti, registro azioni staff.
+- ✅ **Recupero replies su post remoti (v0.6.1)**: aprendo un post remoto si
+  interroga la collection `replies` della Note originale (`RemoteRepliesFetcher`).
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco
@@ -956,15 +963,15 @@ verdi.
   un difetto temporaneo.
 - Un contenuto remoto (post o risposta) arrivato via inbox viene messo in cache solo
   se rilevante per questa istanza (autore seguito, risposta a qualcosa gia' noto, o
-  menzione esplicita di un Actor locale). L'unica eccezione mirata e' la pagina
-  profilo di un Actor remoto (`RemoteOutboxFetcher`): visitarla recupera la prima
-  pagina del suo outbox reale, cosi' da mostrare i suoi post pubblici piu' recenti
-  anche se nessun Actor locale lo segue ancora. Resta comunque vero che Openbook non
-  replica mai un intero timeline remoto (solo la prima pagina, solo post originali,
-  mai le risposte). La ricerca per parole chiave (`LocalSearchQuery`) copre solo i
-  contenuti *locali* di questa istanza: non c'e' un indice full-text dedicato ne'
-  una ricerca sui contenuti remoti in cache (per quelli resta la risoluzione
-  diretta `utente@dominio`).
+  menzione esplicita di un Actor locale). Eccezioni mirate: la pagina profilo di un
+  Actor remoto (`RemoteOutboxFetcher`) recupera la prima pagina del suo outbox; la
+  pagina di un post remoto (`RemoteRepliesFetcher`) recupera la collection `replies`
+  della Note originale (prima pagina, solo risposte pubbliche/non elencate
+  agganciabili al thread). Openbook non replica comunque un intero timeline remoto.
+  La ricerca per parole chiave (`LocalSearchQuery`) copre solo i contenuti *locali*
+  di questa istanza: non c'e' un indice full-text dedicato ne' una ricerca sui
+  contenuti remoti in cache (per quelli resta la risoluzione diretta
+  `utente@dominio`).
 - Le immagini/allegati di un post remoto non vengono ancora recuperati ne' mostrati:
   solo il testo della Note viene messo in cache. Gli allegati locali restano serviti
   direttamente dal disco pubblico (`storage/app/public`, collegato a

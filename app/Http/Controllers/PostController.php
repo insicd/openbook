@@ -6,6 +6,7 @@ use App\Application\Services\PostComposer;
 use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use App\Federation\Delivery\ActivityDelivery;
+use App\Federation\Replies\RemoteRepliesFetcher;
 use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\NoteSerializer;
 use App\Http\Requests\Posts\StorePostRequest;
@@ -22,6 +23,7 @@ class PostController extends Controller
     public function __construct(
         private readonly PostComposer $postComposer,
         private readonly ActivityDelivery $delivery,
+        private readonly RemoteRepliesFetcher $remoteRepliesFetcher,
     ) {}
 
     public function store(StorePostRequest $request): RedirectResponse
@@ -73,6 +75,13 @@ class PostController extends Controller
             return ActivityPubNegotiation::response(
                 $post->isPublished() ? NoteSerializer::forPost($post) : NoteSerializer::tombstoneForPost($post)
             );
+        }
+
+        // Post remoto: recupera (con TTL) le replies pubbliche dal server
+        // di origine, cosi' i commenti di terzi che non sono mai arrivati
+        // in inbox compaiono comunque sul thread.
+        if ($post->isRemote()) {
+            $this->remoteRepliesFetcher->fetchReplies($post);
         }
 
         $post->load(Post::CARD_RELATIONS);

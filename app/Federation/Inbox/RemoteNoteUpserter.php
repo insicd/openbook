@@ -10,6 +10,7 @@ use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Outbox\RemoteOutboxFetcher;
+use App\Federation\Replies\RemoteRepliesFetcher;
 use App\Federation\Serialization\NoteSerializer;
 use Illuminate\Support\Carbon;
 
@@ -17,10 +18,10 @@ use Illuminate\Support\Carbon;
  * Salva (creando o aggiornando) la rappresentazione locale di una Note
  * remota, in cache come {@see Post} o {@see Comment}: logica condivisa da
  * {@see InboxActivityProcessor} (una Note arrivata via Create/Update in
- * inbox) e da {@see RemoteOutboxFetcher} (post
- * recuperati esplorando l'outbox di un Actor remoto al primo caricamento
- * del suo profilo), cosi' che le due strade producano sempre lo stesso
- * risultato.
+ * inbox), da {@see RemoteOutboxFetcher} (post recuperati esplorando
+ * l'outbox di un Actor remoto) e da {@see RemoteRepliesFetcher}
+ * (risposte recuperate dalla collection replies di una Note remota), cosi'
+ * che le strade producano sempre lo stesso risultato.
  */
 final class RemoteNoteUpserter
 {
@@ -93,10 +94,14 @@ final class RemoteNoteUpserter
         if ($wasNew) {
             if ($parentComment !== null) {
                 $parentComment->increment('replies_count');
-                $this->notificationCreator->notify($parentComment->actor, Notification::TYPE_REPLY, $actor, $comment);
+                if ($notifyMentions) {
+                    $this->notificationCreator->notify($parentComment->actor, Notification::TYPE_REPLY, $actor, $comment);
+                }
             } elseif ($parentPost !== null) {
                 $parentPost->increment('comments_count');
-                $this->notificationCreator->notify($parentPost->actor, Notification::TYPE_COMMENT, $actor, $comment);
+                if ($notifyMentions) {
+                    $this->notificationCreator->notify($parentPost->actor, Notification::TYPE_COMMENT, $actor, $comment);
+                }
             }
 
             $this->attachTags($comment, $note, $notifyMentions);
