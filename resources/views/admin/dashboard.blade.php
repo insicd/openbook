@@ -23,5 +23,15 @@
             <strong>{{ $moderatorCount }}</strong>
             <span>{{ __('openbook.admin.dashboard.moderators') }}</span>
         </div>
+        @can('administer')
+            <a href="{{ route('admin.queue.index') }}" class="ob-card ob-admin-stat">
+                <strong>{{ $failedJobsCount }}</strong>
+                <span>{{ __('openbook.admin.dashboard.failed_jobs') }}</span>
+            </a>
+            <div class="ob-card ob-admin-stat">
+                <strong>{{ $pendingInboxCount }}</strong>
+                <span>{{ __('openbook.admin.dashboard.pending_inbox') }}</span>
+            </div>
+        @endcan
     </div>
 @endsection

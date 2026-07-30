@@ -15,7 +15,7 @@
                 @csrf
                 <div class="ob-field">
                     <label for="comment-body">{{ __('openbook.comments.new_label') }}</label>
-                    <textarea id="comment-body" name="body" rows="3" required maxlength="2000">{{ old('body') }}</textarea>
+                    <textarea id="comment-body" name="body" rows="3" required maxlength="{{ config('openbook.comments.max_length', 2000) }}">{{ old('body') }}</textarea>
                     <div class="ob-emoji-toolbar">
                         <x-emoji-trigger target="comment-body" />
                     </div>

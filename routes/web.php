@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\ActorProfileController;
+use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\DomainBlockController as AdminDomainBlockController;
+use App\Http\Controllers\Admin\QueueController as AdminQueueController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
@@ -14,6 +17,7 @@ use App\Http\Controllers\FeedController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\HashtagController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\InstanceRulesController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostController;
@@ -25,6 +29,7 @@ use App\Http\Controllers\WorldController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/regole', [InstanceRulesController::class, 'show'])->name('instance.rules');
 
 Route::middleware('guest')->group(function () {
     Route::get('/registrati', [RegisterController::class, 'create'])->name('register');
@@ -70,6 +75,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/posts/{post}/segnala', [ReportController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('posts.report.store');
+    Route::get('/commenti/{comment}/segnala', [ReportController::class, 'createForComment'])->name('comments.report.create');
+    Route::post('/commenti/{comment}/segnala', [ReportController::class, 'storeForComment'])
+        ->middleware('throttle:10,1')
+        ->name('comments.report.store');
 
     Route::post('/@{user:username}/segui', [FollowController::class, 'store'])->name('follow.store');
     Route::delete('/@{user:username}/segui', [FollowController::class, 'destroy'])->name('follow.destroy');
@@ -107,8 +116,22 @@ Route::middleware('auth')->group(function () {
         Route::middleware('admin')->group(function () {
             Route::post('/utenti/{user}/promuovi-moderatore', [AdminUserController::class, 'promoteModerator'])->name('users.promote_moderator');
             Route::post('/utenti/{user}/rimuovi-moderatore', [AdminUserController::class, 'demoteModerator'])->name('users.demote_moderator');
+            Route::post('/utenti/{user}/promuovi-admin', [AdminUserController::class, 'promoteAdmin'])->name('users.promote_admin');
+            Route::post('/utenti/{user}/rimuovi-admin', [AdminUserController::class, 'demoteAdmin'])->name('users.demote_admin');
+
             Route::get('/impostazioni', [AdminSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/impostazioni', [AdminSettingsController::class, 'update'])->name('settings.update');
+
+            Route::get('/domini', [AdminDomainBlockController::class, 'index'])->name('domain_blocks.index');
+            Route::post('/domini', [AdminDomainBlockController::class, 'store'])->name('domain_blocks.store');
+            Route::delete('/domini/{domainBlock}', [AdminDomainBlockController::class, 'destroy'])->name('domain_blocks.destroy');
+
+            Route::get('/coda', [AdminQueueController::class, 'index'])->name('queue.index');
+            Route::post('/coda/falliti/{uuid}/riprova', [AdminQueueController::class, 'retryFailed'])->name('queue.retry');
+            Route::post('/coda/falliti/{uuid}/elimina', [AdminQueueController::class, 'forgetFailed'])->name('queue.forget');
+            Route::post('/coda/falliti/riprova-tutti', [AdminQueueController::class, 'retryAllFailed'])->name('queue.retry_all');
+
+            Route::get('/audit', [AdminAuditLogController::class, 'index'])->name('audit.index');
         });
     });
 });
@@ -127,7 +150,7 @@ Route::get('/tag/{name}', [HashtagController::class, 'show'])->name('hashtags.sh
 Route::get('/@{user:username}', [ProfileController::class, 'show'])->name('profile.show');
 
 // Elenchi follower/seguiti di un profilo locale: stessa visibilita' pubblica
-// della pagina profilo (vedi sopra).
+// del profilo stesso (vedi FollowListController / ActorProfileController).
 Route::get('/@{user:username}/follower', [ProfileController::class, 'followers'])->name('profile.followers');
 Route::get('/@{user:username}/seguiti', [ProfileController::class, 'following'])->name('profile.following');
 

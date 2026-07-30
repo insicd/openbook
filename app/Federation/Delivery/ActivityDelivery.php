@@ -2,6 +2,7 @@
 
 namespace App\Federation\Delivery;
 
+use App\Application\Services\DomainBlockManager;
 use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
@@ -160,6 +161,10 @@ final class ActivityDelivery
         }
 
         foreach ($inboxUrls as $inboxUrl) {
+            if (app(DomainBlockManager::class)->isBlockedUrl($inboxUrl)) {
+                continue;
+            }
+
             DeliverActivityJob::dispatch($inboxUrl, $activity, $signingActor->id)->afterCommit();
         }
     }

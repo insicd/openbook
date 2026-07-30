@@ -3,6 +3,7 @@
 namespace App\Domain\Moderation;
 
 use App\Domain\Accounts\User;
+use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -10,13 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * Segnalazione locale di un post (remoto o locale). Non e' un'attivita'
- * ActivityPub: serve solo alla moderazione dell'istanza tramite il futuro
- * pannello di controllo.
+ * Segnalazione locale di un post o commento (remoto o locale). Non e' un'attivita'
+ * ActivityPub: serve solo alla moderazione dell'istanza.
  *
  * @property string $id
  * @property string $reporter_id
- * @property string $post_id
+ * @property string|null $post_id
+ * @property string|null $comment_id
  * @property string $reason
  * @property string|null $details
  * @property string $status
@@ -65,6 +66,7 @@ class Report extends Model
     protected $fillable = [
         'reporter_id',
         'post_id',
+        'comment_id',
         'reason',
         'details',
         'status',
@@ -89,6 +91,11 @@ class Report extends Model
         return $this->belongsTo(Post::class);
     }
 
+    public function comment(): BelongsTo
+    {
+        return $this->belongsTo(Comment::class);
+    }
+
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
@@ -97,5 +104,10 @@ class Report extends Model
     public function isOpen(): bool
     {
         return $this->status === self::STATUS_OPEN;
+    }
+
+    public function isCommentReport(): bool
+    {
+        return $this->comment_id !== null;
     }
 }

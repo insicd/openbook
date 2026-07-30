@@ -170,6 +170,12 @@ class CommentTest extends TestCase
 
         $response = $this->actingAs($admin)->get(route('posts.show', $post));
         $response->assertOk();
-        $response->assertDontSee('aria-label="Altre azioni sul commento"', false);
+        $response->assertSee('aria-label="Altre azioni sul commento"', false);
+        $response->assertSee(__('openbook.actions.report'), false);
+        $response->assertSee(route('comments.report.create', $comment), false);
+        $this->assertStringNotContainsString(
+            'method="POST" action="'.route('comments.destroy', $comment).'"',
+            $response->getContent(),
+        );
     }
 }

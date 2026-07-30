@@ -17,6 +17,7 @@
                 <div>
                     <a href="{{ route('admin.reports.show', $report) }}"><strong>#{{ \Illuminate\Support\Str::limit($report->id, 8, '') }}</strong></a>
                     <span class="ob-badge">{{ __('openbook.admin.reports.status.'.$report->status) }}</span>
+                    <span class="ob-badge">{{ $report->isCommentReport() ? __('openbook.admin.reports.type_comment') : __('openbook.admin.reports.type_post') }}</span>
                     <span class="ob-badge">{{ __('openbook.reports.reasons.'.$report->reason) }}</span>
                     <p class="ob-field__help" style="margin:0.4rem 0 0">
                         {{ __('openbook.admin.reports.by', ['name' => $report->reporter?->username ?? '—']) }}

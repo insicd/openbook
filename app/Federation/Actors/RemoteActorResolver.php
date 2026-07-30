@@ -2,6 +2,7 @@
 
 namespace App\Federation\Actors;
 
+use App\Application\Services\DomainBlockManager;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use Illuminate\Support\Carbon;
@@ -22,6 +23,7 @@ final class RemoteActorResolver
 {
     public function __construct(
         private readonly SafeHttpClient $httpClient,
+        private readonly DomainBlockManager $domainBlocks,
     ) {}
 
     /**
@@ -38,6 +40,10 @@ final class RemoteActorResolver
      */
     public function resolveByUri(string $actorUri): ?Actor
     {
+        if ($this->domainBlocks->isBlockedUrl($actorUri)) {
+            return null;
+        }
+
         $existing = Actor::query()->where('uri', $actorUri)->with(['key', 'endpoints'])->first();
 
         // Un URI che punta a un Actor locale non e' un attore remoto
@@ -79,6 +85,10 @@ final class RemoteActorResolver
         }
 
         [$username, $domain] = $parts;
+
+        if ($this->domainBlocks->isBlockedHost($domain)) {
+            return null;
+        }
 
         if (strcasecmp($domain, (string) config('openbook.domain')) === 0) {
             // E' un handle locale: nessuna richiesta remota, lo risolve il

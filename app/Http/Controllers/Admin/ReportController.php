@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Application\Services\ReportManager;
+use App\Domain\Comments\Comment;
 use App\Domain\Moderation\Report;
 use App\Domain\Posts\Post;
 use App\Federation\Delivery\ActivityDelivery;
@@ -35,7 +36,13 @@ class ReportController extends Controller
         }
 
         $query = Report::query()
-            ->with(['reporter.profile', 'post.actor.user.profile', 'reviewer'])
+            ->with([
+                'reporter.profile',
+                'post.actor.user.profile',
+                'comment.actor.user.profile',
+                'comment.post',
+                'reviewer',
+            ])
             ->orderByDesc('created_at');
 
         if ($status !== 'all') {
@@ -59,6 +66,8 @@ class ReportController extends Controller
             'post.quotedPost.actor.user.profile',
             'post.quotedPost.media.thumbnail',
             'post.quotedPost.hashtags',
+            'comment.actor.user.profile',
+            'comment.post.actor.user.profile',
         ]);
 
         if ($report->post) {
@@ -86,27 +95,65 @@ class ReportController extends Controller
 
     public function action(Request $request, Report $report): RedirectResponse
     {
-        $report->loadMissing('post.actor', 'post.mentions.actor');
-        $deletePost = $request->boolean('delete_post');
-        $post = $report->post;
+        $report->loadMissing([
+            'post.actor',
+            'post.mentions.actor',
+            'comment.actor',
+            'comment.mentions.actor',
+            'comment.post.actor',
+            'comment.parent.actor',
+        ]);
 
-        if ($deletePost && $post !== null && ! $post->isRemote() && $post->isPublished() && auth()->user()->canModerate()) {
-            $isLocalAuthor = $post->actor->isLocal();
-            $post->update([
-                'title' => null,
-                'content_warning' => null,
-                'body' => '',
-                'status' => Post::STATUS_DELETED,
-            ]);
+        if ($request->boolean('delete_post') && $report->post) {
+            $this->softDeleteLocalPost($report->post);
+        }
 
-            if ($isLocalAuthor) {
-                $post->load('mentions.actor', 'actor');
-                $this->delivery->deliverContent($post, ActivitySerializer::delete($post));
-            }
+        if ($request->boolean('delete_comment') && $report->comment) {
+            $this->softDeleteLocalComment($report->comment);
         }
 
         $this->reportManager->markActioned($report, auth()->user());
 
         return back()->with('status', __('openbook.admin.reports.marked_actioned'));
+    }
+
+    private function softDeleteLocalPost(Post $post): void
+    {
+        if ($post->isRemote() || ! $post->isPublished() || ! auth()->user()->canModerate()) {
+            return;
+        }
+
+        $isLocalAuthor = $post->actor->isLocal();
+        $post->update([
+            'title' => null,
+            'content_warning' => null,
+            'body' => '',
+            'status' => Post::STATUS_DELETED,
+        ]);
+
+        if ($isLocalAuthor) {
+            $post->load('mentions.actor', 'actor');
+            $this->delivery->deliverContent($post, ActivitySerializer::delete($post));
+        }
+    }
+
+    private function softDeleteLocalComment(Comment $comment): void
+    {
+        if ($comment->isRemote() || $comment->status !== Comment::STATUS_PUBLISHED || ! auth()->user()->canModerate()) {
+            return;
+        }
+
+        $comment->loadMissing('mentions.actor', 'actor', 'post', 'parent.actor');
+        $isLocalAuthor = $comment->actor->isLocal();
+
+        $comment->update([
+            'body' => '',
+            'status' => Comment::STATUS_DELETED,
+        ]);
+
+        if ($isLocalAuthor) {
+            $repliedToAuthor = $comment->parent?->actor ?? $comment->post->actor;
+            $this->delivery->deliverContent($comment, ActivitySerializer::delete($comment), [$repliedToAuthor]);
+        }
     }
 }

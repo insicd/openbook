@@ -78,6 +78,22 @@ class UserController extends Controller
         return back()->with('status', __('openbook.admin.users.demoted_mod', ['name' => $user->username]));
     }
 
+    public function promoteAdmin(User $user): RedirectResponse
+    {
+        Gate::authorize('administer');
+        $this->runStaffAction(fn () => $this->staffUserManager->promoteAdmin(auth()->user(), $user));
+
+        return back()->with('status', __('openbook.admin.users.promoted_admin', ['name' => $user->username]));
+    }
+
+    public function demoteAdmin(User $user): RedirectResponse
+    {
+        Gate::authorize('administer');
+        $this->runStaffAction(fn () => $this->staffUserManager->demoteAdmin(auth()->user(), $user));
+
+        return back()->with('status', __('openbook.admin.users.demoted_admin', ['name' => $user->username]));
+    }
+
     private function runStaffAction(callable $action): void
     {
         try {

@@ -4,7 +4,11 @@ namespace App\Providers;
 
 use App\Application\Queries\PopularHashtagsQuery;
 use App\Application\Services\InstanceSettings;
+use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
+use App\Domain\Moderation\AuditLog;
+use App\Domain\Moderation\DomainBlock;
+use App\Domain\Moderation\Report;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
@@ -54,6 +58,11 @@ class AppServiceProvider extends ServiceProvider
             'comment' => Comment::class,
             'follow' => Follow::class,
             'notification' => Notification::class,
+            'report' => Report::class,
+            'domain_block' => DomainBlock::class,
+            'audit_log' => AuditLog::class,
+            'user' => User::class,
+            'actor' => Actor::class,
         ]);
 
         // Registrazione esplicita: i modelli non vivono in App\Models, quindi

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Federation;
 
+use App\Application\Services\DomainBlockManager;
 use App\Domain\Accounts\User;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxItem;
@@ -26,6 +27,7 @@ final class InboxController extends Controller
 {
     public function __construct(
         private readonly HttpSignatureVerifier $verifier,
+        private readonly DomainBlockManager $domainBlocks,
     ) {}
 
     public function forUser(Request $request, string $username): JsonResponse
@@ -80,6 +82,15 @@ final class InboxController extends Controller
 
         if (! is_string($actorUri) || $actorUri === '') {
             return response()->json(['error' => 'Campo "actor" mancante o non valido.'], 400);
+        }
+
+        if ($this->domainBlocks->isBlockedUrl($actorUri)) {
+            Log::channel('single')->info('federation.inbox.domain_blocked', [
+                'actor_uri' => $actorUri,
+                'activity_id' => $activity['id'],
+            ]);
+
+            return response()->json(['error' => 'Dominio bloccato.'], 403);
         }
 
         $verification = $this->verifier->verify($request);

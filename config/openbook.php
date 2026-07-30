@@ -6,7 +6,7 @@
 // sia nel documento NodeInfo sia nello User-Agent delle richieste in uscita:
 // due software del Fediverso che si scambiano segnali di versione diversi
 // per la stessa istanza sono un sintomo classico di misconfigurazione.
-$version = '0.5.0';
+$version = '0.6.0';
 
 return [
 
@@ -123,6 +123,7 @@ return [
     ],
 
     'comments' => [
+        'max_length' => (int) env('OPENBOOK_COMMENT_MAX_LENGTH', 2000),
         'max_visible_depth' => (int) env('OPENBOOK_COMMENT_MAX_DEPTH', 8),
     ],
 

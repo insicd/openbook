@@ -38,6 +38,15 @@
                 <a href="{{ route('admin.settings.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.settings.*') ? 'is-active' : '' }}">
                     <x-icon name="settings" /> {{ __('openbook.admin.nav.settings') }}
                 </a>
+                <a href="{{ route('admin.domain_blocks.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.domain_blocks.*') ? 'is-active' : '' }}">
+                    <x-icon name="globe" /> {{ __('openbook.admin.nav.domain_blocks') }}
+                </a>
+                <a href="{{ route('admin.queue.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.queue.*') ? 'is-active' : '' }}">
+                    <x-icon name="warning" /> {{ __('openbook.admin.nav.queue') }}
+                </a>
+                <a href="{{ route('admin.audit.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.audit.*') ? 'is-active' : '' }}">
+                    <x-icon name="info" /> {{ __('openbook.admin.nav.audit') }}
+                </a>
             @endcan
         </aside>
 

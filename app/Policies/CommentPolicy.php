@@ -23,4 +23,17 @@ class CommentPolicy
 
         return $comment->actor->user_id === $user->id || $user->is_admin;
     }
+
+    /**
+     * Segnalazione locale (non federata): qualsiasi utente autenticato puo'
+     * segnalare un commento altrui, locale o remoto, se ancora pubblicato.
+     */
+    public function report(User $user, Comment $comment): bool
+    {
+        if ($comment->status !== Comment::STATUS_PUBLISHED) {
+            return false;
+        }
+
+        return $comment->actor?->user_id !== $user->id;
+    }
 }

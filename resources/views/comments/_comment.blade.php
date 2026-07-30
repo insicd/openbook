@@ -16,23 +16,31 @@
             @endif
         </div>
 
-        @can('delete', $comment)
+        @canany(['delete', 'report'], $comment)
             <details class="ob-post__menu">
                 <summary class="ob-icon-btn" aria-label="{{ __('openbook.comments.menu') }}">
                     <x-icon name="more-vertical" />
                 </summary>
                 <div class="ob-post__menu-panel" role="menu">
-                    <form method="POST" action="{{ route('comments.destroy', $comment) }}" onsubmit="return confirm('{{ __('openbook.comments.confirm_delete') }}')">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="ob-post__menu-item" role="menuitem">
-                            <x-icon name="trash" />
-                            {{ __('openbook.actions.delete') }}
-                        </button>
-                    </form>
+                    @can('report', $comment)
+                        <a href="{{ route('comments.report.create', $comment) }}" class="ob-post__menu-item" role="menuitem">
+                            <x-icon name="flag" />
+                            {{ __('openbook.actions.report') }}
+                        </a>
+                    @endcan
+                    @can('delete', $comment)
+                        <form method="POST" action="{{ route('comments.destroy', $comment) }}" onsubmit="return confirm('{{ __('openbook.comments.confirm_delete') }}')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="ob-post__menu-item" role="menuitem">
+                                <x-icon name="trash" />
+                                {{ __('openbook.actions.delete') }}
+                            </button>
+                        </form>
+                    @endcan
                 </div>
             </details>
-        @endcan
+        @endcanany
     </div>
 
     @if ($isDeleted)
@@ -83,7 +91,7 @@
                 <input type="hidden" name="parent_comment_id" value="{{ $comment->id }}">
                 <div class="ob-field">
                     <label for="risposta-testo-{{ $comment->id }}" class="ob-field__help">{{ __('openbook.comments.reply_to', ['name' => $displayName]) }}</label>
-                    <textarea id="risposta-testo-{{ $comment->id }}" name="body" rows="2" required maxlength="2000"></textarea>
+                    <textarea id="risposta-testo-{{ $comment->id }}" name="body" rows="2" required maxlength="{{ config('openbook.comments.max_length', 2000) }}"></textarea>
                     <div class="ob-emoji-toolbar">
                         <x-emoji-trigger target="risposta-testo-{{ $comment->id }}" />
                     </div>

@@ -13,20 +13,36 @@ class AdminSettingsTest extends TestCase
 {
     use CreatesAccounts, RefreshDatabase;
 
-    public function test_admin_can_update_site_name_and_close_registrations(): void
+    /**
+     * @return array<string, mixed>
+     */
+    private function settingsPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'site_name' => 'Openbook Test',
+            'registration_open' => '0',
+            'instance_rules' => "## Regole\n\nSii gentile.",
+            'post_max_length' => 4000,
+            'comment_max_length' => 1500,
+            'media_max_size_kb' => 4096,
+            'media_max_attachments' => 3,
+        ], $overrides);
+    }
+
+    public function test_admin_can_update_site_name_limits_and_close_registrations(): void
     {
         $admin = $this->createFullAccount('adminsettings');
         $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
 
         $this->actingAs($admin)
-            ->put(route('admin.settings.update'), [
-                'site_name' => 'Openbook Test',
-                'registration_open' => '0',
-            ])
+            ->put(route('admin.settings.update'), $this->settingsPayload())
             ->assertRedirect(route('admin.settings.edit'));
 
         $this->assertSame('Openbook Test', SystemSetting::get(InstanceSettings::KEY_SITE_NAME));
         $this->assertFalse(app(InstanceSettings::class)->registrationOpen());
+        $this->assertSame(4000, app(InstanceSettings::class)->postMaxLength());
+        $this->assertSame(1500, app(InstanceSettings::class)->commentMaxLength());
+        $this->assertStringContainsString('Sii gentile', app(InstanceSettings::class)->instanceRules());
         $this->assertSame('Openbook Test', config('app.name'));
     }
 
@@ -59,10 +75,20 @@ class AdminSettingsTest extends TestCase
         $mod->forceFill(['is_moderator' => true])->save();
 
         $this->actingAs($mod)
-            ->put(route('admin.settings.update'), [
+            ->put(route('admin.settings.update'), $this->settingsPayload([
                 'site_name' => 'Hack',
                 'registration_open' => '1',
-            ])
+            ]))
             ->assertForbidden();
+    }
+
+    public function test_instance_rules_page_renders_markdown(): void
+    {
+        SystemSetting::put(InstanceSettings::KEY_INSTANCE_RULES, "## Hello\n\nWorld");
+
+        $this->get(route('instance.rules'))
+            ->assertOk()
+            ->assertSee('<h2>Hello</h2>', false)
+            ->assertSee('World', false);
     }
 }

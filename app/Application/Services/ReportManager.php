@@ -3,17 +3,22 @@
 namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
+use App\Domain\Comments\Comment;
 use App\Domain\Moderation\Report;
 use App\Domain\Posts\Post;
 use InvalidArgumentException;
 
 /**
- * Archivia e gestisce segnalazioni locali su post. Idempotente per
- * utente+post in ingresso; le azioni di review aggiornano status e revisore
- * per il pannello di moderazione.
+ * Archivia e gestisce segnalazioni locali su post e commenti. Idempotente
+ * per utente+target in ingresso; le azioni di review aggiornano status e
+ * revisore per il pannello di moderazione.
  */
 final class ReportManager
 {
+    public function __construct(
+        private readonly AuditLogger $auditLogger,
+    ) {}
+
     /**
      * @param  array{reason: string, details?: ?string}  $data
      */
@@ -27,11 +32,7 @@ final class ReportManager
             throw new InvalidArgumentException('Questo post non puo\' essere segnalato.');
         }
 
-        $reason = $data['reason'];
-
-        if (! in_array($reason, Report::reasons(), true)) {
-            throw new InvalidArgumentException('Motivo di segnalazione non valido.');
-        }
+        $reason = $this->validatedReason($data['reason'] ?? null);
 
         $existing = Report::query()
             ->where('reporter_id', $reporter->id)
@@ -45,6 +46,41 @@ final class ReportManager
         return Report::query()->create([
             'reporter_id' => $reporter->id,
             'post_id' => $post->id,
+            'comment_id' => null,
+            'reason' => $reason,
+            'details' => filled($data['details'] ?? null) ? trim((string) $data['details']) : null,
+            'status' => Report::STATUS_OPEN,
+        ]);
+    }
+
+    /**
+     * @param  array{reason: string, details?: ?string}  $data
+     */
+    public function reportComment(User $reporter, Comment $comment, array $data): Report
+    {
+        if ($comment->actor?->user_id === $reporter->id) {
+            throw new InvalidArgumentException('Non puoi segnalare un tuo commento.');
+        }
+
+        if ($comment->status === Comment::STATUS_DELETED) {
+            throw new InvalidArgumentException('Questo commento non puo\' essere segnalato.');
+        }
+
+        $reason = $this->validatedReason($data['reason'] ?? null);
+
+        $existing = Report::query()
+            ->where('reporter_id', $reporter->id)
+            ->where('comment_id', $comment->id)
+            ->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        return Report::query()->create([
+            'reporter_id' => $reporter->id,
+            'post_id' => null,
+            'comment_id' => $comment->id,
             'reason' => $reason,
             'details' => filled($data['details'] ?? null) ? trim((string) $data['details']) : null,
             'status' => Report::STATUS_OPEN,
@@ -78,6 +114,17 @@ final class ReportManager
             'reviewed_at' => now(),
         ])->save();
 
+        $this->auditLogger->log($reviewer, 'report.'.$status, $report);
+
         return $report->refresh();
+    }
+
+    private function validatedReason(mixed $reason): string
+    {
+        if (! is_string($reason) || ! in_array($reason, Report::reasons(), true)) {
+            throw new InvalidArgumentException('Motivo di segnalazione non valido.');
+        }
+
+        return $reason;
     }
 }

@@ -694,14 +694,15 @@ sul proprio profilo) le rende finalmente modificabili:
   opzionali), archiviata in `reports` e gestita dal pannello di
   controllo (`/admin/segnalazioni`). Non e' federata; non si puo'
   segnalare un proprio post. Throttle su `POST /posts/{post}/segnala`.
-- **Pannello di controllo** (`/admin`, v0.5.0): accessibile ad
+- **Pannello di controllo** (`/admin`, v0.5.0–0.6.0): accessibile ad
   amministratori e moderatori (`is_admin` / `is_moderator`). Include
-  dashboard, coda segnalazioni (revisiona / archivia / azione, con
-  soft-delete opzionale dei soli post locali), gestione utenti locali
-  (sospensione / disabilitazione; promozione moderatori solo admin) e,
-  solo per gli admin, impostazioni base istanza (`site_name`,
-  `registration_open` via `SystemSetting`, con effetto su registrazione
-  e NodeInfo). La promozione ad admin resta CLI (`openbook:make-admin`).
+  dashboard, coda segnalazioni su post e commenti (revisiona / archivia /
+  azione, con soft-delete opzionale dei soli contenuti locali), gestione
+  utenti locali (sospensione / disabilitazione; promozione moderatori e
+  admin), impostazioni istanza (`site_name`, `registration_open`, regole
+  Markdown, limiti post/commenti/media), blocchi dominio federato,
+  ispezione coda federazione e registro azioni. CLI ancora disponibile:
+  `openbook:make-admin` / `openbook:make-moderator`.
 - **Embed video**: se il body di un post contiene un link YouTube
   (`youtube.com`, `youtu.be`, Shorts, ...) o PeerTube (`/w/...`,
   `/videos/watch/...`), sotto il testo viene mostrato un player iframe
@@ -924,6 +925,10 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
   segnalazioni, gestione utenti locali, impostazioni base (`site_name`,
   registrazioni aperte/chiuse). Fuori scope: limiti media/post, regole testuali,
   ban federation, coda inbox/outbox, audit log.
+- ✅ **Pannello di controllo completo (v0.6.0)**: limiti post/commenti/media,
+  regole istanza in Markdown (`/regole`), blocchi dominio federato, ispezione
+  coda (`jobs`/`failed_jobs`/`inbox_items`), promozione admin da UI, segnalazioni
+  commenti, registro azioni staff.
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco
@@ -970,10 +975,10 @@ verdi.
   caricamento progressivo per thread molto lunghi arrivera' in una fase successiva.
 - Non esiste ancora un sistema di community (Fase 5): i post non hanno un
   destinatario "community" e la colonna corrispondente non e' stata introdotta.
-- Il pannello di controllo di base e' presente (`/admin`), ma restano fuori scope
-  l'ispezione della coda federativa (ancora via `jobs`/`failed_jobs`), i limiti
-  post/media, le regole istanza in markdown, i ban IP/federation e la promozione
-  admin da UI (resta `openbook:make-admin` / `openbook:make-moderator`).
+- Il pannello di controllo copre moderazione e impostazioni operative; restano
+  fuori scope avanzati come ban IP, regole di federazione per singolo Actor e
+  un vero tool di debug delle firme HTTP. La promozione admin e' disponibile
+  sia da UI sia da CLI (`openbook:make-admin` / `openbook:make-moderator`).
 
 ## Licenza
 
