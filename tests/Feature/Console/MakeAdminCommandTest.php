@@ -22,6 +22,7 @@ class MakeAdminCommandTest extends TestCase
         $user = User::query()->where('username', 'cliadmin')->firstOrFail();
 
         $this->assertTrue($user->is_admin);
+        $this->assertTrue($user->is_moderator);
         $this->assertTrue($user->hasVerifiedEmail());
         $this->assertNotNull(Actor::query()->where('user_id', $user->id)->first());
     }
@@ -45,6 +46,7 @@ class MakeAdminCommandTest extends TestCase
             ->assertSuccessful();
 
         $this->assertTrue($user->fresh()->is_admin);
+        $this->assertTrue($user->fresh()->is_moderator);
     }
 
     public function test_promoting_an_unknown_user_fails(): void

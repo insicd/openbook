@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureApplicationIsInstalled;
+use App\Http\Middleware\EnsureStaff;
 use App\Http\Middleware\SetUserLocale;
 use App\Infrastructure\Database\TransientConnectionHandler;
 use Illuminate\Auth\Middleware\Authenticate;
@@ -30,6 +32,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             EnsureApplicationIsInstalled::class,
             SetUserLocale::class,
+        ]);
+
+        $middleware->alias([
+            'staff' => EnsureStaff::class,
+            'admin' => EnsureAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

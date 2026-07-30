@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property string $email
  * @property string $password
  * @property bool $is_admin
+ * @property bool $is_moderator
  * @property string $status
  * @property Carbon|null $last_login_at
  */
@@ -48,6 +49,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'is_admin',
+        'is_moderator',
         'status',
     ];
 
@@ -69,6 +71,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'is_moderator' => 'boolean',
         ];
     }
 
@@ -105,6 +108,30 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * Staff di istanza: puo' aprire il pannello di controllo.
+     */
+    public function isStaff(): bool
+    {
+        return $this->is_admin || $this->is_moderator;
+    }
+
+    /**
+     * Moderazione (segnalazioni, utenti): admin oppure moderatore.
+     */
+    public function canModerate(): bool
+    {
+        return $this->isStaff();
+    }
+
+    /**
+     * Amministrazione completa dell'istanza (impostazioni, promozione mod).
+     */
+    public function canAdminister(): bool
+    {
+        return $this->is_admin;
     }
 
     /**

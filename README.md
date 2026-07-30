@@ -131,6 +131,9 @@ php artisan migrate --force
 # Crea il primo amministratore (chiede i dati interattivamente se omessi):
 php artisan openbook:make-admin --username=admin --email=admin@example.org
 
+# (Opzionale) promuovi un account esistente a moderatore di istanza:
+# php artisan openbook:make-moderator --promote=nome-utente
+
 # Segnala all'applicazione che l'installazione e' completata:
 php artisan tinker --execute="file_put_contents(storage_path('installed.lock'), 'cli - '.now());"
 ```
@@ -139,6 +142,12 @@ Il comando `openbook:make-admin` puo' anche promuovere un account gia' esistente
 
 ```bash
 php artisan openbook:make-admin --promote=nome-utente
+```
+
+Per i soli poteri di moderazione (senza impostazioni istanza):
+
+```bash
+php artisan openbook:make-moderator --promote=nome-utente
 ```
 
 ## Aggiornamento di un'istanza esistente
@@ -682,9 +691,17 @@ sul proprio profilo) le rende finalmente modificabili:
   CDN / Twemoji (`emoji-data.js` + `emoji-picker.js`).
 - **Segnalazioni**: dal menu a tre puntini di ogni post altrui (locale o
   remoto) si puo' aprire una segnalazione locale (motivo + dettagli
-  opzionali), archiviata in `reports` per la futura moderazione dal
-  pannello di controllo. Non e' federata; non si puo' segnalare un proprio
-  post. Throttle su `POST /posts/{post}/segnala`.
+  opzionali), archiviata in `reports` e gestita dal pannello di
+  controllo (`/admin/segnalazioni`). Non e' federata; non si puo'
+  segnalare un proprio post. Throttle su `POST /posts/{post}/segnala`.
+- **Pannello di controllo** (`/admin`, v0.5.0): accessibile ad
+  amministratori e moderatori (`is_admin` / `is_moderator`). Include
+  dashboard, coda segnalazioni (revisiona / archivia / azione, con
+  soft-delete opzionale dei soli post locali), gestione utenti locali
+  (sospensione / disabilitazione; promozione moderatori solo admin) e,
+  solo per gli admin, impostazioni base istanza (`site_name`,
+  `registration_open` via `SystemSetting`, con effetto su registrazione
+  e NodeInfo). La promozione ad admin resta CLI (`openbook:make-admin`).
 - **Embed video**: se il body di un post contiene un link YouTube
   (`youtube.com`, `youtu.be`, Shorts, ...) o PeerTube (`/w/...`,
   `/videos/watch/...`), sotto il testo viene mostrato un player iframe
@@ -903,6 +920,10 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
   un qualunque Actor locale inizi a seguirlo.
 - ✅ **Condivisioni visibili su profilo e feed di chi condivide** (questo repository,
   successiva alla Fase 4): prima comparivano solo nel feed di chi segue chi condivide.
+- ✅ **Pannello di controllo (slice 1, v0.5.0)**: ruoli admin/moderatore, coda
+  segnalazioni, gestione utenti locali, impostazioni base (`site_name`,
+  registrazioni aperte/chiuse). Fuori scope: limiti media/post, regole testuali,
+  ban federation, coda inbox/outbox, audit log.
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco
@@ -949,10 +970,10 @@ verdi.
   caricamento progressivo per thread molto lunghi arrivera' in una fase successiva.
 - Non esiste ancora un sistema di community (Fase 5): i post non hanno un
   destinatario "community" e la colonna corrispondente non e' stata introdotta.
-- Il pannello di amministrazione avanzato (gestione utenti, segnalazioni, ispezione
-  della coda federativa) non e' ancora presente: la coda si ispeziona direttamente
-  nelle tabelle `jobs`/`failed_jobs` e l'unico strumento amministrativo e' il
-  fallback CLI `openbook:make-admin`.
+- Il pannello di controllo di base e' presente (`/admin`), ma restano fuori scope
+  l'ispezione della coda federativa (ancora via `jobs`/`failed_jobs`), i limiti
+  post/media, le regole istanza in markdown, i ban IP/federation e la promozione
+  admin da UI (resta `openbook:make-admin` / `openbook:make-moderator`).
 
 ## Licenza
 

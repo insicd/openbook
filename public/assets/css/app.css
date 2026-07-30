@@ -1778,3 +1778,109 @@ a.ob-post__menu-item {
     font-size: 1.5rem;
   }
 }
+
+/* Admin panel */
+
+.ob-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--ob-color-primary-soft);
+  color: var(--ob-color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ob-admin-shell {
+  max-width: var(--ob-max-width-wide);
+  margin: 0 auto;
+  padding: 1.25rem;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.ob-admin-nav {
+  position: sticky;
+  top: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem;
+  background: var(--ob-color-surface);
+  border: 1px solid var(--ob-color-border);
+  border-radius: var(--ob-radius);
+}
+
+.ob-admin-main {
+  min-width: 0;
+}
+
+.ob-admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.ob-admin-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ob-admin-stat strong {
+  font-size: 1.75rem;
+}
+
+.ob-admin-stat span {
+  color: var(--ob-color-text-muted);
+  font-size: 0.9rem;
+}
+
+.ob-admin-filters,
+.ob-admin-actions,
+.ob-admin-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.ob-admin-search input[type="search"] {
+  flex: 1 1 220px;
+  min-width: 0;
+  height: 40px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: var(--ob-radius);
+  background: var(--ob-color-surface);
+}
+
+.ob-admin-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .ob-admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .ob-admin-nav {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}

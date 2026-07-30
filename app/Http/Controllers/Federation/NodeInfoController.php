@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Federation;
 
+use App\Application\Services\InstanceSettings;
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
@@ -55,7 +56,7 @@ final class NodeInfoController extends Controller
                 'inbound' => [],
                 'outbound' => [],
             ],
-            'openRegistrations' => (bool) config('openbook.registration.open'),
+            'openRegistrations' => app(InstanceSettings::class)->registrationOpen(),
             'usage' => [
                 'users' => [
                     'total' => $totalUsers,

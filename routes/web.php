@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\ActorProfileController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AnnounceController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -85,6 +89,28 @@ Route::middleware('auth')->group(function () {
     Route::get('/impostazioni', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('/impostazioni/profilo', [SettingsController::class, 'updateProfile'])->name('settings.profile.update');
     Route::put('/impostazioni/account', [SettingsController::class, 'updateAccount'])->name('settings.account.update');
+
+    Route::middleware('staff')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/segnalazioni', [AdminReportController::class, 'index'])->name('reports.index');
+        Route::get('/segnalazioni/{report}', [AdminReportController::class, 'show'])->name('reports.show');
+        Route::post('/segnalazioni/{report}/revisionata', [AdminReportController::class, 'review'])->name('reports.review');
+        Route::post('/segnalazioni/{report}/archiviata', [AdminReportController::class, 'dismiss'])->name('reports.dismiss');
+        Route::post('/segnalazioni/{report}/azione', [AdminReportController::class, 'action'])->name('reports.action');
+
+        Route::get('/utenti', [AdminUserController::class, 'index'])->name('users.index');
+        Route::post('/utenti/{user}/sospendi', [AdminUserController::class, 'suspend'])->name('users.suspend');
+        Route::post('/utenti/{user}/riattiva', [AdminUserController::class, 'unsuspend'])->name('users.unsuspend');
+        Route::post('/utenti/{user}/disabilita', [AdminUserController::class, 'disable'])->name('users.disable');
+
+        Route::middleware('admin')->group(function () {
+            Route::post('/utenti/{user}/promuovi-moderatore', [AdminUserController::class, 'promoteModerator'])->name('users.promote_moderator');
+            Route::post('/utenti/{user}/rimuovi-moderatore', [AdminUserController::class, 'demoteModerator'])->name('users.demote_moderator');
+            Route::get('/impostazioni', [AdminSettingsController::class, 'edit'])->name('settings.edit');
+            Route::put('/impostazioni', [AdminSettingsController::class, 'update'])->name('settings.update');
+        });
+    });
 });
 
 // Identificatore canonico di un post: HTML oppure, tramite content

@@ -62,7 +62,10 @@ class MakeAdminCommand extends Command
             'is_admin' => true,
         ]);
 
-        $user->forceFill(['email_verified_at' => now()])->save();
+        $user->forceFill([
+            'email_verified_at' => now(),
+            'is_moderator' => true,
+        ])->save();
 
         $this->components->info("Amministratore \"{$user->username}\" creato correttamente.");
 
@@ -79,7 +82,7 @@ class MakeAdminCommand extends Command
             return self::FAILURE;
         }
 
-        $user->forceFill(['is_admin' => true])->save();
+        $user->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
 
         $this->components->info("L'account \"{$user->username}\" e ora amministratore.");
 

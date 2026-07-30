@@ -30,6 +30,11 @@
     <a href="{{ route('profile.show', $currentUser->username) }}" class="ob-side-nav__link {{ request()->routeIs('profile.show') && ($profileUser ?? null)?->id === $currentUser->id ? 'is-active' : '' }}">
         <x-icon name="user" /> {{ __('openbook.nav.profile') }}
     </a>
+    @if ($currentUser->isStaff())
+        <a href="{{ route('admin.dashboard') }}" class="ob-side-nav__link {{ request()->routeIs('admin.*') ? 'is-active' : '' }}">
+            <x-icon name="settings" /> {{ __('openbook.nav.admin') }}
+        </a>
+    @endif
     <form method="POST" action="{{ route('logout') }}">
         @csrf
         <button type="submit" class="ob-side-nav__link ob-side-nav__link--button">

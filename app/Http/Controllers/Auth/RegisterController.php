@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Application\Services\AccountRegistrar;
+use App\Application\Services\InstanceSettings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use Illuminate\Auth\Events\Registered;
@@ -17,13 +18,21 @@ class RegisterController extends Controller
         private readonly AccountRegistrar $accountRegistrar,
     ) {}
 
-    public function create(): View
+    public function create(): View|RedirectResponse
     {
+        if (! app(InstanceSettings::class)->registrationOpen()) {
+            abort(403, __('openbook.auth.registration_closed'));
+        }
+
         return view('auth.register');
     }
 
     public function store(RegisterRequest $request): RedirectResponse
     {
+        if (! app(InstanceSettings::class)->registrationOpen()) {
+            abort(403, __('openbook.auth.registration_closed'));
+        }
+
         $data = $request->validated();
 
         $user = $this->accountRegistrar->register([

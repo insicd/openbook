@@ -31,6 +31,8 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'status' => User::STATUS_ACTIVE,
+            'is_admin' => false,
+            'is_moderator' => false,
             'remember_token' => Str::random(10),
         ];
     }
@@ -46,6 +48,14 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'is_admin' => true,
+            'is_moderator' => true,
+        ]);
+    }
+
+    public function moderator(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_moderator' => true,
         ]);
     }
 }
