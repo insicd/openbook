@@ -16,9 +16,15 @@
     }
 
     var composer = document.getElementById('ob-composer');
-    var headerOffset = 72;
     var scrollFallback = 180;
+    var composerGap = 12;
     var ticking = false;
+
+    function headerHeight() {
+        var header = document.querySelector('.ob-header');
+
+        return header ? Math.ceil(header.getBoundingClientRect().height) : 64;
+    }
 
     function setVisible(visible) {
         buttons.forEach(function (button) {
@@ -36,7 +42,7 @@
         var rect = composer.getBoundingClientRect();
 
         // Composer uscito verso l'alto oltre la sticky header.
-        return rect.bottom < headerOffset;
+        return rect.bottom < headerHeight() + composerGap;
     }
 
     function update() {
@@ -48,14 +54,22 @@
             return false;
         }
 
-        composer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // scrollIntoView(block:start) ignora la navbar sticky: calcoliamo
+        // la posizione cosi' il bordo superiore del composer resta sotto
+        // l'header e tutto il box resta leggibile.
+        var targetTop = window.scrollY + composer.getBoundingClientRect().top - headerHeight() - composerGap;
+
+        window.scrollTo({
+            top: Math.max(0, targetTop),
+            behavior: 'smooth',
+        });
 
         window.setTimeout(function () {
             var field = composer.querySelector('#composer-body, textarea[name="body"]');
             if (field) {
                 field.focus({ preventScroll: true });
             }
-        }, 280);
+        }, 320);
 
         return true;
     }
