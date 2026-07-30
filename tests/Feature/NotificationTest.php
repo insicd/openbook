@@ -97,5 +97,28 @@ class NotificationTest extends TestCase
         $response->assertOk();
         $response->assertSee('notiffollower4', false);
         $response->assertSee(__('openbook.notifications.view_all'), false);
+        $response->assertSee('assets/js/notifications-live.js', false);
+        $response->assertSee('data-notifications-feed-url', false);
+    }
+
+    public function test_the_notifications_feed_returns_json_for_live_updates(): void
+    {
+        $follower = $this->createFullAccount('notiffollower5');
+        $target = $this->createFullAccount('notiftarget5');
+
+        app(FollowManager::class)->follow($follower->actor, $target->actor);
+
+        $response = $this->actingAs($target)->getJson(route('notifications.feed'));
+
+        $response->assertOk();
+        $response->assertJsonPath('unread_count', 1);
+        $response->assertJsonCount(1, 'notifications');
+        $response->assertJsonPath('notifications.0.unread', true);
+        $this->assertStringContainsString('notiffollower5', $response->json('notifications.0.message'));
+    }
+
+    public function test_a_guest_cannot_access_the_notifications_feed(): void
+    {
+        $this->getJson(route('notifications.feed'))->assertUnauthorized();
     }
 }

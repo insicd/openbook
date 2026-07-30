@@ -65,11 +65,12 @@
 
     function markNotificationsRead(toggle) {
         var url = toggle.getAttribute('data-mark-read-url');
-        var badge = toggle.querySelector('[data-notifications-badge]');
 
-        if (badge) {
+        document.querySelectorAll('[data-notifications-badge]').forEach(function (badge) {
             badge.remove();
-        }
+        });
+
+        document.dispatchEvent(new CustomEvent('openbook:notifications-read'));
 
         if (!url || !csrfToken) {
             return;

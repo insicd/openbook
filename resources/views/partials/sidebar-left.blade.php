@@ -21,10 +21,10 @@
     <a href="{{ route('world.index') }}" class="ob-side-nav__link {{ request()->routeIs('world.index') ? 'is-active' : '' }}">
         <x-icon name="globe" /> {{ __('openbook.nav.world') }}
     </a>
-    <a href="{{ route('notifications.index') }}" class="ob-side-nav__link {{ request()->routeIs('notifications.index') ? 'is-active' : '' }}">
+    <a href="{{ route('notifications.index') }}" class="ob-side-nav__link {{ request()->routeIs('notifications.index') ? 'is-active' : '' }}" data-notifications-nav>
         <x-icon name="bell" /> {{ __('openbook.nav.notifications') }}
         @if (($unreadNotificationsCount ?? 0) > 0)
-            <span class="ob-badge-count">{{ $unreadNotificationsCount > 9 ? '9+' : $unreadNotificationsCount }}</span>
+            <span class="ob-badge-count" data-notifications-badge>{{ $unreadNotificationsCount > 9 ? '9+' : $unreadNotificationsCount }}</span>
         @endif
     </a>
     <a href="{{ route('profile.show', $currentUser->username) }}" class="ob-side-nav__link {{ request()->routeIs('profile.show') && ($profileUser ?? null)?->id === $currentUser->id ? 'is-active' : '' }}">

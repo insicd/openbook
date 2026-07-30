@@ -93,6 +93,9 @@ Route::middleware('auth')->group(function () {
         ->name('search.create');
 
     Route::get('/notifiche', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifiche/feed', [NotificationController::class, 'feed'])
+        ->middleware('throttle:60,1')
+        ->name('notifications.feed');
     Route::post('/notifiche/segna-lette', [NotificationController::class, 'markAllRead'])->name('notifications.read');
 
     Route::get('/impostazioni', [SettingsController::class, 'edit'])->name('settings.edit');

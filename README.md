@@ -947,6 +947,8 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 - ✅ **Audience AS stringa + collection replies (v0.6.4)**: `to`/`cc` come stringa
   singola (GoToSocial) non fanno piu' scartare Note pubbliche; le collection
   `replies` senza `first` vengono dereferenziate via `id`.
+- ✅ **Notifiche live (v0.6.5)**: polling leggero su `/notifiche/feed` aggiorna
+  badge (header + sidebar) e dropdown senza ricaricare la pagina.
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco
