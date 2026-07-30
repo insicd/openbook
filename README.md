@@ -944,6 +944,9 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 - ✅ **Signed fetch / authorized fetch (v0.6.3)**: i GET ActivityPub (Actor, outbox,
   replies) sono firmati con la chiave di un Actor locale (`OPENBOOK_FETCH_SIGNED`),
   cosi' le istanze che richiedono Signature non rispondono piu' 401.
+- ✅ **Audience AS stringa + collection replies (v0.6.4)**: `to`/`cc` come stringa
+  singola (GoToSocial) non fanno piu' scartare Note pubbliche; le collection
+  `replies` senza `first` vengono dereferenziate via `id`.
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco

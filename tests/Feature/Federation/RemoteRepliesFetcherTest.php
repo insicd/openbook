@@ -231,4 +231,59 @@ class RemoteRepliesFetcherTest extends TestCase
 
         $this->assertSame(1, Comment::query()->where('post_id', $post->id)->count());
     }
+
+    public function test_it_accepts_gotosocial_style_string_audience_on_replies(): void
+    {
+        $viewer = $this->createFullAccount('lettoregts');
+        $author = $this->createRemoteActor('autoregts');
+        $replier = $this->createRemoteActor('replygts', 'gts.example');
+        $post = $this->createRemotePost($author, 'gts');
+
+        $reply = $this->replyNote($replier, $post->uri, 'Reply con to stringa', [
+            // GoToSocial spesso invia to/cc come stringa singola, non array.
+            'to' => 'https://www.w3.org/ns/activitystreams#Public',
+            'cc' => $replier->uri.'/followers',
+        ]);
+
+        $this->fakeNoteWithReplies($post, [$reply]);
+
+        $this->actingAs($viewer)->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertSee('Reply con to stringa', false);
+
+        $this->assertSame(1, Comment::query()->where('post_id', $post->id)->count());
+    }
+
+    public function test_it_dereferences_collection_id_when_first_is_missing(): void
+    {
+        $viewer = $this->createFullAccount('lettorecoll');
+        $author = $this->createRemoteActor('autorecoll');
+        $replier = $this->createRemoteActor('replycoll', 'coll.example');
+        $post = $this->createRemotePost($author, 'coll');
+        $collectionUrl = $post->uri.'/replies';
+        $reply = $this->replyNote($replier, $post->uri, 'Dalla collection id');
+
+        Http::fake([
+            $post->uri => Http::response([
+                'id' => $post->uri,
+                'type' => 'Note',
+                'attributedTo' => $author->uri,
+                'to' => 'https://www.w3.org/ns/activitystreams#Public',
+                'replies' => [
+                    'id' => $collectionUrl,
+                    'type' => 'Collection',
+                    'totalItems' => 1,
+                ],
+            ], 200),
+            $collectionUrl => Http::response([
+                'id' => $collectionUrl,
+                'type' => 'Collection',
+                'items' => [$reply],
+            ], 200),
+        ]);
+
+        $this->actingAs($viewer)->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertSee('Dalla collection id', false);
+    }
 }

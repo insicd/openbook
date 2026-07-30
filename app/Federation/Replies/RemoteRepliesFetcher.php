@@ -67,6 +67,11 @@ final class RemoteRepliesFetcher
 
         $items = $this->resolveRepliesItems($note['replies'] ?? null, $signingActor);
 
+        Log::channel('single')->info('federation.replies.fetched', [
+            'post_uri' => $post->uri,
+            'items' => count($items),
+        ]);
+
         foreach ($items as $item) {
             $this->ingestItem($item, $post, $signingActor);
         }
@@ -94,12 +99,16 @@ final class RemoteRepliesFetcher
             $first = $replies['first'] ?? null;
 
             if (is_array($first)) {
-                $page = $first;
+                $page = $this->materializePage($first, $signingActor, $visited);
             } elseif (is_string($first) && $first !== '') {
                 $page = $this->fetchDocument($first, $signingActor);
             } elseif ($direct === [] && $this->isCollectionType($replies['type'] ?? null)) {
-                // Collection senza "first" ma con items/orderedItems gia' letti sopra.
-                $page = null;
+                // Collection senza "first": prova a dereferenziare l'id
+                // della collection stessa (tipico di alcuni server GtS).
+                $collectionId = $replies['id'] ?? null;
+                $page = (is_string($collectionId) && $collectionId !== '')
+                    ? $this->fetchDocument($collectionId, $signingActor)
+                    : null;
             }
         }
 
@@ -111,6 +120,12 @@ final class RemoteRepliesFetcher
 
             $next = $page['next'] ?? null;
 
+            if (is_array($next)) {
+                $page = $this->materializePage($next, $signingActor, $visited);
+
+                continue;
+            }
+
             if (! is_string($next) || $next === '' || isset($visited[$next])) {
                 break;
             }
@@ -120,6 +135,32 @@ final class RemoteRepliesFetcher
         }
 
         return array_slice($collected, 0, self::MAX_ITEMS);
+    }
+
+    /**
+     * Una CollectionPage puo' arrivare inline senza items (solo id): in quel
+     * caso va scaricata dall'id prima di leggerla.
+     *
+     * @param  array<string, mixed>  $page
+     * @param  array<string, true>  $visited
+     * @return array<string, mixed>|null
+     */
+    private function materializePage(array $page, ?Actor $signingActor, array &$visited): ?array
+    {
+        if ($this->pageItems($page) !== []) {
+            return $page;
+        }
+
+        $id = $page['id'] ?? null;
+
+        if (! is_string($id) || $id === '' || isset($visited[$id])) {
+            return $page;
+        }
+
+        $visited[$id] = true;
+        $fetched = $this->fetchDocument($id, $signingActor);
+
+        return $fetched ?? $page;
     }
 
     /**
@@ -194,6 +235,12 @@ final class RemoteRepliesFetcher
         $note = is_string($item) ? $this->fetchDocument($item, $signingActor) : $item;
 
         if ($note === null) {
+            Log::channel('single')->info('federation.replies.skip', [
+                'post_uri' => $post->uri,
+                'reason' => 'item_unavailable',
+                'item' => is_string($item) ? $item : ($item['id'] ?? null),
+            ]);
+
             return;
         }
 
@@ -202,32 +249,68 @@ final class RemoteRepliesFetcher
         }
 
         if (! $this->isType($note['type'] ?? null, 'Note')) {
+            Log::channel('single')->info('federation.replies.skip', [
+                'post_uri' => $post->uri,
+                'reason' => 'not_a_note',
+                'type' => $note['type'] ?? null,
+                'item' => $note['id'] ?? null,
+            ]);
+
             return;
         }
 
         $noteUri = is_string($note['id'] ?? null) ? $note['id'] : null;
-        $inReplyTo = is_string($note['inReplyTo'] ?? null) ? $note['inReplyTo'] : null;
+        $inReplyTo = $this->objectUri($note['inReplyTo'] ?? null);
         $attributedTo = $this->actorUri($note['attributedTo'] ?? null);
 
         if ($noteUri === null || $noteUri === '' || $inReplyTo === null || $inReplyTo === '' || $attributedTo === null) {
+            Log::channel('single')->info('federation.replies.skip', [
+                'post_uri' => $post->uri,
+                'reason' => 'missing_fields',
+                'item' => $noteUri,
+                'in_reply_to' => $inReplyTo,
+                'attributed_to' => $attributedTo,
+            ]);
+
             return;
         }
 
         [$parentPost, $parentComment] = $this->resolveParents($inReplyTo, $post);
 
         if ($parentPost === null && $parentComment === null) {
+            Log::channel('single')->info('federation.replies.skip', [
+                'post_uri' => $post->uri,
+                'reason' => 'unrelated_in_reply_to',
+                'item' => $noteUri,
+                'in_reply_to' => $inReplyTo,
+            ]);
+
             return;
         }
 
         $visibility = $this->noteUpserter->visibilityFromAudience($note);
 
         if (! in_array($visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED], true)) {
+            Log::channel('single')->info('federation.replies.skip', [
+                'post_uri' => $post->uri,
+                'reason' => 'not_public',
+                'item' => $noteUri,
+                'visibility' => $visibility,
+            ]);
+
             return;
         }
 
         $actor = $this->remoteActorResolver->resolveByUri($attributedTo);
 
         if ($actor === null || $actor->isLocal()) {
+            Log::channel('single')->info('federation.replies.skip', [
+                'post_uri' => $post->uri,
+                'reason' => 'actor_unresolved',
+                'item' => $noteUri,
+                'attributed_to' => $attributedTo,
+            ]);
+
             return;
         }
 
@@ -267,6 +350,19 @@ final class RemoteRepliesFetcher
         }
 
         return [null, null];
+    }
+
+    private function objectUri(mixed $value): ?string
+    {
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+
+        if (is_array($value) && is_string($value['id'] ?? null) && $value['id'] !== '') {
+            return $value['id'];
+        }
+
+        return null;
     }
 
     private function actorUri(mixed $attributedTo): ?string

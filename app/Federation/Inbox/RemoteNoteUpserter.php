@@ -114,19 +114,23 @@ final class RemoteNoteUpserter
      * Deduce la visibilita' locale a partire dagli indirizzi "to"/"cc" di una
      * Note remota, rispecchiando la logica inversa di {@see NoteSerializer}.
      *
+     * ActivityStreams consente valori singoli al posto di array: GoToSocial
+     * (e altri) spesso inviano `"to": "https://www.w3.org/ns/activitystreams#Public"`
+     * come stringa. Se non li normalizziamo, una Note pubblica viene trattata
+     * come diretta e scartata dai fetch di replies/outbox.
+     *
      * @param  array<string, mixed>  $note
      */
     public function visibilityFromAudience(array $note): string
     {
-        $to = is_array($note['to'] ?? null) ? $note['to'] : [];
-        $cc = is_array($note['cc'] ?? null) ? $note['cc'] : [];
-        $public = NoteSerializer::PUBLIC_STREAM;
+        $to = $this->audienceList($note['to'] ?? null);
+        $cc = $this->audienceList($note['cc'] ?? null);
 
-        if (in_array($public, $to, true)) {
+        if ($this->addressesPublic($to)) {
             return Post::VISIBILITY_PUBLIC;
         }
 
-        if (in_array($public, $cc, true)) {
+        if ($this->addressesPublic($cc)) {
             return Post::VISIBILITY_UNLISTED;
         }
 
@@ -135,6 +139,48 @@ final class RemoteNoteUpserter
         }
 
         return Post::VISIBILITY_FOLLOWERS;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function audienceList(mixed $value): array
+    {
+        if (is_string($value) && $value !== '') {
+            return [$value];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $addresses = [];
+
+        foreach ($value as $item) {
+            if (is_string($item) && $item !== '') {
+                $addresses[] = $item;
+            }
+        }
+
+        return $addresses;
+    }
+
+    /**
+     * @param  list<string>  $addresses
+     */
+    private function addressesPublic(array $addresses): bool
+    {
+        foreach ($addresses as $address) {
+            if (in_array($address, [
+                NoteSerializer::PUBLIC_STREAM,
+                'as:Public',
+                'Public',
+            ], true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
