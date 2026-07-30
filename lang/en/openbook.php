@@ -82,6 +82,10 @@ return [
     'composer' => [
         'body_label' => 'What do you want to share?',
         'placeholder' => 'Write something...',
+        'quote_placeholder' => 'Add a comment to your quote...',
+        'quoting' => 'Quoting :name',
+        'quote_cancel' => 'Cancel',
+        'quote_unavailable' => 'The post to quote does not exist or is not visible.',
         'title_label' => 'Title (optional)',
         'cw_label' => 'Content warning (optional)',
         'cw_placeholder' => 'E.g. spoiler, sensitive topic...',
@@ -118,6 +122,9 @@ return [
         'comment_submit' => 'Post comment',
         'announce' => 'Share (:count)',
         'announced' => 'Shared (:count)',
+        'announce_direct' => 'Share directly',
+        'announce_quote' => 'Share with quote',
+        'unannounce' => 'Undo share',
         'shared_this' => 'shared this post',
         'reply' => 'Reply',
         'delete' => 'Delete',
@@ -213,6 +220,7 @@ return [
             'reply' => ':name replied to your comment.',
             'mention' => ':name mentioned you.',
             'share' => ':name shared your post.',
+            'quote' => ':name quoted your post.',
         ],
     ],
 

@@ -1,6 +1,7 @@
 @php
     $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
     $defaultVisibility = auth()->user()->settings?->default_post_visibility ?: 'public';
+    $quotedPost = $quotedPost ?? null;
 
     $titleOpen = old('title') || $errors->has('title');
     $cwOpen = old('content_warning') || $errors->has('content_warning');
@@ -8,18 +9,39 @@
     $visibilityOpen = old('visibility') || $errors->has('visibility') || $defaultVisibility !== 'public';
 @endphp
 
-<div class="ob-card ob-composer">
+<div class="ob-card ob-composer{{ $quotedPost ? ' ob-composer--quoting' : '' }}" @if ($quotedPost) id="ob-composer" @endif>
     <form method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
         @csrf
+
+        @if ($quotedPost)
+            <input type="hidden" name="quoted_post_id" value="{{ $quotedPost->id }}">
+            <div class="ob-composer__quote-banner">
+                <x-icon name="quote" />
+                <span>{{ __('openbook.composer.quoting', ['name' => $quotedPost->actor?->displayName() ?: $quotedPost->actor?->handle()]) }}</span>
+                <a href="{{ route('feed.index') }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
+            </div>
+        @endif
 
         <div class="ob-composer__main">
             <x-avatar :user="auth()->user()" style="width:44px;height:44px" />
             <div class="ob-field ob-composer__body-field">
                 <label for="composer-body" class="sr-only">{{ __('openbook.composer.body_label') }}</label>
-                <textarea id="composer-body" name="body" rows="1" required maxlength="{{ config('openbook.posts.max_length') }}"
-                    placeholder="{{ __('openbook.composer.placeholder') }}">{{ old('body') }}</textarea>
+                <textarea id="composer-body" name="body" rows="{{ $quotedPost ? 3 : 1 }}" required maxlength="{{ config('openbook.posts.max_length') }}"
+                    placeholder="{{ $quotedPost ? __('openbook.composer.quote_placeholder') : __('openbook.composer.placeholder') }}"
+                    @if ($quotedPost) autofocus @endif>{{ old('body') }}</textarea>
             </div>
         </div>
+
+        @if ($quotedPost)
+            <div class="ob-composer__quote">
+                @include('posts._card', [
+                    'post' => $quotedPost,
+                    'embed' => true,
+                    'embedDepth' => 1,
+                    'linkToPost' => true,
+                ])
+            </div>
+        @endif
 
         <div class="ob-composer__panel" id="composer-panel-title" @unless($titleOpen) hidden @endunless>
             <div class="ob-field">

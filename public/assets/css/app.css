@@ -1061,6 +1061,76 @@ p {
   margin: 0;
 }
 
+.ob-post__share-menu {
+  position: relative;
+}
+
+.ob-post__share-menu > summary {
+  list-style: none;
+}
+
+.ob-post__share-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ob-post__share-menu .ob-post__menu-panel {
+  top: auto;
+  bottom: calc(100% + 0.35rem);
+  left: 0;
+  right: auto;
+  min-width: 13rem;
+}
+
+.ob-post__share-menu .ob-post__menu-item:hover,
+.ob-post__share-menu .ob-post__menu-item:focus-visible {
+  color: var(--ob-color-text);
+}
+
+a.ob-post__menu-item {
+  text-decoration: none;
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.ob-post__quote {
+  margin-top: 0.85rem;
+}
+
+.ob-post__quote > .ob-post--embed,
+.ob-composer__quote > .ob-post--embed {
+  margin: 0;
+  box-shadow: none;
+  border: 1px solid var(--ob-color-border);
+  background: var(--ob-color-bg);
+  padding: 0.85rem 1rem;
+}
+
+.ob-composer__quote-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+  color: var(--ob-color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ob-composer__quote-banner .ob-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.ob-composer__quote-cancel {
+  margin-left: auto;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.ob-composer__quote {
+  margin: 0.75rem 0 0.25rem;
+}
+
 .ob-post__shared-by {
   display: flex;
   align-items: center;

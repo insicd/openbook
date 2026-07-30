@@ -60,6 +60,7 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/posts/{post}/condividi', [AnnounceController::class, 'store'])->name('posts.announce');
     Route::delete('/posts/{post}/condividi', [AnnounceController::class, 'destroy'])->name('posts.unannounce');
+    Route::get('/posts/{post}/cita', [PostController::class, 'quote'])->name('posts.quote');
 
     Route::post('/@{user:username}/segui', [FollowController::class, 'store'])->name('follow.store');
     Route::delete('/@{user:username}/segui', [FollowController::class, 'destroy'])->name('follow.destroy');

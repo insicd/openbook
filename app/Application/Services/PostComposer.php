@@ -34,7 +34,7 @@ final class PostComposer
     ) {}
 
     /**
-     * @param  array{title?: ?string, content_warning?: ?string, body: string, visibility?: string, language?: ?string, images?: array<int, UploadedFile>, alt_texts?: array<int, ?string>}  $data
+     * @param  array{title?: ?string, content_warning?: ?string, body: string, visibility?: string, language?: ?string, quoted_post_id?: ?string, images?: array<int, UploadedFile>, alt_texts?: array<int, ?string>}  $data
      */
     public function compose(Actor $author, array $data): Post
     {
@@ -45,9 +45,12 @@ final class PostComposer
             throw new InvalidArgumentException("Puoi allegare al massimo {$maxAttachments} immagini per post.");
         }
 
-        $post = DB::transaction(function () use ($author, $data, $images) {
+        $quotedPost = $this->resolveQuotedPost($author, $data['quoted_post_id'] ?? null);
+
+        $post = DB::transaction(function () use ($author, $data, $images, $quotedPost) {
             $post = Post::query()->create([
                 'actor_id' => $author->id,
+                'quoted_post_id' => $quotedPost?->id,
                 'title' => $data['title'] ?? null,
                 'content_warning' => $data['content_warning'] ?? null,
                 'body' => $data['body'],
@@ -72,15 +75,49 @@ final class PostComposer
             $this->attachHashtags($post);
             $this->attachMentions($post, $author);
 
+            if ($quotedPost !== null) {
+                $this->notificationCreator->notify(
+                    $quotedPost->actor,
+                    Notification::TYPE_QUOTE,
+                    $author,
+                    $post,
+                );
+            }
+
             return $post;
         });
 
         if ($author->isLocal()) {
-            $post->load('mentions.actor');
+            $post->load(['mentions.actor', 'quotedPost']);
             $this->delivery->deliverContent($post, ActivitySerializer::create($post));
         }
 
         return $post;
+    }
+
+    /**
+     * Il post citato deve esistere, essere pubblicato e visibile a chi cita
+     * (stesse regole del feed: non si puo' citare un post followers-only di
+     * qualcuno che non si segue, ne' un post eliminato).
+     */
+    private function resolveQuotedPost(Actor $author, ?string $quotedPostId): ?Post
+    {
+        if ($quotedPostId === null || $quotedPostId === '') {
+            return null;
+        }
+
+        $quoted = Post::query()
+            ->with('actor')
+            ->whereKey($quotedPostId)
+            ->where('status', Post::STATUS_PUBLISHED)
+            ->visibleTo($author)
+            ->first();
+
+        if ($quoted === null) {
+            throw new InvalidArgumentException('Il post da citare non esiste o non e\' visibile.');
+        }
+
+        return $quoted;
     }
 
     private function attachHashtags(Post $post): void

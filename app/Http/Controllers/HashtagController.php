@@ -17,7 +17,7 @@ class HashtagController extends Controller
 
         $posts = $hashtag !== null
             ? $hashtag->posts()
-                ->with(['actor.user.profile', 'media.thumbnail', 'hashtags'])
+                ->with(Post::CARD_RELATIONS)
                 ->where('status', Post::STATUS_PUBLISHED)
                 ->visibleTo($viewer)
                 ->orderByDesc('published_at')

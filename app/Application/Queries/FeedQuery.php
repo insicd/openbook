@@ -52,7 +52,7 @@ final class FeedQuery
             ->pluck('post_id');
 
         $query = Post::query()
-            ->with(['actor.user.profile', 'media.thumbnail', 'hashtags'])
+            ->with(Post::CARD_RELATIONS)
             ->where('status', Post::STATUS_PUBLISHED)
             ->where(function ($query) use ($relevantActorIds, $announcedPostIds) {
                 $query->whereIn('actor_id', $relevantActorIds)
@@ -81,7 +81,7 @@ final class FeedQuery
         $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
 
         return Post::query()
-            ->with(['actor.user.profile', 'media.thumbnail', 'hashtags'])
+            ->with(Post::CARD_RELATIONS)
             ->where('status', Post::STATUS_PUBLISHED)
             ->where('visibility', Post::VISIBILITY_PUBLIC)
             ->whereHas('actor', fn ($query) => $query->where('is_local', true))
@@ -106,7 +106,7 @@ final class FeedQuery
         $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
 
         return Post::query()
-            ->with(['actor.user.profile', 'media.thumbnail', 'hashtags'])
+            ->with(Post::CARD_RELATIONS)
             ->where('status', Post::STATUS_PUBLISHED)
             ->where('visibility', Post::VISIBILITY_PUBLIC)
             ->whereHas('actor', fn ($query) => $query->where('is_local', false))
@@ -132,7 +132,7 @@ final class FeedQuery
             ->pluck('post_id');
 
         $query = Post::query()
-            ->with(['actor.user.profile', 'media.thumbnail', 'hashtags'])
+            ->with(Post::CARD_RELATIONS)
             ->where('status', Post::STATUS_PUBLISHED)
             ->where(function ($query) use ($profileActor, $announcedPostIds) {
                 $query->where('actor_id', $profileActor->id)

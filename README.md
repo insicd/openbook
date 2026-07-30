@@ -684,6 +684,14 @@ sul proprio profilo) le rende finalmente modificabili:
   `PostBodyRenderer` usato per post e commenti; vale anche per lo
   snippet bio nei risultati di ricerca. Sui remoti il `summary` HTML
   viene prima ridotto a testo piano (`RemoteContentSanitizer::toPlainText`).
+- **Condivisione con citazione**: l'icona share sulla card apre un menu
+  con *Condivisione diretta* (Announce / boost, come prima) oppure
+  *Condivisione con citazione*. La citazione porta al composer della
+  Home con il post originale annidato sotto il testo; alla pubblicazione
+  nasce un nuovo post (`quoted_post_id`) che nel feed mostra la card
+  originale dentro la propria. Federazione in uscita: `quoteUrl` sulla
+  Note piu' link di fallback nel `content`. I commenti non hanno share
+  (solo like/risposta).
 
 ### Sezione "Mondo"
 

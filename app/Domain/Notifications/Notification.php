@@ -47,6 +47,8 @@ class Notification extends Model
 
     public const TYPE_SHARE = 'share';
 
+    public const TYPE_QUOTE = 'quote';
+
     /**
      * @var list<string>
      */

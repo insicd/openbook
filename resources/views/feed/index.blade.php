@@ -10,7 +10,7 @@
         </div>
     @endunless
 
-    @include('posts._composer')
+    @include('posts._composer', ['quotedPost' => $quotedPost ?? null])
 
     @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.feed.empty')])
 @endsection

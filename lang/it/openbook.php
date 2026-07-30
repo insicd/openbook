@@ -82,6 +82,10 @@ return [
     'composer' => [
         'body_label' => 'Cosa vuoi condividere?',
         'placeholder' => 'Scrivi qualcosa...',
+        'quote_placeholder' => 'Aggiungi un commento alla citazione...',
+        'quoting' => 'Stai citando :name',
+        'quote_cancel' => 'Annulla',
+        'quote_unavailable' => 'Il post da citare non esiste o non e visibile.',
         'title_label' => 'Titolo (facoltativo)',
         'cw_label' => 'Avviso sul contenuto (facoltativo)',
         'cw_placeholder' => 'Es. spoiler, argomento sensibile...',
@@ -118,6 +122,9 @@ return [
         'comment_submit' => 'Pubblica commento',
         'announce' => 'Condividi (:count)',
         'announced' => 'Condiviso (:count)',
+        'announce_direct' => 'Condivisione diretta',
+        'announce_quote' => 'Condivisione con citazione',
+        'unannounce' => 'Annulla condivisione',
         'shared_this' => 'ha condiviso questo post',
         'reply' => 'Rispondi',
         'delete' => 'Elimina',
@@ -213,6 +220,7 @@ return [
             'reply' => ':name ha risposto al tuo commento.',
             'mention' => ':name ti ha menzionato.',
             'share' => ':name ha condiviso il tuo post.',
+            'quote' => ':name ha citato il tuo post.',
         ],
     ],
 

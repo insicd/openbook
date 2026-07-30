@@ -35,6 +35,26 @@ class PostController extends Controller
     }
 
     /**
+     * Avvia una citazione: porta l'utente alla home con il composer gia'
+     * predisposto sul post da citare (visibile solo se ha diritto a vederlo).
+     */
+    public function quote(Post $post): RedirectResponse
+    {
+        $viewer = auth()->user()->actor;
+
+        abort_unless(
+            Post::query()
+                ->whereKey($post->id)
+                ->where('status', Post::STATUS_PUBLISHED)
+                ->visibleTo($viewer)
+                ->exists(),
+            404,
+        );
+
+        return redirect()->route('feed.index', ['quote' => $post->id]);
+    }
+
+    /**
      * Identificatore canonico del post: serve l'HTML oppure, tramite content
      * negotiation, l'oggetto ActivityStreams "Note" (o "Tombstone" se il
      * post e' stato eliminato).
@@ -55,7 +75,7 @@ class PostController extends Controller
             );
         }
 
-        $post->load(['actor.user.profile', 'media.thumbnail', 'hashtags']);
+        $post->load(Post::CARD_RELATIONS);
         Post::annotateViewerState([$post], $viewer);
 
         $comments = Comment::query()

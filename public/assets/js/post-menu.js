@@ -1,14 +1,16 @@
 /**
- * Chiude i menu "tre puntini" dei post (<details class="ob-post__menu">)
- * quando si apre un altro menu o si clicca fuori: senza questo, piu' menu
- * resterebbero aperti contemporaneamente e un click fuori non li chiuderebbe
- * (comportamento nativo di <details>).
+ * Chiude i menu a tendina dei post (overflow "tre puntini" e menu
+ * condividi) quando se ne apre un altro o si clicca fuori: senza questo,
+ * piu' menu resterebbero aperti contemporaneamente e un click fuori non
+ * li chiuderebbe (comportamento nativo di <details>).
  */
 (function () {
     'use strict';
 
+    var MENU_SELECTOR = '.ob-post__menu, .ob-post__share-menu';
+
     document.addEventListener('click', function (event) {
-        var openMenus = document.querySelectorAll('.ob-post__menu[open]');
+        var openMenus = document.querySelectorAll(MENU_SELECTOR + '[open]');
 
         if (openMenus.length === 0) {
             return;
@@ -24,11 +26,11 @@
     document.addEventListener('toggle', function (event) {
         var target = event.target;
 
-        if (!target.classList || !target.classList.contains('ob-post__menu') || !target.open) {
+        if (!target.matches || !target.matches(MENU_SELECTOR) || !target.open) {
             return;
         }
 
-        document.querySelectorAll('.ob-post__menu[open]').forEach(function (menu) {
+        document.querySelectorAll(MENU_SELECTOR + '[open]').forEach(function (menu) {
             if (menu !== target) {
                 menu.removeAttribute('open');
             }

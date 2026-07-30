@@ -26,11 +26,18 @@ final class NoteSerializer
      */
     public static function forPost(Post $post): array
     {
-        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor']);
+        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor', 'quotedPost']);
 
         $actor = $post->actor;
         $uri = self::postUri($post);
         $content = self::renderContent($post->body, $post->title);
+
+        if ($post->quotedPost !== null) {
+            $quotedUri = self::postUri($post->quotedPost);
+            // Fallback testuale per client che non conoscono quoteUrl: il link
+            // all'originale resta leggibile anche senza supporto nativo alle citazioni.
+            $content .= '<p><a href="'.e($quotedUri).'">'.e($quotedUri).'</a></p>';
+        }
 
         $note = [
             '@context' => 'https://www.w3.org/ns/activitystreams',
@@ -42,6 +49,10 @@ final class NoteSerializer
             'published' => $post->published_at->toAtomString(),
             'sensitive' => $post->hasContentWarning(),
         ];
+
+        if ($post->quotedPost !== null) {
+            $note['quoteUrl'] = self::postUri($post->quotedPost);
+        }
 
         if ($post->hasContentWarning()) {
             $note['summary'] = e((string) $post->content_warning);

@@ -116,7 +116,7 @@ final class LocalSearchQuery
     {
         $posts = Post::query()
             ->select('posts.*')
-            ->with(['actor.user.profile', 'media.thumbnail', 'hashtags'])
+            ->with(Post::CARD_RELATIONS)
             ->join('actors', 'actors.id', '=', 'posts.actor_id')
             ->where('actors.is_local', true)
             ->where('posts.status', Post::STATUS_PUBLISHED)

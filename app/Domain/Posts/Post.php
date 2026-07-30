@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property string $id
  * @property string $actor_id
  * @property string|null $uri
+ * @property string|null $quoted_post_id
  * @property string|null $title
  * @property string|null $content_warning
  * @property string $body
@@ -39,6 +40,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $shared_by_actor_id solo quando la riga proviene da {@see FeedQuery}, che lo valorizza con una subquery su "announces"
  * @property Carbon|null $shared_at vedi $shared_by_actor_id
  * @property-read Actor|null $sharedBy vedi {@see self::attachSharedBy()}
+ * @property-read Post|null $quotedPost
  */
 class Post extends Model
 {
@@ -57,11 +59,27 @@ class Post extends Model
     public const STATUS_DELETED = 'deleted';
 
     /**
+     * Relazioni da eager-loadare insieme a ogni elenco di post, cosi' le
+     * citazioni annidate non generano N+1 sul feed / profilo / ricerca.
+     *
+     * @var list<string>
+     */
+    public const CARD_RELATIONS = [
+        'actor.user.profile',
+        'media.thumbnail',
+        'hashtags',
+        'quotedPost.actor.user.profile',
+        'quotedPost.media.thumbnail',
+        'quotedPost.hashtags',
+    ];
+
+    /**
      * @var list<string>
      */
     protected $fillable = [
         'actor_id',
         'uri',
+        'quoted_post_id',
         'title',
         'content_warning',
         'body',
@@ -89,6 +107,21 @@ class Post extends Model
     public function actor(): BelongsTo
     {
         return $this->belongsTo(Actor::class);
+    }
+
+    /**
+     * Post citato (quote): presente solo sulle citazioni create localmente.
+     * nullOnDelete in migration: se l'originale sparisce, la citazione resta
+     * come post autonomo senza card annidata.
+     */
+    public function quotedPost(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'quoted_post_id');
+    }
+
+    public function isQuote(): bool
+    {
+        return $this->quoted_post_id !== null;
     }
 
     public function attachments(): HasMany
