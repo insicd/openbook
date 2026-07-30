@@ -680,6 +680,11 @@ sul proprio profilo) le rende finalmente modificabili:
   sorriso apre un picker locale stile Mastodon (categorie, ricerca,
   recenti in `localStorage`). Solo Unicode nativo del sistema, nessuna
   CDN / Twemoji (`emoji-data.js` + `emoji-picker.js`).
+- **Segnalazioni**: dal menu a tre puntini di ogni post altrui (locale o
+  remoto) si puo' aprire una segnalazione locale (motivo + dettagli
+  opzionali), archiviata in `reports` per la futura moderazione dal
+  pannello di controllo. Non e' federata; non si puo' segnalare un proprio
+  post. Throttle su `POST /posts/{post}/segnala`.
 - **Embed video**: se il body di un post contiene un link YouTube
   (`youtube.com`, `youtu.be`, Shorts, ...) o PeerTube (`/w/...`,
   `/videos/watch/...`), sotto il testo viene mostrato un player iframe

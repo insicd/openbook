@@ -149,6 +149,7 @@ return [
         'shared_this' => 'ha condiviso questo post',
         'reply' => 'Rispondi',
         'delete' => 'Elimina',
+        'report' => 'Segnala',
     ],
 
     'comments' => [
@@ -247,6 +248,26 @@ return [
 
     'hashtags' => [
         'empty' => 'Nessun post pubblico con questo hashtag, per ora.',
+    ],
+
+    'reports' => [
+        'page_title' => 'Segnala post',
+        'intro' => 'Stai segnalando un post di :name. La segnalazione resta su questa istanza e verra esaminata dalla moderazione.',
+        'reason_label' => 'Motivo',
+        'reason_placeholder' => 'Scegli un motivo',
+        'details_label' => 'Dettagli (facoltativo)',
+        'details_placeholder' => 'Aggiungi contesto utile alla moderazione...',
+        'details_help' => 'Non includere dati sensibili inutili. Massimo 1000 caratteri.',
+        'submit' => 'Invia segnalazione',
+        'cancel' => 'Annulla',
+        'submitted' => 'Segnalazione inviata. Grazie: la moderazione la esaminera.',
+        'reasons' => [
+            'spam' => 'Spam o pubblicita indesiderata',
+            'harassment' => 'Molestie o bullying',
+            'hate' => 'Discorso d\'odio o discriminazione',
+            'illegal' => 'Contenuto illegale',
+            'other' => 'Altro',
+        ],
     ],
 
     'errors' => [

@@ -24,4 +24,17 @@ class PostPolicy
 
         return $post->actor->user_id === $user->id || $user->is_admin;
     }
+
+    /**
+     * Segnalazione locale (non federata): qualsiasi utente autenticato puo'
+     * segnalare un post altrui, locale o remoto, se ancora pubblicato.
+     */
+    public function report(User $user, Post $post): bool
+    {
+        if ($post->status !== Post::STATUS_PUBLISHED) {
+            return false;
+        }
+
+        return $post->actor?->user_id !== $user->id;
+    }
 }

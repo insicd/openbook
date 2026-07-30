@@ -117,8 +117,9 @@ class PostCardActionsTest extends TestCase
 
         $response = $this->actingAs($admin)->get(route('posts.show', $post));
         $response->assertOk();
-        $response->assertDontSee('class="ob-post__menu"', false);
-        $response->assertDontSee('Elimina', false);
+        $response->assertSee('class="ob-post__menu"', false);
+        $response->assertSee(__('openbook.actions.report'), false);
+        $response->assertDontSee(__('openbook.actions.delete'), false);
         $response->assertSee('class="ob-post__share-menu"', false);
     }
 }

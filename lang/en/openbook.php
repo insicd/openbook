@@ -149,6 +149,7 @@ return [
         'shared_this' => 'shared this post',
         'reply' => 'Reply',
         'delete' => 'Delete',
+        'report' => 'Report',
     ],
 
     'comments' => [
@@ -247,6 +248,26 @@ return [
 
     'hashtags' => [
         'empty' => 'No public posts with this hashtag yet.',
+    ],
+
+    'reports' => [
+        'page_title' => 'Report post',
+        'intro' => 'You are reporting a post by :name. The report stays on this instance and will be reviewed by moderation.',
+        'reason_label' => 'Reason',
+        'reason_placeholder' => 'Choose a reason',
+        'details_label' => 'Details (optional)',
+        'details_placeholder' => 'Add context that helps moderation...',
+        'details_help' => 'Do not include unnecessary sensitive data. Maximum 1000 characters.',
+        'submit' => 'Submit report',
+        'cancel' => 'Cancel',
+        'submitted' => 'Report submitted. Thank you — moderation will review it.',
+        'reasons' => [
+            'spam' => 'Spam or unwanted advertising',
+            'harassment' => 'Harassment or bullying',
+            'hate' => 'Hate speech or discrimination',
+            'illegal' => 'Illegal content',
+            'other' => 'Other',
+        ],
     ],
 
     'errors' => [

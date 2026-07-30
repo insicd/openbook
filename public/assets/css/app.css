@@ -1081,12 +1081,22 @@ p {
   color: var(--ob-color-primary);
 }
 
-.ob-emoji-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-top: 0.45rem;
+.ob-report-preview {
+  margin-top: 1rem;
 }
+
+.ob-report-preview > .ob-post--embed {
+  margin: 0;
+  box-shadow: none;
+  border: 1px solid var(--ob-color-border);
+  background: var(--ob-color-bg);
+  padding: 0.85rem 1rem;
+}
+
+.ob-stack > .ob-field + .ob-field {
+  margin-top: 1rem;
+}
+
 
 .ob-emoji-picker {
   position: fixed;
@@ -1276,6 +1286,10 @@ p {
 .ob-post__menu-item:hover,
 .ob-post__menu-item:focus-visible {
   background: var(--ob-color-bg);
+}
+
+.ob-post__menu form .ob-post__menu-item:hover,
+.ob-post__menu form .ob-post__menu-item:focus-visible {
   color: #b42318;
 }
 

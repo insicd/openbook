@@ -50,23 +50,37 @@
         </div>
 
         @if (! $embed)
-            @can('delete', $post)
-                <details class="ob-post__menu">
-                    <summary class="ob-icon-btn" aria-label="{{ __('openbook.posts.menu') }}">
-                        <x-icon name="more-vertical" />
-                    </summary>
-                    <div class="ob-post__menu-panel" role="menu">
-                        <form method="POST" action="{{ route('posts.destroy', $post) }}" onsubmit="return confirm('{{ __('openbook.posts.confirm_delete') }}')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="ob-post__menu-item" role="menuitem">
-                                <x-icon name="trash" />
-                                {{ __('openbook.actions.delete') }}
-                            </button>
-                        </form>
-                    </div>
-                </details>
-            @endcan
+            @auth
+                @php
+                    $canDeletePost = auth()->user()->can('delete', $post);
+                    $canReportPost = auth()->user()->can('report', $post);
+                @endphp
+                @if ($canDeletePost || $canReportPost)
+                    <details class="ob-post__menu">
+                        <summary class="ob-icon-btn" aria-label="{{ __('openbook.posts.menu') }}">
+                            <x-icon name="more-vertical" />
+                        </summary>
+                        <div class="ob-post__menu-panel" role="menu">
+                            @if ($canReportPost)
+                                <a href="{{ route('posts.report.create', $post) }}" class="ob-post__menu-item" role="menuitem">
+                                    <x-icon name="flag" />
+                                    {{ __('openbook.actions.report') }}
+                                </a>
+                            @endif
+                            @if ($canDeletePost)
+                                <form method="POST" action="{{ route('posts.destroy', $post) }}" onsubmit="return confirm('{{ __('openbook.posts.confirm_delete') }}')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="ob-post__menu-item" role="menuitem">
+                                        <x-icon name="trash" />
+                                        {{ __('openbook.actions.delete') }}
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </details>
+                @endif
+            @endauth
         @endif
     </div>
 

@@ -14,6 +14,7 @@ use App\Http\Controllers\LikeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\WorldController;
@@ -61,6 +62,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/posts/{post}/condividi', [AnnounceController::class, 'store'])->name('posts.announce');
     Route::delete('/posts/{post}/condividi', [AnnounceController::class, 'destroy'])->name('posts.unannounce');
     Route::get('/posts/{post}/cita', [PostController::class, 'quote'])->name('posts.quote');
+    Route::get('/posts/{post}/segnala', [ReportController::class, 'create'])->name('posts.report.create');
+    Route::post('/posts/{post}/segnala', [ReportController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('posts.report.store');
 
     Route::post('/@{user:username}/segui', [FollowController::class, 'store'])->name('follow.store');
     Route::delete('/@{user:username}/segui', [FollowController::class, 'destroy'])->name('follow.destroy');
