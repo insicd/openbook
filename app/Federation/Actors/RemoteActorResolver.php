@@ -3,6 +3,7 @@
 namespace App\Federation\Actors;
 
 use App\Application\Services\DomainBlockManager;
+use App\Federation\Fetch\FederationFetchSigner;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use Illuminate\Support\Carbon;
@@ -24,6 +25,7 @@ final class RemoteActorResolver
     public function __construct(
         private readonly SafeHttpClient $httpClient,
         private readonly DomainBlockManager $domainBlocks,
+        private readonly FederationFetchSigner $fetchSigner,
     ) {}
 
     /**
@@ -176,7 +178,7 @@ final class RemoteActorResolver
         try {
             $response = $this->httpClient->get($actorUri, [
                 'Accept' => 'application/activity+json',
-            ]);
+            ], $this->fetchSigner->resolve());
         } catch (SsrfViolationException $exception) {
             Log::channel('single')->warning('federation.actor_fetch_blocked', [
                 'uri' => $actorUri,

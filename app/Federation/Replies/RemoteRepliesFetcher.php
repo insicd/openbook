@@ -4,7 +4,9 @@ namespace App\Federation\Replies;
 
 use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
+use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
+use App\Federation\Fetch\FederationFetchSigner;
 use App\Federation\Inbox\RemoteContentSanitizer;
 use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Infrastructure\Security\Http\SafeHttpClient;
@@ -33,6 +35,7 @@ final class RemoteRepliesFetcher
         private readonly SafeHttpClient $httpClient,
         private readonly RemoteNoteUpserter $noteUpserter,
         private readonly RemoteActorResolver $remoteActorResolver,
+        private readonly FederationFetchSigner $fetchSigner,
     ) {}
 
     public function fetchReplies(Post $post): void
@@ -51,7 +54,8 @@ final class RemoteRepliesFetcher
         // irraggiungibile non deve rallentare ogni successivo caricamento.
         $post->forceFill(['replies_fetched_at' => now()])->saveQuietly();
 
-        $note = $this->fetchDocument($post->uri);
+        $signingActor = $this->fetchSigner->resolve();
+        $note = $this->fetchDocument($post->uri, $signingActor);
 
         if ($note === null || ! $this->isType($note['type'] ?? null, 'Note')) {
             Log::channel('single')->info('federation.replies.note_unavailable', [
@@ -61,17 +65,17 @@ final class RemoteRepliesFetcher
             return;
         }
 
-        $items = $this->resolveRepliesItems($note['replies'] ?? null);
+        $items = $this->resolveRepliesItems($note['replies'] ?? null, $signingActor);
 
         foreach ($items as $item) {
-            $this->ingestItem($item, $post);
+            $this->ingestItem($item, $post, $signingActor);
         }
     }
 
     /**
      * @return list<array<string, mixed>|string>
      */
-    private function resolveRepliesItems(mixed $replies): array
+    private function resolveRepliesItems(mixed $replies, ?Actor $signingActor): array
     {
         if ($replies === null) {
             return [];
@@ -82,7 +86,7 @@ final class RemoteRepliesFetcher
         $page = null;
 
         if (is_string($replies) && $replies !== '') {
-            $page = $this->fetchDocument($replies);
+            $page = $this->fetchDocument($replies, $signingActor);
         } elseif (is_array($replies)) {
             $direct = $this->pageItems($replies);
             $this->appendItems($collected, $direct);
@@ -92,7 +96,7 @@ final class RemoteRepliesFetcher
             if (is_array($first)) {
                 $page = $first;
             } elseif (is_string($first) && $first !== '') {
-                $page = $this->fetchDocument($first);
+                $page = $this->fetchDocument($first, $signingActor);
             } elseif ($direct === [] && $this->isCollectionType($replies['type'] ?? null)) {
                 // Collection senza "first" ma con items/orderedItems gia' letti sopra.
                 $page = null;
@@ -112,7 +116,7 @@ final class RemoteRepliesFetcher
             }
 
             $visited[$next] = true;
-            $page = $this->fetchDocument($next);
+            $page = $this->fetchDocument($next, $signingActor);
         }
 
         return array_slice($collected, 0, self::MAX_ITEMS);
@@ -150,10 +154,10 @@ final class RemoteRepliesFetcher
     /**
      * @return array<string, mixed>|null
      */
-    private function fetchDocument(string $url): ?array
+    private function fetchDocument(string $url, ?Actor $signingActor): ?array
     {
         try {
-            $response = $this->httpClient->get($url, ['Accept' => self::ACCEPT]);
+            $response = $this->httpClient->get($url, ['Accept' => self::ACCEPT], $signingActor);
         } catch (SsrfViolationException $exception) {
             Log::channel('single')->info('federation.replies.fetch_blocked', [
                 'url' => $url,
@@ -185,9 +189,9 @@ final class RemoteRepliesFetcher
     /**
      * @param  array<string, mixed>|string  $item
      */
-    private function ingestItem(array|string $item, Post $post): void
+    private function ingestItem(array|string $item, Post $post, ?Actor $signingActor): void
     {
-        $note = is_string($item) ? $this->fetchDocument($item) : $item;
+        $note = is_string($item) ? $this->fetchDocument($item, $signingActor) : $item;
 
         if ($note === null) {
             return;

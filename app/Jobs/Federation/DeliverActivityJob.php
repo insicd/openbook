@@ -72,29 +72,16 @@ final class DeliverActivityJob implements ShouldQueue
         }
 
         $body = json_encode($this->activity, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        $date = gmdate('D, d M Y H:i:s \G\M\T');
-        $digest = HttpSignatureSigner::digest($body);
 
-        $host = (string) parse_url($this->inboxUrl, PHP_URL_HOST);
-        $path = (string) (parse_url($this->inboxUrl, PHP_URL_PATH) ?: '/');
-        $query = parse_url($this->inboxUrl, PHP_URL_QUERY);
-        $target = $query !== null ? "{$path}?{$query}" : $path;
-
-        $signature = (new HttpSignatureSigner)->sign(
+        $headers = (new HttpSignatureSigner)->authorizationHeaders(
             'POST',
-            $target,
-            ['host' => $host, 'date' => $date, 'digest' => $digest],
-            $actor->uri.'#main-key',
-            $actor->key->private_key,
-            ['(request-target)', 'host', 'date', 'digest']
+            $this->inboxUrl,
+            $actor,
+            $body,
         );
 
         try {
-            $response = $client->post($this->inboxUrl, $body, [
-                'Date' => $date,
-                'Digest' => $digest,
-                'Signature' => $signature,
-            ]);
+            $response = $client->post($this->inboxUrl, $body, $headers);
         } catch (SsrfViolationException $exception) {
             // Un'inbox che non risolve piu' a un indirizzo pubblico non e'
             // un problema temporaneo di rete: non ha senso ritentare.

@@ -802,12 +802,14 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   viene comunque registrato quando il server remoto non risponde, per non rallentare i
   caricamenti successivi; nessuna notifica di menzione viene generata per contenuto
   recuperato in questo modo (non e' un evento "appena successo");
-- `RemoteRepliesFetcher` (`RemoteRepliesFetcherTest`): aprendo un post remoto (es. dal
-  feed di chi si segue) viene interrogata la collection `replies` della Note originale
-  (TTL `OPENBOOK_REPLIES_CACHE_TTL_HOURS`), seguendo anche la paginazione `next` tipica
-  di Mastodon (dove la prima pagina e' spesso vuota); i commenti pubblici/non elencati
-  di terzi vengono messi in cache senza generare notifiche; le risposte a commenti gia'
-  noti sotto lo stesso post vengono annidate correttamente;
+- `RemoteRepliesFetcher` (`RemoteRepliesFetcherTest`, `SignedFetchTest`): aprendo un
+  post remoto (es. dal feed di chi si segue) viene interrogata la collection `replies`
+  della Note originale (TTL `OPENBOOK_REPLIES_CACHE_TTL_HOURS`), seguendo anche la
+  paginazione `next` tipica di Mastodon (dove la prima pagina e' spesso vuota); i GET
+  sono firmati (authorized fetch) con la chiave dell'utente che visita o di un Actor
+  locale di fallback; i commenti pubblici/non elencati di terzi vengono messi in cache
+  senza generare notifiche; le risposte a commenti gia' noti sotto lo stesso post
+  vengono annidate correttamente;
 - gli elenchi follower/seguiti (`FollowListTest`): visibilita' pubblica per un profilo
   locale, esclusione delle richieste ancora in attesa, stato corretto del pulsante
   segui/smetti di seguire per riga, redirect dell'elenco di un Actor remoto quando
@@ -939,6 +941,9 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
   interroga la collection `replies` della Note originale (`RemoteRepliesFetcher`),
   seguendo la paginazione `next` (Mastodon). L'orario del post apre il dettaglio
   Openbook; l'originale remoto e' nel menu «Apri post originale».
+- ✅ **Signed fetch / authorized fetch (v0.6.3)**: i GET ActivityPub (Actor, outbox,
+  replies) sono firmati con la chiave di un Actor locale (`OPENBOOK_FETCH_SIGNED`),
+  cosi' le istanze che richiedono Signature non rispondono piu' 401.
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco

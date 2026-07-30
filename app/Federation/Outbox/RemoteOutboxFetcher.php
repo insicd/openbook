@@ -5,6 +5,7 @@ namespace App\Federation\Outbox;
 use App\Application\Queries\FeedQuery;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
+use App\Federation\Fetch\FederationFetchSigner;
 use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\RemoteContentSanitizer;
 use App\Federation\Inbox\RemoteNoteUpserter;
@@ -37,6 +38,7 @@ final class RemoteOutboxFetcher
     public function __construct(
         private readonly SafeHttpClient $httpClient,
         private readonly RemoteNoteUpserter $noteUpserter,
+        private readonly FederationFetchSigner $fetchSigner,
     ) {}
 
     public function fetchRecentPosts(Actor $actor): void
@@ -63,7 +65,8 @@ final class RemoteOutboxFetcher
             return;
         }
 
-        $items = $this->fetchItems($outboxUrl);
+        $signingActor = $this->fetchSigner->resolve();
+        $items = $this->fetchItems($outboxUrl, $signingActor);
 
         foreach ($items as $item) {
             $this->ingestItem($item, $actor);
@@ -73,9 +76,9 @@ final class RemoteOutboxFetcher
     /**
      * @return list<array<string, mixed>>
      */
-    private function fetchItems(string $outboxUrl): array
+    private function fetchItems(string $outboxUrl, ?Actor $signingActor): array
     {
-        $document = $this->fetchDocument($outboxUrl);
+        $document = $this->fetchDocument($outboxUrl, $signingActor);
 
         if ($document === null) {
             return [];
@@ -94,7 +97,7 @@ final class RemoteOutboxFetcher
         }
 
         if (is_string($first) && $first !== '') {
-            return $this->orderedItemsOf($this->fetchDocument($first) ?? []) ?? [];
+            return $this->orderedItemsOf($this->fetchDocument($first, $signingActor) ?? []) ?? [];
         }
 
         return [];
@@ -118,10 +121,10 @@ final class RemoteOutboxFetcher
     /**
      * @return array<string, mixed>|null
      */
-    private function fetchDocument(string $url): ?array
+    private function fetchDocument(string $url, ?Actor $signingActor): ?array
     {
         try {
-            $response = $this->httpClient->get($url, ['Accept' => 'application/activity+json']);
+            $response = $this->httpClient->get($url, ['Accept' => 'application/activity+json'], $signingActor);
         } catch (SsrfViolationException) {
             return null;
         } catch (\Throwable) {

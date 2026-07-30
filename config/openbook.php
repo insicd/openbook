@@ -6,7 +6,7 @@
 // sia nel documento NodeInfo sia nello User-Agent delle richieste in uscita:
 // due software del Fediverso che si scambiano segnali di versione diversi
 // per la stessa istanza sono un sintomo classico di misconfigurazione.
-$version = '0.6.2';
+$version = '0.6.3';
 
 return [
 
@@ -211,6 +211,10 @@ return [
             // produzione (test locali con server del Fediverso finti):
             // in produzione e' sempre richiesto HTTPS.
             'allow_insecure' => (bool) env('OPENBOOK_FETCH_ALLOW_INSECURE', false),
+            // Firma i GET ActivityPub con la chiave di un Actor locale
+            // (authorized fetch). Necessario verso istanze che rifiutano
+            // richieste anonime (401). WebFinger resta non firmato.
+            'signed' => (bool) env('OPENBOOK_FETCH_SIGNED', true),
         ],
 
         // Dopo quante ore un Actor remoto gia' in cache viene considerato

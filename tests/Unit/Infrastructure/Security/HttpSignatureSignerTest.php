@@ -4,10 +4,14 @@ namespace Tests\Unit\Infrastructure\Security;
 
 use App\Infrastructure\Security\HttpSignatureSigner;
 use App\Infrastructure\Security\RsaKeyPairGenerator;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
 class HttpSignatureSignerTest extends TestCase
 {
+    use CreatesAccounts, RefreshDatabase;
+
     public function test_digest_matches_the_rfc3230_format(): void
     {
         $digest = HttpSignatureSigner::digest('ciao mondo');
@@ -65,5 +69,61 @@ class HttpSignatureSignerTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         HttpSignatureSigner::buildSigningString('GET', '/actor', ['date' => 'now'], ['(request-target)', 'host', 'date']);
+    }
+
+    public function test_authorization_headers_for_get_omit_digest_and_include_query(): void
+    {
+        $account = $this->createFullAccount('headerget');
+        $actor = $account->actor->load('key');
+        $signer = new HttpSignatureSigner;
+
+        $headers = $signer->authorizationHeaders(
+            'GET',
+            'https://remoto.example/users/a/replies?page=1',
+            $actor,
+        );
+
+        $this->assertArrayHasKey('Date', $headers);
+        $this->assertArrayHasKey('Signature', $headers);
+        $this->assertArrayNotHasKey('Digest', $headers);
+        $this->assertStringContainsString('keyId="'.$actor->uri.'#main-key"', $headers['Signature']);
+
+        preg_match('/signature="([^"]+)"/', $headers['Signature'], $matches);
+        $signatureBinary = base64_decode($matches[1], true);
+        $signingString = HttpSignatureSigner::buildSigningString(
+            'GET',
+            '/users/a/replies?page=1',
+            ['host' => 'remoto.example', 'date' => $headers['Date']],
+            ['(request-target)', 'host', 'date'],
+        );
+
+        $this->assertSame(1, openssl_verify($signingString, $signatureBinary, $actor->key->public_key, OPENSSL_ALGO_SHA256));
+    }
+
+    public function test_authorization_headers_can_omit_query_string_from_request_target(): void
+    {
+        $account = $this->createFullAccount('omitquery');
+        $actor = $account->actor->load('key');
+        $signer = new HttpSignatureSigner;
+
+        $headers = $signer->authorizationHeaders(
+            'GET',
+            'https://remoto.example/users/a/replies?page=1',
+            $actor,
+            omitQueryString: true,
+        );
+
+        preg_match('/signature="([^"]+)"/', $headers['Signature'], $matches);
+        $signingString = HttpSignatureSigner::buildSigningString(
+            'GET',
+            '/users/a/replies',
+            ['host' => 'remoto.example', 'date' => $headers['Date']],
+            ['(request-target)', 'host', 'date'],
+        );
+
+        $this->assertSame(
+            1,
+            openssl_verify($signingString, base64_decode($matches[1], true), $actor->key->public_key, OPENSSL_ALGO_SHA256)
+        );
     }
 }

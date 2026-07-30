@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\Security;
 
+use App\Federation\Actors\Actor;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -11,10 +12,10 @@ use RuntimeException;
  * (Mastodon, Pleroma, Akkoma, ecc. non implementano ancora la piu' recente
  * RFC 9421). Usa esclusivamente l'estensione OpenSSL nativa di PHP.
  *
- * In questa fase il servizio e' pronto per firmare richieste in uscita (sara'
- * usato dalla consegna delle attivita' nella Fase 4); qui viene gia'
- * riutilizzato per costruire/verificare la stessa "stringa da firmare" sia in
- * fase di firma sia in fase di verifica (vedi {@see HttpSignatureVerifier}).
+ * Usata sia per la consegna delle attivita' (POST firmate) sia per i
+ * "signed fetch" / authorized fetch (GET firmati) verso risorse ActivityPub
+ * remote. La stessa "stringa da firmare" e' condivisa con
+ * {@see HttpSignatureVerifier}.
  */
 final class HttpSignatureSigner
 {
@@ -25,6 +26,63 @@ final class HttpSignatureSigner
     public static function digest(string $body): string
     {
         return 'SHA-256='.base64_encode(hash('sha256', $body, true));
+    }
+
+    /**
+     * Costruisce gli header HTTP di autenticazione (Date, Signature e, se
+     * c'e' un corpo, Digest) per una richiesta verso $url firmata con la
+     * chiave privata dell'Actor locale.
+     *
+     * @param  bool  $omitQueryString  se true, (request-target) esclude la
+     *                                 query string (compatibilita' legacy
+     *                                 Mastodon); l'URL sulla rete resta intero
+     * @return array<string, string>
+     */
+    public function authorizationHeaders(
+        string $method,
+        string $url,
+        Actor $actor,
+        ?string $body = null,
+        bool $omitQueryString = false,
+    ): array {
+        if ($actor->key === null || ! $actor->key->hasPrivateKey()) {
+            throw new RuntimeException(
+                "Impossibile firmare la richiesta: chiave privata assente per l'Actor {$actor->id}."
+            );
+        }
+
+        $host = (string) parse_url($url, PHP_URL_HOST);
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?: '/');
+        $query = parse_url($url, PHP_URL_QUERY);
+        $target = (! $omitQueryString && is_string($query) && $query !== '')
+            ? "{$path}?{$query}"
+            : $path;
+
+        $date = gmdate('D, d M Y H:i:s \G\M\T');
+        $headersToSign = [
+            'host' => $host,
+            'date' => $date,
+        ];
+        $signedComponents = ['(request-target)', 'host', 'date'];
+        $outgoing = ['Date' => $date];
+
+        if ($body !== null) {
+            $digest = self::digest($body);
+            $headersToSign['digest'] = $digest;
+            $signedComponents[] = 'digest';
+            $outgoing['Digest'] = $digest;
+        }
+
+        $outgoing['Signature'] = $this->sign(
+            $method,
+            $target,
+            $headersToSign,
+            $actor->uri.'#main-key',
+            $actor->key->private_key,
+            $signedComponents,
+        );
+
+        return $outgoing;
     }
 
     /**
