@@ -119,4 +119,24 @@ class FeedTest extends TestCase
             ->assertOk()
             ->assertSee('Post visibile nella pagina feed.');
     }
+
+    public function test_long_post_bodies_are_truncated_in_the_feed_with_a_read_more_control(): void
+    {
+        $user = $this->createFullAccount('feedexcerpt');
+        $prefix = str_repeat('a', 150);
+        $suffix = ' PARTE_NASCOSTA_NEL_FEED';
+        $post = $this->publishPost($user, $prefix.$suffix);
+
+        $feed = $this->actingAs($user)->get(route('feed.index'));
+        $feed->assertOk();
+        $feed->assertSee(__('openbook.posts.read_more'), false);
+        $feed->assertSee('ob-post__excerpt', false);
+        $feed->assertSee($prefix, false);
+
+        $detail = $this->actingAs($user)->get(route('posts.show', $post));
+        $detail->assertOk();
+        $detail->assertSee($suffix, false);
+        $detail->assertDontSee(__('openbook.posts.read_more'), false);
+        $detail->assertDontSee('ob-post__excerpt', false);
+    }
 }

@@ -22,7 +22,7 @@
     data-error-label="{{ __('openbook.infinite_scroll.error') }}"
 >
     @forelse ($hasPosts ? $posts : [] as $post)
-        @include('posts._card', ['post' => $post])
+        @include('posts._card', ['post' => $post, 'truncateBody' => true])
     @empty
         <div class="ob-card">
             <div class="ob-empty-state">

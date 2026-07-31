@@ -1497,6 +1497,30 @@ a.ob-post__menu-item {
   overflow-wrap: anywhere;
 }
 
+.ob-post__excerpt {
+  margin: 0;
+}
+
+.ob-post__excerpt-summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.ob-post__excerpt-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ob-post__excerpt[open] > .ob-post__excerpt-summary {
+  display: none;
+}
+
+.ob-post__more {
+  color: var(--ob-color-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
 .ob-post__video {
   position: relative;
   width: 100%;

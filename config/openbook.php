@@ -134,6 +134,8 @@ return [
     */
     'feed' => [
         'per_page' => (int) env('OPENBOOK_FEED_PER_PAGE', 20),
+        // Caratteri di testo grezzo (spazi inclusi) mostrati nei feed prima di "Altro...".
+        'body_excerpt_length' => (int) env('OPENBOOK_FEED_BODY_EXCERPT', 150),
     ],
 
     /*

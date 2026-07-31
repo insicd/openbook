@@ -139,6 +139,7 @@ return [
         'menu' => 'More post actions',
         'open_original' => 'Open original post',
         'video_embed' => 'Embedded video (:provider)',
+        'read_more' => 'More...',
     ],
 
     'actions' => [
