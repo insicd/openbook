@@ -486,9 +486,9 @@ final class InboxActivityProcessor
             return null;
         }
 
-        $authorUri = $note['attributedTo'] ?? null;
+        $authorUri = RemotePostObject::primaryAuthorUri($note['attributedTo'] ?? null);
 
-        if (! is_string($authorUri) || $authorUri === '') {
+        if ($authorUri === null) {
             return null;
         }
 
@@ -599,38 +599,44 @@ final class InboxActivityProcessor
     }
 
     /**
-     * Gestisce sia "Create" sia "Update" di una Note o Page: entrambi
-     * trasportano la stessa rappresentazione completa nell'"object". Le
-     * risposte (inReplyTo) restano solo Note; i Page Lemmy sono sempre post
-     * di primo livello. Attivita' non incorporate (solo un id remoto da
-     * recuperare) non sono supportate in questa fase: vengono ignorate.
+     * Gestisce Create/Update di oggetti postabili (Note, Page, Article,
+     * Video, Image). Le risposte (inReplyTo) restano solo Note. Se "object"
+     * e' solo un id remoto, viene recuperato via fetch firmato.
      *
      * @param  array<string, mixed>  $activity
      */
     private function handleCreateOrUpdate(array $activity, Actor $actor): string
     {
-        $note = $activity['object'] ?? null;
+        $note = $this->resolveCreateObject($activity['object'] ?? null);
 
-        if (! is_array($note) || ! RemotePostObject::isPostable($note['type'] ?? null)) {
+        if ($note === null || ! RemotePostObject::isPostable($note['type'] ?? null)) {
             return InboxItem::STATUS_IGNORED;
         }
 
         $noteUri = $note['id'] ?? null;
-        $attributedTo = $note['attributedTo'] ?? null;
 
-        if (! is_string($noteUri) || $noteUri === '' || $attributedTo !== $actor->uri) {
-            // L'attore che firma deve coincidere con l'autore dichiarato
-            // dell'oggetto: impedisce di spacciare contenuto per conto altrui.
+        if (! is_string($noteUri) || $noteUri === '') {
             return InboxItem::STATUS_IGNORED;
         }
+
+        // PeerTube e altri mettono Person+Group in attributedTo: il firmatario
+        // deve essere uno degli autori dichiarati, non necessariamente l'unico.
+        if (! RemotePostObject::authorMatches($note['attributedTo'] ?? null, $actor->uri)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $authorUri = RemotePostObject::primaryAuthorUri($note['attributedTo'] ?? null, $actor->uri) ?? $actor->uri;
+        $author = $authorUri === $actor->uri
+            ? $actor
+            : ($this->objects->resolveActor($authorUri) ?? $actor);
 
         $inReplyTo = is_string($note['inReplyTo'] ?? null) ? $note['inReplyTo'] : null;
         $parentPost = null;
         $parentComment = null;
 
         if ($inReplyTo !== null) {
-            // I commenti federati sono Note; un Page con inReplyTo non e'
-            // un pattern Lemmy/Friendica che supportiamo come risposta.
+            // I commenti federati sono Note; Article/Video/Page con inReplyTo
+            // non li trattiamo come thread di risposta.
             if (! RemotePostObject::hasType($note['type'] ?? null, 'Note')) {
                 return InboxItem::STATUS_IGNORED;
             }
@@ -639,13 +645,11 @@ final class InboxActivityProcessor
             $parentPost = $parentComment !== null ? null : $this->objects->resolvePost($inReplyTo);
 
             if ($parentComment === null && $parentPost === null) {
-                // Risposta a un contenuto che non conosciamo: non possiamo
-                // agganciarla a nulla di locale, quindi la ignoriamo.
                 return InboxItem::STATUS_IGNORED;
             }
         }
 
-        if (! $this->isRelevant($actor, $note, $parentPost, $parentComment)) {
+        if (! $this->isRelevant($author, $note, $parentPost, $parentComment)) {
             return InboxItem::STATUS_IGNORED;
         }
 
@@ -656,17 +660,47 @@ final class InboxActivityProcessor
 
         $isReply = $parentPost !== null || $parentComment !== null;
 
-        return DB::transaction(function () use ($isReply, $note, $noteUri, $actor, $body, $publishedAt, $parentPost, $parentComment) {
+        return DB::transaction(function () use ($isReply, $note, $noteUri, $author, $body, $publishedAt, $parentPost, $parentComment) {
             if ($isReply) {
-                $comment = $this->noteUpserter->upsertComment($note, $noteUri, $actor, $body, $parentPost, $parentComment);
+                $comment = $this->noteUpserter->upsertComment($note, $noteUri, $author, $body, $parentPost, $parentComment);
 
                 return $comment !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
             }
 
-            $this->noteUpserter->upsertPost($note, $noteUri, $actor, $body, $publishedAt);
+            $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt);
 
             return InboxItem::STATUS_PROCESSED;
         });
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function resolveCreateObject(mixed $object): ?array
+    {
+        if (is_string($object) && $object !== '') {
+            return $this->noteDocumentFetcher->fetch($object);
+        }
+
+        if (! is_array($object)) {
+            return null;
+        }
+
+        if (RemotePostObject::isPostable($object['type'] ?? null)) {
+            return $object;
+        }
+
+        $unwrapped = RemotePostObject::unwrap($object);
+
+        if ($unwrapped !== null) {
+            return $unwrapped;
+        }
+
+        if (is_string($object['id'] ?? null) && $object['id'] !== '') {
+            return $this->noteDocumentFetcher->fetch($object['id']);
+        }
+
+        return null;
     }
 
     /**

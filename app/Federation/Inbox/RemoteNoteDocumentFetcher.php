@@ -8,8 +8,9 @@ use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 
 /**
- * Recupera un documento Note/Page remoto via HTTP (Accept: activity+json),
- * usato quando un Group ritrasmette un post non ancora in cache locale.
+ * Recupera un documento postabile remoto (Note/Page/Article/Video/Image)
+ * via HTTP (Accept: activity+json), usato quando un Group ritrasmette un
+ * post non ancora in cache o quando un Create porta solo l'id dell'oggetto.
  */
 final class RemoteNoteDocumentFetcher
 {

@@ -157,8 +157,9 @@ final class RemoteOutboxFetcher
             return;
         }
 
-        // Un outbox Person deve contenere solo contenuto del suo stesso Actor.
-        if (($note['attributedTo'] ?? null) !== $actor->uri) {
+        // Un outbox Person deve contenere solo contenuto del suo stesso Actor
+        // (PeerTube puo' elencare anche il canale Group in attributedTo).
+        if (! RemotePostObject::authorMatches($note['attributedTo'] ?? null, $actor->uri)) {
             return;
         }
 
@@ -195,9 +196,9 @@ final class RemoteOutboxFetcher
             return;
         }
 
-        $authorUri = $note['attributedTo'] ?? null;
+        $authorUri = RemotePostObject::primaryAuthorUri($note['attributedTo'] ?? null);
 
-        if (! is_string($authorUri) || $authorUri === '') {
+        if ($authorUri === null) {
             return;
         }
 

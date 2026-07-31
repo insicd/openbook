@@ -26,6 +26,7 @@ final class RemoteNoteUpserter
 {
     public function __construct(
         private readonly NotificationCreator $notificationCreator,
+        private readonly RemoteAttachmentIngester $attachments,
     ) {}
 
     /**
@@ -58,6 +59,8 @@ final class RemoteNoteUpserter
         if ($wasNew) {
             $this->attachTags($post, $note, $notifyMentions);
         }
+
+        $this->attachments->sync($post, $actor, $note);
 
         return $post;
     }

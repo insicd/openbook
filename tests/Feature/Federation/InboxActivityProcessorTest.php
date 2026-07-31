@@ -475,6 +475,141 @@ class InboxActivityProcessorTest extends TestCase
         ]);
     }
 
+    public function test_a_wordpress_style_article_create_is_stored(): void
+    {
+        Queue::fake();
+        $follower = $this->createFullAccount('wpfollower');
+        $remote = $this->createRemoteActor('blogger', 'wp.example');
+        app(FollowManager::class)->follow($follower->actor, $remote)
+            ->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $articleUri = $remote->uri.'/articles/'.uniqid();
+        $status = $this->process([
+            'id' => $articleUri.'/activity',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $articleUri,
+                'type' => 'Article',
+                'attributedTo' => $remote->uri,
+                'name' => 'Articolo WordPress',
+                'content' => '<p>Testo con <a href="https://fonte.example">fonte</a>.</p>',
+                'attachment' => [
+                    [
+                        'type' => 'Image',
+                        'mediaType' => 'image/jpeg',
+                        'url' => 'https://wp.example/wp-content/uploads/cover.jpg',
+                        'name' => 'Copertina',
+                    ],
+                ],
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ], $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $post = Post::query()->where('uri', $articleUri)->first();
+        $this->assertNotNull($post);
+        $this->assertSame('Articolo WordPress', $post->title);
+        $this->assertStringContainsString('fonte', $post->body);
+        $this->assertStringContainsString('https://fonte.example', $post->body);
+        $this->assertCount(1, $post->media);
+        $this->assertSame('https://wp.example/wp-content/uploads/cover.jpg', $post->media->first()->url());
+    }
+
+    public function test_a_peertube_style_video_create_with_array_attributed_to_is_stored(): void
+    {
+        Queue::fake();
+        $follower = $this->createFullAccount('ptfollower');
+        $person = $this->createRemoteActor('cineasta', 'peertube.example');
+        $channel = $this->createRemoteActor('canale', 'peertube.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Canale video',
+        ]);
+        app(FollowManager::class)->follow($follower->actor, $person)
+            ->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $videoUri = 'https://peertube.example/videos/watch/'.uniqid();
+        $watchUrl = 'https://peertube.example/w/'.uniqid();
+        $status = $this->process([
+            'id' => $videoUri.'/activity',
+            'type' => 'Create',
+            'actor' => $person->uri,
+            'object' => [
+                'id' => $videoUri,
+                'type' => 'Video',
+                'attributedTo' => [
+                    ['type' => 'Person', 'id' => $person->uri],
+                    ['type' => 'Group', 'id' => $channel->uri],
+                ],
+                'name' => 'Corto federato',
+                'content' => '<p>Descrizione del video</p>',
+                'url' => [
+                    ['type' => 'Link', 'mediaType' => 'text/html', 'href' => $watchUrl],
+                    ['type' => 'Link', 'mediaType' => 'application/x-mpegURL', 'href' => 'https://peertube.example/static/hls.m3u8'],
+                ],
+                'icon' => [
+                    'type' => 'Image',
+                    'url' => 'https://peertube.example/lazy-static/thumbnails/poster.jpg',
+                ],
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ], $person);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $post = Post::query()->where('uri', $videoUri)->first();
+        $this->assertNotNull($post);
+        $this->assertSame($person->id, $post->actor_id);
+        $this->assertSame('Corto federato', $post->title);
+        $this->assertSame('Descrizione del video', $post->body);
+        $this->assertTrue($post->media->contains(
+            fn ($media) => $media->remote_url === 'https://peertube.example/lazy-static/thumbnails/poster.jpg'
+        ));
+    }
+
+    public function test_a_pixelfed_style_note_with_image_attachment_is_stored(): void
+    {
+        Queue::fake();
+        $follower = $this->createFullAccount('pixfollower');
+        $remote = $this->createRemoteActor('fotografo', 'pixelfed.example');
+        app(FollowManager::class)->follow($follower->actor, $remote)
+            ->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $noteUri = $remote->uri.'/p/'.uniqid();
+        $imageUrl = 'https://pixelfed.example/storage/m/_v2/'.uniqid().'.jpg';
+        $status = $this->process([
+            'id' => $noteUri.'/activity',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '',
+                'url' => $noteUri,
+                'attachment' => [
+                    [
+                        'type' => 'Document',
+                        'mediaType' => 'image/jpeg',
+                        'url' => $imageUrl,
+                        'name' => 'Tramonto',
+                    ],
+                ],
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ], $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $post = Post::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($post);
+        $this->assertSame($noteUri, $post->body);
+        $this->assertCount(1, $post->media);
+        $this->assertSame($imageUrl, $post->media->first()->url());
+        $this->assertSame('Tramonto', $post->media->first()->alt_text);
+    }
+
     public function test_a_create_note_replying_to_a_local_post_is_stored_as_a_comment(): void
     {
         Queue::fake();

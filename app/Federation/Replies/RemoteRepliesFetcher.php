@@ -7,8 +7,8 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Fetch\FederationFetchSigner;
-use App\Federation\Inbox\RemoteContentSanitizer;
 use App\Federation\Inbox\RemoteNoteUpserter;
+use App\Federation\Inbox\RemotePostObject;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use Illuminate\Support\Carbon;
@@ -314,7 +314,7 @@ final class RemoteRepliesFetcher
             return;
         }
 
-        $body = RemoteContentSanitizer::toPlainText((string) ($note['content'] ?? ''));
+        $body = RemotePostObject::body($note);
 
         $this->noteUpserter->upsertComment(
             $note,

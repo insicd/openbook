@@ -482,14 +482,16 @@ finalmente bidirezionale.
     corrispondente;
   - `Like`/`Announce` su un post o commento locale aggiornano i contatori e generano
     una notifica, esattamente come un Mi piace/condivisione locale;
-  - `Create`/`Update` con oggetto `Note` mettono in cache localmente il post o
-    commento remoto (tabelle `posts`/`comments`, identificati dalla colonna `uri`),
-    ma **solo se rilevanti** per questa istanza (l'autore e' seguito da un Actor
-    locale, la Note risponde a un contenuto che gia' conosciamo, oppure menziona
-    esplicitamente un Actor locale): nessun contenuto remoto viene conservato "a
-    caso". Il contenuto HTML viene ridotto a testo semplice (`RemoteContentSanitizer`),
-    preservando gli `<a href>` come `[etichetta](url)`, poi passa dalla stessa
-    pipeline di rendering sicura dei post locali;
+  - `Create`/`Update` con oggetto postabile (`Note`, `Page`, `Article`, `Video`,
+    `Image`) mettono in cache localmente il post o commento remoto (tabelle
+    `posts`/`comments`, identificati dalla colonna `uri`), ma **solo se rilevanti**
+    per questa istanza (l'autore e' seguito da un Actor locale, la Note risponde a
+    un contenuto che gia' conosciamo, oppure menziona esplicitamente un Actor
+    locale): nessun contenuto remoto viene conservato "a caso". Il contenuto HTML
+    viene ridotto a testo semplice (`RemoteContentSanitizer`), preservando gli
+    `<a href>` come `[etichetta](url)`; le immagini in `attachment` restano come
+    URL remoti in galleria. Poi passa dalla stessa pipeline di rendering sicura
+    dei post locali;
   - `Update` con oggetto `Person`/`Group` (un altro server che notifica un cambio al
     profilo di un proprio utente) aggiorna direttamente la cache locale dell'Actor
     remoto (`actors`/`actor_keys`/`actor_endpoints`) applicando il documento
@@ -908,7 +910,7 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap e stato del progetto
 
-Versione corrente: **0.7.9**. Il dettaglio delle modifiche per versione e' in
+Versione corrente: **0.8.0**. Il dettaglio delle modifiche per versione e' in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 - ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,
@@ -926,10 +928,10 @@ Versione corrente: **0.7.9**. Il dettaglio delle modifiche per versione e' in
   Dettaglio in [`CHANGELOG.md`](CHANGELOG.md).
 - 🚧 **Fase 5 — Community** (0.7.0–0.7.9): Actor `Group` locali e remoti,
   iscrizione, wall, Announce in uscita e in ingresso, moderatori delegati.
-  Possibili rifiniture: elenco membri dedicato, avatar/copertina community,
-  interoperabilita' estesa con Lemmy/Friendica.
-- ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco
-  istanze, test di interoperabilita' con altri software del Fediverso.
+  Possibili rifiniture: elenco membri dedicato, avatar/copertina community.
+- 🚧 **Fase 6 — Sicurezza e interoperabilita'** (da 0.8.0): ingestione `Article` /
+  `Video` / media remoti (WordPress, WriteFreely, PeerTube, Pixelfed); SSRF e
+  blocco domini gia' presenti. In corso: NodeBB e altri edge-case del Fediverso.
 
 Non si passa a una fase successiva finche' i test della fase precedente non sono
 verdi.
@@ -963,16 +965,14 @@ verdi.
   di questa istanza: non c'e' un indice full-text dedicato ne' una ricerca sui
   contenuti remoti in cache (per quelli resta la risoluzione diretta
   `utente@dominio`).
-- Le immagini/allegati di un post remoto non vengono ancora recuperati ne' mostrati:
-  solo il testo della Note viene messo in cache. Gli allegati locali restano serviti
-  direttamente dal disco pubblico (`storage/app/public`, collegato a
-  `public/storage`), senza CDN o object storage.
+- Le immagini dei post remoti sono mostrate via URL remoto (`media.remote_url`),
+  senza download sull'istanza: se il server di origine blocca l'hotlink o rimuove
+  il file, la galleria puo' risultare vuota. Gli allegati locali restano serviti
+  dal disco pubblico (`storage/app/public` → `public/storage`), senza CDN.
 - Il limite di profondita' dei commenti (`OPENBOOK_COMMENT_MAX_DEPTH`) e'
   predisposto in configurazione ma non ancora applicato all'interfaccia: l'intero
   albero di un post viene sempre caricato e mostrato in una sola pagina. Il
   caricamento progressivo per thread molto lunghi arrivera' in una fase successiva.
-- Non esiste ancora un sistema di community (Fase 5): i post non hanno un
-  destinatario "community" e la colonna corrispondente non e' stata introdotta.
 - Il pannello di controllo copre moderazione e impostazioni operative; restano
   fuori scope avanzati come ban IP, regole di federazione per singolo Actor e
   un vero tool di debug delle firme HTTP. La promozione admin e' disponibile

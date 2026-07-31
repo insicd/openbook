@@ -11,6 +11,22 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.0] — Interoperabilita' Fediverso (Article, Video, media remoti)
+
+### Added
+- Ingestione di oggetti ActivityStreams `Article` (WordPress, WriteFreely),
+  `Video` (PeerTube) e `Image`, oltre a `Note`/`Page` gia' supportati.
+- Allegati immagine remoti (`attachment` / anteprime): salvati come URL
+  https in `media.remote_url` e mostrati nella galleria del post, senza
+  scaricare i file (Pixelfed, WordPress, thumb PeerTube).
+- Create con `object` solo-id: fetch del documento remoto prima dell'upsert.
+
+### Changed
+- `attributedTo` accetta stringa, oggetto o lista Person+Group (PeerTube):
+  il firmatario deve essere tra gli autori dichiarati.
+- Corpo remoto: `content` → `contentMap` → `source` → `summary` → URL
+  `text/html` → `name`.
+
 ## [0.7.9] — Elenco community locali / remote
 
 ### Added
