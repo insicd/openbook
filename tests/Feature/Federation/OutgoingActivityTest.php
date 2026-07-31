@@ -43,6 +43,23 @@ class OutgoingActivityTest extends TestCase
         $this->assertActivityDispatchedTo($remote->endpoints->inbox, 'Follow');
     }
 
+    public function test_retrying_a_pending_remote_follow_redispatches_the_follow_activity(): void
+    {
+        Queue::fake();
+        $local = $this->createFullAccount('retryfollow');
+        $remote = $this->createRemoteActor('pietro');
+
+        app(FollowManager::class)->follow($local->actor, $remote);
+        app(FollowManager::class)->follow($local->actor, $remote);
+
+        Queue::assertPushed(DeliverActivityJob::class, 2);
+        Queue::assertPushed(
+            DeliverActivityJob::class,
+            fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Follow'
+                && ($job->activity['to'][0] ?? null) === $remote->uri
+        );
+    }
+
     public function test_unfollowing_a_remote_actor_dispatches_an_undo_follow_activity(): void
     {
         Queue::fake();

@@ -35,12 +35,15 @@ final class ActivitySerializer
      */
     public static function follow(Follow $follow): array
     {
+        // "to" allineato a Lemmy / FEP-1b12: molti Group lo usano per
+        // indirizzare la richiesta; se assente restano comunque validi.
         return [
             '@context' => self::CONTEXT,
             'id' => self::followActivityUri($follow),
             'type' => 'Follow',
             'actor' => $follow->follower->uri,
             'object' => $follow->following->uri,
+            'to' => [$follow->following->uri],
         ];
     }
 

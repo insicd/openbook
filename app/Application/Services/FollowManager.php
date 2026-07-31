@@ -44,6 +44,9 @@ final class FollowManager
                 ->first();
 
             if ($existing !== null) {
+                $existing->setRelation('follower', $follower);
+                $existing->setRelation('following', $target);
+
                 return $existing;
             }
 
@@ -69,7 +72,10 @@ final class FollowManager
             return $follow;
         });
 
-        if (! $target->isLocal() && $follow->wasRecentlyCreated) {
+        // Nuova richiesta, oppure ancora in attesa (es. consegna precedente
+        // fallita / Accept perso): ritenta il Follow verso il server remoto.
+        if (! $target->isLocal()
+            && ($follow->wasRecentlyCreated || $follow->status === Follow::STATUS_PENDING)) {
             $this->delivery->deliverTo($follower, $target, ActivitySerializer::follow($follow));
         }
 

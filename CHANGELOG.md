@@ -11,6 +11,18 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.7.5] — Fix iscrizione a community Lemmy (Accept Follow)
+
+### Fixed
+- L'`Accept` di un Follow verso Group remoti (Lemmy) viene riconosciuto anche
+  con URI percent-encodati (`%40`), object solo-id, o actor annidato; prima
+  l'iscrizione poteva restare "in attesa" per sempre.
+- Un nuovo click su Iscriviti, se la richiesta e' ancora pending, ritenta la
+  consegna del `Follow` (utile se il primo invio era fallito).
+
+### Changed
+- Le attivita' `Follow` in uscita includono `to` (allineamento Lemmy).
+
 ## [0.7.4] — UI community: ordine wall e gestisci moderatori
 
 ### Fixed

@@ -152,35 +152,126 @@ final class InboxActivityProcessor
 
     /**
      * Risolve un Follow *originato da questa istanza* (verso un target
-     * remoto) a partire dall'"object" di un Accept/Reject: prova prima con
-     * l'oggetto incorporato (actor/object espliciti), poi con l'id
-     * dell'attivita' Follow originale che avevamo derivato noi stessi
-     * (formato "/activities/follows/{uuid}").
+     * remoto) a partire dall'"object" di un Accept/Reject.
+     *
+     * Lemmy e altri server possono (a) percent-encodare gli URI (`%40` al
+     * posto di `@`), (b) annidare l'actor come oggetto `{id}`, (c) riferire
+     * il Follow solo per id. Si prova nell'ordine: follower locale + target,
+     * id dell'attivita' Follow, infine unico pending verso quel target.
      */
     private function resolveOutgoingFollow(mixed $object, Actor $remoteTarget): ?Follow
     {
-        if (is_array($object) && isset($object['actor'])) {
-            $followerUri = is_string($object['actor']) ? $object['actor'] : null;
-            $follower = $followerUri !== null ? Actor::query()->where('uri', $followerUri)->where('is_local', true)->first() : null;
+        if (is_array($object)) {
+            $follower = $this->resolveLocalActorByUri($this->actorUri($object['actor'] ?? null));
 
             if ($follower !== null) {
-                return Follow::query()
+                $follow = Follow::query()
                     ->where('follower_id', $follower->id)
                     ->where('following_id', $remoteTarget->id)
                     ->first();
+
+                if ($follow !== null) {
+                    return $follow;
+                }
+            }
+
+            // Follow incorporato: object = URI del Group/Person remoto.
+            $embeddedTargetUri = $this->normalizeUri($this->objectId($object['object'] ?? null) ?? '');
+
+            if ($embeddedTargetUri !== '' && $embeddedTargetUri === $this->normalizeUri($remoteTarget->uri)) {
+                if ($follower !== null) {
+                    return Follow::query()
+                        ->where('follower_id', $follower->id)
+                        ->where('following_id', $remoteTarget->id)
+                        ->first();
+                }
             }
         }
 
         $objectId = $this->objectId($object);
 
-        if ($objectId !== null && preg_match('#/activities/follows/([0-9a-fA-F-]{36})$#', $objectId, $matches) === 1) {
-            return Follow::query()
-                ->where('id', $matches[1])
-                ->where('following_id', $remoteTarget->id)
-                ->first();
+        if (is_string($objectId) && $objectId !== '') {
+            if (preg_match('#([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*$#', $objectId, $matches) === 1) {
+                $follow = Follow::query()
+                    ->where('id', $matches[1])
+                    ->where('following_id', $remoteTarget->id)
+                    ->first();
+
+                if ($follow !== null) {
+                    return $follow;
+                }
+            }
+        }
+
+        // Ultima risorsa: un solo Follow pending locale verso questo remoto
+        // (tipico dopo un Accept Lemmy con object mal formattato ma firmato
+        // correttamente dal Group a cui ci si e' iscritti).
+        $pending = Follow::query()
+            ->where('following_id', $remoteTarget->id)
+            ->where('status', Follow::STATUS_PENDING)
+            ->whereIn('follower_id', function ($query) {
+                $query->select('id')->from('actors')->where('is_local', true);
+            })
+            ->limit(2)
+            ->get();
+
+        return $pending->count() === 1 ? $pending->first() : null;
+    }
+
+    private function resolveLocalActorByUri(?string $uri): ?Actor
+    {
+        if ($uri === null || $uri === '') {
+            return null;
+        }
+
+        $normalized = $this->normalizeUri($uri);
+
+        return Actor::query()
+            ->where('is_local', true)
+            ->where(function ($query) use ($uri, $normalized) {
+                $query->where('uri', $uri)->orWhere('uri', $normalized);
+            })
+            ->first();
+    }
+
+    /**
+     * URI actor da stringa o oggetto incorporato `{ "id": "..." }`.
+     */
+    private function actorUri(mixed $value): ?string
+    {
+        if (is_string($value) && $value !== '') {
+            return $this->normalizeUri($value);
+        }
+
+        if (is_array($value) && is_string($value['id'] ?? null) && $value['id'] !== '') {
+            return $this->normalizeUri($value['id']);
         }
 
         return null;
+    }
+
+    /**
+     * Normalizza percent-encoding nel path (`%40` → `@`) per confrontare URI
+     * echoati da server remoti con quelli salvati localmente.
+     */
+    private function normalizeUri(string $uri): string
+    {
+        if ($uri === '') {
+            return '';
+        }
+
+        $parts = parse_url($uri);
+
+        if ($parts === false || ! isset($parts['scheme'], $parts['host'])) {
+            return rawurldecode($uri);
+        }
+
+        $path = isset($parts['path']) ? rawurldecode($parts['path']) : '';
+        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+        $query = isset($parts['query']) ? '?'.$parts['query'] : '';
+        $fragment = isset($parts['fragment']) ? '#'.$parts['fragment'] : '';
+
+        return $parts['scheme'].'://'.$parts['host'].$port.$path.$query.$fragment;
     }
 
     /**

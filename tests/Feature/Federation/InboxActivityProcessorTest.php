@@ -127,6 +127,63 @@ class InboxActivityProcessorTest extends TestCase
         $this->assertSame(Follow::STATUS_ACCEPTED, $follow->fresh()->status);
     }
 
+    public function test_a_lemmy_style_accept_with_percent_encoded_actor_uri_is_recognized(): void
+    {
+        Queue::fake();
+        $localUser = $this->createFullAccount('lemmyjoin');
+        $group = $this->createRemoteActor('asklemmy', 'lemmy.example', [
+            'type' => Actor::TYPE_GROUP,
+        ]);
+
+        $follow = app(FollowManager::class)->follow($localUser->actor, $group);
+        $this->assertSame(Follow::STATUS_PENDING, $follow->status);
+
+        // Lemmy spesso percent-encoda "@" negli URI echoati nell'Accept.
+        $encodedActor = str_replace('/@', '/%40', $localUser->actor->uri);
+
+        $activity = [
+            'id' => $group->uri.'/activities/accept/'.uniqid(),
+            'type' => 'Accept',
+            'actor' => $group->uri,
+            'to' => [$localUser->actor->uri],
+            'object' => [
+                'id' => ActivitySerializer::followActivityUri($follow),
+                'type' => 'Follow',
+                'actor' => $encodedActor,
+                'object' => $group->uri,
+                'to' => [$group->uri],
+            ],
+        ];
+
+        $status = $this->process($activity, $group);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertSame(Follow::STATUS_ACCEPTED, $follow->fresh()->status);
+    }
+
+    public function test_accept_with_only_follow_activity_id_completes_the_pending_follow(): void
+    {
+        Queue::fake();
+        $localUser = $this->createFullAccount('idonly');
+        $group = $this->createRemoteActor('forum', 'groups.example', [
+            'type' => Actor::TYPE_GROUP,
+        ]);
+
+        $follow = app(FollowManager::class)->follow($localUser->actor, $group);
+
+        $activity = [
+            'id' => $group->uri.'/activities/accept/'.uniqid(),
+            'type' => 'Accept',
+            'actor' => $group->uri,
+            'object' => ActivitySerializer::followActivityUri($follow),
+        ];
+
+        $status = $this->process($activity, $group);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertSame(Follow::STATUS_ACCEPTED, $follow->fresh()->status);
+    }
+
     public function test_a_reject_from_remote_removes_the_pending_outgoing_follow(): void
     {
         Queue::fake();
