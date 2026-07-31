@@ -641,6 +641,43 @@ p {
   margin-bottom: 0.35rem;
 }
 
+.ob-instance-staff {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ob-color-border);
+}
+
+.ob-instance-staff__title {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+}
+
+.ob-instance-staff__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ob-instance-staff__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--ob-color-border);
+}
+
+.ob-instance-staff__item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.ob-instance-staff__role {
+  flex-shrink: 0;
+  color: var(--ob-color-text-muted);
+  font-size: 0.85rem;
+}
+
 .ob-suggestion {
   display: flex;
   align-items: center;

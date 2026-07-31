@@ -39,6 +39,9 @@ return [
         'cta_register' => 'Create an account',
         'cta_login' => 'I already have an account',
         'instance_about_title' => 'About this instance',
+        'staff_title' => 'Staff',
+        'staff_role_admin' => 'Administrator',
+        'staff_role_moderator' => 'Moderator',
     ],
 
     'auth' => [

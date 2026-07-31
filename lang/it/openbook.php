@@ -39,6 +39,9 @@ return [
         'cta_register' => 'Crea un account',
         'cta_login' => 'Ho gia un account',
         'instance_about_title' => 'Questa istanza',
+        'staff_title' => 'Amministrazione',
+        'staff_role_admin' => 'Amministratore',
+        'staff_role_moderator' => 'Moderatore',
     ],
 
     'auth' => [
