@@ -1492,6 +1492,40 @@ a.ob-post__menu-item {
   margin-bottom: 0.4rem;
 }
 
+.ob-post__community {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.5rem;
+  color: var(--ob-color-text-muted);
+  font-size: 0.9rem;
+}
+
+.ob-post__community .ob-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ob-community-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ob-community-list__item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--ob-color-border);
+}
+
+.ob-community-list__item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
 .ob-post__body {
   white-space: normal;
   overflow-wrap: anywhere;

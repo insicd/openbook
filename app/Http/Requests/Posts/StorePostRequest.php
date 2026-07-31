@@ -37,6 +37,7 @@ class StorePostRequest extends FormRequest
             'alt_texts' => ['nullable', 'array'],
             'alt_texts.*' => ['nullable', 'string', 'max:1000'],
             'quoted_post_id' => ['nullable', 'uuid', 'exists:posts,id'],
+            'community_id' => ['nullable', 'uuid', 'exists:communities,id'],
         ];
     }
 

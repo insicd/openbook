@@ -21,6 +21,9 @@
     <a href="{{ route('world.index') }}" class="ob-side-nav__link {{ request()->routeIs('world.index') ? 'is-active' : '' }}">
         <x-icon name="globe" /> {{ __('openbook.nav.world') }}
     </a>
+    <a href="{{ route('communities.index') }}" class="ob-side-nav__link {{ request()->routeIs('communities.*') ? 'is-active' : '' }}">
+        <x-icon name="people" /> {{ __('openbook.nav.communities') }}
+    </a>
     <a href="{{ route('notifications.index') }}" class="ob-side-nav__link {{ request()->routeIs('notifications.index') ? 'is-active' : '' }}" data-notifications-nav>
         <x-icon name="bell" /> {{ __('openbook.nav.notifications') }}
         @if (($unreadNotificationsCount ?? 0) > 0)

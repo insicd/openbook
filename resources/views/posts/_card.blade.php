@@ -84,6 +84,12 @@
     @if ($isDeleted)
         <p class="ob-post__deleted">{{ __('openbook.posts.deleted') }}</p>
     @else
+        @if ($post->community)
+            <p class="ob-post__community">
+                <x-icon name="people" />
+                <a href="{{ route('communities.show', $post->community) }}">{{ $post->community->actor?->displayName() ?: $post->community->slug }}</a>
+            </p>
+        @endif
         @if ($post->title)
             <h2 class="ob-post__title">{{ $post->title }}</h2>
         @endif

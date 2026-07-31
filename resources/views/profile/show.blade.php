@@ -42,7 +42,7 @@
             <div class="ob-profile-stats">
                 <a href="{{ route('profile.followers', $profileUser->username) }}"><strong>{{ $followersCount }}</strong><span>{{ __('openbook.profile.followers') }}</span></a>
                 <a href="{{ route('profile.following', $profileUser->username) }}"><strong>{{ $followingCount }}</strong><span>{{ __('openbook.profile.following') }}</span></a>
-                <div><strong>0</strong><span>{{ __('openbook.profile.communities') }}</span></div>
+                <div><strong>{{ $communitiesCount ?? 0 }}</strong><span>{{ __('openbook.profile.communities') }}</span></div>
             </div>
 
             @unless ($isOwnProfile)

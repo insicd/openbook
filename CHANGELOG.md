@@ -11,6 +11,41 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.7.0] — Fase 5 (slice 1): Community locali
+
+Prima slice delle community in stile Friendica / FEP-1b12: Actor `Group`,
+iscrizione via Follow, wall e ritrasmissione locale con Announce.
+
+### Added
+- Community locali: creazione, elenco `/community`, pagina `/c/{slug}`,
+  Actor ActivityPub di tipo `Group` con WebFinger `nome@dominio`.
+- Iscrizione / uscita (Follow verso il Group); community private con
+  approvazione del proprietario.
+- Pubblicazione sul wall della community (`posts.community_id`); il Group
+  ritrasmette con `Announce` agli iscritti; i post compaiono anche nel
+  feed di chi e' membro.
+- Composer: scelta della community (home e wall); badge community sulla
+  card del post; voce di menu **Community**; contatore community sul profilo.
+
+### Changed
+- WebFinger, inbox/outbox/followers/following per-username risolvono qualsiasi
+  Actor locale (Person o Group), non solo gli utenti.
+
+## [0.6.9]
+
+### Added
+- Nella home pubblica, nel riquadro **Questa istanza**, elenco di
+  amministratori e moderatori locali attivi (avatar, nome, ruolo, link
+  al profilo).
+- Nei feed (home, mondo, profilo, hashtag) i post piu' lunghi di
+  150 caratteri mostrano un'anteprima con link **Altro...** che espande
+  subito il testo completo; la pagina del singolo post resta integrale.
+  Soglia configurabile con `OPENBOOK_FEED_BODY_EXCERPT`.
+
+### Changed
+- Il dettaglio delle release e' stato spostato dal README a questo
+  file; il README mantiene solo la roadmap a grandi linee con link qui.
+
 ## [0.6.8]
 
 ### Fixed

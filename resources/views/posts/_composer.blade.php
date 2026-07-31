@@ -2,11 +2,14 @@
     $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
     $defaultVisibility = auth()->user()->settings?->default_post_visibility ?: 'public';
     $quotedPost = $quotedPost ?? null;
+    $composerCommunities = $composerCommunities ?? collect();
+    $selectedCommunityId = old('community_id', $selectedCommunityId ?? null);
 
     $titleOpen = old('title') || $errors->has('title');
     $cwOpen = old('content_warning') || $errors->has('content_warning');
     $mediaOpen = old('alt_texts') || $errors->has('images') || $errors->has('images.*') || $errors->has('alt_texts.*');
     $visibilityOpen = old('visibility') || $errors->has('visibility') || $defaultVisibility !== 'public';
+    $communityOpen = $composerCommunities->isNotEmpty() && ($selectedCommunityId || $errors->has('community_id'));
 @endphp
 
 <div class="ob-card ob-composer{{ $quotedPost ? ' ob-composer--quoting' : '' }}" id="ob-composer">
@@ -83,6 +86,24 @@
             </div>
         </div>
 
+        @if ($composerCommunities->isNotEmpty())
+            <div class="ob-composer__panel" id="composer-panel-community" @unless($communityOpen) hidden @endunless>
+                <div class="ob-field">
+                    <label for="composer-community">{{ __('openbook.composer.community_label') }}</label>
+                    <select id="composer-community" name="community_id">
+                        <option value="">{{ __('openbook.composer.community_none') }}</option>
+                        @foreach ($composerCommunities as $communityOption)
+                            <option value="{{ $communityOption->id }}" @selected((string) $selectedCommunityId === (string) $communityOption->id)>
+                                {{ $communityOption->actor?->displayName() ?: $communityOption->slug }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="ob-field__help">{{ __('openbook.composer.community_help') }}</p>
+                    @error('community_id') <p class="ob-field__error">{{ $message }}</p> @enderror
+                </div>
+            </div>
+        @endif
+
         <div class="ob-composer__toolbar">
             <div class="ob-composer__toggles">
                 <button type="button" class="ob-icon-btn ob-composer__toggle {{ $titleOpen ? 'is-active' : '' }}"
@@ -105,6 +126,13 @@
                     onclick="obToggleComposerPanel('composer-panel-visibility', this)">
                     <x-icon name="globe" />
                 </button>
+                @if ($composerCommunities->isNotEmpty())
+                    <button type="button" class="ob-icon-btn ob-composer__toggle {{ $communityOpen ? 'is-active' : '' }}"
+                        aria-label="{{ __('openbook.composer.community_label') }}" aria-expanded="{{ $communityOpen ? 'true' : 'false' }}"
+                        onclick="obToggleComposerPanel('composer-panel-community', this)">
+                        <x-icon name="people" />
+                    </button>
+                @endif
                 <x-emoji-trigger target="composer-body" />
             </div>
 

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class RegisterRequest extends FormRequest
@@ -25,6 +26,9 @@ class RegisterRequest extends FormRequest
                 'max:32',
                 'regex:/^[a-z0-9_]+$/',
                 'unique:users,username',
+                Rule::unique('actors', 'preferred_username')->where(
+                    fn ($query) => $query->where('domain', (string) config('openbook.domain'))
+                ),
             ],
             'email' => [
                 'required',

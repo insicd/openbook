@@ -2,6 +2,7 @@
 
 namespace App\Application\Services;
 
+use App\Domain\Communities\Community;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\ContentParser;
 use App\Domain\Posts\Hashtag;
@@ -26,6 +27,9 @@ use InvalidArgumentException;
  * Una citazione (quoted_post_id) conta anche come condivisione sul post
  * originale via {@see AnnounceManager}: stesso contatore della share diretta,
  * senza una seconda notifica "ha condiviso" (resta solo TYPE_QUOTE).
+ *
+ * Post verso una community (Fase 5 / FEP-1b12): il Group locale ritrasmette
+ * con Announce ai propri follower senza notificare l'autore.
  */
 final class PostComposer
 {
@@ -38,7 +42,7 @@ final class PostComposer
     ) {}
 
     /**
-     * @param  array{title?: ?string, content_warning?: ?string, body: string, visibility?: string, language?: ?string, quoted_post_id?: ?string, images?: array<int, UploadedFile>, alt_texts?: array<int, ?string>}  $data
+     * @param  array{title?: ?string, content_warning?: ?string, body: string, visibility?: string, language?: ?string, quoted_post_id?: ?string, community_id?: ?string, images?: array<int, UploadedFile>, alt_texts?: array<int, ?string>}  $data
      */
     public function compose(Actor $author, array $data): Post
     {
@@ -50,10 +54,12 @@ final class PostComposer
         }
 
         $quotedPost = $this->resolveQuotedPost($author, $data['quoted_post_id'] ?? null);
+        $community = $this->resolveCommunity($author, $data['community_id'] ?? null);
 
-        $post = DB::transaction(function () use ($author, $data, $images, $quotedPost) {
+        $post = DB::transaction(function () use ($author, $data, $images, $quotedPost, $community) {
             $post = Post::query()->create([
                 'actor_id' => $author->id,
+                'community_id' => $community?->id,
                 'quoted_post_id' => $quotedPost?->id,
                 'title' => $data['title'] ?? null,
                 'content_warning' => $data['content_warning'] ?? null,
@@ -88,28 +94,51 @@ final class PostComposer
                 );
             }
 
+            if ($community !== null) {
+                $community->increment('posts_count');
+            }
+
             return $post;
         });
 
         if ($quotedPost !== null) {
-            // Stesso contatore/Announce della share diretta; notify=false perche'
-            // l'autore ha gia' ricevuto TYPE_QUOTE qui sopra.
             $this->announceManager->announce($author, $quotedPost, notify: false);
         }
 
+        if ($community !== null) {
+            $community->loadMissing('actor');
+            $this->announceManager->announce($community->actor, $post, notify: false);
+        }
+
         if ($author->isLocal()) {
-            $post->load(['mentions.actor', 'quotedPost']);
+            $post->load(['mentions.actor', 'quotedPost', 'community.actor']);
             $this->delivery->deliverContent($post, ActivitySerializer::create($post));
         }
 
         return $post;
     }
 
-    /**
-     * Il post citato deve esistere, essere pubblicato e visibile a chi cita
-     * (stesse regole del feed: non si puo' citare un post followers-only di
-     * qualcuno che non si segue, ne' un post eliminato).
-     */
+    private function resolveCommunity(Actor $author, ?string $communityId): ?Community
+    {
+        if ($communityId === null || $communityId === '') {
+            return null;
+        }
+
+        $community = Community::query()->with('actor')->whereKey($communityId)->first();
+
+        if ($community === null) {
+            throw new InvalidArgumentException(__('openbook.communities.errors.not_found'));
+        }
+
+        $isOwner = $author->user_id !== null && $community->owner_user_id === $author->user_id;
+
+        if (! $isOwner && ! $community->isMember($author)) {
+            throw new InvalidArgumentException(__('openbook.communities.errors.not_a_member'));
+        }
+
+        return $community;
+    }
+
     private function resolveQuotedPost(Actor $author, ?string $quotedPostId): ?Post
     {
         if ($quotedPostId === null || $quotedPostId === '') {

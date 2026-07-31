@@ -3,9 +3,9 @@
 namespace App\Federation\Actors;
 
 use App\Domain\Accounts\User;
+use App\Domain\Communities\Community;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
-use App\Http\Controllers\ActorProfileController;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -91,6 +91,11 @@ class Actor extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function community(): HasOne
+    {
+        return $this->hasOne(Community::class);
+    }
+
     public function key(): HasOne
     {
         return $this->hasOne(ActorKey::class);
@@ -132,6 +137,11 @@ class Actor extends Model
         return $this->type === self::TYPE_PERSON;
     }
 
+    public function isGroup(): bool
+    {
+        return $this->type === self::TYPE_GROUP;
+    }
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
@@ -154,7 +164,7 @@ class Actor extends Model
      */
     public function displayName(): string
     {
-        if ($this->isLocal()) {
+        if ($this->isLocal() && $this->isPerson()) {
             $displayName = $this->user?->profile?->display_name;
 
             return filled($displayName) ? $displayName : $this->preferred_username;
@@ -168,7 +178,7 @@ class Actor extends Model
      */
     public function avatarUrl(): ?string
     {
-        if ($this->isLocal()) {
+        if ($this->isLocal() && $this->isPerson()) {
             return $this->user?->profile?->avatarUrl();
         }
 
@@ -181,7 +191,7 @@ class Actor extends Model
      */
     public function coverUrl(): ?string
     {
-        if ($this->isLocal()) {
+        if ($this->isLocal() && $this->isPerson()) {
             return $this->user?->profile?->coverUrl();
         }
 
@@ -189,13 +199,15 @@ class Actor extends Model
     }
 
     /**
-     * URL della pagina profilo da usare nelle viste HTML: l'identificatore
-     * canonico "/@{username}" per gli attori locali, la pagina di comodo
-     * "/attori/{id}" per la cache locale di un attore remoto (vedi
-     * {@see ActorProfileController}).
+     * URL della pagina profilo da usare nelle viste HTML: Person locale
+     * "/@{username}", Group locale "/c/{slug}", Actor remoto "/attori/{id}".
      */
     public function profileUrl(): string
     {
+        if ($this->isLocal() && $this->isGroup()) {
+            return route('communities.show', $this->preferred_username);
+        }
+
         if ($this->isLocal()) {
             return route('profile.show', $this->preferred_username);
         }

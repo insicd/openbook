@@ -8,6 +8,8 @@ use App\Application\Services\FollowManager;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
+use App\Federation\Actors\Actor;
+use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Serialization\ActorSerializer;
 use App\Http\Controllers\Concerns\RendersFollowLists;
 use App\Http\Support\ActivityPubNegotiation;
@@ -24,16 +26,28 @@ class ProfileController extends Controller
         private readonly FeedQuery $feedQuery,
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
+        private readonly LocalActorResolver $localActors,
     ) {}
 
     /**
-     * Pagina profilo pubblica, identificatore canonico dell'Actor locale: la
-     * stessa rotta serve sia l'HTML sia, tramite content negotiation
-     * (Accept: application/activity+json o application/ld+json), il
-     * documento ActivityPub "Person" (sezione 8 del design).
+     * Identificatore canonico "/@{username}": Person (HTML profilo) o Group
+     * (redirect HTML a /c/{slug}, documento ActivityPub "Group" se negoziato).
      */
-    public function show(Request $request, User $user): View|JsonResponse
+    public function show(Request $request, string $username): View|JsonResponse|RedirectResponse
     {
+        $actor = $this->localActors->findByUsernameOrFail($username);
+
+        if ($actor->isGroup()) {
+            if (ActivityPubNegotiation::wantsActivityPub($request)) {
+                return ActivityPubNegotiation::response(ActorSerializer::serialize($actor));
+            }
+
+            return redirect()->route('communities.show', $actor->preferred_username);
+        }
+
+        $user = $actor->user;
+        abort_if($user === null, 404);
+
         $user->loadMissing(['profile', 'actor.endpoints']);
 
         if (ActivityPubNegotiation::wantsActivityPub($request)) {
@@ -44,6 +58,12 @@ class ProfileController extends Controller
 
         $followersCount = Follow::query()->where('following_id', $user->actor->id)->where('status', 'accepted')->count();
         $followingCount = Follow::query()->where('follower_id', $user->actor->id)->where('status', 'accepted')->count();
+
+        $communitiesCount = Follow::query()
+            ->where('follower_id', $user->actor->id)
+            ->where('status', Follow::STATUS_ACCEPTED)
+            ->whereHas('following', fn ($query) => $query->where('type', Actor::TYPE_GROUP))
+            ->count();
 
         $isFollowing = false;
         $hasPendingRequest = false;
@@ -72,6 +92,7 @@ class ProfileController extends Controller
             'posts' => $posts,
             'followersCount' => $followersCount,
             'followingCount' => $followingCount,
+            'communitiesCount' => $communitiesCount,
             'isFollowing' => $isFollowing,
             'hasPendingRequest' => $hasPendingRequest,
             'pendingFollowRequests' => $pendingFollowRequests,
@@ -91,12 +112,12 @@ class ProfileController extends Controller
     /**
      * L'URL "/users/{username}" non e' canonico: effettua un redirect
      * permanente verso "/@{username}", che e' l'identificatore usato sia
-     * per la pagina HTML sia (in futuro) per il documento ActivityPub.
+     * per la pagina HTML sia per il documento ActivityPub.
      */
     public function redirectLegacy(string $username): RedirectResponse
     {
-        $user = User::query()->where('username', mb_strtolower($username))->firstOrFail();
+        $actor = $this->localActors->findByUsernameOrFail($username);
 
-        return redirect()->route('profile.show', $user->username, status: 301);
+        return redirect()->to($actor->uri, 301);
     }
 }

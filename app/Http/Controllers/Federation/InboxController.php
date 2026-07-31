@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Federation;
 
 use App\Application\Services\DomainBlockManager;
-use App\Domain\Accounts\User;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Inbox\InboxItem;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Security\HttpSignatureVerifier;
@@ -28,17 +28,12 @@ final class InboxController extends Controller
     public function __construct(
         private readonly HttpSignatureVerifier $verifier,
         private readonly DomainBlockManager $domainBlocks,
+        private readonly LocalActorResolver $localActors,
     ) {}
 
     public function forUser(Request $request, string $username): JsonResponse
     {
-        $user = User::query()->where('username', mb_strtolower($username))->with('actor')->first();
-
-        if ($user === null || $user->actor === null) {
-            abort(404);
-        }
-
-        return $this->receive($request, $user->actor);
+        return $this->receive($request, $this->localActors->findByUsernameOrFail($username));
     }
 
     public function shared(Request $request): JsonResponse

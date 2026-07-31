@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Federation;
 
-use App\Domain\Accounts\User;
 use App\Domain\SocialGraph\Follow;
+use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Serialization\CollectionSerializer;
 use App\Http\Controllers\Controller;
 use App\Http\Support\ActivityPubNegotiation;
@@ -16,15 +16,14 @@ use Illuminate\Http\Request;
  */
 final class FollowingController extends Controller
 {
+    public function __construct(
+        private readonly LocalActorResolver $localActors,
+    ) {}
+
     public function show(Request $request, string $username): JsonResponse
     {
-        $user = User::query()->where('username', mb_strtolower($username))->with('actor.endpoints')->first();
-
-        if ($user === null || $user->actor === null) {
-            abort(404);
-        }
-
-        $actor = $user->actor;
+        $actor = $this->localActors->findByUsernameOrFail($username);
+        $actor->loadMissing('endpoints');
         $collectionId = $actor->endpoints?->following ?? url("/users/{$actor->preferred_username}/following");
 
         $query = Follow::query()->where('follower_id', $actor->id)->where('status', Follow::STATUS_ACCEPTED);

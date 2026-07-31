@@ -3,6 +3,7 @@
 namespace App\Domain\Posts;
 
 use App\Application\Queries\FeedQuery;
+use App\Domain\Communities\Community;
 use App\Domain\Reactions\Announce;
 use App\Domain\Reactions\Like;
 use App\Federation\Actors\Actor;
@@ -24,6 +25,7 @@ use Illuminate\Support\Carbon;
  *
  * @property string $id
  * @property string $actor_id
+ * @property string|null $community_id
  * @property string|null $uri
  * @property string|null $quoted_post_id
  * @property string|null $title
@@ -67,6 +69,7 @@ class Post extends Model
      */
     public const CARD_RELATIONS = [
         'actor.user.profile',
+        'community.actor',
         'media.thumbnail',
         'hashtags',
         'quotedPost.actor.user.profile',
@@ -79,6 +82,7 @@ class Post extends Model
      */
     protected $fillable = [
         'actor_id',
+        'community_id',
         'uri',
         'quoted_post_id',
         'title',
@@ -110,6 +114,11 @@ class Post extends Model
     public function actor(): BelongsTo
     {
         return $this->belongsTo(Actor::class);
+    }
+
+    public function community(): BelongsTo
+    {
+        return $this->belongsTo(Community::class);
     }
 
     /**

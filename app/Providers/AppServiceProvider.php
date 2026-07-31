@@ -6,6 +6,7 @@ use App\Application\Queries\PopularHashtagsQuery;
 use App\Application\Services\InstanceSettings;
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
+use App\Domain\Communities\Community;
 use App\Domain\Moderation\AuditLog;
 use App\Domain\Moderation\DomainBlock;
 use App\Domain\Moderation\Report;
@@ -16,6 +17,7 @@ use App\Federation\Actors\Actor;
 use App\Infrastructure\Security\Http\DnsResolver;
 use App\Infrastructure\Security\Http\SystemDnsResolver;
 use App\Policies\CommentPolicy;
+use App\Policies\CommunityPolicy;
 use App\Policies\PostPolicy;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
@@ -63,6 +65,7 @@ class AppServiceProvider extends ServiceProvider
             'audit_log' => AuditLog::class,
             'user' => User::class,
             'actor' => Actor::class,
+            'community' => Community::class,
         ]);
 
         // Registrazione esplicita: i modelli non vivono in App\Models, quindi
@@ -70,6 +73,7 @@ class AppServiceProvider extends ServiceProvider
         // troverebbe automaticamente.
         Gate::policy(Post::class, PostPolicy::class);
         Gate::policy(Comment::class, CommentPolicy::class);
+        Gate::policy(Community::class, CommunityPolicy::class);
 
         Gate::define('accessAdminPanel', fn ($user) => $user->isStaff());
         Gate::define('moderate', fn ($user) => $user->canModerate());

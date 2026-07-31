@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Federation;
 
-use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
+use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Serialization\CollectionSerializer;
 use App\Federation\Serialization\NoteSerializer;
 use App\Http\Controllers\Controller;
@@ -12,28 +12,29 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Outbox pubblico di un Actor locale (sezione 21 del design): in questa fase
- * viene generato dinamicamente a partire dai post pubblici gia' esistenti,
- * ciascuno avvolto in un'attivita' "Create". Una tabella "activities"
- * persistita, necessaria per la consegna reale, arriva con la Fase 4.
+ * Outbox pubblico di un Actor locale (Person o Group).
  */
 final class OutboxController extends Controller
 {
+    public function __construct(
+        private readonly LocalActorResolver $localActors,
+    ) {}
+
     public function show(Request $request, string $username): JsonResponse
     {
-        $user = User::query()->where('username', mb_strtolower($username))->with('actor.endpoints')->first();
-
-        if ($user === null || $user->actor === null) {
-            abort(404);
-        }
-
-        $actor = $user->actor;
+        $actor = $this->localActors->findByUsernameOrFail($username);
+        $actor->loadMissing('endpoints', 'community');
         $collectionId = $actor->endpoints?->outbox ?? url("/users/{$actor->preferred_username}/outbox");
 
         $query = Post::query()
-            ->where('actor_id', $actor->id)
             ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED])
             ->where('status', Post::STATUS_PUBLISHED);
+
+        if ($actor->isGroup() && $actor->community !== null) {
+            $query->where('community_id', $actor->community->id);
+        } else {
+            $query->where('actor_id', $actor->id);
+        }
 
         $totalItems = (clone $query)->count();
 

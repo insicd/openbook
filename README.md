@@ -907,7 +907,7 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap e stato del progetto
 
-Versione corrente: **0.6.8**. Il dettaglio delle modifiche per versione e' in
+Versione corrente: **0.7.0**. Il dettaglio delle modifiche per versione e' in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 - ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,
@@ -923,8 +923,9 @@ Versione corrente: **0.6.8**. Il dettaglio delle modifiche per versione e' in
   sezione "Mondo", outbox/replies remoti on-demand, pannello di controllo,
   signed fetch, notifiche live, miglioramenti UI e correzioni di interoperabilita'.
   Dettaglio in [`CHANGELOG.md`](CHANGELOG.md).
-- ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
-  community remote.
+- 🚧 **Fase 5 — Community** (slice 1 in 0.7.0): Actor `Group` locali, iscrizione,
+  wall, Announce agli iscritti. Ancora da fare: moderatori delegati, community
+  remote, interoperabilita' completa FEP-1b12 in ingresso.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco
   istanze, test di interoperabilita' con altri software del Fediverso.
 

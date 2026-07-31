@@ -3,6 +3,7 @@
 namespace App\Application\Queries;
 
 use App\Application\Services\AnnounceManager;
+use App\Domain\Communities\Community;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxActivityProcessor;
@@ -51,12 +52,21 @@ final class FeedQuery
             ->whereIn('actor_id', $relevantActorIds)
             ->pluck('post_id');
 
+        // Community a cui il visitatore e' iscritto (Follow verso Actor Group).
+        $memberCommunityIds = DB::table('communities')
+            ->whereIn('actor_id', $followingIds)
+            ->pluck('id');
+
         $query = Post::query()
             ->with(Post::CARD_RELATIONS)
             ->where('status', Post::STATUS_PUBLISHED)
-            ->where(function ($query) use ($relevantActorIds, $announcedPostIds) {
+            ->where(function ($query) use ($relevantActorIds, $announcedPostIds, $memberCommunityIds) {
                 $query->whereIn('actor_id', $relevantActorIds)
                     ->orWhereIn('id', $announcedPostIds);
+
+                if ($memberCommunityIds->isNotEmpty()) {
+                    $query->orWhereIn('community_id', $memberCommunityIds);
+                }
             })
             ->visibleTo($viewer);
 
@@ -113,6 +123,23 @@ final class FeedQuery
             ->orderByDesc('published_at')
             ->orderByDesc(self::TIEBREAKER_COLUMN)
             ->paginate($perPage);
+    }
+
+    /**
+     * Wall di una community: post pubblicati verso di essa.
+     *
+     * @return LengthAwarePaginator<int, Post>
+     */
+    public function forCommunity(Community $community, ?Actor $viewer): LengthAwarePaginator
+    {
+        return Post::query()
+            ->with(Post::CARD_RELATIONS)
+            ->where('status', Post::STATUS_PUBLISHED)
+            ->where('community_id', $community->id)
+            ->visibleTo($viewer)
+            ->orderByDesc('published_at')
+            ->orderByDesc(self::TIEBREAKER_COLUMN)
+            ->paginate((int) config('openbook.feed.per_page'));
     }
 
     /**

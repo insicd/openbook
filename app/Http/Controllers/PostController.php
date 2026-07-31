@@ -31,7 +31,15 @@ class PostController extends Controller
         $data = $request->validated();
         $data['images'] = $request->file('images', []);
 
-        $this->postComposer->compose($request->user()->actor, $data);
+        $post = $this->postComposer->compose($request->user()->actor, $data);
+
+        if ($post->community_id !== null) {
+            $post->loadMissing('community');
+
+            return redirect()
+                ->route('communities.show', $post->community)
+                ->with('status', __('openbook.communities.post_published'));
+        }
 
         return redirect()->route('feed.index')->with('status', 'Il tuo post e stato pubblicato.');
     }

@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\FeedQuery;
+use App\Domain\Communities\Community;
 use App\Domain\Posts\Post;
+use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -24,10 +26,20 @@ class FeedController extends Controller
 
         $quotedPost = $this->resolveQuotedPostForComposer($request, $user->actor);
 
+        $composerCommunities = Community::query()
+            ->with('actor')
+            ->whereIn('actor_id', Follow::query()
+                ->select('following_id')
+                ->where('follower_id', $user->actor->id)
+                ->where('status', Follow::STATUS_ACCEPTED))
+            ->orderBy('slug')
+            ->get();
+
         return view('feed.index', [
             'currentUser' => $user,
             'posts' => $posts,
             'quotedPost' => $quotedPost,
+            'composerCommunities' => $composerCommunities,
         ]);
     }
 

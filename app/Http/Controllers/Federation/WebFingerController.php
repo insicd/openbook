@@ -2,19 +2,22 @@
 
 namespace App\Http\Controllers\Federation;
 
-use App\Domain\Accounts\User;
+use App\Federation\Actors\LocalActorResolver;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * Implementa /.well-known/webfinger per la scoperta degli account locali
- * (sezione 16 del design). Risolve soltanto utenti di questa istanza: la
- * ricerca federata di attori remoti e' Fase 4, le community sono Fase 5.
+ * Implementa /.well-known/webfinger per la scoperta degli Actor locali
+ * (Person e Group / community).
  */
 final class WebFingerController extends Controller
 {
+    public function __construct(
+        private readonly LocalActorResolver $localActors,
+    ) {}
+
     public function show(Request $request): JsonResponse
     {
         $resource = (string) $request->query('resource', '');
@@ -29,13 +32,11 @@ final class WebFingerController extends Controller
             throw new NotFoundHttpException;
         }
 
-        $user = User::query()->where('username', $username)->with('actor')->first();
+        $actor = $this->localActors->findByUsername($username);
 
-        if ($user === null || $user->actor === null || ! $user->actor->isActive()) {
+        if ($actor === null || ! $actor->isActive()) {
             throw new NotFoundHttpException;
         }
-
-        $actor = $user->actor;
 
         return response()->json([
             'subject' => 'acct:'.$actor->handle(),
@@ -52,17 +53,14 @@ final class WebFingerController extends Controller
                 [
                     'rel' => 'http://webfinger.net/rel/profile-page',
                     'type' => 'text/html',
-                    'href' => $actor->uri,
+                    'href' => $actor->isGroup()
+                        ? route('communities.show', $actor->preferred_username)
+                        : $actor->uri,
                 ],
             ],
         ], 200, ['Content-Type' => 'application/jrd+json; charset=utf-8']);
     }
 
-    /**
-     * Accetta sia "acct:utente@dominio" sia l'URL canonico dell'Actor,
-     * restituendo lo username locale soltanto se il dominio corrisponde a
-     * questa istanza.
-     */
     private function extractLocalUsername(string $resource): ?string
     {
         $domain = (string) config('openbook.domain');
@@ -92,6 +90,10 @@ final class WebFingerController extends Controller
             }
 
             if (preg_match('#^/users/([A-Za-z0-9_]+)$#', $path, $matches) === 1) {
+                return mb_strtolower($matches[1]);
+            }
+
+            if (preg_match('#^/c/([A-Za-z0-9_]+)$#', $path, $matches) === 1) {
                 return mb_strtolower($matches[1]);
             }
         }

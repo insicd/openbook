@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Federation;
 
-use App\Domain\Accounts\User;
 use App\Domain\SocialGraph\Follow;
+use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Serialization\CollectionSerializer;
 use App\Http\Controllers\Controller;
 use App\Http\Support\ActivityPubNegotiation;
@@ -11,22 +11,18 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Collezione pubblica dei follower di un Actor locale (sezione 17 del
- * design). In questo milestone contiene sempre e soltanto Actor locali
- * (i follow federati arrivano in Fase 4), ma la query non fa alcuna
- * distinzione: funzionera' senza modifiche anche con follower remoti.
+ * Collezione pubblica dei follower di un Actor locale (Person o membri di un Group).
  */
 final class FollowersController extends Controller
 {
+    public function __construct(
+        private readonly LocalActorResolver $localActors,
+    ) {}
+
     public function show(Request $request, string $username): JsonResponse
     {
-        $user = User::query()->where('username', mb_strtolower($username))->with('actor.endpoints')->first();
-
-        if ($user === null || $user->actor === null) {
-            abort(404);
-        }
-
-        $actor = $user->actor;
+        $actor = $this->localActors->findByUsernameOrFail($username);
+        $actor->loadMissing('endpoints');
         $collectionId = $actor->endpoints?->followers ?? url("/users/{$actor->preferred_username}/followers");
 
         $query = Follow::query()->where('following_id', $actor->id)->where('status', Follow::STATUS_ACCEPTED);

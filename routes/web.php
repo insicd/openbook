@@ -13,6 +13,7 @@ use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\HashtagController;
@@ -102,6 +103,13 @@ Route::middleware('auth')->group(function () {
     Route::put('/impostazioni/profilo', [SettingsController::class, 'updateProfile'])->name('settings.profile.update');
     Route::put('/impostazioni/account', [SettingsController::class, 'updateAccount'])->name('settings.account.update');
 
+    Route::get('/community/nuova', [CommunityController::class, 'create'])->name('communities.create');
+    Route::post('/community', [CommunityController::class, 'store'])->name('communities.store');
+    Route::post('/c/{community:slug}/iscriviti', [CommunityController::class, 'join'])->name('communities.join');
+    Route::delete('/c/{community:slug}/iscriviti', [CommunityController::class, 'leave'])->name('communities.leave');
+    Route::post('/c/{community:slug}/richieste/{follow}/accetta', [CommunityController::class, 'accept'])->name('communities.accept');
+    Route::post('/c/{community:slug}/richieste/{follow}/rifiuta', [CommunityController::class, 'reject'])->name('communities.reject');
+
     Route::middleware('staff')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
@@ -150,11 +158,17 @@ Route::get('/comments/{comment}', [CommentController::class, 'show'])->name('com
 Route::get('/tendenze', [HashtagController::class, 'index'])->name('hashtags.index');
 Route::get('/tag/{name}', [HashtagController::class, 'show'])->name('hashtags.show');
 
-// Identificatore canonico dell'Actor locale (HTML e, in futuro, ActivityPub).
-Route::get('/@{user:username}', [ProfileController::class, 'show'])->name('profile.show');
+Route::get('/community', [CommunityController::class, 'index'])->name('communities.index');
+Route::get('/c/{community:slug}', [CommunityController::class, 'show'])
+    ->where('community', '[A-Za-z0-9_]+')
+    ->name('communities.show');
 
-// Elenchi follower/seguiti di un profilo locale: stessa visibilita' pubblica
-// del profilo stesso (vedi FollowListController / ActorProfileController).
+// Identificatore canonico dell'Actor locale (Person HTML / Group redirect o AP).
+Route::get('/@{username}', [ProfileController::class, 'show'])
+    ->where('username', '[A-Za-z0-9_]+')
+    ->name('profile.show');
+
+// Elenchi follower/seguiti di un profilo locale Person.
 Route::get('/@{user:username}/follower', [ProfileController::class, 'followers'])->name('profile.followers');
 Route::get('/@{user:username}/seguiti', [ProfileController::class, 'following'])->name('profile.following');
 
