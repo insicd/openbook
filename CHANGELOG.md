@@ -1,0 +1,124 @@
+# Changelog
+
+Tutte le modifiche rilevanti a Openbook sono documentate in questo file.
+Il formato e' ispirato a [Keep a Changelog](https://keepachangelog.com/),
+le versioni seguono [Semantic Versioning](https://semver.org/).
+
+La versione corrente del software e' `config('openbook.version')`
+(vedi `config/openbook.php`); e' la stessa esposta in footer, NodeInfo e
+User-Agent in uscita.
+
+Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
+il [`README`](README.md#roadmap-e-stato-del-progetto).
+
+## [0.6.8]
+
+### Fixed
+- Eliminare un commento aggiorna i contatori denormalizzati
+  (`posts.comments_count` e, se e' una risposta, `replies_count` del padre),
+  anche per soft-delete da UI, pannello admin e `Delete` federato.
+- L'installer scrive in `storage/installed.lock` la stessa versione di
+  `config('openbook.version')` (prima usava `config('app.version')`,
+  chiave inesistente, con fallback a valori di milestone obsoleti).
+
+### Added
+- Mini-footer prodotto in fondo alla sidebar sinistra
+  (`Openbook · Regole · Openbook v…`), utile su feed lunghi.
+- Sezione hashtag **In tendenza** in sidebar destra: classifica dai post
+  pubblici/unlisted in cache (locali e remoti), massimo 5 voci, con link
+  **Mostra tutti** verso `/tendenze` quando ce ne sono di piu'.
+
+## [0.6.7]
+
+### Fixed
+- `&#039;` (apostrofo HTML-escaped) non viene piu' interpretato come
+  hashtag `#039` in post/commenti, ne' nel `content` ActivityPub in uscita
+  (`PostBodyRenderer`).
+
+## [0.6.6]
+
+### Changed
+- Polling notifiche a basso costo: `If-None-Match` / ETag sulla revisione
+  utente; se nulla e' cambiato risponde 304 con una sola lettura leggera,
+  senza rieseguire count/elenco.
+
+## [0.6.5]
+
+### Added
+- Notifiche live: polling leggero su `/notifiche/feed` aggiorna badge
+  (header + sidebar) e dropdown senza ricaricare la pagina.
+
+## [0.6.4]
+
+### Fixed
+- Audience ActivityStreams (`to`/`cc`) come stringa singola (GoToSocial)
+  non fa piu' scartare Note pubbliche.
+- Collection `replies` senza `first` vengono dereferenziate via `id`.
+
+## [0.6.3]
+
+### Added
+- Signed fetch / authorized fetch: i GET ActivityPub (Actor, outbox,
+  replies) sono firmati con la chiave di un Actor locale
+  (`OPENBOOK_FETCH_SIGNED`), cosi' le istanze che richiedono Signature
+  non rispondono piu' 401.
+
+## [0.6.1] – [0.6.2]
+
+### Added
+- Aprendo un post remoto si interroga la collection `replies` della Note
+  originale (`RemoteRepliesFetcher`), seguendo la paginazione `next`
+  tipica di Mastodon.
+- L'orario del post apre il dettaglio Openbook; l'originale remoto e'
+  nel menu «Apri post originale».
+
+## [0.6.0]
+
+### Added
+- Pannello di controllo completo: limiti post/commenti/media, regole
+  istanza in Markdown (`/regole`), blocchi dominio federato, ispezione
+  coda (`jobs` / `failed_jobs` / `inbox_items`), promozione admin da UI,
+  segnalazioni commenti, registro azioni staff.
+
+## [0.5.0]
+
+### Added
+- Pannello di controllo (slice 1): ruoli admin/moderatore, coda
+  segnalazioni, gestione utenti locali, impostazioni base (`site_name`,
+  registrazioni aperte/chiuse).
+
+### Out of scope in questa slice
+- Limiti media/post, regole testuali, ban federation, coda inbox/outbox,
+  audit log (arrivati in 0.6.0).
+
+## Dopo la Fase 4 (pre-0.5)
+
+Funzionalita' successive al Milestone 4 e precedenti alla numerazione
+0.5.x, documentate qui per continuita' storica.
+
+### Added
+- **Personalizzazione del profilo e impostazioni account**: avatar,
+  copertina, biografia, link, lingua dell'interfaccia, visibilita'
+  predefinita dei post, account protetto, presenza nei suggerimenti,
+  federazione via `Update` (in entrambe le direzioni) di ogni cambio al
+  profilo pubblico e all'account protetto.
+- **Sezione "Mondo"**: timeline dei post remoti pubblici gia' in cache
+  locale e account remoti da scoprire, classificati sui soli segnali
+  visibili da questa istanza (nessun indice globale del fediverso).
+- **Post recenti su un profilo remoto**: la pagina profilo di un Actor
+  remoto recupera al bisogno la prima pagina del suo outbox reale, cosi'
+  da mostrare i suoi post pubblici piu' recenti anche prima che un
+  qualunque Actor locale inizi a seguirlo.
+- **Condivisioni visibili su profilo e feed** di chi condivide: prima
+  comparivano solo nel feed di chi segue chi condivide.
+
+## Fasi della roadmap (riepilogo)
+
+| Fase | Tema | Stato |
+|------|------|--------|
+| 1 | Struttura e installazione | Completata |
+| 2 | Dominio sociale locale | Completata |
+| 3 | Identita' federata | Completata |
+| 4 | Federazione sociale | Completata |
+| 5 | Community (`Group`) | In corso / pianificata |
+| 6 | Sicurezza e interoperabilita' | Pianificata |

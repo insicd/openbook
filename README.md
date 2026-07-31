@@ -33,6 +33,7 @@ persona su qualunque altro server del Fediverso** direttamente dall'interfaccia.
 - [Cron e attivita periodiche](#cron-e-attivita-periodiche)
 - [Sicurezza e privacy](#sicurezza-e-privacy)
 - [Roadmap e stato del progetto](#roadmap-e-stato-del-progetto)
+- [Changelog](CHANGELOG.md)
 - [Licenza](#licenza)
 
 ## Requisiti
@@ -906,6 +907,9 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap e stato del progetto
 
+Versione corrente: **0.6.8**. Il dettaglio delle modifiche per versione e' in
+[`CHANGELOG.md`](CHANGELOG.md).
+
 - ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,
   database, autenticazione, account amministratore, profili locali.
 - ✅ **Fase 2 — Dominio sociale locale**: post, immagini, commenti annidati, Mi
@@ -915,48 +919,10 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 - ✅ **Fase 4 — Federazione sociale**: ricerca remota,
   `Follow`/`Accept`/`Reject`, `Create`/`Update`/`Delete`, `Like`, `Announce`, `Undo`,
   coda MySQL, retry, cron.
-- ✅ **Personalizzazione del profilo e impostazioni account** (questo repository,
-  successiva alla Fase 4): avatar, copertina, biografia, link, lingua
-  dell'interfaccia, visibilita' predefinita dei post, account protetto,
-  presenza nei suggerimenti, federazione via `Update` (in entrambe le direzioni) di
-  ogni cambio al profilo pubblico e all'account protetto.
-- ✅ **Sezione "Mondo"** (questo repository, successiva alla Fase 4): timeline dei post
-  remoti pubblici gia' in cache locale e account remoti da scoprire, classificati sui
-  soli segnali visibili da questa istanza (nessun indice globale del fediverso).
-- ✅ **Post recenti su un profilo remoto** (questo repository, successiva alla Fase 4):
-  la pagina profilo di un Actor remoto recupera al bisogno la prima pagina del suo
-  outbox reale, cosi' da mostrare i suoi post pubblici piu' recenti anche prima che
-  un qualunque Actor locale inizi a seguirlo.
-- ✅ **Condivisioni visibili su profilo e feed di chi condivide** (questo repository,
-  successiva alla Fase 4): prima comparivano solo nel feed di chi segue chi condivide.
-- ✅ **Pannello di controllo (slice 1, v0.5.0)**: ruoli admin/moderatore, coda
-  segnalazioni, gestione utenti locali, impostazioni base (`site_name`,
-  registrazioni aperte/chiuse). Fuori scope: limiti media/post, regole testuali,
-  ban federation, coda inbox/outbox, audit log.
-- ✅ **Pannello di controllo completo (v0.6.0)**: limiti post/commenti/media,
-  regole istanza in Markdown (`/regole`), blocchi dominio federato, ispezione
-  coda (`jobs`/`failed_jobs`/`inbox_items`), promozione admin da UI, segnalazioni
-  commenti, registro azioni staff.
-- ✅ **Recupero replies su post remoti (v0.6.1–0.6.2)**: aprendo un post remoto si
-  interroga la collection `replies` della Note originale (`RemoteRepliesFetcher`),
-  seguendo la paginazione `next` (Mastodon). L'orario del post apre il dettaglio
-  Openbook; l'originale remoto e' nel menu «Apri post originale».
-- ✅ **Signed fetch / authorized fetch (v0.6.3)**: i GET ActivityPub (Actor, outbox,
-  replies) sono firmati con la chiave di un Actor locale (`OPENBOOK_FETCH_SIGNED`),
-  cosi' le istanze che richiedono Signature non rispondono piu' 401.
-- ✅ **Audience AS stringa + collection replies (v0.6.4)**: `to`/`cc` come stringa
-  singola (GoToSocial) non fanno piu' scartare Note pubbliche; le collection
-  `replies` senza `first` vengono dereferenziate via `id`.
-- ✅ **Notifiche live (v0.6.5)**: polling leggero su `/notifiche/feed` aggiorna
-  badge (header + sidebar) e dropdown senza ricaricare la pagina.
-- ✅ **Polling notifiche a basso costo (v0.6.6)**: `If-None-Match` / ETag sulla
-  revisione utente; se nulla e' cambiato risponde 304 con una sola lettura
-  leggera, senza rieseguire count/elenco.
-- ✅ **Apostrofi nel testo (v0.6.7)**: `&#039;` non viene piu' interpretato come
-  hashtag `#039` in post/commenti (ne' nel content ActivityPub in uscita).
-- ✅ **Contatori, sidebar e tendenze (v0.6.8)**: eliminare un commento aggiorna
-  `comments_count` / `replies_count`; mini-footer prodotto in sidebar sinistra;
-  hashtag "In tendenza" da post locali e remoti (max 5) con pagina `/tendenze`.
+- ✅ **Dopo la Fase 4** (fino a 0.6.x): personalizzazione profilo e impostazioni,
+  sezione "Mondo", outbox/replies remoti on-demand, pannello di controllo,
+  signed fetch, notifiche live, miglioramenti UI e correzioni di interoperabilita'.
+  Dettaglio in [`CHANGELOG.md`](CHANGELOG.md).
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco
