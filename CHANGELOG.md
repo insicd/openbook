@@ -11,6 +11,14 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.7.8] — Link etichettati nei post remoti
+
+### Fixed
+- I post federati (community Lemmy/Group e Note remote) non perdono piu'
+  l'`href` degli `<a>` HTML: in ingest l'ancora diventa `[etichetta](url)`
+  e `PostBodyRenderer` la mostra come link cliccabile sul testo. Restano
+  esclusi schemi non `http`/`https`.
+
 ## [0.7.7] — URI Actor `/users/{username}` (compat. Lemmy)
 
 ### Changed

@@ -487,8 +487,9 @@ finalmente bidirezionale.
     ma **solo se rilevanti** per questa istanza (l'autore e' seguito da un Actor
     locale, la Note risponde a un contenuto che gia' conosciamo, oppure menziona
     esplicitamente un Actor locale): nessun contenuto remoto viene conservato "a
-    caso". Il contenuto HTML viene ridotto a testo semplice (`RemoteContentSanitizer`)
-    prima di passare dalla stessa pipeline di rendering sicura dei post locali;
+    caso". Il contenuto HTML viene ridotto a testo semplice (`RemoteContentSanitizer`),
+    preservando gli `<a href>` come `[etichetta](url)`, poi passa dalla stessa
+    pipeline di rendering sicura dei post locali;
   - `Update` con oggetto `Person`/`Group` (un altro server che notifica un cambio al
     profilo di un proprio utente) aggiorna direttamente la cache locale dell'Actor
     remoto (`actors`/`actor_keys`/`actor_endpoints`) applicando il documento
@@ -907,7 +908,7 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap e stato del progetto
 
-Versione corrente: **0.7.7**. Il dettaglio delle modifiche per versione e' in
+Versione corrente: **0.7.8**. Il dettaglio delle modifiche per versione e' in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 - ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,
@@ -923,7 +924,7 @@ Versione corrente: **0.7.7**. Il dettaglio delle modifiche per versione e' in
   sezione "Mondo", outbox/replies remoti on-demand, pannello di controllo,
   signed fetch, notifiche live, miglioramenti UI e correzioni di interoperabilita'.
   Dettaglio in [`CHANGELOG.md`](CHANGELOG.md).
-- 🚧 **Fase 5 — Community** (0.7.0–0.7.7): Actor `Group` locali e remoti,
+- 🚧 **Fase 5 — Community** (0.7.0–0.7.8): Actor `Group` locali e remoti,
   iscrizione, wall, Announce in uscita e in ingresso, moderatori delegati.
   Possibili rifiniture: elenco membri dedicato, avatar/copertina community,
   interoperabilita' estesa con Lemmy/Friendica.

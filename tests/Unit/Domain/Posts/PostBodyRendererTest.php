@@ -17,6 +17,26 @@ class PostBodyRendererTest extends TestCase
         );
     }
 
+    public function test_it_renders_a_labeled_markdown_link_with_safe_attributes(): void
+    {
+        $html = (string) PostBodyRenderer::render('Vedi [testo link](https://ciccio.it/pagina) subito.');
+
+        $this->assertStringContainsString(
+            '<a href="https://ciccio.it/pagina" class="post-link" target="_blank" rel="noopener noreferrer nofollow ugc">testo link</a>',
+            $html
+        );
+        $this->assertStringNotContainsString('[testo link]', $html);
+        $this->assertStringContainsString('subito.', $html);
+    }
+
+    public function test_it_does_not_treat_javascript_markdown_links_as_anchors(): void
+    {
+        $html = (string) PostBodyRenderer::render('[x](javascript:alert(1))');
+
+        $this->assertStringNotContainsString('href="javascript:', $html);
+        $this->assertStringNotContainsString('class="post-link"', $html);
+    }
+
     public function test_it_strips_trailing_sentence_punctuation_from_the_link(): void
     {
         $html = (string) PostBodyRenderer::render('Vedi https://esempio.it/pagina, poi https://esempio.it/altra.');

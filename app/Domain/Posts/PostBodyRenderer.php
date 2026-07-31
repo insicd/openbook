@@ -14,17 +14,18 @@ use Illuminate\Support\HtmlString;
  * l'entita' HTML &#039; (apostrofo prodotto da e()) veniva spezzata in un
  * falso hashtag "#039", visibile in UI e nel content ActivityPub.
  *
- * URL, hashtag e menzioni sono riconosciuti in un'unica passata con un solo
- * pattern combinato: operare in piu' passate separate sulla stessa stringa
- * sarebbe pericoloso, perche' un URL gia' trasformato in un tag <a> (es.
- * contenente "#sezione" o "/@nome") verrebbe ri-processato dai pattern
- * successivi, corrompendo l'attributo href gia' scritto. Una singola
- * passata garantisce invece che ogni porzione di testo originale venga
- * considerata una sola volta.
+ * URL, link con etichetta `[testo](url)`, hashtag e menzioni sono
+ * riconosciuti in un'unica passata con un solo pattern combinato: operare
+ * in piu' passate separate sulla stessa stringa sarebbe pericoloso, perche'
+ * un URL gia' trasformato in un tag <a> (es. contenente "#sezione" o
+ * "/@nome") verrebbe ri-processato dai pattern successivi, corrompendo
+ * l'attributo href gia' scritto. Una singola passata garantisce invece che
+ * ogni porzione di testo originale venga considerata una sola volta.
  */
 final class PostBodyRenderer
 {
-    private const LINK_PATTERN = '/(?P<url>https?:\/\/[^\s<]+)'
+    private const LINK_PATTERN = '/(?P<mdlink>\[(?P<mdlabel>[^\]]+)\]\((?P<mdurl>https?:\/\/[^\s\)]+)\))'
+        .'|(?P<url>https?:\/\/[^\s<]+)'
         .'|(?P<hashtag>(?<![\w\/&;])#[\p{L}\p{N}_]{1,100})'
         .'|(?P<mention>(?<![\w])@[a-zA-Z0-9_]{1,32}(?:@[a-zA-Z0-9.\-]+)?)/u';
 
@@ -40,11 +41,15 @@ final class PostBodyRenderer
         $escaped = e($body);
 
         $rendered = preg_replace_callback(self::LINK_PATTERN, function (array $match) {
-            if ($match['url'] !== '') {
+            if (($match['mdlink'] ?? '') !== '') {
+                return self::renderLabeledUrl($match['mdurl'], $match['mdlabel']);
+            }
+
+            if (($match['url'] ?? '') !== '') {
                 return self::renderUrl($match['url']);
             }
 
-            if ($match['hashtag'] !== '') {
+            if (($match['hashtag'] ?? '') !== '') {
                 return self::renderHashtag($match['hashtag']);
             }
 
@@ -68,11 +73,32 @@ final class PostBodyRenderer
             return $trailing;
         }
 
+        return self::anchor($url, $url).$trailing;
+    }
+
+    /**
+     * Link con etichetta in forma Markdown leggera `[etichetta](https://...)`,
+     * usata anche per i collegamenti HTML dei post remoti dopo
+     * {@see \App\Federation\Inbox\RemoteContentSanitizer}. Etichetta e URL
+     * sono gia' sfuggiti da e().
+     */
+    private static function renderLabeledUrl(string $url, string $label): string
+    {
+        [$url, $trailing] = self::splitTrailingPunctuation($url);
+
+        if ($url === '') {
+            return $label.$trailing;
+        }
+
+        return self::anchor($url, $label).$trailing;
+    }
+
+    private static function anchor(string $href, string $text): string
+    {
         return sprintf(
-            '<a href="%s" class="post-link" target="_blank" rel="noopener noreferrer nofollow ugc">%s</a>%s',
-            $url,
-            $url,
-            $trailing
+            '<a href="%s" class="post-link" target="_blank" rel="noopener noreferrer nofollow ugc">%s</a>',
+            $href,
+            $text
         );
     }
 
