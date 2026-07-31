@@ -7,16 +7,15 @@ use App\Federation\Actors\LocalActorUrls;
 use Illuminate\Console\Command;
 
 /**
- * Allinea uri ed endpoint ActivityPub degli Actor locali all'APP_URL corrente.
- * Utile dopo un cambio di dominio/hostname (es. openbook.parly.net → openb.app):
- * Lemmy rifiuta i Follow se l'"id" dell'Actor e la sua inbox sono su host diversi.
+ * Allinea uri ed endpoint ActivityPub degli Actor locali all'APP_URL corrente
+ * e allo schema canonico "/users/{username}" (compatibile con Lemmy/Mastodon).
  */
 class RepairFederationUrlsCommand extends Command
 {
     protected $signature = 'openbook:repair-federation-urls
         {--dry-run : Mostra le modifiche senza scriverle}';
 
-    protected $description = 'Riscrive uri/inbox/outbox degli Actor locali in base ad APP_URL.';
+    protected $description = 'Riscrive uri (/users/...) e inbox/outbox degli Actor locali in base ad APP_URL.';
 
     public function handle(): int
     {
@@ -28,7 +27,7 @@ class RepairFederationUrlsCommand extends Command
             ->with('endpoints')
             ->orderBy('preferred_username')
             ->each(function (Actor $actor) use ($dryRun, &$updated): void {
-                $urls = LocalActorUrls::forUsername($actor->preferred_username);
+                $urls = LocalActorUrls::forUsername($actor->preferred_username, $actor->isGroup());
                 $changes = [];
 
                 if ($actor->uri !== $urls['uri']) {

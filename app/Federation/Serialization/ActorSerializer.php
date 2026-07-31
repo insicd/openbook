@@ -7,13 +7,12 @@ use App\Federation\Actors\LocalActorUrls;
 
 /**
  * Traduce un Actor locale nel documento ActivityStreams "Person" (o "Group")
- * restituito dall'endpoint canonico del profilo quando negoziato con
+ * restituito dall'endpoint canonico quando negoziato con
  * Accept: application/activity+json.
  *
- * Per gli Actor locali inbox/outbox/sharedInbox sono sempre ricalcolati da
- * APP_URL: valori obsoleti in "actor_endpoints" (es. hostname precedente)
- * spezzerebbero la federazione con Lemmy, che richiede che l'host dell'id
- * coincida con quello degli endpoint.
+ * Per gli Actor locali id/inbox/outbox sono sempre ricalcolati da APP_URL
+ * (schema "/users/{username}"), cosi' restano coerenti anche se
+ * "actor_endpoints" in database e' obsoleto.
  */
 final class ActorSerializer
 {
@@ -25,9 +24,16 @@ final class ActorSerializer
         $actor->loadMissing(['key', 'endpoints', 'user.profile']);
 
         $profile = $actor->user?->profile;
-        $id = $actor->isLocal()
-            ? LocalActorUrls::forUsername($actor->preferred_username)['uri']
-            : $actor->uri;
+
+        if ($actor->isLocal()) {
+            $urls = LocalActorUrls::forUsername($actor->preferred_username, $actor->isGroup());
+            $id = $urls['uri'];
+            $pageUrl = $urls['profile'];
+        } else {
+            $urls = null;
+            $id = $actor->uri;
+            $pageUrl = $actor->uri;
+        }
 
         $document = [
             '@context' => [
@@ -39,13 +45,12 @@ final class ActorSerializer
             'preferredUsername' => $actor->preferred_username,
             'name' => $actor->name ?: $actor->preferred_username,
             'summary' => self::renderSummary($profile?->bio ?? $actor->summary),
-            'url' => $id,
+            'url' => $pageUrl,
             'manuallyApprovesFollowers' => $actor->manually_approves_followers,
             'published' => optional($actor->created_at)->toAtomString() ?? now()->toAtomString(),
         ];
 
-        if ($actor->isLocal()) {
-            $urls = LocalActorUrls::forUsername($actor->preferred_username);
+        if ($urls !== null) {
             $document['inbox'] = $urls['inbox'];
             $document['outbox'] = $urls['outbox'];
             $document['followers'] = $urls['followers'];

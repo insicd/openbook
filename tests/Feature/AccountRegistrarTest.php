@@ -36,7 +36,7 @@ class AccountRegistrarTest extends TestCase
         $this->assertSame(Actor::TYPE_PERSON, $actor->type);
         $this->assertSame('giulia', $actor->preferred_username);
         $this->assertSame(config('openbook.domain'), $actor->domain);
-        $this->assertSame(url('/@giulia'), $actor->uri);
+        $this->assertSame(url('/users/giulia'), $actor->uri);
 
         $this->assertNotNull($actor->key);
         $this->assertStringStartsWith('-----BEGIN PUBLIC KEY-----', $actor->key->public_key);

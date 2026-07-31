@@ -156,6 +156,20 @@ class Actor extends Model
     }
 
     /**
+     * Identificatore ActivityPub da usare in attivita', firme HTTP e documenti.
+     * Per gli attori locali e' sempre "/users/{username}" (APP_URL), anche se
+     * la colonna "uri" in database e' ancora un alias legacy ("/@...").
+     */
+    public function activityPubId(): string
+    {
+        if ($this->isLocal()) {
+            return LocalActorUrls::forUsername($this->preferred_username, $this->isGroup())['uri'];
+        }
+
+        return $this->uri;
+    }
+
+    /**
      * Nome visualizzato uniforme sia per attori locali (profilo utente) sia
      * per attori remoti (campo "name" del documento Actor, aggiornato a ogni
      * fetch da {@see RemoteActorResolver}): permette

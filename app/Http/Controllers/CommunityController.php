@@ -11,11 +11,10 @@ use App\Domain\Accounts\User;
 use App\Domain\Communities\Community;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
-use App\Federation\Serialization\ActorSerializer;
+use App\Federation\Actors\LocalActorUrls;
 use App\Http\Requests\Communities\StoreCommunityRequest;
 use App\Http\Support\ActivityPubNegotiation;
 use Illuminate\Contracts\View\View;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -63,12 +62,15 @@ class CommunityController extends Controller
             ->with('status', __('openbook.communities.created'));
     }
 
-    public function show(Request $request, Community $community): View|JsonResponse
+    public function show(Request $request, Community $community): View|RedirectResponse
     {
         $community->loadMissing(['actor.endpoints', 'actor.key', 'owner.profile']);
 
         if (ActivityPubNegotiation::wantsActivityPub($request)) {
-            return ActivityPubNegotiation::response(ActorSerializer::serialize($community->actor));
+            return redirect()->away(
+                LocalActorUrls::forUsername($community->actor->preferred_username, isGroup: true)['uri'],
+                301,
+            );
         }
 
         Gate::authorize('view', $community);

@@ -77,7 +77,7 @@ final class HttpSignatureSigner
             $method,
             $target,
             $headersToSign,
-            $actor->uri.'#main-key',
+            $actor->activityPubId().'#main-key',
             $actor->key->private_key,
             $signedComponents,
         );

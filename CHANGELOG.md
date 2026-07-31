@@ -11,6 +11,23 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.7.7] — URI Actor `/users/{username}` (compat. Lemmy)
+
+### Changed
+- Identificatore ActivityPub locale canonico: da `/@{username}` a
+  `/users/{username}` (come Mastodon). Lemmy percent-encoda `@` (`%40`) e
+  rifiuta il documento se l'URL richiesto non coincide con `id`; con il
+  nuovo schema l'`Accept` dei Follow verso community Lemmy puo' completarsi.
+- WebFinger `self` punta a `/users/...`; `/@...` e `/c/...` restano le pagine
+  HTML (le richieste AP su quei path fanno redirect 301 all'id canonico).
+
+### Fixed
+- `ObjectResolver` riconosce ancora gli alias locali `/@nome` dopo la
+  migrazione dell'uri.
+- Follow, firme HTTP (`keyId`) e Note usano sempre l'id `/users/...` anche
+  se la colonna `actors.uri` e' ancora legacy: altrimenti Lemmy vede un
+  mismatch tra documento Actor e attivita' firmata.
+
 ## [0.7.6] — Fix inbox Actor su host errato (Lemmy)
 
 ### Fixed

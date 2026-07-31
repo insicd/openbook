@@ -10,6 +10,7 @@ use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorResolver;
+use App\Federation\Actors\LocalActorUrls;
 use App\Federation\Serialization\ActorSerializer;
 use App\Http\Controllers\Concerns\RendersFollowLists;
 use App\Http\Support\ActivityPubNegotiation;
@@ -30,18 +31,21 @@ class ProfileController extends Controller
     ) {}
 
     /**
-     * Identificatore canonico "/@{username}": Person (HTML profilo) o Group
-     * (redirect HTML a /c/{slug}, documento ActivityPub "Group" se negoziato).
+     * Pagina HTML "/@{username}". Le richieste ActivityPub vengono mandate
+     * all'id canonico "/users/{username}" (evita mismatch Lemmy su /@ vs %40).
      */
     public function show(Request $request, string $username): View|JsonResponse|RedirectResponse
     {
         $actor = $this->localActors->findByUsernameOrFail($username);
 
-        if ($actor->isGroup()) {
-            if (ActivityPubNegotiation::wantsActivityPub($request)) {
-                return ActivityPubNegotiation::response(ActorSerializer::serialize($actor));
-            }
+        if (ActivityPubNegotiation::wantsActivityPub($request)) {
+            return redirect()->away(
+                LocalActorUrls::forUsername($actor->preferred_username, $actor->isGroup())['uri'],
+                301,
+            );
+        }
 
+        if ($actor->isGroup()) {
             return redirect()->route('communities.show', $actor->preferred_username);
         }
 
@@ -49,10 +53,6 @@ class ProfileController extends Controller
         abort_if($user === null, 404);
 
         $user->loadMissing(['profile', 'actor.endpoints']);
-
-        if (ActivityPubNegotiation::wantsActivityPub($request)) {
-            return ActivityPubNegotiation::response(ActorSerializer::serialize($user->actor));
-        }
 
         $viewerActor = auth()->user()?->actor;
 
@@ -110,14 +110,22 @@ class ProfileController extends Controller
     }
 
     /**
-     * L'URL "/users/{username}" non e' canonico: effettua un redirect
-     * permanente verso "/@{username}", che e' l'identificatore usato sia
-     * per la pagina HTML sia per il documento ActivityPub.
+     * "/users/{username}" e' l'identificatore ActivityPub canonico: con
+     * negoziazione AP restituisce il documento Person/Group; per i browser
+     * reindirizza alla pagina HTML ("/@..." o "/c/...").
      */
-    public function redirectLegacy(string $username): RedirectResponse
+    public function redirectLegacy(Request $request, string $username): View|JsonResponse|RedirectResponse
     {
         $actor = $this->localActors->findByUsernameOrFail($username);
 
-        return redirect()->to($actor->uri, 301);
+        if (ActivityPubNegotiation::wantsActivityPub($request)) {
+            return ActivityPubNegotiation::response(ActorSerializer::serialize($actor));
+        }
+
+        if ($actor->isGroup()) {
+            return redirect()->route('communities.show', $actor->preferred_username, 301);
+        }
+
+        return redirect()->route('profile.show', $username, 301);
     }
 }

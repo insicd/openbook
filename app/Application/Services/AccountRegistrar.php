@@ -53,7 +53,7 @@ final class AccountRegistrar
                 'timezone' => config('app.timezone', 'UTC'),
             ]);
 
-            $urls = LocalActorUrls::forUsername($username);
+            $urls = LocalActorUrls::forUsername($username, isGroup: false);
 
             $actor = Actor::query()->create([
                 'user_id' => $user->id,

@@ -3,20 +3,24 @@
 namespace App\Federation\Actors;
 
 /**
- * URL ActivityPub canonici per un Actor locale, sempre derivati da
- * {@see url()} / APP_URL corrente. Evita di pubblicare inbox/outbox su un
- * host diverso dall'"id" dell'Actor (es. dominio vecchio rimasto in
- * "actor_endpoints"), situazione che Lemmy rifiuta in fase di Follow.
+ * URL ActivityPub e di profilo per un Actor locale.
+ *
+ * L'identificatore ActivityPub canonico e' "/users/{username}" (stesso
+ * schema di Mastodon): evita il carattere "@" nel path, che Lemmy e altri
+ * client percent-encodano (%40) e poi rifiutano perche' l'URL richiesto non
+ * coincide con il campo "id" del documento. La pagina HTML resta "/@..." o
+ * "/c/..." tramite {@see self::profile()}.
  */
 final class LocalActorUrls
 {
     /**
-     * @return array{uri: string, inbox: string, outbox: string, followers: string, following: string, shared_inbox: string}
+     * @return array{uri: string, profile: string, inbox: string, outbox: string, followers: string, following: string, shared_inbox: string}
      */
-    public static function forUsername(string $username): array
+    public static function forUsername(string $username, bool $isGroup = false): array
     {
         return [
-            'uri' => url('/@'.$username),
+            'uri' => url('/users/'.$username),
+            'profile' => $isGroup ? url('/c/'.$username) : url('/@'.$username),
             'inbox' => url("/users/{$username}/inbox"),
             'outbox' => url("/users/{$username}/outbox"),
             'followers' => url("/users/{$username}/followers"),

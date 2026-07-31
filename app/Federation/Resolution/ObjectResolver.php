@@ -38,10 +38,41 @@ final class ObjectResolver
             return $actor;
         }
 
-        // Nessuna riga locale con questo URI: non puo' trattarsi di un Actor
-        // locale (tutti hanno gia' una riga con "uri" popolato alla
-        // creazione), quindi e' sicuro tentare un recupero remoto.
+        // Alias locali "/@nome" o "/users/nome" (anche dopo un cambio di
+        // identificatore ActivityPub): evita di trattarli come Actor remoti.
+        $localUsername = $this->localActorUsernameFromUri($uri);
+
+        if ($localUsername !== null) {
+            return Actor::query()
+                ->where('is_local', true)
+                ->where('preferred_username', $localUsername)
+                ->where('status', Actor::STATUS_ACTIVE)
+                ->first();
+        }
+
         return $this->remoteActorResolver->resolveByUri($uri);
+    }
+
+    private function localActorUsernameFromUri(string $uri): ?string
+    {
+        $host = parse_url($uri, PHP_URL_HOST);
+        $domain = (string) config('openbook.domain');
+
+        if (! is_string($host) || strcasecmp($host, $domain) !== 0) {
+            return null;
+        }
+
+        $path = rawurldecode((string) parse_url($uri, PHP_URL_PATH));
+
+        if (preg_match('#^/@([A-Za-z0-9_]+)$#', $path, $matches) === 1) {
+            return mb_strtolower($matches[1]);
+        }
+
+        if (preg_match('#^/users/([A-Za-z0-9_]+)$#', $path, $matches) === 1) {
+            return mb_strtolower($matches[1]);
+        }
+
+        return null;
     }
 
     public function resolvePost(string $uri): ?Post

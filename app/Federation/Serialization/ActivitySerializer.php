@@ -8,6 +8,7 @@ use App\Domain\Reactions\Announce;
 use App\Domain\Reactions\Like;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\LocalActorUrls;
 
 /**
  * Costruisce le attivita' ActivityStreams che Openbook invia verso altri
@@ -41,9 +42,9 @@ final class ActivitySerializer
             '@context' => self::CONTEXT,
             'id' => self::followActivityUri($follow),
             'type' => 'Follow',
-            'actor' => $follow->follower->uri,
-            'object' => $follow->following->uri,
-            'to' => [$follow->following->uri],
+            'actor' => $follow->follower->activityPubId(),
+            'object' => $follow->following->activityPubId(),
+            'to' => [$follow->following->activityPubId()],
         ];
     }
 
@@ -56,7 +57,7 @@ final class ActivitySerializer
             '@context' => self::CONTEXT,
             'id' => self::followActivityUri($follow).'/accetta',
             'type' => 'Accept',
-            'actor' => $follow->following->uri,
+            'actor' => $follow->following->activityPubId(),
             'object' => self::embeddedFollow($follow),
         ];
     }
@@ -70,7 +71,7 @@ final class ActivitySerializer
             '@context' => self::CONTEXT,
             'id' => self::followActivityUri($follow).'/rifiuta',
             'type' => 'Reject',
-            'actor' => $follow->following->uri,
+            'actor' => $follow->following->activityPubId(),
             'object' => self::embeddedFollow($follow),
         ];
     }
@@ -84,7 +85,7 @@ final class ActivitySerializer
             '@context' => self::CONTEXT,
             'id' => self::followActivityUri($follow).'/annulla',
             'type' => 'Undo',
-            'actor' => $follow->follower->uri,
+            'actor' => $follow->follower->activityPubId(),
             'object' => self::follow($follow),
         ];
     }
@@ -104,8 +105,8 @@ final class ActivitySerializer
         return [
             'id' => $follow->remote_activity_uri ?? self::followActivityUri($follow),
             'type' => 'Follow',
-            'actor' => $follow->follower->uri,
-            'object' => $follow->following->uri,
+            'actor' => $follow->follower->activityPubId(),
+            'object' => $follow->following->activityPubId(),
         ];
     }
 
@@ -118,7 +119,7 @@ final class ActivitySerializer
             '@context' => self::CONTEXT,
             'id' => url("/activities/likes/{$like->id}"),
             'type' => 'Like',
-            'actor' => $like->actor->uri,
+            'actor' => $like->actor->activityPubId(),
             'object' => NoteSerializer::uriFor($target),
         ];
     }
@@ -132,7 +133,7 @@ final class ActivitySerializer
             '@context' => self::CONTEXT,
             'id' => url("/activities/likes/{$like->id}/annulla"),
             'type' => 'Undo',
-            'actor' => $like->actor->uri,
+            'actor' => $like->actor->activityPubId(),
             'object' => self::like($like, $target),
         ];
     }
@@ -148,12 +149,14 @@ final class ActivitySerializer
             '@context' => self::CONTEXT,
             'id' => url("/activities/announces/{$announce->id}"),
             'type' => 'Announce',
-            'actor' => $sharer->uri,
+            'actor' => $sharer->activityPubId(),
             'published' => $announce->created_at->toAtomString(),
             'to' => [NoteSerializer::PUBLIC_STREAM],
             'cc' => array_values(array_unique(array_filter([
-                $sharer->endpoints?->followers,
-                $post->actor->uri,
+                $sharer->isLocal()
+                    ? LocalActorUrls::forUsername($sharer->preferred_username, $sharer->isGroup())['followers']
+                    : $sharer->endpoints?->followers,
+                $post->actor->activityPubId(),
             ]))),
             'object' => NoteSerializer::uriFor($post),
         ];
@@ -168,7 +171,7 @@ final class ActivitySerializer
             '@context' => self::CONTEXT,
             'id' => url("/activities/announces/{$announce->id}/annulla"),
             'type' => 'Undo',
-            'actor' => $announce->actor->uri,
+            'actor' => $announce->actor->activityPubId(),
             'object' => self::announce($announce, $post),
         ];
     }
@@ -232,7 +235,7 @@ final class ActivitySerializer
             '@context' => self::CONTEXT,
             'id' => $tombstone['id'].'/elimina',
             'type' => 'Delete',
-            'actor' => $object->actor->uri,
+            'actor' => $object->actor->activityPubId(),
             'to' => [NoteSerializer::PUBLIC_STREAM],
             'object' => $tombstone,
         ];

@@ -34,7 +34,7 @@ final class CommunityRegistrar
         $this->assertSlugAvailable($slug);
 
         return DB::transaction(function () use ($owner, $data, $slug, $domain): Community {
-            $urls = LocalActorUrls::forUsername($slug);
+            $urls = LocalActorUrls::forUsername($slug, isGroup: true);
             $isPrivate = (bool) ($data['is_private'] ?? false);
 
             $actor = Actor::query()->create([

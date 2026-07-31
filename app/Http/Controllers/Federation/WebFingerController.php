@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Federation;
 
 use App\Federation\Actors\LocalActorResolver;
+use App\Federation\Actors\LocalActorUrls;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,24 +39,25 @@ final class WebFingerController extends Controller
             throw new NotFoundHttpException;
         }
 
+        $urls = LocalActorUrls::forUsername($actor->preferred_username, $actor->isGroup());
+
         return response()->json([
             'subject' => 'acct:'.$actor->handle(),
-            'aliases' => [
+            'aliases' => array_values(array_unique([
+                $urls['uri'],
+                $urls['profile'],
                 $actor->uri,
-                url('/users/'.$actor->preferred_username),
-            ],
+            ])),
             'links' => [
                 [
                     'rel' => 'self',
                     'type' => 'application/activity+json',
-                    'href' => $actor->uri,
+                    'href' => $urls['uri'],
                 ],
                 [
                     'rel' => 'http://webfinger.net/rel/profile-page',
                     'type' => 'text/html',
-                    'href' => $actor->isGroup()
-                        ? route('communities.show', $actor->preferred_username)
-                        : $actor->uri,
+                    'href' => $urls['profile'],
                 ],
             ],
         ], 200, ['Content-Type' => 'application/jrd+json; charset=utf-8']);

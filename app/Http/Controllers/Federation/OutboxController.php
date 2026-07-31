@@ -60,7 +60,7 @@ final class OutboxController extends Controller
             return [
                 'id' => $note['id'].'/activity',
                 'type' => 'Create',
-                'actor' => $actor->uri,
+                'actor' => $actor->activityPubId(),
                 'published' => $note['published'],
                 'to' => $note['to'] ?? [],
                 'cc' => $note['cc'] ?? [],

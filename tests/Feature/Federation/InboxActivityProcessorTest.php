@@ -138,8 +138,9 @@ class InboxActivityProcessorTest extends TestCase
         $follow = app(FollowManager::class)->follow($localUser->actor, $group);
         $this->assertSame(Follow::STATUS_PENDING, $follow->status);
 
-        // Lemmy spesso percent-encoda "@" negli URI echoati nell'Accept.
-        $encodedActor = str_replace('/@', '/%40', $localUser->actor->uri);
+        // Alias legacy "/@user" (e eventuale percent-encoding) devono comunque
+        // risolvere il follower locale dopo il passaggio a "/users/user".
+        $legacyActor = str_replace('/users/', '/@', $localUser->actor->uri);
 
         $activity = [
             'id' => $group->uri.'/activities/accept/'.uniqid(),
@@ -149,7 +150,7 @@ class InboxActivityProcessorTest extends TestCase
             'object' => [
                 'id' => ActivitySerializer::followActivityUri($follow),
                 'type' => 'Follow',
-                'actor' => $encodedActor,
+                'actor' => $legacyActor,
                 'object' => $group->uri,
                 'to' => [$group->uri],
             ],

@@ -90,7 +90,7 @@ class CommunityTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('subject', 'acct:teatro@'.config('openbook.domain'));
-        $response->assertJsonPath('links.0.href', url('/@teatro'));
+        $response->assertJsonPath('links.0.href', url('/users/teatro'));
     }
 
     public function test_community_slug_cannot_collide_with_a_username(): void

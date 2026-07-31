@@ -7,6 +7,7 @@ use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Domain\Posts\PostBodyRenderer;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\LocalActorUrls;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
 
@@ -43,7 +44,7 @@ final class NoteSerializer
             '@context' => 'https://www.w3.org/ns/activitystreams',
             'id' => $uri,
             'type' => 'Note',
-            'attributedTo' => $actor->uri,
+            'attributedTo' => $actor->activityPubId(),
             'content' => $content,
             'url' => $uri,
             'published' => $post->published_at->toAtomString(),
@@ -85,13 +86,15 @@ final class NoteSerializer
         $mentionedUris = collect($tags)->pluck('href')->filter()->all();
 
         foreach ($groupActors as $group) {
-            if (in_array($group->uri, $mentionedUris, true)) {
+            $groupId = $group->activityPubId();
+
+            if (in_array($groupId, $mentionedUris, true)) {
                 continue;
             }
 
             $tags[] = [
                 'type' => 'Mention',
-                'href' => $group->uri,
+                'href' => $groupId,
                 'name' => '@'.$group->handle(),
             ];
         }
@@ -123,7 +126,7 @@ final class NoteSerializer
             '@context' => 'https://www.w3.org/ns/activitystreams',
             'id' => $uri,
             'type' => 'Note',
-            'attributedTo' => $actor->uri,
+            'attributedTo' => $actor->activityPubId(),
             'inReplyTo' => $inReplyTo,
             'content' => $content,
             'url' => $uri,
@@ -236,7 +239,9 @@ final class NoteSerializer
         Collection $mentions,
         iterable $groupActors = [],
     ): array {
-        $followersUri = $actor->endpoints?->followers;
+        $followersUri = $actor->isLocal()
+            ? LocalActorUrls::forUsername($actor->preferred_username, $actor->isGroup())['followers']
+            : $actor->endpoints?->followers;
         $followers = array_values(array_filter([$followersUri]));
 
         [$to, $cc] = match ($visibility) {
@@ -250,8 +255,10 @@ final class NoteSerializer
         // FEP-1b12 / Friendica: indirizza esplicitamente i Group in "to".
         if ($visibility !== Post::VISIBILITY_DIRECT) {
             foreach ($groupActors as $groupActor) {
-                if (filled($groupActor->uri)) {
-                    array_unshift($to, $groupActor->uri);
+                $groupId = $groupActor->activityPubId();
+
+                if ($groupId !== '') {
+                    array_unshift($to, $groupId);
                 }
             }
 
@@ -295,7 +302,7 @@ final class NoteSerializer
         return $mentions->filter(fn (Mention $mention) => $mention->actor !== null)
             ->map(fn (Mention $mention) => [
                 'type' => 'Mention',
-                'href' => $mention->actor->uri,
+                'href' => $mention->actor->activityPubId(),
                 'name' => '@'.$mention->actor->handle(),
             ]);
     }
@@ -307,7 +314,7 @@ final class NoteSerializer
     private static function mentionUrisFor(Collection $mentions): array
     {
         return $mentions->filter(fn (Mention $mention) => $mention->actor !== null)
-            ->map(fn (Mention $mention) => $mention->actor->uri)
+            ->map(fn (Mention $mention) => $mention->actor->activityPubId())
             ->values()
             ->all();
     }
