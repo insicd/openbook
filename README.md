@@ -949,6 +949,9 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
   `replies` senza `first` vengono dereferenziate via `id`.
 - ✅ **Notifiche live (v0.6.5)**: polling leggero su `/notifiche/feed` aggiorna
   badge (header + sidebar) e dropdown senza ricaricare la pagina.
+- ✅ **Polling notifiche a basso costo (v0.6.6)**: `If-None-Match` / ETag sulla
+  revisione utente; se nulla e' cambiato risponde 304 con una sola lettura
+  leggera, senza rieseguire count/elenco.
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco

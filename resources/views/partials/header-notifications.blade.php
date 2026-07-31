@@ -19,7 +19,7 @@
         data-header-panel-toggle
         data-mark-read-url="{{ route('notifications.read') }}"
         data-notifications-feed-url="{{ route('notifications.feed') }}"
-        data-notifications-poll-ms="30000"
+        data-notifications-poll-ms="60000"
     >
         <x-icon name="bell" />
         <span class="ob-nav__label">{{ __('openbook.nav.notifications') }}</span>

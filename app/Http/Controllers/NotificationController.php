@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Accounts\User;
 use App\Domain\Notifications\Notification;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class NotificationController extends Controller
 {
@@ -17,10 +20,7 @@ class NotificationController extends Controller
             ->orderByDesc('created_at')
             ->paginate(30);
 
-        Notification::query()
-            ->where('recipient_id', auth()->id())
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+        $this->markUnreadAsRead(auth()->user());
 
         return view('notifications.index', [
             'notifications' => $notifications,
@@ -29,10 +29,7 @@ class NotificationController extends Controller
 
     public function markAllRead(): RedirectResponse|JsonResponse
     {
-        Notification::query()
-            ->where('recipient_id', auth()->id())
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+        $this->markUnreadAsRead(auth()->user());
 
         if (request()->expectsJson() || request()->ajax()) {
             return response()->json(['ok' => true]);
@@ -42,12 +39,22 @@ class NotificationController extends Controller
     }
 
     /**
-     * Anteprima leggera per il polling live della campanella: conteggio
-     * non lette + ultime notifiche (stesso perimetro del dropdown header).
+     * Anteprima per il polling live. Se il client invia If-None-Match uguale
+     * alla revisione corrente, risponde 304 con una sola lettura su "users"
+     * (niente count ne' elenco notifiche).
      */
-    public function feed(): JsonResponse
+    public function feed(Request $request): JsonResponse|Response
     {
         $recipientId = auth()->id();
+        $revision = (int) User::query()->whereKey($recipientId)->value('notifications_revision');
+        $etag = '"'.$revision.'"';
+
+        if ($this->clientHasCurrentRevision($request, $revision, $etag)) {
+            return response('', 304)->withHeaders([
+                'ETag' => $etag,
+                'Cache-Control' => 'private, no-cache',
+            ]);
+        }
 
         $unreadCount = Notification::query()
             ->where('recipient_id', $recipientId)
@@ -77,9 +84,44 @@ class NotificationController extends Controller
             })
             ->values();
 
-        return response()->json([
-            'unread_count' => $unreadCount,
-            'notifications' => $notifications,
-        ]);
+        return response()
+            ->json([
+                'revision' => $revision,
+                'unread_count' => $unreadCount,
+                'notifications' => $notifications,
+            ])
+            ->withHeaders([
+                'ETag' => $etag,
+                'Cache-Control' => 'private, no-cache',
+            ]);
+    }
+
+    private function markUnreadAsRead(?User $user): void
+    {
+        if ($user === null) {
+            return;
+        }
+
+        $updated = Notification::query()
+            ->where('recipient_id', $user->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        if ($updated > 0) {
+            $user->bumpNotificationsRevision();
+        }
+    }
+
+    private function clientHasCurrentRevision(Request $request, int $revision, string $etag): bool
+    {
+        $ifNoneMatch = $request->header('If-None-Match');
+
+        if (is_string($ifNoneMatch) && $ifNoneMatch !== '' && trim($ifNoneMatch) === $etag) {
+            return true;
+        }
+
+        $clientRevision = $request->query('v');
+
+        return is_string($clientRevision) && $clientRevision !== '' && (int) $clientRevision === $revision;
     }
 }

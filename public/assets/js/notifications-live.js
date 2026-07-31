@@ -1,6 +1,7 @@
 /**
- * Aggiornamento live di badge e dropdown notifiche: polling leggero sul
- * feed JSON, in pausa quando la scheda e' nascosta. Nessun websocket.
+ * Aggiornamento live di badge e dropdown notifiche: polling sul feed JSON,
+ * in pausa quando la scheda e' nascosta. Usa If-None-Match / ETag cosi'
+ * la maggior parte dei poll finisce in 304 (una sola lettura leggera sul DB).
  */
 (function () {
     'use strict';
@@ -17,12 +18,13 @@
         return;
     }
 
-    var pollMs = parseInt(toggle.getAttribute('data-notifications-poll-ms') || '30000', 10);
+    var pollMs = parseInt(toggle.getAttribute('data-notifications-poll-ms') || '60000', 10);
     var panelRoot = toggle.closest('[data-header-panel="notifications"]');
     var list = panelRoot ? panelRoot.querySelector('[data-notifications-list]') : null;
     var emptyLabel = panelRoot ? panelRoot.getAttribute('data-notifications-empty') || '' : '';
     var indexUrl = panelRoot ? panelRoot.getAttribute('data-notifications-index') || '/notifiche' : '/notifiche';
     var lastFingerprint = null;
+    var etag = null;
     var timer = null;
     var inFlight = false;
 
@@ -158,22 +160,43 @@
 
         inFlight = true;
 
+        var headers = {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        };
+
+        if (etag) {
+            headers['If-None-Match'] = etag;
+        }
+
         fetch(feedUrl, {
             method: 'GET',
-            headers: {
-                Accept: 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
+            headers: headers,
             credentials: 'same-origin',
+            cache: 'no-store',
         })
             .then(function (response) {
+                if (response.status === 304) {
+                    return null;
+                }
+
                 if (!response.ok) {
                     throw new Error('feed failed');
                 }
 
+                var nextEtag = response.headers.get('ETag');
+
+                if (nextEtag) {
+                    etag = nextEtag;
+                }
+
                 return response.json();
             })
-            .then(applyPayload)
+            .then(function (payload) {
+                if (payload) {
+                    applyPayload(payload);
+                }
+            })
             .catch(function () {
                 // Silenzioso: un fallimento occasionale non deve disturbare l'UI.
             })
@@ -196,7 +219,8 @@
         }
     });
 
-    // Dopo "segna come lette" dal pannello, allinea subito badge/lista.
+    // Dopo "segna come lette" dal pannello, allinea subito badge/lista e
+    // invalida l'ETag cosi' il prossimo poll conferma lo stato dal server.
     document.addEventListener('openbook:notifications-read', function () {
         setBadges(0);
 
@@ -207,6 +231,7 @@
         }
 
         lastFingerprint = null;
+        etag = null;
     });
 
     poll();

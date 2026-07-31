@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property bool $is_moderator
  * @property string $status
  * @property Carbon|null $last_login_at
+ * @property int $notifications_revision
  */
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -69,6 +70,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'notifications_revision' => 'integer',
             'password' => 'hashed',
             'is_admin' => 'boolean',
             'is_moderator' => 'boolean',
@@ -140,5 +142,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function federatedHandle(): string
     {
         return sprintf('%s@%s', $this->username, config('openbook.domain'));
+    }
+
+    /**
+     * Segnala ai client in polling che badge/elenco notifiche sono cambiati
+     * (nuova notifica o passaggio a "lette").
+     */
+    public function bumpNotificationsRevision(): void
+    {
+        static::query()->whereKey($this->id)->increment('notifications_revision');
     }
 }

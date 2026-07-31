@@ -115,6 +115,41 @@ class NotificationTest extends TestCase
         $response->assertJsonCount(1, 'notifications');
         $response->assertJsonPath('notifications.0.unread', true);
         $this->assertStringContainsString('notiffollower5', $response->json('notifications.0.message'));
+        $response->assertHeader('ETag');
+    }
+
+    public function test_the_notifications_feed_returns_not_modified_when_revision_is_unchanged(): void
+    {
+        $follower = $this->createFullAccount('notiffollower6');
+        $target = $this->createFullAccount('notiftarget6');
+
+        app(FollowManager::class)->follow($follower->actor, $target->actor);
+
+        $first = $this->actingAs($target)->getJson(route('notifications.feed'));
+        $first->assertOk();
+        $etag = $first->headers->get('ETag');
+        $this->assertNotEmpty($etag);
+
+        $second = $this->actingAs($target)
+            ->withHeaders(['If-None-Match' => $etag])
+            ->get(route('notifications.feed'));
+
+        $second->assertStatus(304);
+        $this->assertSame('', $second->getContent());
+    }
+
+    public function test_marking_notifications_read_bumps_revision_so_clients_refetch(): void
+    {
+        $follower = $this->createFullAccount('notiffollower7');
+        $target = $this->createFullAccount('notiftarget7');
+
+        app(FollowManager::class)->follow($follower->actor, $target->actor);
+
+        $before = (int) $target->fresh()->notifications_revision;
+
+        $this->actingAs($target)->postJson(route('notifications.read'))->assertOk();
+
+        $this->assertGreaterThan($before, (int) $target->fresh()->notifications_revision);
     }
 
     public function test_a_guest_cannot_access_the_notifications_feed(): void
