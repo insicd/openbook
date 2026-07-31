@@ -290,7 +290,7 @@ Tutte le impostazioni specifiche di Openbook sono centralizzate in
 
 | Variabile | Descrizione |
 |---|---|
-| `OPENBOOK_DOMAIN` | Dominio pubblico dell'istanza, usato negli indirizzi `utente@dominio`. **Non va cambiato dopo l'avvio**: comprometterebbe la federazione. |
+| `OPENBOOK_DOMAIN` | Dominio pubblico dell'istanza, usato negli indirizzi `utente@dominio`. Deve coincidere con l'host di `APP_URL`. Se cambi dominio, aggiorna entrambi e poi `php artisan openbook:repair-federation-urls` (altrimenti Lemmy rifiuta i Follow se id e inbox sono su host diversi). |
 | `OPENBOOK_INSTALLED` | Impostata automaticamente dall'installer; non modificare a mano. |
 | `OPENBOOK_WEB_CRON_ENABLED` / `OPENBOOK_WEB_CRON_TOKEN` | Abilitano l'esecuzione dei processi periodici via richiesta HTTP, per hosting privi di cron reale. |
 | `OPENBOOK_REGISTRATION_OPEN` / `OPENBOOK_REGISTRATION_REQUIRES_APPROVAL` | Controllano l'apertura delle registrazioni. |
@@ -907,7 +907,7 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap e stato del progetto
 
-Versione corrente: **0.7.5**. Il dettaglio delle modifiche per versione e' in
+Versione corrente: **0.7.6**. Il dettaglio delle modifiche per versione e' in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 - ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,
@@ -923,7 +923,7 @@ Versione corrente: **0.7.5**. Il dettaglio delle modifiche per versione e' in
   sezione "Mondo", outbox/replies remoti on-demand, pannello di controllo,
   signed fetch, notifiche live, miglioramenti UI e correzioni di interoperabilita'.
   Dettaglio in [`CHANGELOG.md`](CHANGELOG.md).
-- 🚧 **Fase 5 — Community** (0.7.0–0.7.5): Actor `Group` locali e remoti,
+- 🚧 **Fase 5 — Community** (0.7.0–0.7.6): Actor `Group` locali e remoti,
   iscrizione, wall, Announce in uscita e in ingresso, moderatori delegati.
   Possibili rifiniture: elenco membri dedicato, avatar/copertina community,
   interoperabilita' estesa con Lemmy/Friendica.

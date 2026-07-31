@@ -8,6 +8,7 @@ use App\Domain\Profiles\Profile;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\ActorEndpoint;
 use App\Federation\Actors\ActorKey;
+use App\Federation\Actors\LocalActorUrls;
 use App\Infrastructure\Security\RsaKeyPairGenerator;
 use Illuminate\Support\Facades\DB;
 
@@ -52,7 +53,7 @@ final class AccountRegistrar
                 'timezone' => config('app.timezone', 'UTC'),
             ]);
 
-            $actorUri = url('/@'.$username);
+            $urls = LocalActorUrls::forUsername($username);
 
             $actor = Actor::query()->create([
                 'user_id' => $user->id,
@@ -60,7 +61,7 @@ final class AccountRegistrar
                 'is_local' => true,
                 'preferred_username' => $username,
                 'domain' => $domain,
-                'uri' => $actorUri,
+                'uri' => $urls['uri'],
                 'name' => $username,
                 'status' => Actor::STATUS_ACTIVE,
             ]);
@@ -75,11 +76,11 @@ final class AccountRegistrar
 
             ActorEndpoint::query()->create([
                 'actor_id' => $actor->id,
-                'inbox' => url("/users/{$username}/inbox"),
-                'outbox' => url("/users/{$username}/outbox"),
-                'followers' => url("/users/{$username}/followers"),
-                'following' => url("/users/{$username}/following"),
-                'shared_inbox' => url('/inbox'),
+                'inbox' => $urls['inbox'],
+                'outbox' => $urls['outbox'],
+                'followers' => $urls['followers'],
+                'following' => $urls['following'],
+                'shared_inbox' => $urls['shared_inbox'],
             ]);
 
             return $user;

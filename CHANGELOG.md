@@ -11,6 +11,18 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.7.6] — Fix inbox Actor su host errato (Lemmy)
+
+### Fixed
+- Il documento ActivityPub degli Actor locali espone inbox/outbox/sharedInbox
+  sempre da `APP_URL`, non da valori obsoleti in `actor_endpoints`. Un
+  mismatch di host (es. id su `openb.app` e inbox su un dominio vecchio)
+  faceva rifiutare i Follow da Lemmy, mentre Friendica restava tollerante.
+
+### Added
+- Comando `php artisan openbook:repair-federation-urls` per allineare uri ed
+  endpoint locali all'`APP_URL` corrente.
+
 ## [0.7.5] — Fix iscrizione a community Lemmy (Accept Follow)
 
 ### Fixed

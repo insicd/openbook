@@ -54,4 +54,23 @@ class ActorContentNegotiationTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('type', 'Person');
     }
+
+    public function test_stale_endpoint_hosts_in_the_database_are_not_advertised(): void
+    {
+        $user = $this->createFullAccount('stalehost');
+        $user->actor->endpoints->forceFill([
+            'inbox' => 'https://old.example/users/stalehost/inbox',
+            'outbox' => 'https://old.example/users/stalehost/outbox',
+            'followers' => 'https://old.example/users/stalehost/followers',
+            'following' => 'https://old.example/users/stalehost/following',
+            'shared_inbox' => 'https://old.example/inbox',
+        ])->saveQuietly();
+
+        $response = $this->get('/@stalehost', ['Accept' => 'application/activity+json']);
+
+        $response->assertOk();
+        $response->assertJsonPath('inbox', url('/users/stalehost/inbox'));
+        $response->assertJsonPath('endpoints.sharedInbox', url('/inbox'));
+        $this->assertStringNotContainsString('old.example', (string) $response->getContent());
+    }
 }

@@ -3,11 +3,17 @@
 namespace App\Federation\Serialization;
 
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\LocalActorUrls;
 
 /**
- * Traduce un Actor locale nel documento ActivityStreams "Person" (o "Group",
- * quando le community arriveranno in Fase 5) restituito dall'endpoint
- * canonico del profilo quando negoziato con Accept: application/activity+json.
+ * Traduce un Actor locale nel documento ActivityStreams "Person" (o "Group")
+ * restituito dall'endpoint canonico del profilo quando negoziato con
+ * Accept: application/activity+json.
+ *
+ * Per gli Actor locali inbox/outbox/sharedInbox sono sempre ricalcolati da
+ * APP_URL: valori obsoleti in "actor_endpoints" (es. hostname precedente)
+ * spezzerebbero la federazione con Lemmy, che richiede che l'host dell'id
+ * coincida con quello degli endpoint.
  */
 final class ActorSerializer
 {
@@ -19,32 +25,44 @@ final class ActorSerializer
         $actor->loadMissing(['key', 'endpoints', 'user.profile']);
 
         $profile = $actor->user?->profile;
+        $id = $actor->isLocal()
+            ? LocalActorUrls::forUsername($actor->preferred_username)['uri']
+            : $actor->uri;
 
         $document = [
             '@context' => [
                 'https://www.w3.org/ns/activitystreams',
                 'https://w3id.org/security/v1',
             ],
-            'id' => $actor->uri,
+            'id' => $id,
             'type' => $actor->type === Actor::TYPE_GROUP ? 'Group' : 'Person',
             'preferredUsername' => $actor->preferred_username,
             'name' => $actor->name ?: $actor->preferred_username,
             'summary' => self::renderSummary($profile?->bio ?? $actor->summary),
-            'url' => $actor->uri,
+            'url' => $id,
             'manuallyApprovesFollowers' => $actor->manually_approves_followers,
             'published' => optional($actor->created_at)->toAtomString() ?? now()->toAtomString(),
         ];
 
-        $endpoints = $actor->endpoints;
+        if ($actor->isLocal()) {
+            $urls = LocalActorUrls::forUsername($actor->preferred_username);
+            $document['inbox'] = $urls['inbox'];
+            $document['outbox'] = $urls['outbox'];
+            $document['followers'] = $urls['followers'];
+            $document['following'] = $urls['following'];
+            $document['endpoints'] = ['sharedInbox' => $urls['shared_inbox']];
+        } else {
+            $endpoints = $actor->endpoints;
 
-        if ($endpoints !== null) {
-            $document['inbox'] = $endpoints->inbox;
-            $document['outbox'] = $endpoints->outbox;
-            $document['followers'] = $endpoints->followers;
-            $document['following'] = $endpoints->following;
+            if ($endpoints !== null) {
+                $document['inbox'] = $endpoints->inbox;
+                $document['outbox'] = $endpoints->outbox;
+                $document['followers'] = $endpoints->followers;
+                $document['following'] = $endpoints->following;
 
-            if (filled($endpoints->shared_inbox)) {
-                $document['endpoints'] = ['sharedInbox' => $endpoints->shared_inbox];
+                if (filled($endpoints->shared_inbox)) {
+                    $document['endpoints'] = ['sharedInbox' => $endpoints->shared_inbox];
+                }
             }
         }
 
@@ -62,8 +80,8 @@ final class ActorSerializer
 
         if ($actor->key !== null && filled($actor->key->public_key)) {
             $document['publicKey'] = [
-                'id' => $actor->uri.'#main-key',
-                'owner' => $actor->uri,
+                'id' => $id.'#main-key',
+                'owner' => $id,
                 'publicKeyPem' => $actor->key->public_key,
             ];
         }

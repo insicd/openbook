@@ -8,6 +8,7 @@ use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\ActorEndpoint;
 use App\Federation\Actors\ActorKey;
+use App\Federation\Actors\LocalActorUrls;
 use App\Infrastructure\Security\RsaKeyPairGenerator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -33,7 +34,7 @@ final class CommunityRegistrar
         $this->assertSlugAvailable($slug);
 
         return DB::transaction(function () use ($owner, $data, $slug, $domain): Community {
-            $actorUri = url('/@'.$slug);
+            $urls = LocalActorUrls::forUsername($slug);
             $isPrivate = (bool) ($data['is_private'] ?? false);
 
             $actor = Actor::query()->create([
@@ -42,7 +43,7 @@ final class CommunityRegistrar
                 'is_local' => true,
                 'preferred_username' => $slug,
                 'domain' => $domain,
-                'uri' => $actorUri,
+                'uri' => $urls['uri'],
                 'name' => $data['name'],
                 'summary' => $data['summary'] ?? null,
                 'manually_approves_followers' => $isPrivate,
@@ -59,11 +60,11 @@ final class CommunityRegistrar
 
             ActorEndpoint::query()->create([
                 'actor_id' => $actor->id,
-                'inbox' => url("/users/{$slug}/inbox"),
-                'outbox' => url("/users/{$slug}/outbox"),
-                'followers' => url("/users/{$slug}/followers"),
-                'following' => url("/users/{$slug}/following"),
-                'shared_inbox' => url('/inbox'),
+                'inbox' => $urls['inbox'],
+                'outbox' => $urls['outbox'],
+                'followers' => $urls['followers'],
+                'following' => $urls['following'],
+                'shared_inbox' => $urls['shared_inbox'],
             ]);
 
             $community = Community::query()->create([
