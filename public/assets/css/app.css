@@ -679,6 +679,30 @@ p {
   font-weight: 600;
 }
 
+.ob-hashtag-list--full li {
+  padding: 0.75rem 0;
+}
+
+.ob-side-widget__more {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ob-sidebar-footer {
+  margin-top: auto;
+  padding: 0.5rem 0.25rem 0;
+  color: var(--ob-color-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.ob-sidebar-footer a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 /* Menu mobile */
 
 .ob-sidebar-overlay {

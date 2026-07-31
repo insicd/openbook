@@ -160,7 +160,7 @@ class InstallController extends Controller
             'OPENBOOK_INSTALLED' => 'true',
         ]);
 
-        InstallationLock::lock(config('app.version', '0.2.0-milestone2'));
+        InstallationLock::lock((string) config('openbook.version'));
 
         $storageLinked = $this->ensurePublicStorageLink();
 

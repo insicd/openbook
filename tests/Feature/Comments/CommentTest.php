@@ -96,12 +96,31 @@ class CommentTest extends TestCase
 
         $comment->refresh();
         $this->assertSame(Comment::STATUS_DELETED, $comment->status);
+        $this->assertSame(0, $post->fresh()->comments_count);
 
         $response = $this->actingAs($author)->get(route('posts.show', $post));
         $response->assertOk();
         $response->assertDontSee(__('openbook.comments.deleted'), false);
         $response->assertDontSee('Da eliminare', false);
         $response->assertDontSee('id="commento-'.$comment->id.'"', false);
+    }
+
+    public function test_deleting_a_reply_decrements_parent_replies_count(): void
+    {
+        $author = $this->createFullAccount('autorecontatori');
+        $commenter = $this->createFullAccount('commentatorecontatori');
+        $post = $this->publishPost($author);
+
+        $parent = app(CommentComposer::class)->compose($commenter->actor, $post, 'Padre');
+        $reply = app(CommentComposer::class)->compose($commenter->actor, $post, 'Figlio', $parent);
+
+        $this->assertSame(2, $post->fresh()->comments_count);
+        $this->assertSame(1, $parent->fresh()->replies_count);
+
+        $this->actingAs($commenter)->delete(route('comments.destroy', $reply))->assertRedirect();
+
+        $this->assertSame(1, $post->fresh()->comments_count);
+        $this->assertSame(0, $parent->fresh()->replies_count);
     }
 
     public function test_replies_to_a_deleted_comment_remain_visible_without_tombstone(): void

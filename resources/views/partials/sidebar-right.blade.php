@@ -4,6 +4,10 @@
         <strong>{{ config('app.name') }}</strong>
         <span class="ob-post__handle">{{ config('openbook.domain') }}</span>
     </p>
+</div>
+
+<div class="ob-card ob-side-widget">
+    <h2 class="ob-side-widget__title">{{ __('openbook.sidebar.trending_title') }}</h2>
 
     @if (($popularHashtags ?? collect())->isNotEmpty())
         <ul class="ob-hashtag-list">
@@ -14,6 +18,9 @@
                 </li>
             @endforeach
         </ul>
+        @if ($popularHashtagsHasMore ?? false)
+            <a href="{{ route('hashtags.index') }}" class="ob-side-widget__more">{{ __('openbook.sidebar.trending_more') }}</a>
+        @endif
     @else
         <p class="ob-field__help">{{ __('openbook.sidebar.no_popular_hashtags') }}</p>
     @endif

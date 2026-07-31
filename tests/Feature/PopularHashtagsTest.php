@@ -13,9 +13,8 @@ use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
 
 /**
- * Sidebar destra, riquadro "Questa istanza": niente piu' numero di iscritti
- * (rimosso su richiesta), al suo posto i tag piu' usati dalla community
- * locale. Vedi {@see PopularHashtagsQuery}.
+ * Sidebar destra "In tendenza": classifica hashtag dai post pubblici/unlisted
+ * in cache (locali e remoti). Vedi {@see PopularHashtagsQuery}.
  */
 class PopularHashtagsTest extends TestCase
 {
@@ -29,7 +28,7 @@ class PopularHashtagsTest extends TestCase
         ]);
     }
 
-    public function test_it_ranks_hashtags_by_number_of_local_public_uses(): void
+    public function test_it_ranks_hashtags_by_number_of_public_uses(): void
     {
         $alice = $this->createFullAccount('alice');
         $bob = $this->createFullAccount('bob');
@@ -60,7 +59,7 @@ class PopularHashtagsTest extends TestCase
         $this->assertFalse($names->contains('privato'));
     }
 
-    public function test_it_excludes_hashtags_used_only_by_remote_cached_posts(): void
+    public function test_it_includes_hashtags_from_remote_cached_posts(): void
     {
         $remoteActor = $this->createRemoteActor('remoto');
 
@@ -78,18 +77,24 @@ class PopularHashtagsTest extends TestCase
 
         $names = app(PopularHashtagsQuery::class)->top()->pluck('name');
 
-        $this->assertFalse($names->contains('fediverso'));
+        $this->assertTrue($names->contains('fediverso'));
     }
 
-    public function test_the_sidebar_shows_the_most_used_hashtags_instead_of_the_members_count(): void
+    public function test_the_sidebar_shows_trending_hashtags_with_limit_and_more_link(): void
     {
         $alice = $this->createFullAccount('alice');
-        $this->publishPost($alice, 'Un post su #laravel');
+
+        foreach (range(1, 6) as $i) {
+            $this->publishPost($alice, "Post #tag{$i}");
+        }
 
         $response = $this->actingAs($alice)->get('/home');
 
         $response->assertOk();
-        $response->assertSee('#laravel');
+        $response->assertSee(__('openbook.sidebar.trending_title'), false);
+        $response->assertSee('#tag1');
+        $response->assertSee(__('openbook.sidebar.trending_more'), false);
+        $response->assertSee(route('hashtags.index'), false);
         $response->assertDontSee(__('openbook.sidebar.no_popular_hashtags'));
     }
 
@@ -100,6 +105,19 @@ class PopularHashtagsTest extends TestCase
         $response = $this->actingAs($alice)->get('/home');
 
         $response->assertOk();
+        $response->assertSee(__('openbook.sidebar.trending_title'), false);
         $response->assertSee(__('openbook.sidebar.no_popular_hashtags'));
+    }
+
+    public function test_the_trending_index_lists_hashtags(): void
+    {
+        $alice = $this->createFullAccount('alice');
+        $this->publishPost($alice, 'Un post su #laravel');
+
+        $response = $this->actingAs($alice)->get(route('hashtags.index'));
+
+        $response->assertOk();
+        $response->assertSee(__('openbook.hashtags.index_title'), false);
+        $response->assertSee('#laravel');
     }
 }

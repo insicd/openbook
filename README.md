@@ -954,6 +954,9 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
   leggera, senza rieseguire count/elenco.
 - ✅ **Apostrofi nel testo (v0.6.7)**: `&#039;` non viene piu' interpretato come
   hashtag `#039` in post/commenti (ne' nel content ActivityPub in uscita).
+- ✅ **Contatori, sidebar e tendenze (v0.6.8)**: eliminare un commento aggiorna
+  `comments_count` / `replies_count`; mini-footer prodotto in sidebar sinistra;
+  hashtag "In tendenza" da post locali e remoti (max 5) con pagina `/tendenze`.
 - ⏳ **Fase 5 — Community**: Actor `Group`, iscrizione, moderatori, pubblicazione,
   community remote.
 - ⏳ **Fase 6 — Sicurezza e interoperabilita'**: protezione SSRF, hardening, blocco

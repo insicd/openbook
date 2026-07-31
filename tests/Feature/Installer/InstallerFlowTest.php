@@ -119,6 +119,9 @@ class InstallerFlowTest extends TestCase
 
         $this->assertTrue(InstallationLock::isInstalled());
 
+        $lock = json_decode((string) file_get_contents(InstallationLock::path()), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame(config('openbook.version'), $lock['version']);
+
         // Una volta installato, l'installer non deve piu' essere raggiungibile.
         $this->get(route('install.requirements'))->assertRedirect('/');
     }

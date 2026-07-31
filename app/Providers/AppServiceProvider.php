@@ -142,9 +142,12 @@ class AppServiceProvider extends ServiceProvider
                     ->get();
             }
 
+            $trending = app(PopularHashtagsQuery::class)->top(PopularHashtagsQuery::SIDEBAR_LIMIT + 1);
+
             $view->with([
                 'suggestedActors' => $suggestions,
-                'popularHashtags' => app(PopularHashtagsQuery::class)->top(),
+                'popularHashtags' => $trending->take(PopularHashtagsQuery::SIDEBAR_LIMIT),
+                'popularHashtagsHasMore' => $trending->count() > PopularHashtagsQuery::SIDEBAR_LIMIT,
             ]);
         });
     }

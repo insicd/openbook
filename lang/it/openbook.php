@@ -250,6 +250,8 @@ return [
 
     'hashtags' => [
         'empty' => 'Nessun post pubblico con questo hashtag, per ora.',
+        'index_title' => 'In tendenza',
+        'index_subtitle' => 'Hashtag piu\' usati sui post pubblici e non elencati arrivati su questa istanza, locali e remoti.',
     ],
 
     'admin' => [
@@ -427,8 +429,10 @@ return [
 
     'sidebar' => [
         'instance_title' => 'Questa istanza',
+        'trending_title' => 'In tendenza',
+        'trending_more' => 'Mostra tutti',
         'hashtag_uses' => '{1} :count post|[2,*] :count post',
-        'no_popular_hashtags' => 'Ancora nessun tag usato su questa istanza.',
+        'no_popular_hashtags' => 'Ancora nessun hashtag in tendenza.',
         'people_to_follow' => 'Persone da seguire',
     ],
 

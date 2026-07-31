@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Services\CommentComposer;
+use App\Application\Services\CommentSoftDeleter;
 use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use App\Federation\Delivery\ActivityDelivery;
@@ -19,6 +20,7 @@ class CommentController extends Controller
 {
     public function __construct(
         private readonly CommentComposer $commentComposer,
+        private readonly CommentSoftDeleter $commentSoftDeleter,
         private readonly ActivityDelivery $delivery,
     ) {}
 
@@ -68,10 +70,7 @@ class CommentController extends Controller
         $comment->load('mentions.actor', 'actor', 'post', 'parent.actor');
         $isLocalAuthor = $comment->actor->isLocal();
 
-        $comment->update([
-            'body' => '',
-            'status' => Comment::STATUS_DELETED,
-        ]);
+        $this->commentSoftDeleter->delete($comment);
 
         if ($isLocalAuthor) {
             $repliedToAuthor = $comment->parent?->actor ?? $comment->post->actor;

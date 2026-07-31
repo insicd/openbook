@@ -147,6 +147,7 @@ Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show')
 // i browser, oggetto "Note" con "inReplyTo" per i client ActivityPub).
 Route::get('/comments/{comment}', [CommentController::class, 'show'])->name('comments.show');
 
+Route::get('/tendenze', [HashtagController::class, 'index'])->name('hashtags.index');
 Route::get('/tag/{name}', [HashtagController::class, 'show'])->name('hashtags.show');
 
 // Identificatore canonico dell'Actor locale (HTML e, in futuro, ActivityPub).

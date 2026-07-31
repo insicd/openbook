@@ -2,12 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Queries\PopularHashtagsQuery;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
 use Illuminate\Contracts\View\View;
 
 class HashtagController extends Controller
 {
+    public function __construct(
+        private readonly PopularHashtagsQuery $popularHashtags,
+    ) {}
+
+    public function index(): View
+    {
+        $hashtags = $this->popularHashtags->top(100);
+
+        return view('hashtags.index', [
+            'hashtags' => $hashtags,
+        ]);
+    }
+
     public function show(string $name): View
     {
         $normalized = Hashtag::normalize($name);

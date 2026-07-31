@@ -250,6 +250,8 @@ return [
 
     'hashtags' => [
         'empty' => 'No public posts with this hashtag yet.',
+        'index_title' => 'Trending',
+        'index_subtitle' => 'Most used hashtags on public and unlisted posts cached on this instance, local and remote.',
     ],
 
     'admin' => [
@@ -427,8 +429,10 @@ return [
 
     'sidebar' => [
         'instance_title' => 'This instance',
+        'trending_title' => 'Trending',
+        'trending_more' => 'Show all',
         'hashtag_uses' => '{1} :count post|[2,*] :count posts',
-        'no_popular_hashtags' => 'No hashtags used on this instance yet.',
+        'no_popular_hashtags' => 'No trending hashtags yet.',
         'people_to_follow' => 'People to follow',
     ],
 

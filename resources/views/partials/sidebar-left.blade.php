@@ -42,3 +42,11 @@
         </button>
     </form>
 </nav>
+
+<p class="ob-sidebar-footer">
+    <a href="{{ config('openbook.homepage') }}">Openbook</a>
+    &middot;
+    <a href="{{ route('instance.rules') }}">{{ __('openbook.footer.rules') }}</a>
+    &middot;
+    <a href="{{ config('openbook.homepage') }}">Openbook</a> v{{ config('openbook.version') }}
+</p>

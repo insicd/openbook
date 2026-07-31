@@ -3,6 +3,7 @@
 namespace App\Federation\Inbox;
 
 use App\Application\Services\AnnounceManager;
+use App\Application\Services\CommentSoftDeleter;
 use App\Application\Services\FollowManager;
 use App\Application\Services\ReactionManager;
 use App\Domain\Comments\Comment;
@@ -45,6 +46,7 @@ final class InboxActivityProcessor
         private readonly AnnounceManager $announceManager,
         private readonly RemoteActorResolver $remoteActorResolver,
         private readonly RemoteNoteUpserter $noteUpserter,
+        private readonly CommentSoftDeleter $commentSoftDeleter,
     ) {}
 
     public function process(InboxItem $item): string
@@ -331,7 +333,7 @@ final class InboxActivityProcessor
         if ($target instanceof Post) {
             $target->update(['title' => null, 'content_warning' => null, 'body' => '', 'status' => Post::STATUS_DELETED]);
         } else {
-            $target->update(['body' => '', 'status' => Comment::STATUS_DELETED]);
+            $this->commentSoftDeleter->delete($target);
         }
 
         return InboxItem::STATUS_PROCESSED;

@@ -7,27 +7,24 @@ use App\Domain\Posts\Post;
 use Illuminate\Support\Collection;
 
 /**
- * Hashtag piu' usati "su questa istanza" (sidebar destra, sotto "Questa
- * istanza"): conta solo i tag su post pubblicati da Actor *locali*, con
- * visibilita' pubblica o non elencata, cosi' la classifica riflette
- * l'attivita' reale della community iscritta qui, non i contenuti remoti
- * semplicemente passati in cache (vedi la sezione "Mondo" per quelli) ne'
- * post riservati a follower/destinatari diretti.
+ * Hashtag piu' usati sui post in cache su questa istanza (locali e remoti),
+ * con visibilita' pubblica o non elencata. Usato dalla sidebar "In tendenza"
+ * e dalla pagina elenco completo.
  */
 final class PopularHashtagsQuery
 {
+    public const SIDEBAR_LIMIT = 5;
+
     /**
      * @return Collection<int, Hashtag>
      */
-    public function top(int $limit = 6): Collection
+    public function top(int $limit = self::SIDEBAR_LIMIT): Collection
     {
         return Hashtag::query()
             ->select('hashtags.*')
             ->selectRaw('count(*) as usage_count')
             ->join('post_hashtags', 'post_hashtags.hashtag_id', '=', 'hashtags.id')
             ->join('posts', 'posts.id', '=', 'post_hashtags.post_id')
-            ->join('actors', 'actors.id', '=', 'posts.actor_id')
-            ->where('actors.is_local', true)
             ->where('posts.status', Post::STATUS_PUBLISHED)
             ->whereIn('posts.visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED])
             ->groupBy('hashtags.id', 'hashtags.name', 'hashtags.created_at', 'hashtags.updated_at')

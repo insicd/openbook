@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Application\Services\CommentSoftDeleter;
 use App\Application\Services\ReportManager;
 use App\Domain\Comments\Comment;
 use App\Domain\Moderation\Report;
@@ -18,6 +19,7 @@ class ReportController extends Controller
     public function __construct(
         private readonly ReportManager $reportManager,
         private readonly ActivityDelivery $delivery,
+        private readonly CommentSoftDeleter $commentSoftDeleter,
     ) {}
 
     public function index(Request $request): View
@@ -146,10 +148,7 @@ class ReportController extends Controller
         $comment->loadMissing('mentions.actor', 'actor', 'post', 'parent.actor');
         $isLocalAuthor = $comment->actor->isLocal();
 
-        $comment->update([
-            'body' => '',
-            'status' => Comment::STATUS_DELETED,
-        ]);
+        $this->commentSoftDeleter->delete($comment);
 
         if ($isLocalAuthor) {
             $repliedToAuthor = $comment->parent?->actor ?? $comment->post->actor;
