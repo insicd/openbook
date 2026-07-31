@@ -8,6 +8,7 @@ use App\Domain\Reactions\Announce;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Serialization\ActivitySerializer;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -27,9 +28,13 @@ final class AnnounceManager
         private readonly ActivityDelivery $delivery,
     ) {}
 
-    public function announce(Actor $actor, Post $post, bool $notify = true): Announce
+    /**
+     * @param  Carbon|null  $occurredAt  Timestamp dell'Announce (es. published
+     *                                    del post in un backfill outbox); default now().
+     */
+    public function announce(Actor $actor, Post $post, bool $notify = true, ?Carbon $occurredAt = null): Announce
     {
-        $announce = DB::transaction(function () use ($actor, $post, $notify) {
+        $announce = DB::transaction(function () use ($actor, $post, $notify, $occurredAt) {
             $existing = Announce::query()
                 ->where('actor_id', $actor->id)
                 ->where('post_id', $post->id)
@@ -43,6 +48,13 @@ final class AnnounceManager
                 'actor_id' => $actor->id,
                 'post_id' => $post->id,
             ]);
+
+            if ($occurredAt !== null) {
+                $announce->forceFill([
+                    'created_at' => $occurredAt,
+                    'updated_at' => $occurredAt,
+                ])->saveQuietly();
+            }
 
             $post->increment('announces_count');
 

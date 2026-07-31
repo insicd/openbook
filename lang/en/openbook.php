@@ -297,6 +297,7 @@ return [
         'remote_post_sent' => 'Post sent to the remote community (it will be relayed if the Group accepts it).',
         'remote_badge' => 'Remote community',
         'moderators_title' => 'Moderators',
+        'moderators_menu' => 'Manage moderators',
         'moderators_help' => 'Moderators can accept or reject join requests for private communities.',
         'add_moderator' => 'Add moderator (local username)',
         'add_moderator_submit' => 'Add',

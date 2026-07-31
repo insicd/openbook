@@ -145,10 +145,11 @@ final class FeedQuery
     /**
      * Post del profilo: quelli di cui l'Actor e' autore, piu' quelli che ha
      * semplicemente condiviso (vedi {@see AnnounceManager}).
-     * Una condivisione compare in cima o in fondo secondo il momento in cui
-     * e' stata fatta, non la data di pubblicazione originale del post: e'
-     * quello, dal punto di vista di chi guarda questo profilo, il fatto
-     * "recente" da mostrare.
+     * Per un Person, una condivisione compare secondo il momento in cui e'
+     * stata fatta (shared_at). Per un Group (wall community, anche remota)
+     * si ordina sempre per data di pubblicazione del post: dopo un backfill
+     * dall'outbox gli Announce locali avrebbero altrimenti un ordine
+     * invertito rispetto al feed (piu' vecchi in alto).
      *
      * @return LengthAwarePaginator<int, Post>
      */
@@ -167,10 +168,19 @@ final class FeedQuery
             })
             ->visibleTo($viewer);
 
-        $posts = $this->withShareMetadata($query, collect([$profileActor->id]))
-            ->orderByRaw('coalesce(shared_at, published_at) desc')
-            ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN)
-            ->paginate((int) config('openbook.feed.per_page'));
+        $ordered = $this->withShareMetadata($query, collect([$profileActor->id]));
+
+        if ($profileActor->isGroup()) {
+            $posts = $ordered
+                ->orderByDesc('posts.published_at')
+                ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN)
+                ->paginate((int) config('openbook.feed.per_page'));
+        } else {
+            $posts = $ordered
+                ->orderByRaw('coalesce(shared_at, published_at) desc')
+                ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN)
+                ->paginate((int) config('openbook.feed.per_page'));
+        }
 
         Post::attachSharedBy($posts->getCollection());
 

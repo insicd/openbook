@@ -328,7 +328,12 @@ final class InboxActivityProcessor
             return InboxItem::STATUS_IGNORED;
         }
 
-        $this->announceManager->announce($actor, $post, notify: $post->actor->isLocal());
+        $this->announceManager->announce(
+            $actor,
+            $post,
+            notify: $post->actor->isLocal(),
+            occurredAt: $actor->isGroup() ? $post->published_at : null,
+        );
 
         return InboxItem::STATUS_PROCESSED;
     }

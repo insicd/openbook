@@ -210,7 +210,12 @@ final class RemoteOutboxFetcher
         $post = $this->upsertPublicPost($note, $author);
 
         if ($post !== null) {
-            $this->announceManager->announce($group, $post, notify: false);
+            $this->announceManager->announce(
+                $group,
+                $post,
+                notify: false,
+                occurredAt: $post->published_at,
+            );
         }
     }
 

@@ -4,8 +4,10 @@ namespace Tests\Feature\Communities;
 
 use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\PostComposer;
+use App\Application\Services\AnnounceManager;
 use App\Domain\Communities\Community;
 use App\Domain\Posts\Mention;
+use App\Domain\Posts\Post;
 use App\Domain\Reactions\Announce;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -206,6 +208,60 @@ class CommunityTest extends TestCase
             fn (DeliverActivityJob $job): bool => $job->inboxUrl === $group->endpoints->inbox
                 || $job->inboxUrl === $group->endpoints->shared_inbox
         );
+    }
+
+    public function test_remote_group_wall_lists_newest_posts_first(): void
+    {
+        $viewer = $this->createFullAccount('wallorder');
+        $group = $this->createRemoteActor('timeline', 'forum.example', [
+            'type' => Actor::TYPE_GROUP,
+            'posts_fetched_at' => now(),
+        ]);
+        $author = $this->createRemoteActor('autorewall', 'forum.example');
+
+        Follow::query()->create([
+            'follower_id' => $viewer->actor->id,
+            'following_id' => $group->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $older = Post::query()->create([
+            'actor_id' => $author->id,
+            'uri' => $author->uri.'/posts/older',
+            'body' => 'Post piu vecchio della community',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subDays(2),
+        ]);
+
+        $newer = Post::query()->create([
+            'actor_id' => $author->id,
+            'uri' => $author->uri.'/posts/newer',
+            'body' => 'Post piu recente della community',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subHour(),
+        ]);
+
+        // Announce creati in ordine inverso rispetto a published_at (come dopo
+        // un fetch outbox che processa orderedItems dal piu' recente).
+        app(AnnounceManager::class)->announce($group, $newer, notify: false);
+        usleep(1000);
+        app(AnnounceManager::class)->announce($group, $older, notify: false);
+
+        $html = $this->actingAs($viewer)
+            ->get(route('actors.show', $group))
+            ->assertOk()
+            ->getContent();
+
+        $posNewer = strpos($html, 'Post piu recente della community');
+        $posOlder = strpos($html, 'Post piu vecchio della community');
+
+        $this->assertNotFalse($posNewer);
+        $this->assertNotFalse($posOlder);
+        $this->assertLessThan($posOlder, $posNewer);
     }
 
     public function test_body_mention_of_cached_remote_group_is_resolved(): void

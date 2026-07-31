@@ -11,6 +11,16 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.7.4] — UI community: ordine wall e gestisci moderatori
+
+### Fixed
+- Wall delle community remote (profilo Group): i post sono ordinati dal piu'
+  recente al piu' vecchio (per `published_at`), allineati al resto dei feed.
+
+### Changed
+- Pannello moderatori sulle community locali: nascosto di default, si apre
+  da **Gestisci moderatori**.
+
 ## [0.7.3] — Fase 5: Ingestione post Lemmy (`Page`)
 
 ### Added

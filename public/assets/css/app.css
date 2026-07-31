@@ -1526,6 +1526,43 @@ a.ob-post__menu-item {
   padding-top: 0;
 }
 
+.ob-community-manage {
+  padding: 0;
+}
+
+.ob-community-manage__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.1rem 1.5rem;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 600;
+  user-select: none;
+}
+
+.ob-community-manage__summary::-webkit-details-marker {
+  display: none;
+}
+
+.ob-community-manage__summary .ob-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--ob-color-text-muted);
+  transition: transform 0.15s ease;
+}
+
+.ob-community-manage[open] > .ob-community-manage__summary .ob-icon {
+  transform: rotate(180deg);
+}
+
+.ob-community-manage__body {
+  padding: 0 1.5rem 1.5rem;
+  border-top: 1px solid var(--ob-color-border);
+  padding-top: 1rem;
+}
+
 .ob-post__body {
   white-space: normal;
   overflow-wrap: anywhere;

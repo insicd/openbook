@@ -297,6 +297,7 @@ return [
         'remote_post_sent' => 'Post inviato alla community remota (verra\' ritrasmesso se il Group lo accetta).',
         'remote_badge' => 'Community remota',
         'moderators_title' => 'Moderatori',
+        'moderators_menu' => 'Gestisci moderatori',
         'moderators_help' => 'I moderatori possono accettare o rifiutare le richieste di iscrizione alle community private.',
         'add_moderator' => 'Aggiungi moderatore (username locale)',
         'add_moderator_submit' => 'Aggiungi',

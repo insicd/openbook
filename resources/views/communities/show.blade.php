@@ -49,41 +49,49 @@
     </div>
 
     @if ($canManageModerators ?? false)
-        <div class="ob-card">
-            <h2>{{ __('openbook.communities.moderators_title') }}</h2>
-            <p class="ob-field__help">{{ __('openbook.communities.moderators_help') }}</p>
+        @php
+            $moderatorsPanelOpen = $errors->has('username');
+        @endphp
+        <details class="ob-card ob-community-manage" @if ($moderatorsPanelOpen) open @endif>
+            <summary class="ob-community-manage__summary">
+                <span>{{ __('openbook.communities.moderators_menu') }}</span>
+                <x-icon name="chevron-down" />
+            </summary>
+            <div class="ob-community-manage__body">
+                <p class="ob-field__help">{{ __('openbook.communities.moderators_help') }}</p>
 
-            @if ($community->moderators->isNotEmpty())
-                <ul class="ob-community-list">
-                    @foreach ($community->moderators as $moderator)
-                        <li class="ob-community-list__item">
-                            <a href="{{ route('profile.show', $moderator->username) }}" class="ob-mini-profile__link">
-                                <x-avatar :user="$moderator" style="width:40px;height:40px" />
-                                <div>
-                                    <div class="ob-post__author">{{ $moderator->profile?->display_name ?: $moderator->username }}</div>
-                                    <div class="ob-post__handle">{{ '@'.$moderator->username }}</div>
-                                </div>
-                            </a>
-                            <form method="POST" action="{{ route('communities.moderators.destroy', [$community, $moderator]) }}">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.communities.remove_moderator') }}</button>
-                            </form>
-                        </li>
-                    @endforeach
-                </ul>
-            @endif
+                @if ($community->moderators->isNotEmpty())
+                    <ul class="ob-community-list">
+                        @foreach ($community->moderators as $moderator)
+                            <li class="ob-community-list__item">
+                                <a href="{{ route('profile.show', $moderator->username) }}" class="ob-mini-profile__link">
+                                    <x-avatar :user="$moderator" style="width:40px;height:40px" />
+                                    <div>
+                                        <div class="ob-post__author">{{ $moderator->profile?->display_name ?: $moderator->username }}</div>
+                                        <div class="ob-post__handle">{{ '@'.$moderator->username }}</div>
+                                    </div>
+                                </a>
+                                <form method="POST" action="{{ route('communities.moderators.destroy', [$community, $moderator]) }}">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.communities.remove_moderator') }}</button>
+                                </form>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
 
-            <form method="POST" action="{{ route('communities.moderators.store', $community) }}" style="margin-top:1rem">
-                @csrf
-                <div class="ob-field">
-                    <label for="moderator-username">{{ __('openbook.communities.add_moderator') }}</label>
-                    <input type="text" id="moderator-username" name="username" required maxlength="32" placeholder="username">
-                    @error('username') <p class="ob-field__error">{{ $message }}</p> @enderror
-                </div>
-                <button type="submit" class="ob-btn ob-btn--primary ob-btn--small">{{ __('openbook.communities.add_moderator_submit') }}</button>
-            </form>
-        </div>
+                <form method="POST" action="{{ route('communities.moderators.store', $community) }}" style="margin-top:1rem">
+                    @csrf
+                    <div class="ob-field">
+                        <label for="moderator-username">{{ __('openbook.communities.add_moderator') }}</label>
+                        <input type="text" id="moderator-username" name="username" required maxlength="32" placeholder="username" value="{{ old('username') }}">
+                        @error('username') <p class="ob-field__error">{{ $message }}</p> @enderror
+                    </div>
+                    <button type="submit" class="ob-btn ob-btn--primary ob-btn--small">{{ __('openbook.communities.add_moderator_submit') }}</button>
+                </form>
+            </div>
+        </details>
     @endif
 
     @if ($pendingJoinRequests->isNotEmpty())
