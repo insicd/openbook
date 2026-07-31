@@ -12,20 +12,11 @@
         <div class="ob-card ob-side-widget">
             <h2 class="ob-side-widget__title">{{ __('openbook.world.suggested_title') }}</h2>
             @foreach ($suggestedActors as $rowActor)
-                <div class="ob-suggestion">
-                    <a href="{{ $rowActor->profileUrl() }}" class="ob-mini-profile__link">
-                        <x-avatar :actor="$rowActor" style="width:40px;height:40px" />
-                        <div>
-                            <div class="ob-post__author">{{ $rowActor->displayName() }}</div>
-                            <div class="ob-post__handle">{{ '@'.$rowActor->handle() }}</div>
-                        </div>
-                    </a>
-                    <form method="POST" action="{{ route('actors.follow', $rowActor) }}">
-                        @csrf
-                        <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.follow.follow') }}</button>
-                    </form>
-                </div>
+                @include('world._suggestion', ['rowActor' => $rowActor])
             @endforeach
+            @if ($suggestedActorsHasMore ?? false)
+                <a href="{{ route('world.discover') }}" class="ob-side-widget__more">{{ __('openbook.world.suggested_more') }}</a>
+            @endif
         </div>
     @endif
 

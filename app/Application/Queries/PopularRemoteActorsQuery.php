@@ -6,6 +6,8 @@ use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -27,10 +29,28 @@ use Illuminate\Support\Facades\DB;
  */
 final class PopularRemoteActorsQuery
 {
+    public const PREVIEW_LIMIT = 5;
+
+    public const PAGE_SIZE = 30;
+
     /**
      * @return Collection<int, Actor>
      */
-    public function forViewer(Actor $viewer, int $limit = 5): Collection
+    public function forViewer(Actor $viewer, int $limit = self::PREVIEW_LIMIT): Collection
+    {
+        return $this->baseQuery($viewer)
+            ->limit($limit)
+            ->get();
+    }
+
+    public function paginateForViewer(Actor $viewer, int $perPage = self::PAGE_SIZE): LengthAwarePaginator
+    {
+        return $this->baseQuery($viewer)
+            ->paginate($perPage)
+            ->withQueryString();
+    }
+
+    private function baseQuery(Actor $viewer): Builder
     {
         $excludedIds = Follow::query()
             ->where('follower_id', $viewer->id)
@@ -71,8 +91,6 @@ final class PopularRemoteActorsQuery
                 });
             })
             ->orderByDesc('local_followers_count')
-            ->orderByDesc('last_public_post_at')
-            ->limit($limit)
-            ->get();
+            ->orderByDesc('last_public_post_at');
     }
 }

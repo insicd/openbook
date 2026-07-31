@@ -516,6 +516,11 @@ return [
         'title' => 'World',
         'subtitle' => 'Public posts that reached this instance from other servers in the fediverse: only what is already relevant here (accounts you follow, replies, mentions), not a full index of the fediverse.',
         'suggested_title' => 'Discover on the fediverse',
+        'suggested_more' => 'See more',
+        'discover_title' => 'Discover on the fediverse',
+        'discover_subtitle' => 'Accounts from other instances already known to this platform (followed by someone here, or with public posts in cache), ranked by local popularity.',
+        'discover_empty' => 'There are no remote accounts to suggest right now.',
+        'back_to_world' => 'Back to World',
         'empty' => 'No posts from the rest of the fediverse yet. Follow someone on another instance to start seeing their content here.',
     ],
 

@@ -46,6 +46,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/home', [FeedController::class, 'index'])->name('feed.index');
     Route::get('/mondo', [WorldController::class, 'index'])->name('world.index');
+    Route::get('/mondo/scopri', [WorldController::class, 'discover'])->name('world.discover');
 
     Route::get('/email/verifica', [EmailVerificationController::class, 'notice'])
         ->name('verification.notice');

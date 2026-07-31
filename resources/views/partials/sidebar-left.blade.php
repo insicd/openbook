@@ -18,7 +18,7 @@
     <a href="{{ route('feed.index') }}" class="ob-side-nav__link {{ request()->routeIs('feed.index') ? 'is-active' : '' }}">
         <x-icon name="home" /> {{ __('openbook.nav.home') }}
     </a>
-    <a href="{{ route('world.index') }}" class="ob-side-nav__link {{ request()->routeIs('world.index') ? 'is-active' : '' }}">
+    <a href="{{ route('world.index') }}" class="ob-side-nav__link {{ request()->routeIs('world.*') ? 'is-active' : '' }}">
         <x-icon name="globe" /> {{ __('openbook.nav.world') }}
     </a>
     <a href="{{ route('communities.index') }}" class="ob-side-nav__link {{ request()->routeIs('communities.*') ? 'is-active' : '' }}">

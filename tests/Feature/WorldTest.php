@@ -149,4 +149,44 @@ class WorldTest extends TestCase
             ->assertOk()
             ->assertSee('@yolanda@remoto.example');
     }
+
+    public function test_the_world_page_shows_see_more_when_there_are_more_than_five_suggestions(): void
+    {
+        $viewer = $this->createFullAccount('worldseemore');
+
+        for ($i = 1; $i <= 6; $i++) {
+            $remote = $this->createRemoteActor('remote'.$i, 'fediverse.example');
+            $this->cacheRemotePost($remote);
+        }
+
+        $this->actingAs($viewer)
+            ->get(route('world.index'))
+            ->assertOk()
+            ->assertSee(__('openbook.world.suggested_more'))
+            ->assertSee(route('world.discover'), false);
+    }
+
+    public function test_the_discover_page_lists_all_suggested_remote_accounts(): void
+    {
+        $viewer = $this->createFullAccount('worlddiscover');
+
+        for ($i = 1; $i <= 6; $i++) {
+            $remote = $this->createRemoteActor('scopri'.$i, 'fediverse.example');
+            $this->cacheRemotePost($remote);
+        }
+
+        $response = $this->actingAs($viewer)
+            ->get(route('world.discover'))
+            ->assertOk()
+            ->assertSee(__('openbook.world.discover_title'));
+
+        for ($i = 1; $i <= 6; $i++) {
+            $response->assertSee('@scopri'.$i.'@fediverse.example');
+        }
+    }
+
+    public function test_a_guest_cannot_view_the_discover_page(): void
+    {
+        $this->get(route('world.discover'))->assertRedirect(route('login'));
+    }
 }

@@ -11,6 +11,12 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.3] — Elenco completo "Da scoprire" su Mondo
+
+### Added
+- Link "Vedi altro" sotto i 5 suggerimenti remoti della pagina Mondo; apre
+  `/mondo/scopri` con l'elenco paginato di tutti gli account suggeriti.
+
 ## [0.8.2] — Fallback Atom per outbox Pixelfed
 
 ### Fixed

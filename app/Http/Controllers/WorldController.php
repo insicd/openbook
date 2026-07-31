@@ -27,9 +27,28 @@ class WorldController extends Controller
         $posts = $this->feedQuery->world();
         Post::annotateViewerState($posts->getCollection(), $viewer);
 
+        $preview = $this->popularRemoteActorsQuery->forViewer(
+            $viewer,
+            PopularRemoteActorsQuery::PREVIEW_LIMIT + 1,
+        );
+
         return view('world.index', [
             'posts' => $posts,
-            'suggestedActors' => $this->popularRemoteActorsQuery->forViewer($viewer),
+            'suggestedActors' => $preview->take(PopularRemoteActorsQuery::PREVIEW_LIMIT),
+            'suggestedActorsHasMore' => $preview->count() > PopularRemoteActorsQuery::PREVIEW_LIMIT,
+        ]);
+    }
+
+    /**
+     * Elenco completo degli account remoti suggeriti (oltre i 5 in anteprima
+     * sulla pagina Mondo).
+     */
+    public function discover(): View
+    {
+        $viewer = auth()->user()->actor;
+
+        return view('world.discover', [
+            'suggestedActors' => $this->popularRemoteActorsQuery->paginateForViewer($viewer),
         ]);
     }
 }
