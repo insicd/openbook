@@ -77,6 +77,12 @@ return [
         'protected' => 'Protected account',
         'pinned_posts' => 'Pinned posts',
         'no_posts_yet' => 'There are no posts to show yet.',
+        'tabs_aria' => 'Profile sections',
+        'tab_posts' => 'Posts',
+        'tab_photos' => 'Photos',
+        'no_photos_yet' => 'No photos to show yet.',
+        'photo_alt' => 'Profile photo',
+        'open_photo_post' => 'Open post',
     ],
 
     'feed' => [

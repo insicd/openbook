@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Application\Services\AccountRegistrar;
+use App\Application\Services\PostComposer;
 use App\Domain\Accounts\User;
+use App\Domain\Posts\PostAttachment;
+use App\Infrastructure\Media\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -66,5 +69,51 @@ class ProfileTest extends TestCase
         $response->assertSee(route('hashtags.show', 'openbook'), false);
         $response->assertSee(route('hashtags.show', 'piante'), false);
         $response->assertDontSee('Amo #openbook e le #piante', false);
+    }
+
+    public function test_the_photos_tab_lists_media_from_the_users_posts(): void
+    {
+        $user = $this->createFullAccount('fotografo');
+        $post = app(PostComposer::class)->compose($user->actor, [
+            'body' => 'Una foto al tramonto',
+            'visibility' => 'public',
+        ]);
+
+        $media = Media::query()->create([
+            'actor_id' => $user->actor->id,
+            'disk' => 'remote',
+            'path' => 'remote/test-photo',
+            'remote_url' => 'https://cdn.example/tramonto.jpg',
+            'mime_type' => 'image/jpeg',
+            'byte_size' => 0,
+            'alt_text' => 'Tramonto',
+        ]);
+
+        PostAttachment::query()->create([
+            'post_id' => $post->id,
+            'media_id' => $media->id,
+            'position' => 0,
+        ]);
+
+        $this->get(route('profile.show', 'fotografo'))
+            ->assertOk()
+            ->assertSee(__('openbook.profile.tab_photos'))
+            ->assertSee(route('profile.photos', 'fotografo'), false);
+
+        $this->get(route('profile.photos', 'fotografo'))
+            ->assertOk()
+            ->assertSee('ob-photo-grid', false)
+            ->assertSee('https://cdn.example/tramonto.jpg', false)
+            ->assertSee('Tramonto')
+            ->assertSee(route('posts.show', $post), false);
+    }
+
+    public function test_the_photos_tab_is_empty_without_attachments(): void
+    {
+        $this->createFullAccount('senzfoto');
+
+        $this->get(route('profile.photos', 'senzfoto'))
+            ->assertOk()
+            ->assertSee(__('openbook.profile.no_photos_yet'));
     }
 }

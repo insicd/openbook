@@ -81,10 +81,16 @@
             <p class="ob-field__help" style="margin-top:1rem">
                 {{ __('openbook.profile.joined_on', ['date' => $profileUser->created_at->translatedFormat('d F Y')]) }}
             </p>
+
+            @include('profile._tabs', [
+                'activeTab' => $activeTab ?? 'posts',
+                'postsUrl' => route('profile.show', $profileUser->username),
+                'photosUrl' => route('profile.photos', $profileUser->username),
+            ])
         </div>
     </article>
 
-    @if ($isOwnProfile && $pendingFollowRequests->isNotEmpty())
+    @if ($isOwnProfile && ($activeTab ?? 'posts') === 'posts' && $pendingFollowRequests->isNotEmpty())
         <div class="ob-card">
             <h2>{{ __('openbook.follow.pending_requests') }}</h2>
             @foreach ($pendingFollowRequests as $request)
@@ -112,5 +118,9 @@
         </div>
     @endif
 
-    @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.profile.no_posts_yet')])
+    @if (($activeTab ?? 'posts') === 'photos')
+        @include('profile._photo_grid', ['media' => $media])
+    @else
+        @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.profile.no_posts_yet')])
+    @endif
 @endsection

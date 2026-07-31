@@ -11,6 +11,13 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.1] — Rullino fotografico sul profilo
+
+### Added
+- Tab Post / Foto sui profili locali (`/@utente/foto`) e remoti
+  (`/attori/{id}/foto`): griglia di tutte le immagini allegate ai post
+  visibili, con lightbox e link al post di origine.
+
 ## [0.8.0] — Interoperabilita' Fediverso (Article, Video, media remoti)
 
 ### Added

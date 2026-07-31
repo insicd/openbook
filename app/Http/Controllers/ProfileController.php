@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Queries\ActorMediaQuery;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
 use App\Application\Services\FollowManager;
@@ -25,6 +26,7 @@ class ProfileController extends Controller
 
     public function __construct(
         private readonly FeedQuery $feedQuery,
+        private readonly ActorMediaQuery $mediaQuery,
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
         private readonly LocalActorResolver $localActors,
@@ -36,9 +38,53 @@ class ProfileController extends Controller
      */
     public function show(Request $request, string $username): View|JsonResponse|RedirectResponse
     {
+        return $this->renderPersonProfile($request, $username, 'posts');
+    }
+
+    /**
+     * Rullino fotografico del profilo: griglia di tutte le immagini allegate
+     * ai post pubblicati dell'utente, visibili al visitatore.
+     */
+    public function photos(Request $request, string $username): View|RedirectResponse
+    {
+        return $this->renderPersonProfile($request, $username, 'photos');
+    }
+
+    public function followers(User $user): View
+    {
+        return $this->renderFollowList($this->followListQuery, $this->followManager, $user->actor, 'followers');
+    }
+
+    public function following(User $user): View
+    {
+        return $this->renderFollowList($this->followListQuery, $this->followManager, $user->actor, 'following');
+    }
+
+    /**
+     * "/users/{username}" e' l'identificatore ActivityPub canonico: con
+     * negoziazione AP restituisce il documento Person/Group; per i browser
+     * reindirizza alla pagina HTML ("/@..." o "/c/...").
+     */
+    public function redirectLegacy(Request $request, string $username): View|JsonResponse|RedirectResponse
+    {
         $actor = $this->localActors->findByUsernameOrFail($username);
 
         if (ActivityPubNegotiation::wantsActivityPub($request)) {
+            return ActivityPubNegotiation::response(ActorSerializer::serialize($actor));
+        }
+
+        if ($actor->isGroup()) {
+            return redirect()->route('communities.show', $actor->preferred_username, 301);
+        }
+
+        return redirect()->route('profile.show', $actor->preferred_username, 301);
+    }
+
+    private function renderPersonProfile(Request $request, string $username, string $activeTab): View|JsonResponse|RedirectResponse
+    {
+        $actor = $this->localActors->findByUsernameOrFail($username);
+
+        if ($activeTab === 'posts' && ActivityPubNegotiation::wantsActivityPub($request)) {
             return redirect()->away(
                 LocalActorUrls::forUsername($actor->preferred_username, $actor->isGroup())['uri'],
                 301,
@@ -84,12 +130,21 @@ class ProfileController extends Controller
                 ->get();
         }
 
-        $posts = $this->feedQuery->forProfile($user->actor, $viewerActor);
-        Post::annotateViewerState($posts->getCollection(), $viewerActor);
+        $posts = null;
+        $media = null;
+
+        if ($activeTab === 'photos') {
+            $media = $this->mediaQuery->forActor($user->actor, $viewerActor);
+        } else {
+            $posts = $this->feedQuery->forProfile($user->actor, $viewerActor);
+            Post::annotateViewerState($posts->getCollection(), $viewerActor);
+        }
 
         return view('profile.show', [
             'profileUser' => $user,
+            'activeTab' => $activeTab,
             'posts' => $posts,
+            'media' => $media,
             'followersCount' => $followersCount,
             'followingCount' => $followingCount,
             'communitiesCount' => $communitiesCount,
@@ -97,35 +152,5 @@ class ProfileController extends Controller
             'hasPendingRequest' => $hasPendingRequest,
             'pendingFollowRequests' => $pendingFollowRequests,
         ]);
-    }
-
-    public function followers(User $user): View
-    {
-        return $this->renderFollowList($this->followListQuery, $this->followManager, $user->actor, 'followers');
-    }
-
-    public function following(User $user): View
-    {
-        return $this->renderFollowList($this->followListQuery, $this->followManager, $user->actor, 'following');
-    }
-
-    /**
-     * "/users/{username}" e' l'identificatore ActivityPub canonico: con
-     * negoziazione AP restituisce il documento Person/Group; per i browser
-     * reindirizza alla pagina HTML ("/@..." o "/c/...").
-     */
-    public function redirectLegacy(Request $request, string $username): View|JsonResponse|RedirectResponse
-    {
-        $actor = $this->localActors->findByUsernameOrFail($username);
-
-        if (ActivityPubNegotiation::wantsActivityPub($request)) {
-            return ActivityPubNegotiation::response(ActorSerializer::serialize($actor));
-        }
-
-        if ($actor->isGroup()) {
-            return redirect()->route('communities.show', $actor->preferred_username, 301);
-        }
-
-        return redirect()->route('profile.show', $username, 301);
     }
 }

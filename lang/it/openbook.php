@@ -77,6 +77,12 @@ return [
         'protected' => 'Account protetto',
         'pinned_posts' => 'Post fissati',
         'no_posts_yet' => 'Non ci sono ancora post da mostrare.',
+        'tabs_aria' => 'Sezioni del profilo',
+        'tab_posts' => 'Post',
+        'tab_photos' => 'Foto',
+        'no_photos_yet' => 'Non ci sono ancora foto da mostrare.',
+        'photo_alt' => 'Foto del profilo',
+        'open_photo_post' => 'Apri il post',
     ],
 
     'feed' => [

@@ -70,19 +70,29 @@
                     <a href="{{ route('login') }}" class="ob-btn ob-btn--primary">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</a>
                 @endauth
             </div>
+
+            @include('profile._tabs', [
+                'activeTab' => $activeTab ?? 'posts',
+                'postsUrl' => route('actors.show', $profileActor),
+                'photosUrl' => route('actors.photos', $profileActor),
+            ])
         </div>
     </article>
 
     @auth
-        @if ($isGroup && $isFollowing)
+        @if ($isGroup && $isFollowing && ($activeTab ?? 'posts') === 'posts')
             @include('posts._composer', [
                 'addressedGroupActor' => $profileActor,
             ])
         @endif
     @endauth
 
-    @include('posts._feed', [
-        'posts' => $posts,
-        'emptyMessage' => $isGroup ? __('openbook.communities.wall_empty') : __('openbook.profile.no_posts_yet'),
-    ])
+    @if (($activeTab ?? 'posts') === 'photos')
+        @include('profile._photo_grid', ['media' => $media])
+    @else
+        @include('posts._feed', [
+            'posts' => $posts,
+            'emptyMessage' => $isGroup ? __('openbook.communities.wall_empty') : __('openbook.profile.no_posts_yet'),
+        ])
+    @endif
 @endsection

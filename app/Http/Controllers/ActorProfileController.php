@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Queries\ActorMediaQuery;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
 use App\Application\Services\FollowManager;
@@ -27,6 +28,7 @@ class ActorProfileController extends Controller
 
     public function __construct(
         private readonly FeedQuery $feedQuery,
+        private readonly ActorMediaQuery $mediaQuery,
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
         private readonly RemoteOutboxFetcher $outboxFetcher,
@@ -34,36 +36,12 @@ class ActorProfileController extends Controller
 
     public function show(Actor $actor): View|RedirectResponse
     {
-        if ($actor->isLocal()) {
-            return redirect()->route('profile.show', $actor->preferred_username);
-        }
+        return $this->renderRemoteProfile($actor, 'posts');
+    }
 
-        $this->outboxFetcher->fetchRecentPosts($actor);
-
-        $viewerActor = auth()->user()?->actor;
-
-        $followersCount = Follow::query()->where('following_id', $actor->id)->where('status', 'accepted')->count();
-        $followingCount = Follow::query()->where('follower_id', $actor->id)->where('status', 'accepted')->count();
-
-        $isFollowing = false;
-        $hasPendingRequest = false;
-
-        if ($viewerActor !== null) {
-            $isFollowing = $this->followManager->isFollowing($viewerActor, $actor);
-            $hasPendingRequest = $this->followManager->hasPendingRequest($viewerActor, $actor);
-        }
-
-        $posts = $this->feedQuery->forProfile($actor, $viewerActor);
-        Post::annotateViewerState($posts->getCollection(), $viewerActor);
-
-        return view('actors.show', [
-            'profileActor' => $actor,
-            'posts' => $posts,
-            'followersCount' => $followersCount,
-            'followingCount' => $followingCount,
-            'isFollowing' => $isFollowing,
-            'hasPendingRequest' => $hasPendingRequest,
-        ]);
+    public function photos(Actor $actor): View|RedirectResponse
+    {
+        return $this->renderRemoteProfile($actor, 'photos');
     }
 
     public function followers(Actor $actor): View|RedirectResponse
@@ -82,5 +60,53 @@ class ActorProfileController extends Controller
         }
 
         return $this->renderFollowList($this->followListQuery, $this->followManager, $actor, 'following');
+    }
+
+    private function renderRemoteProfile(Actor $actor, string $activeTab): View|RedirectResponse
+    {
+        if ($actor->isLocal()) {
+            return redirect()->route(
+                $activeTab === 'photos' ? 'profile.photos' : 'profile.show',
+                $actor->preferred_username,
+            );
+        }
+
+        if ($activeTab === 'posts') {
+            $this->outboxFetcher->fetchRecentPosts($actor);
+        }
+
+        $viewerActor = auth()->user()?->actor;
+
+        $followersCount = Follow::query()->where('following_id', $actor->id)->where('status', 'accepted')->count();
+        $followingCount = Follow::query()->where('follower_id', $actor->id)->where('status', 'accepted')->count();
+
+        $isFollowing = false;
+        $hasPendingRequest = false;
+
+        if ($viewerActor !== null) {
+            $isFollowing = $this->followManager->isFollowing($viewerActor, $actor);
+            $hasPendingRequest = $this->followManager->hasPendingRequest($viewerActor, $actor);
+        }
+
+        $posts = null;
+        $media = null;
+
+        if ($activeTab === 'photos') {
+            $media = $this->mediaQuery->forActor($actor, $viewerActor);
+        } else {
+            $posts = $this->feedQuery->forProfile($actor, $viewerActor);
+            Post::annotateViewerState($posts->getCollection(), $viewerActor);
+        }
+
+        return view('actors.show', [
+            'profileActor' => $actor,
+            'activeTab' => $activeTab,
+            'posts' => $posts,
+            'media' => $media,
+            'followersCount' => $followersCount,
+            'followingCount' => $followingCount,
+            'isFollowing' => $isFollowing,
+            'hasPendingRequest' => $hasPendingRequest,
+        ]);
     }
 }

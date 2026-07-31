@@ -1635,6 +1635,55 @@ a.ob-post__menu-item {
   margin-bottom: 0.6rem;
 }
 
+.ob-profile-tabs {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ob-color-border);
+}
+
+.ob-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.4rem;
+}
+
+.ob-photo-grid__item {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--ob-radius);
+  background: var(--ob-color-bg);
+}
+
+.ob-photo-grid__item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: zoom-in;
+}
+
+.ob-photo-grid__post {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.75rem;
+  text-align: center;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.ob-photo-grid__item:hover .ob-photo-grid__post,
+.ob-photo-grid__item:focus-within .ob-photo-grid__post {
+  opacity: 1;
+}
+
 .ob-post__media {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
