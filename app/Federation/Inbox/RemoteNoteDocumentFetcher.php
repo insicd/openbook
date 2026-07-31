@@ -8,7 +8,7 @@ use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 
 /**
- * Recupera un documento Note remoto via HTTP (Accept: activity+json),
+ * Recupera un documento Note/Page remoto via HTTP (Accept: activity+json),
  * usato quando un Group ritrasmette un post non ancora in cache locale.
  */
 final class RemoteNoteDocumentFetcher
@@ -43,17 +43,6 @@ final class RemoteNoteDocumentFetcher
             return null;
         }
 
-        if (($document['type'] ?? null) === 'Note') {
-            return $document;
-        }
-
-        // Alcuni server avvolgono la Note in un Create.
-        if (($document['type'] ?? null) === 'Create' && is_array($document['object'] ?? null)) {
-            $inner = $document['object'];
-
-            return ($inner['type'] ?? null) === 'Note' ? $inner : null;
-        }
-
-        return null;
+        return RemotePostObject::unwrap($document);
     }
 }

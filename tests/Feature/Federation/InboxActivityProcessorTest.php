@@ -324,6 +324,62 @@ class InboxActivityProcessorTest extends TestCase
         ]);
     }
 
+    public function test_a_remote_group_announce_of_a_lemmy_style_page_is_cached(): void
+    {
+        Queue::fake();
+        $member = $this->createFullAccount('membolemmy');
+        $group = $this->createRemoteActor('asklemmy', 'lemmy.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Ask Lemmy',
+        ]);
+        $author = $this->createRemoteActor('nutomic', 'lemmy.example');
+
+        $follow = app(FollowManager::class)->follow($member->actor, $group);
+        $follow->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $pageUri = 'https://lemmy.example/post/'.uniqid();
+        $activity = [
+            'id' => $group->uri.'/activities/announce/'.uniqid(),
+            'type' => 'Announce',
+            'actor' => $group->uri,
+            'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            'cc' => [$group->uri.'/followers'],
+            'object' => [
+                'id' => $group->uri.'/activities/create/'.uniqid(),
+                'type' => 'Create',
+                'actor' => $author->uri,
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+                'cc' => [$group->uri],
+                'object' => [
+                    'id' => $pageUri,
+                    'type' => 'Page',
+                    'attributedTo' => $author->uri,
+                    'name' => 'Titolo del post Lemmy',
+                    'content' => '<p>Corpo del post Lemmy</p>',
+                    'mediaType' => 'text/html',
+                    'published' => now()->toAtomString(),
+                    'to' => [$group->uri, 'https://www.w3.org/ns/activitystreams#Public'],
+                ],
+            ],
+        ];
+
+        $status = $this->process($activity, $group);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('posts', [
+            'uri' => $pageUri,
+            'actor_id' => $author->id,
+            'title' => 'Titolo del post Lemmy',
+            'body' => 'Corpo del post Lemmy',
+        ]);
+        $post = Post::query()->where('uri', $pageUri)->first();
+        $this->assertNotNull($post);
+        $this->assertDatabaseHas('announces', [
+            'actor_id' => $group->id,
+            'post_id' => $post->id,
+        ]);
+    }
+
     public function test_a_create_note_from_a_followed_remote_author_is_stored_as_a_local_post(): void
     {
         Queue::fake();

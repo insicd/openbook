@@ -297,7 +297,7 @@ final class InboxActivityProcessor
 
     /**
      * Condivisione classica (Person che Annuncia un post locale) oppure
-     * ritrasmissione FEP-1b12 (Group che Annuncia una Note, anche remota).
+     * ritrasmissione FEP-1b12 (Group che Annuncia una Note/Page, anche remota).
      *
      * @param  array<string, mixed>  $activity
      */
@@ -318,8 +318,8 @@ final class InboxActivityProcessor
         $post->loadMissing('actor');
 
         // Person: solo boost di post locali (comportamento storico).
-        // Group: qualunque Note (locale o remota) se almeno un Actor locale
-        // segue il Group, oppure se l'autore del post e' locale.
+        // Group: qualunque Note/Page (locale o remota) se almeno un Actor
+        // locale segue il Group, oppure se l'autore del post e' locale.
         if ($actor->isGroup()) {
             if (! $post->actor->isLocal() && ! $this->hasLocalFollower($actor)) {
                 return InboxItem::STATUS_IGNORED;
@@ -346,20 +346,12 @@ final class InboxActivityProcessor
             return [null, null];
         }
 
-        if (($object['type'] ?? null) === 'Note') {
-            $uri = is_string($object['id'] ?? null) ? $object['id'] : null;
+        $postable = RemotePostObject::unwrap($object);
 
-            return [$uri, $object];
-        }
+        if ($postable !== null) {
+            $uri = is_string($postable['id'] ?? null) ? $postable['id'] : null;
 
-        if (($object['type'] ?? null) === 'Create' && is_array($object['object'] ?? null)) {
-            $inner = $object['object'];
-
-            if (($inner['type'] ?? null) === 'Note') {
-                $uri = is_string($inner['id'] ?? null) ? $inner['id'] : null;
-
-                return [$uri, $inner];
-            }
+            return [$uri, $postable];
         }
 
         return [$this->objectId($object), null];
@@ -376,7 +368,7 @@ final class InboxActivityProcessor
             $note = $this->noteDocumentFetcher->fetch($targetUri);
         }
 
-        if ($note === null || ($note['type'] ?? null) !== 'Note') {
+        if ($note === null || ! RemotePostObject::isPostable($note['type'] ?? null)) {
             return null;
         }
 
@@ -416,7 +408,7 @@ final class InboxActivityProcessor
             return null;
         }
 
-        $body = RemoteContentSanitizer::toPlainText((string) ($note['content'] ?? ''));
+        $body = RemotePostObject::body($note);
         $publishedAt = isset($note['published']) && is_string($note['published'])
             ? Carbon::parse($note['published'])
             : now();
@@ -481,8 +473,11 @@ final class InboxActivityProcessor
         $object = $activity['object'] ?? null;
         $type = is_array($object) ? ($object['type'] ?? null) : null;
 
+        if (is_array($object) && RemotePostObject::isPostable($type)) {
+            return $this->handleCreateOrUpdate($activity, $signer);
+        }
+
         return match ($type) {
-            'Note' => $this->handleCreateOrUpdate($activity, $signer),
             'Person', 'Group', 'Service', 'Application', 'Organization' => $this->handleUpdateActor($object, $signer),
             default => InboxItem::STATUS_IGNORED,
         };
@@ -508,10 +503,10 @@ final class InboxActivityProcessor
     }
 
     /**
-     * Gestisce sia "Create" sia "Update" di una Note: entrambi trasportano
-     * la stessa rappresentazione completa nell'"object" e differiscono solo
-     * per l'eventuale presenza di una riga gia' esistente (identificata dal
-     * suo "uri"). Attivita' non incorporate (solo un id remoto da
+     * Gestisce sia "Create" sia "Update" di una Note o Page: entrambi
+     * trasportano la stessa rappresentazione completa nell'"object". Le
+     * risposte (inReplyTo) restano solo Note; i Page Lemmy sono sempre post
+     * di primo livello. Attivita' non incorporate (solo un id remoto da
      * recuperare) non sono supportate in questa fase: vengono ignorate.
      *
      * @param  array<string, mixed>  $activity
@@ -520,7 +515,7 @@ final class InboxActivityProcessor
     {
         $note = $activity['object'] ?? null;
 
-        if (! is_array($note) || ($note['type'] ?? null) !== 'Note') {
+        if (! is_array($note) || ! RemotePostObject::isPostable($note['type'] ?? null)) {
             return InboxItem::STATUS_IGNORED;
         }
 
@@ -529,7 +524,7 @@ final class InboxActivityProcessor
 
         if (! is_string($noteUri) || $noteUri === '' || $attributedTo !== $actor->uri) {
             // L'attore che firma deve coincidere con l'autore dichiarato
-            // della Note: impedisce di spacciare contenuto per conto altrui.
+            // dell'oggetto: impedisce di spacciare contenuto per conto altrui.
             return InboxItem::STATUS_IGNORED;
         }
 
@@ -538,6 +533,12 @@ final class InboxActivityProcessor
         $parentComment = null;
 
         if ($inReplyTo !== null) {
+            // I commenti federati sono Note; un Page con inReplyTo non e'
+            // un pattern Lemmy/Friendica che supportiamo come risposta.
+            if (! RemotePostObject::hasType($note['type'] ?? null, 'Note')) {
+                return InboxItem::STATUS_IGNORED;
+            }
+
             $parentComment = $this->objects->resolveComment($inReplyTo);
             $parentPost = $parentComment !== null ? null : $this->objects->resolvePost($inReplyTo);
 
@@ -552,7 +553,7 @@ final class InboxActivityProcessor
             return InboxItem::STATUS_IGNORED;
         }
 
-        $body = RemoteContentSanitizer::toPlainText((string) ($note['content'] ?? ''));
+        $body = RemotePostObject::body($note);
         $publishedAt = isset($note['published']) && is_string($note['published'])
             ? Carbon::parse($note['published'])
             : now();

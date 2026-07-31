@@ -11,6 +11,14 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.7.3] — Fase 5: Ingestione post Lemmy (`Page`)
+
+### Added
+- I post delle community Lemmy (`Announce` → `Create` → `Page`) vengono
+  ingeriti come post locali: `name` → titolo, `content`/`url` → corpo.
+  Vale per inbox (ritrasmissioni ai follower) e per il fetch dell'outbox
+  sul profilo del Group remoto.
+
 ## [0.7.2] — Fase 5: Composer verso community remote
 
 ### Added

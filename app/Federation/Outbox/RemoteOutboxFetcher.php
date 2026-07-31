@@ -9,9 +9,9 @@ use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Fetch\FederationFetchSigner;
 use App\Federation\Inbox\InboxActivityProcessor;
-use App\Federation\Inbox\RemoteContentSanitizer;
 use App\Federation\Inbox\RemoteNoteDocumentFetcher;
 use App\Federation\Inbox\RemoteNoteUpserter;
+use App\Federation\Inbox\RemotePostObject;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use Illuminate\Support\Carbon;
@@ -151,13 +151,9 @@ final class RemoteOutboxFetcher
             return;
         }
 
-        $note = $item;
+        $note = RemotePostObject::unwrap($item);
 
-        if (($item['type'] ?? null) === 'Create' && is_array($item['object'] ?? null)) {
-            $note = $item['object'];
-        }
-
-        if (($note['type'] ?? null) !== 'Note') {
+        if ($note === null) {
             return;
         }
 
@@ -170,11 +166,12 @@ final class RemoteOutboxFetcher
             return;
         }
 
-        $this->upsertPublicNote($note, $actor);
+        $this->upsertPublicPost($note, $actor);
     }
 
     /**
-     * Outbox di un Group (FEP-1b12): tipicamente Announce di Note altrui.
+     * Outbox di un Group (FEP-1b12 / Lemmy): Announce di Note o Page altrui,
+     * spesso annidate come Announce → Create → Page.
      *
      * @param  array<string, mixed>  $item
      */
@@ -183,18 +180,18 @@ final class RemoteOutboxFetcher
         $object = $item['object'] ?? null;
         $note = null;
 
-        if (is_array($object) && ($object['type'] ?? null) === 'Note') {
-            $note = $object;
-        } elseif (is_array($object) && ($object['type'] ?? null) === 'Create' && is_array($object['object'] ?? null)) {
-            $inner = $object['object'];
-            $note = ($inner['type'] ?? null) === 'Note' ? $inner : null;
-        } elseif (is_string($object) && $object !== '') {
+        if (is_array($object)) {
+            $note = RemotePostObject::unwrap($object);
+        }
+
+        if ($note === null && is_string($object) && $object !== '') {
             $note = $this->noteDocumentFetcher->fetch($object);
-        } elseif (is_array($object) && is_string($object['id'] ?? null)) {
+        } elseif ($note === null && is_array($object) && is_string($object['id'] ?? null) && ! RemotePostObject::isPostable($object['type'] ?? null)) {
+            // Create senza object inline, o riferimento opaco: fetch per id.
             $note = $this->noteDocumentFetcher->fetch($object['id']);
         }
 
-        if ($note === null || ($note['type'] ?? null) !== 'Note' || ($note['inReplyTo'] ?? null) !== null) {
+        if ($note === null || ! RemotePostObject::isPostable($note['type'] ?? null) || ($note['inReplyTo'] ?? null) !== null) {
             return;
         }
 
@@ -210,7 +207,7 @@ final class RemoteOutboxFetcher
             return;
         }
 
-        $post = $this->upsertPublicNote($note, $author);
+        $post = $this->upsertPublicPost($note, $author);
 
         if ($post !== null) {
             $this->announceManager->announce($group, $post, notify: false);
@@ -220,7 +217,7 @@ final class RemoteOutboxFetcher
     /**
      * @param  array<string, mixed>  $note
      */
-    private function upsertPublicNote(array $note, Actor $author): ?Post
+    private function upsertPublicPost(array $note, Actor $author): ?Post
     {
         $noteUri = $note['id'] ?? null;
 
@@ -234,7 +231,7 @@ final class RemoteOutboxFetcher
             return null;
         }
 
-        $body = RemoteContentSanitizer::toPlainText((string) ($note['content'] ?? ''));
+        $body = RemotePostObject::body($note);
         $publishedAt = isset($note['published']) && is_string($note['published'])
             ? Carbon::parse($note['published'])
             : now();

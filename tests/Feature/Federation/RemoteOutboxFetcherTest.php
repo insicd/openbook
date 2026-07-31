@@ -4,6 +4,8 @@ namespace Tests\Feature\Federation;
 
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
+use App\Domain\Reactions\Announce;
+use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Outbox\RemoteOutboxFetcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -179,5 +181,62 @@ class RemoteOutboxFetcherTest extends TestCase
 
         Http::assertNothingSent();
         $this->assertNull($viewer->actor->fresh()->posts_fetched_at);
+    }
+
+    public function test_a_lemmy_group_outbox_announce_create_page_is_ingested(): void
+    {
+        $viewer = $this->createFullAccount('esploratorelemmy');
+        $group = $this->createRemoteActor('news', 'lemmy.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'News',
+        ]);
+        $author = $this->createRemoteActor('alice', 'lemmy.example');
+
+        Follow::query()->create([
+            'follower_id' => $viewer->actor->id,
+            'following_id' => $group->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $pageUri = 'https://lemmy.example/post/42';
+        $this->fakeOutbox($group, [[
+            'id' => $group->uri.'/activities/announce/1',
+            'type' => 'Announce',
+            'actor' => $group->uri,
+            'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            'object' => [
+                'id' => $author->uri.'/activities/create/1',
+                'type' => 'Create',
+                'actor' => $author->uri,
+                'object' => [
+                    'id' => $pageUri,
+                    'type' => 'Page',
+                    'attributedTo' => $author->uri,
+                    'name' => 'Link post Lemmy',
+                    'url' => 'https://example.com/articolo',
+                    'published' => now()->subHour()->toAtomString(),
+                    'to' => [$group->uri, 'https://www.w3.org/ns/activitystreams#Public'],
+                ],
+            ],
+        ]]);
+
+        $response = $this->actingAs($viewer)->get(route('actors.show', $group));
+
+        $response->assertOk();
+        $response->assertSee('Link post Lemmy');
+        $this->assertDatabaseHas('posts', [
+            'uri' => $pageUri,
+            'actor_id' => $author->id,
+            'title' => 'Link post Lemmy',
+            'body' => 'https://example.com/articolo',
+        ]);
+        $this->assertTrue(
+            Announce::query()
+                ->where('actor_id', $group->id)
+                ->where('post_id', Post::query()->where('uri', $pageUri)->value('id'))
+                ->exists()
+        );
     }
 }

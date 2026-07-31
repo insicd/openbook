@@ -15,13 +15,12 @@ use App\Federation\Serialization\NoteSerializer;
 use Illuminate\Support\Carbon;
 
 /**
- * Salva (creando o aggiornando) la rappresentazione locale di una Note
- * remota, in cache come {@see Post} o {@see Comment}: logica condivisa da
- * {@see InboxActivityProcessor} (una Note arrivata via Create/Update in
- * inbox), da {@see RemoteOutboxFetcher} (post recuperati esplorando
- * l'outbox di un Actor remoto) e da {@see RemoteRepliesFetcher}
- * (risposte recuperate dalla collection replies di una Note remota), cosi'
- * che le strade producano sempre lo stesso risultato.
+ * Salva (creando o aggiornando) la rappresentazione locale di una Note o
+ * Page remota, in cache come {@see Post} o {@see Comment}: logica condivisa
+ * da {@see InboxActivityProcessor}, {@see RemoteOutboxFetcher} e
+ * {@see RemoteRepliesFetcher}, cosi' che le strade producano sempre lo
+ * stesso risultato. Lemmy usa "Page" per i post di community; i commenti
+ * restano "Note".
  */
 final class RemoteNoteUpserter
 {
@@ -42,6 +41,7 @@ final class RemoteNoteUpserter
 
         $post->fill([
             'actor_id' => $actor->id,
+            'title' => RemotePostObject::title($note),
             'content_warning' => $sensitive ? (is_string($note['summary'] ?? null) ? mb_substr($note['summary'], 0, 255) : null) : null,
             'body' => $body,
             'visibility' => $this->visibilityFromAudience($note),
