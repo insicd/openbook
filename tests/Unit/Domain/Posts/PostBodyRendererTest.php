@@ -74,6 +74,7 @@ class PostBodyRendererTest extends TestCase
         $this->assertStringNotContainsString('<script>', $html);
         $this->assertStringContainsString('&lt;script&gt;', $html);
         $this->assertStringNotContainsString('href="https://esempio.it/"quote"', $html);
+        $this->assertStringContainsString('https://esempio.it/&quot;quote', $html);
     }
 
     public function test_it_does_not_linkify_text_that_only_resembles_a_scheme(): void
@@ -81,5 +82,24 @@ class PostBodyRendererTest extends TestCase
         $html = (string) PostBodyRenderer::render('Il rapporto costi/benefici e alto');
 
         $this->assertStringNotContainsString('class="post-link"', $html);
+    }
+
+    public function test_apostrophes_are_preserved_as_html_entities_without_fake_hashtags(): void
+    {
+        $html = (string) PostBodyRenderer::render("L'amico di Lucia e l'altra storia");
+
+        // e() produce &#039; (corretto in HTML); non deve diventare un hashtag.
+        $this->assertStringContainsString('L&#039;amico', $html);
+        $this->assertStringContainsString('l&#039;altra', $html);
+        $this->assertStringNotContainsString('class="hashtag"', $html);
+        $this->assertStringNotContainsString('>#039<', $html);
+    }
+
+    public function test_numeric_html_entities_are_not_parsed_as_hashtags(): void
+    {
+        $html = (string) PostBodyRenderer::render('test &#039; entity');
+
+        $this->assertStringNotContainsString('class="hashtag"', $html);
+        $this->assertStringNotContainsString('>#039<', $html);
     }
 }

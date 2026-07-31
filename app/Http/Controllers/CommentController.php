@@ -52,7 +52,7 @@ class CommentController extends Controller
     {
         $data = $request->validated();
 
-        $parent = isset($data['parent_comment_id'])
+        $parent = filled($data['parent_comment_id'] ?? null)
             ? Comment::query()->findOrFail($data['parent_comment_id'])
             : null;
 

@@ -96,6 +96,31 @@ class CommentTest extends TestCase
 
         $comment->refresh();
         $this->assertSame(Comment::STATUS_DELETED, $comment->status);
+
+        $response = $this->actingAs($author)->get(route('posts.show', $post));
+        $response->assertOk();
+        $response->assertDontSee(__('openbook.comments.deleted'), false);
+        $response->assertDontSee('Da eliminare', false);
+        $response->assertDontSee('id="commento-'.$comment->id.'"', false);
+    }
+
+    public function test_replies_to_a_deleted_comment_remain_visible_without_tombstone(): void
+    {
+        $author = $this->createFullAccount('autorepadre');
+        $commenter = $this->createFullAccount('padreeliminato');
+        $replier = $this->createFullAccount('figliovisibile');
+        $post = $this->publishPost($author);
+
+        $parent = app(CommentComposer::class)->compose($commenter->actor, $post, 'Padre che sparisce.');
+        app(CommentComposer::class)->compose($replier->actor, $post, 'Figlio che resta.', $parent);
+
+        $this->actingAs($commenter)->delete(route('comments.destroy', $parent))->assertRedirect();
+
+        $response = $this->actingAs($author)->get(route('posts.show', $post));
+        $response->assertOk();
+        $response->assertDontSee(__('openbook.comments.deleted'), false);
+        $response->assertDontSee('Padre che sparisce.', false);
+        $response->assertSee('Figlio che resta.', false);
     }
 
     public function test_a_comment_can_be_posted_through_the_http_endpoint(): void
@@ -113,7 +138,74 @@ class CommentTest extends TestCase
             'post_id' => $post->id,
             'actor_id' => $commenter->actor->id,
             'body' => 'Commento via HTTP.',
+            'parent_comment_id' => null,
         ]);
+    }
+
+    public function test_two_top_level_comments_stay_siblings_not_nested(): void
+    {
+        $author = $this->createFullAccount('autoreannida');
+        $first = $this->createFullAccount('primocommento');
+        $second = $this->createFullAccount('secondocommento');
+        $post = $this->publishPost($author);
+
+        $this->actingAs($first)->post(route('comments.store', $post), [
+            'body' => 'Primo top level.',
+        ])->assertRedirect();
+
+        $this->actingAs($second)->post(route('comments.store', $post), [
+            'body' => 'Secondo top level.',
+        ])->assertRedirect();
+
+        $comments = Comment::query()
+            ->where('post_id', $post->id)
+            ->orderBy('created_at')
+            ->get();
+
+        $this->assertCount(2, $comments);
+        $this->assertNull($comments[0]->parent_comment_id);
+        $this->assertNull($comments[1]->parent_comment_id);
+
+        $html = $this->actingAs($author)->get(route('posts.show', $post))->assertOk()->getContent();
+
+        $firstPos = strpos($html, 'Primo top level.');
+        $secondPos = strpos($html, 'Secondo top level.');
+        $this->assertNotFalse($firstPos);
+        $this->assertNotFalse($secondPos);
+        $this->assertLessThan($secondPos, $firstPos);
+
+        // Il secondo commento non deve finire dentro il blocco replies del primo.
+        $repliesAfterFirst = strpos($html, 'ob-comment__replies', $firstPos);
+        $this->assertTrue(
+            $repliesAfterFirst === false || $repliesAfterFirst > $secondPos,
+            'Il secondo commento di primo livello non deve essere annidato sotto il primo.'
+        );
+    }
+
+    public function test_a_reply_posted_through_http_keeps_the_parent_link(): void
+    {
+        $author = $this->createFullAccount('autorerisposta');
+        $commenter = $this->createFullAccount('padrethread');
+        $replier = $this->createFullAccount('figliothread');
+        $post = $this->publishPost($author);
+
+        $parent = app(CommentComposer::class)->compose($commenter->actor, $post, 'Commento padre.');
+
+        $this->actingAs($replier)->post(route('comments.store', $post), [
+            'body' => 'Risposta annidata.',
+            'parent_comment_id' => $parent->id,
+        ])->assertRedirect();
+
+        $reply = Comment::query()->where('body', 'Risposta annidata.')->firstOrFail();
+        $this->assertSame($parent->id, $reply->parent_comment_id);
+
+        $html = $this->actingAs($author)->get(route('posts.show', $post))->assertOk()->getContent();
+        $parentPos = strpos($html, 'Commento padre.');
+        $repliesPos = strpos($html, 'ob-comment__replies', $parentPos);
+        $replyPos = strpos($html, 'Risposta annidata.');
+
+        $this->assertNotFalse($repliesPos);
+        $this->assertGreaterThan($repliesPos, $replyPos);
     }
 
     public function test_comment_actions_are_icon_only_and_delete_lives_in_the_overflow_menu(): void

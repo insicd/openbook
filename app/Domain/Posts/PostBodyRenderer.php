@@ -10,6 +10,10 @@ use Illuminate\Support\HtmlString;
  * contenuto viene prima sfuggito con {@see e()}, poi vengono aggiunti in
  * modo mirato i soli tag consentiti (link su URL/hashtag/menzioni, a-capo).
  *
+ * Il lookbehind degli hashtag esclude "#" subito dopo "&" o ";": altrimenti
+ * l'entita' HTML &#039; (apostrofo prodotto da e()) veniva spezzata in un
+ * falso hashtag "#039", visibile in UI e nel content ActivityPub.
+ *
  * URL, hashtag e menzioni sono riconosciuti in un'unica passata con un solo
  * pattern combinato: operare in piu' passate separate sulla stessa stringa
  * sarebbe pericoloso, perche' un URL gia' trasformato in un tag <a> (es.
@@ -21,7 +25,7 @@ use Illuminate\Support\HtmlString;
 final class PostBodyRenderer
 {
     private const LINK_PATTERN = '/(?P<url>https?:\/\/[^\s<]+)'
-        .'|(?P<hashtag>(?<![\w\/])#[\p{L}\p{N}_]{1,100})'
+        .'|(?P<hashtag>(?<![\w\/&;])#[\p{L}\p{N}_]{1,100})'
         .'|(?P<mention>(?<![\w])@[a-zA-Z0-9_]{1,32}(?:@[a-zA-Z0-9.\-]+)?)/u';
 
     /**

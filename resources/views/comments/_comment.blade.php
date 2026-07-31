@@ -4,48 +4,52 @@
     $author = $comment->actor;
     $displayName = $author?->displayName();
     $isDeleted = $comment->status === \App\Domain\Comments\Comment::STATUS_DELETED;
+    $children = $node['children'] ?? [];
 @endphp
 
-<div class="ob-comment" id="commento-{{ $comment->id }}">
-    <div class="ob-post__header">
-        <x-avatar :actor="$author" style="width:32px;height:32px;font-size:1rem" />
-        <div class="ob-post__meta">
-            @if ($author)
-                <a href="{{ $author->profileUrl() }}" class="ob-post__author">{{ $displayName }}</a>
-                <div class="ob-post__time">{{ $comment->created_at->diffForHumans() }}</div>
-            @endif
+@if ($isDeleted)
+    {{-- Privacy: nessun tombstone in UI. Le eventuali risposte restano visibili. --}}
+    @foreach ($children as $child)
+        @include('comments._comment', ['node' => $child, 'post' => $post])
+    @endforeach
+@else
+    <div class="ob-comment" id="commento-{{ $comment->id }}">
+        <div class="ob-post__header">
+            <x-avatar :actor="$author" style="width:32px;height:32px;font-size:1rem" />
+            <div class="ob-post__meta">
+                @if ($author)
+                    <a href="{{ $author->profileUrl() }}" class="ob-post__author">{{ $displayName }}</a>
+                    <div class="ob-post__time">{{ $comment->created_at->diffForHumans() }}</div>
+                @endif
+            </div>
+
+            @canany(['delete', 'report'], $comment)
+                <details class="ob-post__menu">
+                    <summary class="ob-icon-btn" aria-label="{{ __('openbook.comments.menu') }}">
+                        <x-icon name="more-vertical" />
+                    </summary>
+                    <div class="ob-post__menu-panel" role="menu">
+                        @can('report', $comment)
+                            <a href="{{ route('comments.report.create', $comment) }}" class="ob-post__menu-item" role="menuitem">
+                                <x-icon name="flag" />
+                                {{ __('openbook.actions.report') }}
+                            </a>
+                        @endcan
+                        @can('delete', $comment)
+                            <form method="POST" action="{{ route('comments.destroy', $comment) }}" onsubmit="return confirm('{{ __('openbook.comments.confirm_delete') }}')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="ob-post__menu-item" role="menuitem">
+                                    <x-icon name="trash" />
+                                    {{ __('openbook.actions.delete') }}
+                                </button>
+                            </form>
+                        @endcan
+                    </div>
+                </details>
+            @endcanany
         </div>
 
-        @canany(['delete', 'report'], $comment)
-            <details class="ob-post__menu">
-                <summary class="ob-icon-btn" aria-label="{{ __('openbook.comments.menu') }}">
-                    <x-icon name="more-vertical" />
-                </summary>
-                <div class="ob-post__menu-panel" role="menu">
-                    @can('report', $comment)
-                        <a href="{{ route('comments.report.create', $comment) }}" class="ob-post__menu-item" role="menuitem">
-                            <x-icon name="flag" />
-                            {{ __('openbook.actions.report') }}
-                        </a>
-                    @endcan
-                    @can('delete', $comment)
-                        <form method="POST" action="{{ route('comments.destroy', $comment) }}" onsubmit="return confirm('{{ __('openbook.comments.confirm_delete') }}')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="ob-post__menu-item" role="menuitem">
-                                <x-icon name="trash" />
-                                {{ __('openbook.actions.delete') }}
-                            </button>
-                        </form>
-                    @endcan
-                </div>
-            </details>
-        @endcanany
-    </div>
-
-    @if ($isDeleted)
-        <p class="ob-post__deleted">{{ __('openbook.comments.deleted') }}</p>
-    @else
         <div class="ob-comment__body">{{ \App\Domain\Posts\PostBodyRenderer::render($comment->body) }}</div>
 
         <div class="ob-post__actions">
@@ -99,13 +103,13 @@
                 <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.actions.reply') }}</button>
             </form>
         @endauth
-    @endif
 
-    @if (! empty($node['children']))
-        <div class="ob-comment__replies">
-            @foreach ($node['children'] as $child)
-                @include('comments._comment', ['node' => $child, 'post' => $post])
-            @endforeach
-        </div>
-    @endif
-</div>
+        @if ($children !== [])
+            <div class="ob-comment__replies">
+                @foreach ($children as $child)
+                    @include('comments._comment', ['node' => $child, 'post' => $post])
+                @endforeach
+            </div>
+        @endif
+    </div>
+@endif
