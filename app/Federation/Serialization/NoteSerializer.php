@@ -66,11 +66,13 @@ final class NoteSerializer
             $note['contentMap'] = [$post->language => $content];
         }
 
+        $groupActors = self::groupActorsForPost($post);
+
         [$note['to'], $note['cc']] = self::audienceForVisibility(
             $post->visibility,
             $actor,
             $post->mentions,
-            $post->community?->actor,
+            $groupActors,
         );
 
         $attachments = self::attachmentsFor($post);
@@ -80,9 +82,13 @@ final class NoteSerializer
         }
 
         $tags = self::hashtagTagsFor($post)->concat(self::mentionTagsFor($post->mentions))->values()->all();
+        $mentionedUris = collect($tags)->pluck('href')->filter()->all();
 
-        if ($post->community?->actor !== null) {
-            $group = $post->community->actor;
+        foreach ($groupActors as $group) {
+            if (in_array($group->uri, $mentionedUris, true)) {
+                continue;
+            }
+
             $tags[] = [
                 'type' => 'Mention',
                 'href' => $group->uri,
@@ -202,18 +208,36 @@ final class NoteSerializer
     }
 
     /**
+     * Group locali (via community_id) e Group menzionati: destinazione FEP-1b12.
+     *
+     * @return SupportCollection<int, Actor>
+     */
+    private static function groupActorsForPost(Post $post): SupportCollection
+    {
+        $fromMentions = $post->mentions
+            ->map(fn (Mention $mention) => $mention->actor)
+            ->filter(fn (?Actor $actor) => $actor !== null && $actor->isGroup());
+
+        return collect([$post->community?->actor])
+            ->filter()
+            ->concat($fromMentions)
+            ->unique('id')
+            ->values();
+    }
+
+    /**
      * @param  Collection<int, Mention>  $mentions
+     * @param  iterable<int, Actor>  $groupActors
      * @return array{0: list<string>, 1: list<string>}
      */
     private static function audienceForVisibility(
         string $visibility,
         Actor $actor,
         Collection $mentions,
-        ?Actor $communityActor = null,
+        iterable $groupActors = [],
     ): array {
         $followersUri = $actor->endpoints?->followers;
         $followers = array_values(array_filter([$followersUri]));
-        $groupUri = $communityActor?->uri;
 
         [$to, $cc] = match ($visibility) {
             Post::VISIBILITY_PUBLIC => [[self::PUBLIC_STREAM], $followers],
@@ -223,9 +247,14 @@ final class NoteSerializer
             default => [[], []],
         };
 
-        // FEP-1b12 / Friendica: indirizza esplicitamente il Group in "to".
-        if (filled($groupUri) && $visibility !== Post::VISIBILITY_DIRECT) {
-            array_unshift($to, $groupUri);
+        // FEP-1b12 / Friendica: indirizza esplicitamente i Group in "to".
+        if ($visibility !== Post::VISIBILITY_DIRECT) {
+            foreach ($groupActors as $groupActor) {
+                if (filled($groupActor->uri)) {
+                    array_unshift($to, $groupActor->uri);
+                }
+            }
+
             $to = array_values(array_unique($to));
         }
 

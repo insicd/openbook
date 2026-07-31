@@ -5,15 +5,21 @@ namespace Tests\Feature\Communities;
 use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\PostComposer;
 use App\Domain\Communities\Community;
+use App\Domain\Posts\Mention;
 use App\Domain\Reactions\Announce;
+use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Federation\Serialization\NoteSerializer;
+use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\CreatesAccounts;
+use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
 
 class CommunityTest extends TestCase
 {
-    use CreatesAccounts, RefreshDatabase;
+    use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
     public function test_a_user_can_create_a_local_community_group_actor(): void
     {
@@ -133,5 +139,100 @@ class CommunityTest extends TestCase
         $this->actingAs($owner)
             ->get(route('search.create', ['q' => 'ricerca@'.config('openbook.domain')]))
             ->assertRedirect(route('communities.show', 'ricerca'));
+    }
+
+    public function test_remote_group_profile_shows_composer_for_members(): void
+    {
+        $member = $this->createFullAccount('membremote');
+        $group = $this->createRemoteActor('circolo', 'forum.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Circolo remoto',
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $member->actor->id,
+            'following_id' => $group->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $this->actingAs($member)
+            ->get(route('actors.show', $group))
+            ->assertOk()
+            ->assertSee('name="addressed_group_actor_id"', false)
+            ->assertSee($group->id);
+    }
+
+    public function test_members_can_address_a_remote_group_with_mention_audience_and_delivery(): void
+    {
+        Queue::fake();
+
+        $member = $this->createFullAccount('posterremoto');
+        $group = $this->createRemoteActor('forum', 'groups.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Forum remoto',
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $member->actor->id,
+            'following_id' => $group->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $post = app(PostComposer::class)->compose($member->actor, [
+            'body' => 'Ciao community remota.',
+            'visibility' => 'public',
+            'addressed_group_actor_id' => $group->id,
+        ]);
+
+        $this->assertTrue(
+            Mention::query()
+                ->where('mentionable_id', $post->id)
+                ->where('actor_id', $group->id)
+                ->exists()
+        );
+
+        $note = NoteSerializer::forPost($post->fresh(['mentions.actor', 'community.actor', 'actor.endpoints', 'hashtags', 'media', 'quotedPost']));
+        $this->assertContains($group->uri, $note['to']);
+        $this->assertTrue(collect($note['tag'] ?? [])->contains(
+            fn (array $tag): bool => ($tag['type'] ?? null) === 'Mention' && ($tag['href'] ?? null) === $group->uri
+        ));
+
+        Queue::assertPushed(
+            DeliverActivityJob::class,
+            fn (DeliverActivityJob $job): bool => $job->inboxUrl === $group->endpoints->inbox
+                || $job->inboxUrl === $group->endpoints->shared_inbox
+        );
+    }
+
+    public function test_body_mention_of_cached_remote_group_is_resolved(): void
+    {
+        Queue::fake();
+
+        $author = $this->createFullAccount('tagger');
+        $group = $this->createRemoteActor('tagged', 'groups.example', [
+            'type' => Actor::TYPE_GROUP,
+        ]);
+
+        $post = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Messaggio per @tagged@groups.example grazie.',
+            'visibility' => 'public',
+        ]);
+
+        $this->assertTrue(
+            Mention::query()
+                ->where('mentionable_id', $post->id)
+                ->where('actor_id', $group->id)
+                ->exists()
+        );
+
+        Queue::assertPushed(
+            DeliverActivityJob::class,
+            fn (DeliverActivityJob $job): bool => $job->inboxUrl === $group->endpoints->inbox
+                || $job->inboxUrl === $group->endpoints->shared_inbox
+        );
     }
 }

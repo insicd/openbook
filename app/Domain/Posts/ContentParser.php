@@ -8,11 +8,12 @@ use Illuminate\Support\Collection;
 /**
  * Estrae hashtag e menzioni dal testo grezzo di un post o commento.
  *
- * Per questo milestone vengono risolte solo le menzioni verso attori
- * *locali*: la risoluzione di un "@utente@dominio-remoto" richiede di
- * interrogare il dominio remoto (WebFinger), funzione che arriva con la
- * federazione (Fase 3/4). Le menzioni verso domini remoti vengono quindi
- * ignorate silenziosamente in questa fase, senza generare errori.
+ * Le menzioni verso attori locali e verso attori remoti gia' presenti in
+ * cache (es. una community Group visitata in precedenza) vengono risolte
+ * senza ulteriori round-trip HTTP. Un "@utente@dominio" ancora sconosciuto
+ * a questa istanza viene ignorato silenziosamente: la risoluzione via
+ * WebFinger al momento della scrittura resta fuori dallo scope di questo
+ * parser.
  */
 final class ContentParser
 {
@@ -34,33 +35,65 @@ final class ContentParser
     }
 
     /**
-     * Risolve le menzioni locali presenti nel testo in Actor esistenti.
+     * Risolve le menzioni presenti nel testo in Actor locali o remoti in cache.
      *
      * @return Collection<int, Actor>
      */
-    public function extractLocalMentionedActors(string $body): Collection
+    public function extractMentionedActors(string $body): Collection
     {
         preg_match_all(self::MENTION_PATTERN, $body, $matches, PREG_SET_ORDER);
 
-        $localDomain = (string) config('openbook.domain');
-
-        $usernames = collect($matches)
-            ->filter(function (array $match) use ($localDomain) {
-                $domain = $match[2] ?? '';
-
-                return $domain === '' || strcasecmp($domain, $localDomain) === 0;
-            })
-            ->map(fn (array $match) => mb_strtolower($match[1]))
-            ->unique()
-            ->values();
-
-        if ($usernames->isEmpty()) {
+        if ($matches === []) {
             return collect();
         }
 
-        return Actor::query()
-            ->where('is_local', true)
-            ->whereIn('preferred_username', $usernames->all())
-            ->get();
+        $localDomain = (string) config('openbook.domain');
+        $handles = collect($matches)
+            ->map(function (array $match) use ($localDomain): array {
+                $username = mb_strtolower($match[1]);
+                $domain = $match[2] ?? '';
+
+                if ($domain === '' || strcasecmp($domain, $localDomain) === 0) {
+                    return ['username' => $username, 'domain' => mb_strtolower($localDomain), 'local' => true];
+                }
+
+                return ['username' => $username, 'domain' => mb_strtolower($domain), 'local' => false];
+            })
+            ->unique(fn (array $handle) => $handle['username'].'@'.$handle['domain'])
+            ->values();
+
+        if ($handles->isEmpty()) {
+            return collect();
+        }
+
+        $localUsernames = $handles->where('local', true)->pluck('username')->all();
+        $remotePairs = $handles->where('local', false)->values();
+
+        $actors = collect();
+
+        if ($localUsernames !== []) {
+            $actors = $actors->concat(
+                Actor::query()
+                    ->where('is_local', true)
+                    ->where('status', Actor::STATUS_ACTIVE)
+                    ->whereIn('preferred_username', $localUsernames)
+                    ->get()
+            );
+        }
+
+        foreach ($remotePairs as $pair) {
+            $remote = Actor::query()
+                ->where('is_local', false)
+                ->where('status', Actor::STATUS_ACTIVE)
+                ->where('preferred_username', $pair['username'])
+                ->where('domain', $pair['domain'])
+                ->first();
+
+            if ($remote !== null) {
+                $actors->push($remote);
+            }
+        }
+
+        return $actors->unique('id')->values();
     }
 }

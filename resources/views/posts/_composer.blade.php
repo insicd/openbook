@@ -4,6 +4,7 @@
     $quotedPost = $quotedPost ?? null;
     $composerCommunities = $composerCommunities ?? collect();
     $selectedCommunityId = old('community_id', $selectedCommunityId ?? null);
+    $addressedGroupActor = $addressedGroupActor ?? null;
 
     $titleOpen = old('title') || $errors->has('title');
     $cwOpen = old('content_warning') || $errors->has('content_warning');
@@ -15,6 +16,14 @@
 <div class="ob-card ob-composer{{ $quotedPost ? ' ob-composer--quoting' : '' }}" id="ob-composer">
     <form method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
         @csrf
+
+        @if ($addressedGroupActor)
+            <input type="hidden" name="addressed_group_actor_id" value="{{ $addressedGroupActor->id }}">
+            <div class="ob-composer__quote-banner">
+                <x-icon name="people" />
+                <span>{{ __('openbook.composer.addressing_remote', ['handle' => '!'.$addressedGroupActor->handle()]) }}</span>
+            </div>
+        @endif
 
         @if ($quotedPost)
             <input type="hidden" name="quoted_post_id" value="{{ $quotedPost->id }}">

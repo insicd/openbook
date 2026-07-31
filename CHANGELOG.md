@@ -11,6 +11,19 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.7.2] — Fase 5: Composer verso community remote
+
+### Added
+- Composer sul profilo di una community remota (Group) se sei iscritto:
+  il post viene indirizzato al Group (Mention + `to` + consegna Create
+  all'inbox remota), come nel modello Friendica / FEP-1b12.
+- Le menzioni `@nome@dominio` verso Actor remoti gia' in cache (anche Group)
+  vengono risolte in scrittura, non solo quelle locali.
+
+### Changed
+- `ActivityDelivery::deliverContent` consegna anche ai Group remoti
+  menzionati (oltre ai follower dell'autore).
+
 ## [0.7.1] — Fase 5 (slice 2): Community remote e moderatori
 
 ### Added

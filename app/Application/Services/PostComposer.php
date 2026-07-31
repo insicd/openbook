@@ -28,8 +28,10 @@ use InvalidArgumentException;
  * originale via {@see AnnounceManager}: stesso contatore della share diretta,
  * senza una seconda notifica "ha condiviso" (resta solo TYPE_QUOTE).
  *
- * Post verso una community (Fase 5 / FEP-1b12): il Group locale ritrasmette
- * con Announce ai propri follower senza notificare l'autore.
+ * Post verso una community locale (Fase 5 / FEP-1b12): il Group locale
+ * ritrasmette con Announce ai propri follower senza notificare l'autore.
+ * Verso una community remota: menzione + audience + consegna Create all'inbox
+ * del Group (il server remoto ritrasmette se l'autore e' membro).
  */
 final class PostComposer
 {
@@ -39,10 +41,11 @@ final class PostComposer
         private readonly NotificationCreator $notificationCreator,
         private readonly ActivityDelivery $delivery,
         private readonly AnnounceManager $announceManager,
+        private readonly FollowManager $followManager,
     ) {}
 
     /**
-     * @param  array{title?: ?string, content_warning?: ?string, body: string, visibility?: string, language?: ?string, quoted_post_id?: ?string, community_id?: ?string, images?: array<int, UploadedFile>, alt_texts?: array<int, ?string>}  $data
+     * @param  array{title?: ?string, content_warning?: ?string, body: string, visibility?: string, language?: ?string, quoted_post_id?: ?string, community_id?: ?string, addressed_group_actor_id?: ?string, images?: array<int, UploadedFile>, alt_texts?: array<int, ?string>}  $data
      */
     public function compose(Actor $author, array $data): Post
     {
@@ -55,8 +58,13 @@ final class PostComposer
 
         $quotedPost = $this->resolveQuotedPost($author, $data['quoted_post_id'] ?? null);
         $community = $this->resolveCommunity($author, $data['community_id'] ?? null);
+        $addressedGroup = $this->resolveAddressedGroup($author, $data['addressed_group_actor_id'] ?? null);
 
-        $post = DB::transaction(function () use ($author, $data, $images, $quotedPost, $community) {
+        if ($community !== null && $addressedGroup !== null) {
+            throw new InvalidArgumentException(__('openbook.communities.errors.addressed_and_local'));
+        }
+
+        $post = DB::transaction(function () use ($author, $data, $images, $quotedPost, $community, $addressedGroup) {
             $post = Post::query()->create([
                 'actor_id' => $author->id,
                 'community_id' => $community?->id,
@@ -85,6 +93,10 @@ final class PostComposer
             $this->attachHashtags($post);
             $this->attachMentions($post, $author);
 
+            if ($addressedGroup !== null) {
+                $this->ensureMention($post, $addressedGroup);
+            }
+
             if ($quotedPost !== null) {
                 $this->notificationCreator->notify(
                     $quotedPost->actor,
@@ -112,7 +124,8 @@ final class PostComposer
 
         if ($author->isLocal()) {
             $post->load(['mentions.actor', 'quotedPost', 'community.actor']);
-            $this->delivery->deliverContent($post, ActivitySerializer::create($post));
+            $extraTargets = $addressedGroup !== null ? [$addressedGroup] : [];
+            $this->delivery->deliverContent($post, ActivitySerializer::create($post), $extraTargets);
         }
 
         return $post;
@@ -137,6 +150,29 @@ final class PostComposer
         }
 
         return $community;
+    }
+
+    private function resolveAddressedGroup(Actor $author, ?string $actorId): ?Actor
+    {
+        if ($actorId === null || $actorId === '') {
+            return null;
+        }
+
+        $group = Actor::query()->with('endpoints')->whereKey($actorId)->first();
+
+        if ($group === null || ! $group->isGroup() || ! $group->isActive()) {
+            throw new InvalidArgumentException(__('openbook.communities.errors.remote_group_not_found'));
+        }
+
+        if ($group->isLocal()) {
+            throw new InvalidArgumentException(__('openbook.communities.errors.use_local_community'));
+        }
+
+        if (! $this->followManager->isFollowing($author, $group)) {
+            throw new InvalidArgumentException(__('openbook.communities.errors.not_a_member'));
+        }
+
+        return $group;
     }
 
     private function resolveQuotedPost(Actor $author, ?string $quotedPostId): ?Post
@@ -176,20 +212,37 @@ final class PostComposer
 
     private function attachMentions(Post $post, Actor $author): void
     {
-        $mentionedActors = $this->contentParser->extractLocalMentionedActors($post->body);
+        $mentionedActors = $this->contentParser->extractMentionedActors($post->body);
 
         foreach ($mentionedActors as $actor) {
             if ($actor->id === $author->id) {
                 continue;
             }
 
-            Mention::query()->create([
-                'mentionable_type' => $post->getMorphClass(),
-                'mentionable_id' => $post->id,
-                'actor_id' => $actor->id,
-            ]);
+            $this->ensureMention($post, $actor);
 
-            $this->notificationCreator->notify($actor, Notification::TYPE_MENTION, $author, $post);
+            if ($actor->isLocal() && $actor->isPerson()) {
+                $this->notificationCreator->notify($actor, Notification::TYPE_MENTION, $author, $post);
+            }
         }
+    }
+
+    private function ensureMention(Post $post, Actor $actor): void
+    {
+        $exists = Mention::query()
+            ->where('mentionable_type', $post->getMorphClass())
+            ->where('mentionable_id', $post->id)
+            ->where('actor_id', $actor->id)
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        Mention::query()->create([
+            'mentionable_type' => $post->getMorphClass(),
+            'mentionable_id' => $post->id,
+            'actor_id' => $actor->id,
+        ]);
     }
 }

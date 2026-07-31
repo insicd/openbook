@@ -70,7 +70,7 @@ final class CommentComposer
 
     private function attachMentions(Comment $comment, Actor $author): void
     {
-        $mentionedActors = $this->contentParser->extractLocalMentionedActors($comment->body);
+        $mentionedActors = $this->contentParser->extractMentionedActors($comment->body);
 
         foreach ($mentionedActors as $actor) {
             if ($actor->id === $author->id) {
@@ -83,7 +83,9 @@ final class CommentComposer
                 'actor_id' => $actor->id,
             ]);
 
-            $this->notificationCreator->notify($actor, Notification::TYPE_MENTION, $author, $comment);
+            if ($actor->isLocal() && $actor->isPerson()) {
+                $this->notificationCreator->notify($actor, Notification::TYPE_MENTION, $author, $comment);
+            }
         }
     }
 

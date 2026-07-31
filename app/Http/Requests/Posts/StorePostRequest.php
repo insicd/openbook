@@ -38,12 +38,23 @@ class StorePostRequest extends FormRequest
             'alt_texts.*' => ['nullable', 'string', 'max:1000'],
             'quoted_post_id' => ['nullable', 'uuid', 'exists:posts,id'],
             'community_id' => ['nullable', 'uuid', 'exists:communities,id'],
+            'addressed_group_actor_id' => ['nullable', 'uuid', 'exists:actors,id'],
         ];
     }
 
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            $communityId = $this->input('community_id');
+            $addressedGroupId = $this->input('addressed_group_actor_id');
+
+            if (filled($communityId) && filled($addressedGroupId)) {
+                $validator->errors()->add(
+                    'addressed_group_actor_id',
+                    __('openbook.communities.errors.addressed_and_local'),
+                );
+            }
+
             $quotedId = $this->input('quoted_post_id');
 
             if (! is_string($quotedId) || $quotedId === '') {

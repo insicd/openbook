@@ -118,7 +118,14 @@ final class ActivityDelivery
 
         $this->deliverToFollowers($author, $activity);
 
+        // FEP-1b12: il Create deve raggiungere l'inbox del Group remoto
+        // (locale il ritrasmette il Group stesso con Announce).
+        $remoteGroupMentions = $object->mentions
+            ->map(fn ($mention) => $mention->actor)
+            ->filter(fn (?Actor $target) => $target !== null && $target->isGroup() && ! $target->isLocal());
+
         collect($extraDirectTargets)
+            ->concat($remoteGroupMentions)
             ->filter(fn (?Actor $target) => $target !== null && ! $target->isLocal() && $target->id !== $author->id)
             ->unique('id')
             ->each(fn (Actor $target) => $this->deliverTo($author, $target, $activity));

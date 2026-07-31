@@ -41,6 +41,14 @@ class PostController extends Controller
                 ->with('status', __('openbook.communities.post_published'));
         }
 
+        $addressedGroupId = $data['addressed_group_actor_id'] ?? null;
+
+        if (is_string($addressedGroupId) && $addressedGroupId !== '') {
+            return redirect()
+                ->route('actors.show', $addressedGroupId)
+                ->with('status', __('openbook.communities.remote_post_sent'));
+        }
+
         return redirect()->route('feed.index')->with('status', 'Il tuo post e stato pubblicato.');
     }
 

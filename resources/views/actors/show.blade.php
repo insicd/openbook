@@ -73,6 +73,14 @@
         </div>
     </article>
 
+    @auth
+        @if ($isGroup && $isFollowing)
+            @include('posts._composer', [
+                'addressedGroupActor' => $profileActor,
+            ])
+        @endif
+    @endauth
+
     @include('posts._feed', [
         'posts' => $posts,
         'emptyMessage' => $isGroup ? __('openbook.communities.wall_empty') : __('openbook.profile.no_posts_yet'),
