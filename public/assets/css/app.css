@@ -1636,9 +1636,50 @@ a.ob-post__menu-item {
 }
 
 .ob-profile-tabs {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 0.25rem;
   margin-top: 1.25rem;
-  padding-top: 1rem;
+  margin-left: -1.5rem;
+  margin-right: -1.5rem;
+  margin-bottom: -1.5rem;
+  padding: 0 1.5rem;
   border-top: 1px solid var(--ob-color-border);
+}
+
+.ob-profile-tabs__tab {
+  flex: 0 1 auto;
+  min-width: 7rem;
+  padding: 0.85rem 1.25rem;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--ob-color-text-muted);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ob-profile-tabs__tab:hover,
+.ob-profile-tabs__tab:focus {
+  color: var(--ob-color-text);
+  text-decoration: none;
+  background: transparent;
+}
+
+.ob-profile-tabs__tab:focus-visible {
+  outline-offset: -2px;
+}
+
+.ob-profile-tabs__tab.is-active {
+  color: var(--ob-color-primary);
+  border-bottom-color: var(--ob-color-primary);
 }
 
 .ob-photo-grid {
