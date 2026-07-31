@@ -910,7 +910,7 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap e stato del progetto
 
-Versione corrente: **0.8.1**. Il dettaglio delle modifiche per versione e' in
+Versione corrente: **0.8.2**. Il dettaglio delle modifiche per versione e' in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 - ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,
@@ -930,8 +930,8 @@ Versione corrente: **0.8.1**. Il dettaglio delle modifiche per versione e' in
   iscrizione, wall, Announce in uscita e in ingresso, moderatori delegati.
   Possibili rifiniture: elenco membri dedicato, avatar/copertina community.
 - 🚧 **Fase 6 — Sicurezza e interoperabilita'** (da 0.8.0): ingestione `Article` /
-  `Video` / media remoti (WordPress, WriteFreely, PeerTube, Pixelfed); SSRF e
-  blocco domini gia' presenti. In corso: NodeBB e altri edge-case del Fediverso.
+  `Video` / media remoti; fallback Atom quando l'outbox Pixelfed e' stub; SSRF e
+  blocco domini. In corso: NodeBB e altri edge-case del Fediverso.
 
 Non si passa a una fase successiva finche' i test della fase precedente non sono
 verdi.

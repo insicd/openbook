@@ -29,10 +29,9 @@ use Illuminate\Support\Carbon;
  * dell'inbox non si applica.
  *
  * Recupera solo la prima pagina dell'outbox (non l'intera cronologia) e
- * solo i post originali, non le risposte (il cui post padre e' quasi
- * sempre sconosciuto localmente e non potrebbe comunque essere agganciato):
- * l'obiettivo e' dare un'idea di chi e' questo Actor, non replicarne
- * l'intera timeline.
+ * solo i post originali, non le risposte. Se l'outbox e' uno stub (Pixelfed
+ * espone spesso solo totalItems senza first/orderedItems), ricade sul feed
+ * Atom `{actor}.atom` tramite {@see RemoteAtomFeedBackfill}.
  */
 final class RemoteOutboxFetcher
 {
@@ -42,6 +41,7 @@ final class RemoteOutboxFetcher
         private readonly SafeHttpClient $httpClient,
         private readonly RemoteNoteUpserter $noteUpserter,
         private readonly RemoteNoteDocumentFetcher $noteDocumentFetcher,
+        private readonly RemoteAtomFeedBackfill $atomFeedBackfill,
         private readonly RemoteActorResolver $remoteActorResolver,
         private readonly AnnounceManager $announceManager,
         private readonly FederationFetchSigner $fetchSigner,
@@ -54,8 +54,12 @@ final class RemoteOutboxFetcher
         }
 
         $ttlHours = (int) config('openbook.federation.posts_cache_ttl_hours', 6);
+        $withinTtl = $actor->posts_fetched_at !== null
+            && $actor->posts_fetched_at->gt(Carbon::now()->subHours($ttlHours));
 
-        if ($actor->posts_fetched_at !== null && $actor->posts_fetched_at->gt(Carbon::now()->subHours($ttlHours))) {
+        // Se la cache e' fresca ma non abbiamo alcun post, ritenta: tipico
+        // dopo un outbox Pixelfed stub prima del fallback Atom.
+        if ($withinTtl && $this->hasCachedPosts($actor)) {
             return;
         }
 
@@ -66,17 +70,35 @@ final class RemoteOutboxFetcher
 
         $actor->loadMissing('endpoints');
         $outboxUrl = $actor->endpoints?->outbox;
-
-        if (blank($outboxUrl)) {
-            return;
-        }
-
         $signingActor = $this->fetchSigner->resolve();
-        $items = $this->fetchItems($outboxUrl, $signingActor);
+
+        $items = blank($outboxUrl) ? [] : $this->fetchItems($outboxUrl, $signingActor);
 
         foreach ($items as $item) {
             $this->ingestItem($item, $actor);
         }
+
+        if ($items === [] && ! $this->hasCachedPosts($actor)) {
+            foreach ($this->atomFeedBackfill->fetchNotes($actor, $signingActor, self::MAX_ITEMS) as $note) {
+                if (($note['inReplyTo'] ?? null) !== null) {
+                    continue;
+                }
+
+                if (! RemotePostObject::authorMatches($note['attributedTo'] ?? null, $actor->uri)) {
+                    continue;
+                }
+
+                $this->upsertPublicPost($note, $actor);
+            }
+        }
+    }
+
+    private function hasCachedPosts(Actor $actor): bool
+    {
+        return Post::query()
+            ->where('actor_id', $actor->id)
+            ->where('status', Post::STATUS_PUBLISHED)
+            ->exists();
     }
 
     /**

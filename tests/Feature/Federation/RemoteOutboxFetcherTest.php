@@ -183,6 +183,99 @@ class RemoteOutboxFetcherTest extends TestCase
         $this->assertNull($viewer->actor->fresh()->posts_fetched_at);
     }
 
+    public function test_pixelfed_style_stub_outbox_falls_back_to_atom_feed(): void
+    {
+        $viewer = $this->createFullAccount('pixviewer');
+        $remote = $this->createRemoteActor('fotografo', 'pixelfed.example');
+        $noteUri = $remote->uri.'/p/'.uniqid();
+        $imageUrl = 'https://pixelfed.example/storage/photo.jpg';
+        $outboxUrl = $remote->endpoints->outbox;
+        $atomUrl = $remote->uri.'.atom';
+
+        Http::fake([
+            $outboxUrl => Http::response([
+                'id' => $outboxUrl,
+                'type' => 'OrderedCollection',
+                'totalItems' => 2141,
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $atomUrl => Http::response(<<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <id>{$noteUri}</id>
+    <title>Fornace</title>
+    <link rel="alternate" href="{$noteUri}" />
+  </entry>
+</feed>
+XML, 200, ['Content-Type' => 'application/atom+xml']),
+            $noteUri => Http::response([
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => 'Fornace Penna',
+                'url' => $noteUri,
+                'published' => now()->subHour()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+                'attachment' => [
+                    [
+                        'type' => 'Document',
+                        'mediaType' => 'image/jpeg',
+                        'url' => $imageUrl,
+                    ],
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
+
+        $post = Post::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($post);
+        $this->assertSame('Fornace Penna', $post->body);
+        $this->assertCount(1, $post->media);
+        $this->assertSame($imageUrl, $post->media->first()->url());
+    }
+
+    public function test_empty_cache_retries_within_ttl_after_stub_outbox(): void
+    {
+        $viewer = $this->createFullAccount('retryviewer');
+        $remote = $this->createRemoteActor('stubonly', 'pixelfed.example');
+        $outboxUrl = $remote->endpoints->outbox;
+        $atomUrl = $remote->uri.'.atom';
+        $noteUri = $remote->uri.'/p/retry1';
+
+        $remote->forceFill(['posts_fetched_at' => now()->subMinute()])->saveQuietly();
+
+        Http::fake([
+            $outboxUrl => Http::response([
+                'id' => $outboxUrl,
+                'type' => 'OrderedCollection',
+                'totalItems' => 3,
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $atomUrl => Http::response(<<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry><id>{$noteUri}</id></entry>
+</feed>
+XML, 200, ['Content-Type' => 'application/atom+xml']),
+            $noteUri => Http::response([
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => 'Dopo lo stub',
+                'published' => now()->subHour()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
+
+        $this->assertDatabaseHas('posts', [
+            'uri' => $noteUri,
+            'actor_id' => $remote->id,
+            'body' => 'Dopo lo stub',
+        ]);
+    }
+
     public function test_a_lemmy_group_outbox_announce_create_page_is_ingested(): void
     {
         $viewer = $this->createFullAccount('esploratorelemmy');

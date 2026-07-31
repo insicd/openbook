@@ -11,6 +11,15 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.2] — Fallback Atom per outbox Pixelfed
+
+### Fixed
+- Molte istanze Pixelfed espongono un outbox ActivityPub "stub" (solo
+  `totalItems`, senza `first`/`orderedItems`): visitando un profilo remoto
+  Openbook ricade sul feed Atom `{actor}.atom`, recupera le Note AP e le
+  immagini in allegato. Ritenta anche dentro il TTL se la cache e' ancora
+  vuota.
+
 ## [0.8.1] — Rullino fotografico sul profilo
 
 ### Added
