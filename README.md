@@ -6,16 +6,13 @@ integrato con il Fediverso. Non e' un microblog, non e' un clone di Mastodon e n
 un aggregatore di link: e' pensato per comunita' personali, territoriali, associative e
 tematiche, con un'interfaccia comprensibile anche a utenti non tecnici.
 
-Questo repository si trova al **Milestone 4** della roadmap tecnica: oltre a bootstrap,
-installer, autenticazione e profili (Milestone 1), al dominio sociale locale completo
-(Milestone 2: post, immagini, commenti annidati, Mi piace, condivisioni, follow locali,
-feed, notifiche) e all'identita' federata (Milestone 3: profilo/post/commenti
-negoziabili in ActivityPub, inbox/outbox firmati), Openbook e' ora **effettivamente
-federato in entrambe le direzioni**: le attivita' ricevute (`Follow`, `Like`,
-`Announce`, `Create`/`Update`/`Delete`, `Undo`) producono effetti reali sul dominio
-locale, ogni azione locale rilevante viene **consegnata** ai server remoti coinvolti
-tramite una coda MySQL con retry e backoff, ed e' possibile **cercare e seguire una
-persona su qualunque altro server del Fediverso** direttamente dall'interfaccia.
+Versione corrente: **0.8.3** (vedi [`CHANGELOG.md`](CHANGELOG.md)). Openbook e'
+oltre la federazione bidirezionale di base: include **community** (Actor `Group`
+locali e remoti, iscrizione, wall, interoperabilita' Lemmy/Friendica) e sta
+lavorando alla **Fase 6** (interoperabilita' ampia con Mastodon, Misskey, PeerTube,
+Pixelfed, WordPress, WriteFreely, ecc., media remoti, hardening). Le fasi 1–4 restano
+la base: bootstrap e installer, dominio sociale locale, identita' ActivityPub,
+consegna/ricezione delle attivita' via coda MySQL.
 
 ## Indice
 
@@ -28,6 +25,8 @@ persona su qualunque altro server del Fediverso** direttamente dall'interfaccia.
 - [Architettura](#architettura)
   - [Federazione (Fase 3)](#federazione-fase-3)
   - [Federazione sociale (Fase 4)](#federazione-sociale-fase-4)
+  - [Community (Fase 5)](#community-fase-5)
+  - [Interoperabilita' e media remoti (Fase 6)](#interoperabilita-e-media-remoti-fase-6)
   - [Personalizzazione del profilo e impostazioni account](#personalizzazione-del-profilo-e-impostazioni-account)
 - [Test](#test)
 - [Cron e attivita periodiche](#cron-e-attivita-periodiche)
@@ -296,7 +295,7 @@ Tutte le impostazioni specifiche di Openbook sono centralizzate in
 | `OPENBOOK_REGISTRATION_OPEN` / `OPENBOOK_REGISTRATION_REQUIRES_APPROVAL` | Controllano l'apertura delle registrazioni. |
 | `OPENBOOK_MEDIA_MAX_SIZE_KB` / `OPENBOOK_MEDIA_MAX_ATTACHMENTS` | Dimensione massima (KB) e numero massimo di immagini allegabili a un post. |
 | `OPENBOOK_POST_MAX_LENGTH` | Lunghezza massima (caratteri) del testo di un post. |
-| `OPENBOOK_COMMENT_MAX_DEPTH` | Livelli di annidamento dei commenti considerati "normali" in configurazione (la struttura reale non ha un limite rigido, vedi [Limitazioni](#limitazioni-note-di-questo-milestone)). |
+| `OPENBOOK_COMMENT_MAX_DEPTH` | Livelli di annidamento dei commenti considerati "normali" in configurazione (la struttura reale non ha un limite rigido, vedi [Limitazioni](#limitazioni-note-stato-08x)). |
 | `OPENBOOK_SEARCH_MIN_LENGTH` / `OPENBOOK_SEARCH_PER_SECTION` | Lunghezza minima della query e risultati massimi per sezione nella ricerca locale. |
 | `DB_PERSISTENT` | Se `true`, riusa le connessioni PDO MySQL/MariaDB fra richieste. Consigliato su hosting con limite di nuove connessioni/secondo (es. Hostinger: errore `2002 Operation not permitted`). |
 | `OPENBOOK_FEED_PER_PAGE` | Numero di post per pagina nel feed personale, nel feed locale e nelle pagine profilo/hashtag. |
@@ -326,7 +325,7 @@ app/
     Posts/           # Post, allegati, hashtag, menzioni, rendering del testo
     Comments/        # Commenti (di primo livello e risposte annidate)
     Reactions/        # Mi piace e condivisioni (Like/Announce a livello locale)
-    SocialGraph/      # Follow tra Actor (locale per ora, gia' pronto per la federazione)
+    SocialGraph/      # Follow tra Actor (locali e remoti)
     Notifications/    # Notifiche locali (non federate)
   Federation/        # Tutto cio' che riguarda ActivityPub
     Actors/           # Actor (locali e remoti), RemoteActorResolver (fetch + WebFinger)
@@ -359,7 +358,7 @@ registrazione, sia dall'installer, sia dal comando CLI `openbook:make-admin`. Al
 stesso modo, `PostComposer`, `CommentComposer`, `FollowManager`, `ReactionManager` e
 `AnnounceManager` incapsulano ciascuno una singola operazione di dominio in una
 transazione, aggiornando contatori denormalizzati e generando le notifiche pertinenti
-tramite `NotificationCreator`. Da questo milestone, ciascuno di questi servizi invoca
+tramite `NotificationCreator`. Dalla Fase 4 in poi, ciascuno di questi servizi invoca
 anche `ActivityDelivery` **dopo** il commit della transazione, quando l'attore che
 compie l'azione e' locale e il destinatario (o i follower) coinvolgono almeno un
 Actor remoto: e' l'unico punto in cui la logica di dominio "sa" della federazione, e
@@ -367,12 +366,10 @@ resta comunque un'aggiunta a valle, mai una condizione per il successo dell'azio
 locale.
 
 Ogni account locale possiede fin da subito un Actor ActivityPub di tipo `Person`
-(tabelle `actors`, `actor_keys`, `actor_endpoints`), e a partire da questo milestone
-tale Actor e' effettivamente esposto al Fediverso (vedi
-[Federazione](#federazione-fase-3) piu' sotto). Per lo stesso motivo il dominio
-sociale locale introdotto nel Milestone 2 e' gia' modellato pensando alla
-federazione: `follows` e `likes` collegano **Actor** (non utenti), cosi' da poter
-accogliere attori remoti senza modifiche allo schema.
+(tabelle `actors`, `actor_keys`, `actor_endpoints`), esposto al Fediverso (vedi
+[Federazione](#federazione-fase-3) piu' sotto). Il dominio sociale locale e' modellato
+pensando alla federazione: `follows` e `likes` collegano **Actor** (non utenti), cosi'
+da poter accogliere attori remoti senza modifiche allo schema.
 
 Le chiavi private degli Actor sono cifrate a riposo (cast `encrypted` di Eloquent,
 basato su `APP_KEY`) e non vengono mai esposte da API, log o messaggi di errore.
@@ -517,7 +514,7 @@ finalmente bidirezionale.
   messaggi con visibilita' "diretta" vengono consegnati solo agli Actor
   esplicitamente menzionati, mai a tutti i follower.
 - **Coda e cron**: la coda usa il driver database di Laravel (tabelle `jobs` e
-  `failed_jobs`, gia' presenti dal Milestone 1), coerente con i vincoli di shared
+  `failed_jobs`, gia' presenti dall'installer), coerente con i vincoli di shared
   hosting (nessun processo permanente, nessun Redis/RabbitMQ). I comandi
   `openbook:process-inbox` e `openbook:deliver` processano rispettivamente le code
   `inbox` e `delivery` con `--stop-when-empty`, cosi' da terminare da soli invece di
@@ -543,11 +540,12 @@ finalmente bidirezionale.
   `Actor::displayName()`/`Actor::avatarUrl()`/`Actor::profileUrl()`, che
   funzionano in modo identico per attori locali e remoti. La pagina profilo
   recupera anche (`RemoteOutboxFetcher`, cache con TTL separato in
-  `actors.posts_fetched_at`) la prima pagina dell'outbox reale dell'Actor,
-  cosi' da mostrarne i post pubblici piu' recenti anche se nessun Actor locale
-  lo segue ancora: senza questo passaggio un profilo appena scoperto
-  risulterebbe sempre senza post, dato che l'inbox mette in cache solo
-  contenuto gia' ritenuto rilevante (vedi limitazioni note piu' sotto).
+  `actors.posts_fetched_at`) i post pubblici recenti dall'outbox reale
+  dell'Actor (con fallback al feed Atom se l'outbox e' stub, tipico Pixelfed),
+  cosi' da mostrarne i contenuti anche se nessun Actor locale lo segue ancora:
+  senza questo passaggio un profilo appena scoperto risulterebbe spesso senza
+  post, dato che l'inbox mette in cache solo contenuto gia' ritenuto rilevante
+  (vedi limitazioni note piu' sotto).
 - **Elenchi follower/seguiti**: i contatori "Follower" e "Seguiti" di ogni profilo
   (locale o remoto) sono link verso una pagina paginata con l'elenco reale
   (`FollowListQuery`), condivisa fra profili locali (`/@utente/follower`,
@@ -555,22 +553,45 @@ finalmente bidirezionale.
   con redirect al profilo locale se l'Actor risulta essere di questa istanza). Ogni
   riga mostra un pulsante segui/smetti di seguire coerente con lo stato reale del
   visitatore (`FollowManager::statusMapFor()`, una sola query per l'intera pagina). Il
-  contatore "Community" resta un segnaposto non cliccabile finche' la Fase 5 non
-  introduce un vero sistema di community.
+  contatore "Community" sul profilo conta i Group (locali o remoti) a cui l'utente e'
+  iscritto. I profili espongono inoltre i tab **Post** / **Foto** (rullino delle
+  immagini allegate ai post visibili).
 
-Non fanno ancora parte di questo milestone: gli Actor di tipo `Group` (community, Fase
-5), un vero sistema di destinatari per i messaggi diretti, e un pannello di
-amministrazione per ispezionare code e fallimenti di consegna (per ora consultabili
-solo direttamente nelle tabelle `jobs`/`failed_jobs`).
+### Community (Fase 5)
+
+Le community sono Actor ActivityPub di tipo `Group`:
+
+- **Locali**: creazione da UI, slug `/c/{slug}`, WebFinger `nome@dominio`, iscrizione
+  (Follow/Accept), wall dei post dei membri, Announce del Group in uscita, community
+  private con approvazione, moderatori delegati. Elenco in `/community` con switch
+  **Locali** / **Remote**.
+- **Remote** (Lemmy, Friendica, …): ricerca `nome@dominio`, iscrizione federata,
+  profilo `/attori/{id}` con composer per i membri, ingestione di Announce/Page
+  (FEP-1b12). Gli URI Actor locali usano lo schema Mastodon `/users/{username}` per
+  compatibilita' (Lemmy rifiuta gli id con `@` percent-encodato).
+
+### Interoperabilita' e media remoti (Fase 6)
+
+Oltre a `Note` e `Page`, l'inbox/outbox accettano `Article` (WordPress ActivityPub,
+WriteFreely), `Video` (PeerTube, anche con `attributedTo` Person+Group) e `Image`.
+Gli allegati immagine remoti restano URL https in `media.remote_url` (galleria e
+rullino profilo) senza download sull'istanza. Se l'outbox e' uno stub (tipico
+Pixelfed: solo `totalItems`), il profilo remoto ricade sul feed Atom `{actor}.atom`.
+La sezione Mondo propone account remoti da scoprire e, oltre i primi 5, l'elenco
+completo in `/mondo/scopri` con scorrimento infinito. SSRF, blocco domini e firme
+HTTP restano i vincoli di sicurezza di base.
+
+Non fanno ancora parte del prodotto maturo: un vero sistema di destinatari per i
+messaggi diretti (oltre menzioni), e tool avanzati di debug federazione (oltre al
+pannello code in admin).
 
 ### Personalizzazione del profilo e impostazioni account
 
-Il database predisponeva gia' dal Milestone 1 le colonne per la personalizzazione
+Il database predisponeva gia' dalle prime fasi le colonne per la personalizzazione
 dell'account (`profiles.avatar_path`/`cover_path`/`bio`/`links`,
 `user_settings.locale`/`default_post_visibility`/`manually_approves_followers`
-/`discoverable`), ma senza un'interfaccia restavano tutte inutilizzabili. Una pagina
-**Impostazioni** (`/impostazioni`, link nel menu utente e pulsante "Modifica profilo"
-sul proprio profilo) le rende finalmente modificabili:
+/`discoverable`); la pagina **Impostazioni** (`/impostazioni`, link nel menu utente e
+pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
 
 - **Profilo pubblico**: nome visualizzato, biografia (max 500 caratteri), fino a 4 link
   con etichetta, avatar e immagine di copertina. Il caricamento delle immagini
@@ -745,9 +766,11 @@ in interfaccia, non un dettaglio implementativo nascosto.
   gia' nella Home.
 - **Account da scoprire**: un piccolo elenco di Actor remoti proposti
   (`PopularRemoteActorsQuery`), con lo stesso pulsante "Segui" usato altrove
-  (`actors.follow`). Non esistendo un conteggio follower autoritativo per un Actor
-  remoto (ne' un indice di "popolarita' reale" nel fediverso), la classifica usa solo
-  segnali visibili da questa istanza, in ordine: quanti Actor locali lo seguono gia'
+  (`actors.follow`). Se ce ne sono piu' di cinque, un link "Vedi altro" apre
+  `/mondo/scopri` con l'elenco paginato e scorrimento infinito. Non esistendo un
+  conteggio follower autoritativo per un Actor remoto (ne' un indice di
+  "popolarita' reale" nel fediverso), la classifica usa solo segnali visibili da
+  questa istanza, in ordine: quanti Actor locali lo seguono gia'
   (`follows.status = accepted`), poi la data del suo post pubblico piu' recente in
   cache. Un Actor senza nessuno dei due segnali (mai seguito localmente, mai un post
   pubblico in cache) non viene proposto, e chi e' gia' seguito dal visitatore viene
@@ -762,14 +785,12 @@ Il progetto usa PHPUnit. La suite gira di default su SQLite in memoria (vedi
 php artisan test
 ```
 
-La suite copre bootstrap/installer/autenticazione (Milestone 1), l'intero dominio
-sociale locale (Milestone 2: creazione post con testo/hashtag/menzioni/allegati e
-rollback transazionale in caso di upload non valido, upload e validazione media,
-commenti e risposte annidate, Mi piace e condivisioni con prevenzione dei duplicati,
-follow/unfollow e approvazione manuale degli account protetti, composizione del feed e
-regole di visibilita', notifiche), l'identita' federata (Milestone 3) e la federazione
-sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
-`tests/Unit/Infrastructure/Security`:
+La suite copre bootstrap/installer/autenticazione, il dominio sociale locale
+(post, media, commenti, reazioni, follow, feed, notifiche), l'identita' e la
+federazione sociale (`tests/Feature/Federation`,
+`tests/Unit/Infrastructure/Security`), le community (`tests/Feature/Communities`)
+e i casi di interoperabilita' (Article/Video/allegati, fallback Atom Pixelfed,
+Accept Lemmy, Mondo/scopri, rullino profilo). In particolare:
 
 - generazione e verifica delle HTTP Signatures, `SsrfGuard` (rifiuto di IP
   privati/loopback/riservati, DNS che risolve a indirizzi non pubblici, fallimenti di
@@ -802,7 +823,8 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   profilo di un Actor remoto (o dopo la scadenza della cache) i post pubblici piu'
   recenti del suo outbox reale vengono recuperati e mostrati, esclusi risposte, post
   non pubblici e qualunque item che dichiari un autore diverso dal titolare
-  dell'outbox; nessuna nuova richiesta prima della scadenza della cache; il tentativo
+  dell'outbox; se l'outbox e' uno stub (solo `totalItems`, tipico Pixelfed) si usa
+  il feed Atom; nessuna nuova richiesta prima della scadenza della cache; il tentativo
   viene comunque registrato quando il server remoto non risponde, per non rallentare i
   caricamenti successivi; nessuna notifica di menzione viene generata per contenuto
   recuperato in questo modo (non e' un evento "appena successo");
@@ -840,7 +862,8 @@ sociale bidirezionale (Milestone 4), tutte in `tests/Feature/Federation` e
   cache ed esclude sia i post locali sia quelli remoti non pubblici; obbligo di
   autenticazione; classifica degli account da scoprire (priorita' ai follower locali
   accettati, poi all'attivita' piu' recente), esclusione di chi non ha ne' un follower
-  locale ne' un post in cache, esclusione di chi e' gia' seguito dal visitatore.
+  locale ne' un post in cache, esclusione di chi e' gia' seguito dal visitatore;
+  pagina `/mondo/scopri` con elenco completo e scorrimento infinito.
 - visibilita' delle condivisioni (`AnnounceVisibilityTest`): un post condiviso (locale,
   di un altro Actor locale, o remoto) compare sul profilo e nel feed personale di chi
   lo ha condiviso con l'indicazione "ha condiviso questo post"; ordinamento per momento
@@ -921,62 +944,48 @@ Versione corrente: **0.8.3**. Il dettaglio delle modifiche per versione e' in
   negotiation, inbox/outbox, firme HTTP.
 - ✅ **Fase 4 — Federazione sociale**: ricerca remota,
   `Follow`/`Accept`/`Reject`, `Create`/`Update`/`Delete`, `Like`, `Announce`, `Undo`,
-  coda MySQL, retry, cron.
-- ✅ **Dopo la Fase 4** (fino a 0.6.x): personalizzazione profilo e impostazioni,
-  sezione "Mondo", outbox/replies remoti on-demand, pannello di controllo,
-  signed fetch, notifiche live, miglioramenti UI e correzioni di interoperabilita'.
-  Dettaglio in [`CHANGELOG.md`](CHANGELOG.md).
-- 🚧 **Fase 5 — Community** (0.7.0–0.7.9): Actor `Group` locali e remoti,
-  iscrizione, wall, Announce in uscita e in ingresso, moderatori delegati.
-  Possibili rifiniture: elenco membri dedicato, avatar/copertina community.
-- 🚧 **Fase 6 — Sicurezza e interoperabilita'** (da 0.8.0): ingestione `Article` /
-  `Video` / media remoti; fallback Atom quando l'outbox Pixelfed e' stub; SSRF e
-  blocco domini. In corso: NodeBB e altri edge-case del Fediverso.
+  coda MySQL, retry, cron; poi (0.5.x–0.6.x) profilo/impostazioni, Mondo, outbox e
+  replies on-demand, pannello admin, signed fetch, notifiche live.
+- ✅ **Fase 5 — Community** (0.7.x): Actor `Group` locali e remoti, iscrizione,
+  wall, Announce FEP-1b12, Lemmy/Friendica, moderatori, elenco Locali/Remote.
+  Eventuali rifiniture (elenco membri dedicato, avatar/copertina community) restano
+  possibili senza bloccare la Fase 6.
+- 🚧 **Fase 6 — Sicurezza e interoperabilita'** (0.8.x, in corso): tipi
+  `Article`/`Video`/`Image`, media remoti in galleria, URI `/users/…`, Accept Lemmy,
+  fallback Atom Pixelfed, rullino Foto sul profilo, Mondo → `/mondo/scopri`.
+  Ancora da rafforzare: NodeBB e altri edge-case; eventuale download locale dei
+  media remoti; destinatari dedicati per i messaggi diretti.
 
 Non si passa a una fase successiva finche' i test della fase precedente non sono
 verdi.
 
-### Limitazioni note di questo milestone
+### Limitazioni note (stato 0.8.x)
 
-- Le menzioni (`@utente`) vengono ancora risolte solo verso attori **locali** in fase
-  di *scrittura*: la sintassi `@utente@dominio-remoto` in un post o commento composto
-  su questa istanza viene riconosciuta ma ignorata in modo sicuro (nessuna menzione
-  remota, nessuna consegna diretta basata su di essa). La direzione opposta funziona
-  gia': una menzione a un Actor locale dentro una Note **ricevuta** da un altro server
-  genera correttamente una notifica.
-- I messaggi "diretti" (visibilita' `direct`) non hanno un vero elenco di
-  destinatari: sono visibili all'autore e a chi viene esplicitamente menzionato nel
-  testo (solo menzioni locali, vedi punto precedente). Un sistema di destinatari
-  dedicato e la relativa UI di conversazione sono rimandati a una fase successiva.
-- Il contenuto remoto (post e commenti ricevuti via `Create`/`Update`) viene sempre
-  ridotto a testo semplice: nessuna formattazione ricca (grassetto, liste, link gia'
-  pronti) viene preservata, per evitare di introdurre un sanitizzatore HTML completo
-  solo per contenuto proveniente da server non fidati. E' una scelta esplicita, non
-  un difetto temporaneo.
-- Un contenuto remoto (post o risposta) arrivato via inbox viene messo in cache solo
-  se rilevante per questa istanza (autore seguito, risposta a qualcosa gia' noto, o
-  menzione esplicita di un Actor locale). Eccezioni mirate: la pagina profilo di un
-  Actor remoto (`RemoteOutboxFetcher`) recupera la prima pagina del suo outbox; la
-  pagina di un post remoto (`RemoteRepliesFetcher`) recupera la collection `replies`
-  della Note originale (fino a poche pagine successive via `next`, solo risposte
-  pubbliche/non elencate agganciabili al thread). Openbook non replica comunque un
-  intero timeline remoto.
-  La ricerca per parole chiave (`LocalSearchQuery`) copre solo i contenuti *locali*
-  di questa istanza: non c'e' un indice full-text dedicato ne' una ricerca sui
-  contenuti remoti in cache (per quelli resta la risoluzione diretta
-  `utente@dominio`).
-- Le immagini dei post remoti sono mostrate via URL remoto (`media.remote_url`),
-  senza download sull'istanza: se il server di origine blocca l'hotlink o rimuove
-  il file, la galleria puo' risultare vuota. Gli allegati locali restano serviti
-  dal disco pubblico (`storage/app/public` → `public/storage`), senza CDN.
-- Il limite di profondita' dei commenti (`OPENBOOK_COMMENT_MAX_DEPTH`) e'
-  predisposto in configurazione ma non ancora applicato all'interfaccia: l'intero
-  albero di un post viene sempre caricato e mostrato in una sola pagina. Il
-  caricamento progressivo per thread molto lunghi arrivera' in una fase successiva.
-- Il pannello di controllo copre moderazione e impostazioni operative; restano
-  fuori scope avanzati come ban IP, regole di federazione per singolo Actor e
-  un vero tool di debug delle firme HTTP. La promozione admin e' disponibile
-  sia da UI sia da CLI (`openbook:make-admin` / `openbook:make-moderator`).
+- Le menzioni in *scrittura* risolvono Actor **locali** e remoti **gia' in cache**
+  (`@utente` / `@utente@dominio`); un handle remoto sconosciuto non viene risolto
+  al volo via WebFinger in fase di compose. In *ricezione*, una menzione a un Actor
+  locale genera correttamente una notifica.
+- I messaggi "diretti" (visibilita' `direct`) non hanno un elenco destinatari
+  dedicato: sono visibili all'autore e a chi e' menzionato nel testo. Una UI di
+  conversazione e' rimandata.
+- Il contenuto remoto viene ridotto a testo semplice (niente HTML arbitrario):
+  restano pero' i link etichettati (`[testo](url)` da `<a href>`) e le immagini in
+  `attachment` come URL remoti. E' una scelta di sicurezza esplicita.
+- Un contenuto remoto in inbox e' in cache solo se rilevante (autore seguito,
+  risposta a qualcosa di noto, menzione locale). In piu': profilo remoto
+  (`RemoteOutboxFetcher`, con fallback Atom) e replies del post remoto
+  (`RemoteRepliesFetcher`). Non e' un indice completo del fediverso.
+  La ricerca per parole chiave (`LocalSearchQuery`) copre i contenuti *locali*;
+  per i remoti resta la risoluzione `utente@dominio`.
+- Le immagini remote usano `media.remote_url` (hotlink): se l'origine blocca o
+  rimuove il file, la galleria puo' risultare vuota. Gli allegati locali restano
+  su `storage/app/public` → `public/storage`, senza CDN.
+- Il limite `OPENBOOK_COMMENT_MAX_DEPTH` e' in configurazione ma non ancora
+  applicato in UI: l'intero albero commenti di un post viene caricato in una
+  pagina.
+- Il pannello di controllo copre moderazione, domini bloccati, coda e
+  impostazioni; restano fuori ban IP e un tool di debug firme HTTP. Promozione
+  staff: UI e CLI (`openbook:make-admin` / `openbook:make-moderator`).
 
 ## Licenza
 
