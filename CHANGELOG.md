@@ -15,7 +15,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 
 ### Added
 - Link "Vedi altro" sotto i 5 suggerimenti remoti della pagina Mondo; apre
-  `/mondo/scopri` con l'elenco paginato di tutti gli account suggeriti.
+  `/mondo/scopri` con l'elenco completo degli account suggeriti, con
+  scorrimento infinito come gli altri feed (paginazione classica in
+  `<noscript>`).
 
 ## [0.8.2] — Fallback Atom per outbox Pixelfed
 

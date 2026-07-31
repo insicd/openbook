@@ -229,6 +229,10 @@ return [
         // dell'Actor stesso perche' i post cambiano piu' spesso del profilo.
         'posts_cache_ttl_hours' => (int) env('OPENBOOK_POSTS_CACHE_TTL_HOURS', 6),
 
+        // Account remoti per pagina sull'elenco "Da scoprire" (/mondo/scopri),
+        // usato dallo scorrimento infinito (e dalla paginazione <noscript>).
+        'discover_per_page' => (int) env('OPENBOOK_DISCOVER_PER_PAGE', 30),
+
         // Dopo quante ore, aprendo un post remoto, viene ritentato il
         // recupero della collection "replies" della Note originale
         // (vedi RemoteRepliesFetcher).

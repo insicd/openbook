@@ -522,6 +522,11 @@ return [
         'discover_empty' => 'Al momento non ci sono account remoti da suggerire.',
         'back_to_world' => 'Torna a Mondo',
         'empty' => 'Ancora nessun post dal resto del fediverso. Segui qualcuno su un\'altra istanza per iniziare a vederne i contenuti qui.',
+        'infinite_scroll' => [
+            'loading' => 'Caricamento altri account...',
+            'end' => 'Non ci sono altri account da mostrare.',
+            'error' => 'Impossibile caricare altri account. Riprova ricaricando la pagina.',
+        ],
     ],
 
     'footer' => [

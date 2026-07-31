@@ -522,6 +522,11 @@ return [
         'discover_empty' => 'There are no remote accounts to suggest right now.',
         'back_to_world' => 'Back to World',
         'empty' => 'No posts from the rest of the fediverse yet. Follow someone on another instance to start seeing their content here.',
+        'infinite_scroll' => [
+            'loading' => 'Loading more accounts...',
+            'end' => 'There are no more accounts to show.',
+            'error' => 'Could not load more accounts. Try reloading the page.',
+        ],
     ],
 
     'footer' => [

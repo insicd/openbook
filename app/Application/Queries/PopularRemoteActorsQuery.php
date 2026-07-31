@@ -31,8 +31,6 @@ final class PopularRemoteActorsQuery
 {
     public const PREVIEW_LIMIT = 5;
 
-    public const PAGE_SIZE = 30;
-
     /**
      * @return Collection<int, Actor>
      */
@@ -43,8 +41,10 @@ final class PopularRemoteActorsQuery
             ->get();
     }
 
-    public function paginateForViewer(Actor $viewer, int $perPage = self::PAGE_SIZE): LengthAwarePaginator
+    public function paginateForViewer(Actor $viewer, ?int $perPage = null): LengthAwarePaginator
     {
+        $perPage ??= max(1, (int) config('openbook.federation.discover_per_page', 30));
+
         return $this->baseQuery($viewer)
             ->paginate($perPage)
             ->withQueryString();

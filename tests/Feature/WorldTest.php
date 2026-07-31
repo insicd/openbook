@@ -185,6 +185,27 @@ class WorldTest extends TestCase
         }
     }
 
+    public function test_the_discover_page_uses_infinite_scroll_markup_when_there_are_more_pages(): void
+    {
+        config(['openbook.federation.discover_per_page' => 2]);
+
+        $viewer = $this->createFullAccount('worlddiscoverscroll');
+
+        for ($i = 1; $i <= 3; $i++) {
+            $remote = $this->createRemoteActor('scroll'.$i, 'fediverse.example');
+            $this->cacheRemotePost($remote);
+        }
+
+        $response = $this->actingAs($viewer)->get(route('world.discover'));
+
+        $response->assertOk();
+        $response->assertSee('id="ob-discover-list"', false);
+        $response->assertSee('data-infinite-scroll', false);
+        $response->assertSee('data-next-url="'.route('world.discover', ['page' => 2]).'"', false);
+        $response->assertSee('<noscript>', false);
+        $response->assertSee('ob-pagination', false);
+    }
+
     public function test_a_guest_cannot_view_the_discover_page(): void
     {
         $this->get(route('world.discover'))->assertRedirect(route('login'));
