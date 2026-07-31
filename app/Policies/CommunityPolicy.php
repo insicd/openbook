@@ -44,7 +44,12 @@ class CommunityPolicy
 
     public function moderate(User $user, Community $community): bool
     {
-        return $community->isOwnedBy($user) || $user->canModerate();
+        return $community->isModerator($user) || $user->canModerate();
+    }
+
+    public function manageModerators(User $user, Community $community): bool
+    {
+        return $community->isOwnedBy($user);
     }
 
     public function post(User $user, Community $community): bool

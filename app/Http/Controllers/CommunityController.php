@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Application\Queries\FeedQuery;
 use App\Application\Services\CommunityMembershipService;
+use App\Application\Services\CommunityModeratorManager;
 use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\FollowManager;
+use App\Domain\Accounts\User;
 use App\Domain\Communities\Community;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
@@ -24,6 +26,7 @@ class CommunityController extends Controller
     public function __construct(
         private readonly CommunityRegistrar $registrar,
         private readonly CommunityMembershipService $membership,
+        private readonly CommunityModeratorManager $moderators,
         private readonly FeedQuery $feedQuery,
         private readonly FollowManager $followManager,
     ) {}
@@ -79,7 +82,7 @@ class CommunityController extends Controller
 
         $pendingJoinRequests = collect();
 
-        if ($viewer !== null && $community->isOwnedBy($viewer) && $community->is_private) {
+        if ($viewer !== null && Gate::forUser($viewer)->allows('moderate', $community) && $community->is_private) {
             $pendingJoinRequests = Follow::query()
                 ->where('following_id', $community->actor_id)
                 ->where('status', Follow::STATUS_PENDING)
@@ -91,6 +94,8 @@ class CommunityController extends Controller
         $posts = $this->feedQuery->forCommunity($community, $viewerActor);
         Post::annotateViewerState($posts->getCollection(), $viewerActor);
 
+        $community->loadMissing('moderators.profile');
+
         return view('communities.show', [
             'community' => $community,
             'posts' => $posts,
@@ -98,6 +103,7 @@ class CommunityController extends Controller
             'hasPendingRequest' => $hasPendingRequest,
             'pendingJoinRequests' => $pendingJoinRequests,
             'canPost' => $viewer !== null && Gate::forUser($viewer)->allows('post', $community),
+            'canManageModerators' => $viewer !== null && Gate::forUser($viewer)->allows('manageModerators', $community),
         ]);
     }
 
@@ -143,5 +149,27 @@ class CommunityController extends Controller
         $this->membership->reject($community, $follow);
 
         return back()->with('status', __('openbook.communities.request_rejected'));
+    }
+
+    public function storeModerator(Request $request, Community $community): RedirectResponse
+    {
+        Gate::authorize('manageModerators', $community);
+
+        $data = $request->validate([
+            'username' => ['required', 'string', 'max:32'],
+        ]);
+
+        $this->moderators->add($community, $data['username']);
+
+        return back()->with('status', __('openbook.communities.moderator_added'));
+    }
+
+    public function destroyModerator(Community $community, User $user): RedirectResponse
+    {
+        Gate::authorize('manageModerators', $community);
+
+        $this->moderators->remove($community, $user);
+
+        return back()->with('status', __('openbook.communities.moderator_removed'));
     }
 }

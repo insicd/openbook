@@ -203,6 +203,7 @@ return [
 
     'actors' => [
         'remote_notice' => 'Profilo remoto: i dati mostrati sono quelli ricevuti dal server di origine e potrebbero non essere aggiornati in tempo reale.',
+        'remote_group_notice' => 'Community remota: i dati e i post mostrati arrivano dal server di origine (ritrasmissioni Announce del Group) e potrebbero non essere aggiornati in tempo reale.',
     ],
 
     'settings' => [
@@ -266,7 +267,7 @@ return [
         'index_title' => 'Community',
         'index_subtitle' => 'Gruppi locali di discussione: iscriviti, pubblica sul wall e ricevi i post degli altri membri.',
         'create' => 'Nuova community',
-        'create_help' => 'Ogni community e\' un Actor ActivityPub di tipo Group (come i forum Friendica), raggiungibile come nome@dominio.',
+        'create_help' => 'Ogni community e\' un Actor ActivityPub di tipo Group, raggiungibile come nome@dominio.',
         'submit_create' => 'Crea community',
         'name' => 'Nome visualizzato',
         'slug' => 'Indirizzo',
@@ -292,11 +293,22 @@ return [
         'request_rejected' => 'Richiesta rifiutata.',
         'wall_empty' => 'Ancora nessun post in questa community.',
         'post_published' => 'Post pubblicato nella community.',
+        'remote_badge' => 'Community remota',
+        'moderators_title' => 'Moderatori',
+        'moderators_help' => 'I moderatori possono accettare o rifiutare le richieste di iscrizione alle community private.',
+        'add_moderator' => 'Aggiungi moderatore (username locale)',
+        'add_moderator_submit' => 'Aggiungi',
+        'remove_moderator' => 'Rimuovi',
+        'moderator_added' => 'Moderatore aggiunto.',
+        'moderator_removed' => 'Moderatore rimosso.',
         'errors' => [
             'slug_taken' => 'Questo indirizzo e\' gia\' in uso da un utente o da un\'altra community.',
             'not_found' => 'Community non trovata.',
             'not_a_member' => 'Devi essere iscritto alla community per pubblicarci.',
             'owner_cannot_leave' => 'Il proprietario non puo\' lasciare la community.',
+            'moderator_not_found' => 'Nessun utente locale attivo con questo username.',
+            'owner_is_already_mod' => 'Il proprietario e\' gia\' moderatore della community.',
+            'cannot_remove_owner' => 'Non puoi rimuovere il proprietario dai moderatori.',
         ],
     ],
 

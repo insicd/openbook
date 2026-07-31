@@ -109,6 +109,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('/c/{community:slug}/iscriviti', [CommunityController::class, 'leave'])->name('communities.leave');
     Route::post('/c/{community:slug}/richieste/{follow}/accetta', [CommunityController::class, 'accept'])->name('communities.accept');
     Route::post('/c/{community:slug}/richieste/{follow}/rifiuta', [CommunityController::class, 'reject'])->name('communities.reject');
+    Route::post('/c/{community:slug}/moderatori', [CommunityController::class, 'storeModerator'])->name('communities.moderators.store');
+    Route::delete('/c/{community:slug}/moderatori/{user}', [CommunityController::class, 'destroyModerator'])->name('communities.moderators.destroy');
 
     Route::middleware('staff')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');

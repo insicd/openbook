@@ -9,6 +9,7 @@ use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -75,9 +76,24 @@ class Community extends Model
         return $this->hasMany(Post::class);
     }
 
+    public function moderators(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'community_moderators')
+            ->withTimestamps();
+    }
+
     public function isOwnedBy(User $user): bool
     {
         return $this->owner_user_id === $user->id;
+    }
+
+    public function isModerator(User $user): bool
+    {
+        if ($this->isOwnedBy($user)) {
+            return true;
+        }
+
+        return $this->moderators()->where('users.id', $user->id)->exists();
     }
 
     public function isMember(Actor $actor): bool

@@ -26,7 +26,7 @@ final class NoteSerializer
      */
     public static function forPost(Post $post): array
     {
-        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor', 'quotedPost']);
+        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor', 'quotedPost', 'community.actor']);
 
         $actor = $post->actor;
         $uri = self::postUri($post);
@@ -66,7 +66,12 @@ final class NoteSerializer
             $note['contentMap'] = [$post->language => $content];
         }
 
-        [$note['to'], $note['cc']] = self::audienceForVisibility($post->visibility, $actor, $post->mentions);
+        [$note['to'], $note['cc']] = self::audienceForVisibility(
+            $post->visibility,
+            $actor,
+            $post->mentions,
+            $post->community?->actor,
+        );
 
         $attachments = self::attachmentsFor($post);
 
@@ -75,6 +80,15 @@ final class NoteSerializer
         }
 
         $tags = self::hashtagTagsFor($post)->concat(self::mentionTagsFor($post->mentions))->values()->all();
+
+        if ($post->community?->actor !== null) {
+            $group = $post->community->actor;
+            $tags[] = [
+                'type' => 'Mention',
+                'href' => $group->uri,
+                'name' => '@'.$group->handle(),
+            ];
+        }
 
         if ($tags !== []) {
             $note['tag'] = $tags;
@@ -191,18 +205,31 @@ final class NoteSerializer
      * @param  Collection<int, Mention>  $mentions
      * @return array{0: list<string>, 1: list<string>}
      */
-    private static function audienceForVisibility(string $visibility, Actor $actor, Collection $mentions): array
-    {
+    private static function audienceForVisibility(
+        string $visibility,
+        Actor $actor,
+        Collection $mentions,
+        ?Actor $communityActor = null,
+    ): array {
         $followersUri = $actor->endpoints?->followers;
         $followers = array_values(array_filter([$followersUri]));
+        $groupUri = $communityActor?->uri;
 
-        return match ($visibility) {
+        [$to, $cc] = match ($visibility) {
             Post::VISIBILITY_PUBLIC => [[self::PUBLIC_STREAM], $followers],
             Post::VISIBILITY_UNLISTED => [$followers, [self::PUBLIC_STREAM]],
             Post::VISIBILITY_FOLLOWERS => [$followers, []],
             Post::VISIBILITY_DIRECT => [self::mentionUrisFor($mentions), []],
             default => [[], []],
         };
+
+        // FEP-1b12 / Friendica: indirizza esplicitamente il Group in "to".
+        if (filled($groupUri) && $visibility !== Post::VISIBILITY_DIRECT) {
+            array_unshift($to, $groupUri);
+            $to = array_values(array_unique($to));
+        }
+
+        return [$to, $cc];
     }
 
     /**

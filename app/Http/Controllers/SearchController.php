@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\LocalSearchQuery;
-use App\Domain\Accounts\User;
+use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Actors\RemoteActorResolver;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -27,6 +27,7 @@ class SearchController extends Controller
 {
     public function __construct(
         private readonly RemoteActorResolver $resolver,
+        private readonly LocalActorResolver $localActors,
         private readonly LocalSearchQuery $localSearch,
     ) {}
 
@@ -72,15 +73,15 @@ class SearchController extends Controller
         [$username, $domain] = $handle;
 
         if (strcasecmp($domain, (string) config('openbook.domain')) === 0) {
-            $user = User::query()->where('username', mb_strtolower($username))->first();
+            $actor = $this->localActors->findByUsername($username);
 
-            if ($user === null) {
+            if ($actor === null) {
                 throw ValidationException::withMessages([
                     'q' => __('openbook.search.errors.local_not_found'),
                 ]);
             }
 
-            return redirect()->route('profile.show', $user->username);
+            return redirect()->to($actor->profileUrl());
         }
 
         $actor = $this->resolver->resolveByHandle($username.'@'.$domain);

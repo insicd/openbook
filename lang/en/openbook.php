@@ -203,6 +203,7 @@ return [
 
     'actors' => [
         'remote_notice' => 'Remote profile: the data shown here comes from the origin server and may not be up to date in real time.',
+        'remote_group_notice' => 'Remote community: profile data and posts come from the origin server (Group Announce relays) and may not be up to date in real time.',
     ],
 
     'settings' => [
@@ -266,7 +267,7 @@ return [
         'index_title' => 'Communities',
         'index_subtitle' => 'Local discussion groups: join, post on the wall, and receive posts from other members.',
         'create' => 'New community',
-        'create_help' => 'Each community is an ActivityPub Group actor (like Friendica forums), reachable as name@domain.',
+        'create_help' => 'Each community is an ActivityPub Group actor, reachable as name@domain.',
         'submit_create' => 'Create community',
         'name' => 'Display name',
         'slug' => 'Handle',
@@ -292,11 +293,22 @@ return [
         'request_rejected' => 'Request rejected.',
         'wall_empty' => 'No posts in this community yet.',
         'post_published' => 'Post published in the community.',
+        'remote_badge' => 'Remote community',
+        'moderators_title' => 'Moderators',
+        'moderators_help' => 'Moderators can accept or reject join requests for private communities.',
+        'add_moderator' => 'Add moderator (local username)',
+        'add_moderator_submit' => 'Add',
+        'remove_moderator' => 'Remove',
+        'moderator_added' => 'Moderator added.',
+        'moderator_removed' => 'Moderator removed.',
         'errors' => [
             'slug_taken' => 'This handle is already used by a user or another community.',
             'not_found' => 'Community not found.',
             'not_a_member' => 'You must be a member of the community to post there.',
             'owner_cannot_leave' => 'The owner cannot leave the community.',
+            'moderator_not_found' => 'No active local user with this username.',
+            'owner_is_already_mod' => 'The owner is already a moderator of this community.',
+            'cannot_remove_owner' => 'You cannot remove the owner from the moderators.',
         ],
     ],
 

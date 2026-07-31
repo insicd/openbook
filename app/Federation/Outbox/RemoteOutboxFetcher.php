@@ -3,11 +3,14 @@
 namespace App\Federation\Outbox;
 
 use App\Application\Queries\FeedQuery;
+use App\Application\Services\AnnounceManager;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Fetch\FederationFetchSigner;
 use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\RemoteContentSanitizer;
+use App\Federation\Inbox\RemoteNoteDocumentFetcher;
 use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
@@ -38,6 +41,9 @@ final class RemoteOutboxFetcher
     public function __construct(
         private readonly SafeHttpClient $httpClient,
         private readonly RemoteNoteUpserter $noteUpserter,
+        private readonly RemoteNoteDocumentFetcher $noteDocumentFetcher,
+        private readonly RemoteActorResolver $remoteActorResolver,
+        private readonly AnnounceManager $announceManager,
         private readonly FederationFetchSigner $fetchSigner,
     ) {}
 
@@ -139,6 +145,12 @@ final class RemoteOutboxFetcher
      */
     private function ingestItem(array $item, Actor $actor): void
     {
+        if ($actor->isGroup() && ($item['type'] ?? null) === 'Announce') {
+            $this->ingestGroupAnnounce($item, $actor);
+
+            return;
+        }
+
         $note = $item;
 
         if (($item['type'] ?? null) === 'Create' && is_array($item['object'] ?? null)) {
@@ -149,33 +161,77 @@ final class RemoteOutboxFetcher
             return;
         }
 
-        // Un outbox deve contenere solo contenuto del suo stesso Actor:
-        // scarta qualunque cosa dichiari un autore diverso, per non
-        // spacciare contenuto altrui per conto di chi stiamo visitando.
+        // Un outbox Person deve contenere solo contenuto del suo stesso Actor.
         if (($note['attributedTo'] ?? null) !== $actor->uri) {
             return;
         }
 
-        // Solo post originali: una risposta il cui padre e' quasi sempre
-        // sconosciuto a questa istanza non potrebbe comunque essere
-        // agganciata a nulla (vedi InboxActivityProcessor::handleCreateOrUpdate).
         if (($note['inReplyTo'] ?? null) !== null) {
             return;
         }
 
+        $this->upsertPublicNote($note, $actor);
+    }
+
+    /**
+     * Outbox di un Group (FEP-1b12): tipicamente Announce di Note altrui.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function ingestGroupAnnounce(array $item, Actor $group): void
+    {
+        $object = $item['object'] ?? null;
+        $note = null;
+
+        if (is_array($object) && ($object['type'] ?? null) === 'Note') {
+            $note = $object;
+        } elseif (is_array($object) && ($object['type'] ?? null) === 'Create' && is_array($object['object'] ?? null)) {
+            $inner = $object['object'];
+            $note = ($inner['type'] ?? null) === 'Note' ? $inner : null;
+        } elseif (is_string($object) && $object !== '') {
+            $note = $this->noteDocumentFetcher->fetch($object);
+        } elseif (is_array($object) && is_string($object['id'] ?? null)) {
+            $note = $this->noteDocumentFetcher->fetch($object['id']);
+        }
+
+        if ($note === null || ($note['type'] ?? null) !== 'Note' || ($note['inReplyTo'] ?? null) !== null) {
+            return;
+        }
+
+        $authorUri = $note['attributedTo'] ?? null;
+
+        if (! is_string($authorUri) || $authorUri === '') {
+            return;
+        }
+
+        $author = $this->remoteActorResolver->resolveByUri($authorUri);
+
+        if ($author === null) {
+            return;
+        }
+
+        $post = $this->upsertPublicNote($note, $author);
+
+        if ($post !== null) {
+            $this->announceManager->announce($group, $post, notify: false);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $note
+     */
+    private function upsertPublicNote(array $note, Actor $author): ?Post
+    {
         $noteUri = $note['id'] ?? null;
 
         if (! is_string($noteUri) || $noteUri === '') {
-            return;
+            return null;
         }
 
         $visibility = $this->noteUpserter->visibilityFromAudience($note);
 
-        // La pagina profilo di un Actor remoto non e' un canale privato:
-        // vi si mostrano solo i contenuti che l'autore ha reso pubblici o
-        // non elencati, mai post riservati ai follower o diretti.
         if (! in_array($visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED], true)) {
-            return;
+            return null;
         }
 
         $body = RemoteContentSanitizer::toPlainText((string) ($note['content'] ?? ''));
@@ -183,9 +239,6 @@ final class RemoteOutboxFetcher
             ? Carbon::parse($note['published'])
             : now();
 
-        // "notifyMentions: false": un post recuperato in blocco dall'outbox
-        // non e' un evento "appena successo", quindi non deve generare
-        // notifiche per menzioni magari vecchie di mesi.
-        $this->noteUpserter->upsertPost($note, $noteUri, $actor, $body, $publishedAt, notifyMentions: false);
+        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false);
     }
 }

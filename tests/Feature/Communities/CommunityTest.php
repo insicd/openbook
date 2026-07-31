@@ -47,6 +47,7 @@ class CommunityTest extends TestCase
 
         $this->actingAs($member)->post(route('communities.join', $community))->assertRedirect();
         $this->assertTrue($community->fresh()->isMember($member->actor));
+        $this->assertSame(2, $community->fresh()->members_count);
 
         $post = app(PostComposer::class)->compose($member->actor, [
             'body' => 'Il mio libro del mese.',
@@ -96,5 +97,41 @@ class CommunityTest extends TestCase
 
         $this->assertNull(Community::query()->where('slug', 'alice')->first());
         $this->assertNotNull($alice->actor);
+    }
+
+    public function test_owner_can_add_and_remove_a_community_moderator(): void
+    {
+        $owner = $this->createFullAccount('owner4');
+        $mod = $this->createFullAccount('moderator4');
+
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'staffed',
+            'name' => 'Con staff',
+        ]);
+
+        $this->actingAs($owner)
+            ->post(route('communities.moderators.store', $community), ['username' => 'moderator4'])
+            ->assertRedirect();
+
+        $this->assertTrue($community->fresh()->isModerator($mod));
+
+        $this->actingAs($owner)
+            ->delete(route('communities.moderators.destroy', [$community, $mod]))
+            ->assertRedirect();
+
+        $this->assertFalse($community->fresh()->isModerator($mod));
+    }
+
+    public function test_local_search_resolves_a_community_handle(): void
+    {
+        $owner = $this->createFullAccount('owner5');
+        app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'ricerca',
+            'name' => 'Da cercare',
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('search.create', ['q' => 'ricerca@'.config('openbook.domain')]))
+            ->assertRedirect(route('communities.show', 'ricerca'));
     }
 }

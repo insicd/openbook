@@ -11,6 +11,25 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.7.1] — Fase 5 (slice 2): Community remote e moderatori
+
+### Added
+- Ingestione FEP-1b12: un `Announce` da Actor `Group` remoto mette in cache
+  la Note (anche se remota, da oggetto embedded o fetch HTTP) e la mostra
+  nel feed di chi e' iscritto al Group.
+- Profilo community remota (`/attori/{id}`): badge, testi "Iscriviti/Lascia",
+  wall alimentato anche dall'outbox (Announce del Group).
+- Ricerca `nome@dominio` risolve anche le community locali (Group), non solo
+  gli utenti.
+- Moderatori delegati sulle community locali (oltre al proprietario):
+  gestiscono le richieste di iscrizione alle community private.
+- I Follow verso un Group locale (anche remoti in ingresso) aggiornano
+  `members_count` e notificano il proprietario.
+
+### Changed
+- Le Note pubblicate verso una community locale includono l'URI del Group
+  in `to` e un tag Mention (allineamento Friendica / FEP-1b12 in uscita).
+
 ## [0.7.0] — Fase 5 (slice 1): Community locali
 
 Prima slice delle community in stile Friendica / FEP-1b12: Actor `Group`,

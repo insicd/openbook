@@ -46,6 +46,7 @@ final class InboxActivityProcessor
         private readonly AnnounceManager $announceManager,
         private readonly RemoteActorResolver $remoteActorResolver,
         private readonly RemoteNoteUpserter $noteUpserter,
+        private readonly RemoteNoteDocumentFetcher $noteDocumentFetcher,
         private readonly CommentSoftDeleter $commentSoftDeleter,
     ) {}
 
@@ -295,20 +296,143 @@ final class InboxActivityProcessor
     }
 
     /**
+     * Condivisione classica (Person che Annuncia un post locale) oppure
+     * ritrasmissione FEP-1b12 (Group che Annuncia una Note, anche remota).
+     *
      * @param  array<string, mixed>  $activity
      */
     private function handleAnnounce(array $activity, Actor $actor): string
     {
-        $targetUri = $this->objectId($activity['object'] ?? null);
+        [$targetUri, $embeddedNote] = $this->announceObject($activity['object'] ?? null);
+
         $post = $targetUri !== null ? $this->objects->resolvePost($targetUri) : null;
 
-        if ($post === null || ! $post->actor->isLocal()) {
+        if ($post === null && $actor->isGroup()) {
+            $post = $this->resolveGroupAnnouncedPost($targetUri, $embeddedNote);
+        }
+
+        if ($post === null) {
             return InboxItem::STATUS_IGNORED;
         }
 
-        $this->announceManager->announce($actor, $post);
+        $post->loadMissing('actor');
+
+        // Person: solo boost di post locali (comportamento storico).
+        // Group: qualunque Note (locale o remota) se almeno un Actor locale
+        // segue il Group, oppure se l'autore del post e' locale.
+        if ($actor->isGroup()) {
+            if (! $post->actor->isLocal() && ! $this->hasLocalFollower($actor)) {
+                return InboxItem::STATUS_IGNORED;
+            }
+        } elseif (! $post->actor->isLocal()) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $this->announceManager->announce($actor, $post, notify: $post->actor->isLocal());
 
         return InboxItem::STATUS_PROCESSED;
+    }
+
+    /**
+     * @return array{0: ?string, 1: ?array<string, mixed>}
+     */
+    private function announceObject(mixed $object): array
+    {
+        if (is_string($object) && $object !== '') {
+            return [$object, null];
+        }
+
+        if (! is_array($object)) {
+            return [null, null];
+        }
+
+        if (($object['type'] ?? null) === 'Note') {
+            $uri = is_string($object['id'] ?? null) ? $object['id'] : null;
+
+            return [$uri, $object];
+        }
+
+        if (($object['type'] ?? null) === 'Create' && is_array($object['object'] ?? null)) {
+            $inner = $object['object'];
+
+            if (($inner['type'] ?? null) === 'Note') {
+                $uri = is_string($inner['id'] ?? null) ? $inner['id'] : null;
+
+                return [$uri, $inner];
+            }
+        }
+
+        return [$this->objectId($object), null];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $embeddedNote
+     */
+    private function resolveGroupAnnouncedPost(?string $targetUri, ?array $embeddedNote): ?Post
+    {
+        $note = $embeddedNote;
+
+        if ($note === null && is_string($targetUri) && $targetUri !== '') {
+            $note = $this->noteDocumentFetcher->fetch($targetUri);
+        }
+
+        if ($note === null || ($note['type'] ?? null) !== 'Note') {
+            return null;
+        }
+
+        $noteUri = is_string($note['id'] ?? null) ? $note['id'] : $targetUri;
+
+        if (! is_string($noteUri) || $noteUri === '') {
+            return null;
+        }
+
+        $existing = $this->objects->resolvePost($noteUri);
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        // Solo post originali: le risposte annunciate dal Group senza padre
+        // in cache non sono agganciabili in modo utile.
+        if (($note['inReplyTo'] ?? null) !== null) {
+            return null;
+        }
+
+        $authorUri = $note['attributedTo'] ?? null;
+
+        if (! is_string($authorUri) || $authorUri === '') {
+            return null;
+        }
+
+        $author = $this->objects->resolveActor($authorUri);
+
+        if ($author === null) {
+            return null;
+        }
+
+        $visibility = $this->noteUpserter->visibilityFromAudience($note);
+
+        if (! in_array($visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED], true)) {
+            return null;
+        }
+
+        $body = RemoteContentSanitizer::toPlainText((string) ($note['content'] ?? ''));
+        $publishedAt = isset($note['published']) && is_string($note['published'])
+            ? Carbon::parse($note['published'])
+            : now();
+
+        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false);
+    }
+
+    private function hasLocalFollower(Actor $actor): bool
+    {
+        return DB::table('follows')
+            ->where('following_id', $actor->id)
+            ->where('status', Follow::STATUS_ACCEPTED)
+            ->whereIn('follower_id', function ($query) {
+                $query->select('id')->from('actors')->where('is_local', true);
+            })
+            ->exists();
     }
 
     /**

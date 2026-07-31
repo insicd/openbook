@@ -280,6 +280,50 @@ class InboxActivityProcessorTest extends TestCase
         ]);
     }
 
+    public function test_a_remote_group_announce_of_an_embedded_note_is_cached_for_local_members(): void
+    {
+        Queue::fake();
+        $member = $this->createFullAccount('membrogruppo');
+        $group = $this->createRemoteActor('circolo', 'forum.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Circolo remoto',
+        ]);
+        $author = $this->createRemoteActor('scrittore', 'forum.example');
+
+        $follow = app(FollowManager::class)->follow($member->actor, $group);
+        $follow->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $noteUri = $author->uri.'/posts/'.uniqid();
+        $activity = [
+            'id' => $group->uri.'/activities/'.uniqid(),
+            'type' => 'Announce',
+            'actor' => $group->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $author->uri,
+                'content' => '<p>Post ritrasmesso dal gruppo</p>',
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public', $group->uri],
+            ],
+        ];
+
+        $status = $this->process($activity, $group);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('posts', [
+            'uri' => $noteUri,
+            'actor_id' => $author->id,
+            'body' => 'Post ritrasmesso dal gruppo',
+        ]);
+        $post = Post::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($post);
+        $this->assertDatabaseHas('announces', [
+            'actor_id' => $group->id,
+            'post_id' => $post->id,
+        ]);
+    }
+
     public function test_a_create_note_from_a_followed_remote_author_is_stored_as_a_local_post(): void
     {
         Queue::fake();

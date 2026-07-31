@@ -2,6 +2,7 @@
 
 namespace App\Application\Services;
 
+use App\Domain\Communities\Community;
 use App\Domain\Notifications\Notification;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -19,6 +20,9 @@ use InvalidArgumentException;
  * dal server remoto: e' il comportamento piu' semplice e corretto secondo la
  * specifica ActivityPub, indipendentemente dal flag "manuallyApprovesFollowers"
  * dichiarato dall'attore remoto (che resta solo informativo).
+ *
+ * Per i Group locali (community) aggiorna anche members_count e notifica il
+ * proprietario della community.
  */
 final class FollowManager
 {
@@ -56,12 +60,11 @@ final class FollowManager
             $follow->setRelation('follower', $follower);
             $follow->setRelation('following', $target);
 
-            $this->notificationCreator->notify(
-                $target,
-                $requiresApproval ? Notification::TYPE_FOLLOW_REQUEST : Notification::TYPE_NEW_FOLLOWER,
-                $follower,
-                $follow,
-            );
+            $this->notifyFollowTarget($target, $follower, $follow, $requiresApproval);
+
+            if (! $requiresApproval) {
+                $this->incrementLocalGroupMembers($target);
+            }
 
             return $follow;
         });
@@ -84,9 +87,15 @@ final class FollowManager
             return;
         }
 
+        $wasAccepted = $follow->status === Follow::STATUS_ACCEPTED;
+
         $follow->setRelation('follower', $follower);
         $follow->setRelation('following', $target);
         $follow->delete();
+
+        if ($wasAccepted) {
+            $this->decrementLocalGroupMembers($target);
+        }
 
         if (! $target->isLocal()) {
             $this->delivery->deliverTo($follower, $target, ActivitySerializer::undoFollow($follow));
@@ -108,6 +117,8 @@ final class FollowManager
 
         $follow->setRelation('follower', $follower);
         $follow->setRelation('following', $target);
+
+        $this->incrementLocalGroupMembers($target);
 
         $this->notificationCreator->notify($follower, Notification::TYPE_FOLLOW_ACCEPTED, $target, $follow);
 
@@ -163,10 +174,6 @@ final class FollowManager
     }
 
     /**
-     * Stato del follow di {@see $viewer} verso ciascuno degli Actor forniti,
-     * in un'unica query: usato dagli elenchi (follower/seguiti) per evitare
-     * una coppia di query per riga.
-     *
      * @param  iterable<Actor>  $targets
      * @return array<string, array{following: bool, pending: bool}>
      */
@@ -194,5 +201,48 @@ final class FollowManager
         }
 
         return $map;
+    }
+
+    private function notifyFollowTarget(Actor $target, Actor $follower, Follow $follow, bool $requiresApproval): void
+    {
+        $type = $requiresApproval ? Notification::TYPE_FOLLOW_REQUEST : Notification::TYPE_NEW_FOLLOWER;
+
+        if ($target->isLocal() && $target->isGroup()) {
+            $ownerActor = Community::query()
+                ->where('actor_id', $target->id)
+                ->with('owner.actor')
+                ->first()
+                ?->owner
+                ?->actor;
+
+            if ($ownerActor !== null) {
+                $this->notificationCreator->notify($ownerActor, $type, $follower, $follow);
+            }
+
+            return;
+        }
+
+        $this->notificationCreator->notify($target, $type, $follower, $follow);
+    }
+
+    private function incrementLocalGroupMembers(Actor $target): void
+    {
+        if (! $target->isLocal() || ! $target->isGroup()) {
+            return;
+        }
+
+        Community::query()->where('actor_id', $target->id)->increment('members_count');
+    }
+
+    private function decrementLocalGroupMembers(Actor $target): void
+    {
+        if (! $target->isLocal() || ! $target->isGroup()) {
+            return;
+        }
+
+        Community::query()
+            ->where('actor_id', $target->id)
+            ->where('members_count', '>', 0)
+            ->decrement('members_count');
     }
 }
