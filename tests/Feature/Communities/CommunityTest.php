@@ -291,4 +291,62 @@ class CommunityTest extends TestCase
                 || $job->inboxUrl === $group->endpoints->shared_inbox
         );
     }
+
+    public function test_communities_index_lists_local_public_communities_by_default(): void
+    {
+        $owner = $this->createFullAccount('listowner');
+        app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'biblioteca',
+            'name' => 'Biblioteca locale',
+        ]);
+
+        $this->get(route('communities.index'))
+            ->assertOk()
+            ->assertSee('Biblioteca locale')
+            ->assertSee('!biblioteca')
+            ->assertSee(__('openbook.communities.scope_local'))
+            ->assertSee(__('openbook.communities.scope_remote'));
+    }
+
+    public function test_communities_index_remote_tab_lists_followed_remote_groups(): void
+    {
+        $member = $this->createFullAccount('remotemember');
+        $followed = $this->createRemoteActor('circolo', 'forum.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Circolo remoto',
+        ]);
+        $ignored = $this->createRemoteActor('altro', 'forum.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Non seguito',
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $member->actor->id,
+            'following_id' => $followed->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $this->actingAs($member)
+            ->get(route('communities.index', ['scope' => 'remote']))
+            ->assertOk()
+            ->assertSee('Circolo remoto')
+            ->assertSee('!circolo@forum.example')
+            ->assertDontSee('Non seguito')
+            ->assertDontSee($ignored->name);
+    }
+
+    public function test_communities_index_remote_tab_is_empty_for_guests(): void
+    {
+        $this->createRemoteActor('ospite', 'forum.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Solo con account',
+        ]);
+
+        $this->get(route('communities.index', ['scope' => 'remote']))
+            ->assertOk()
+            ->assertSee(__('openbook.communities.empty_remote_guest'))
+            ->assertDontSee('Solo con account');
+    }
 }

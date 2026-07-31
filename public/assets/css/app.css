@@ -2007,7 +2007,8 @@ a.ob-post__menu-item {
 
 .ob-admin-filters,
 .ob-admin-actions,
-.ob-admin-search {
+.ob-admin-search,
+.ob-scope-switch {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;

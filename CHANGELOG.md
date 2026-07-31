@@ -11,6 +11,13 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.7.9] — Elenco community locali / remote
+
+### Added
+- Nella pagina Community uno switch Locali / Remote: le locali restano le
+  pubbliche dell'istanza; le remote sono i Group di altre istanze a cui
+  l'utente e' iscritto (Follow accettato).
+
 ## [0.7.8] — Link etichettati nei post remoti
 
 ### Fixed

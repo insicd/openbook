@@ -11,9 +11,11 @@ use App\Domain\Accounts\User;
 use App\Domain\Communities\Community;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
+use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorUrls;
 use App\Http\Requests\Communities\StoreCommunityRequest;
 use App\Http\Support\ActivityPubNegotiation;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,18 +32,56 @@ class CommunityController extends Controller
         private readonly FollowManager $followManager,
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
-        $communities = Community::query()
+        $scope = $request->query('scope') === 'remote' ? 'remote' : 'local';
+
+        return view('communities.index', [
+            'scope' => $scope,
+            'communities' => $scope === 'remote'
+                ? $this->remoteFollowedCommunities($request)
+                : $this->localPublicCommunities(),
+        ]);
+    }
+
+    private function localPublicCommunities(): LengthAwarePaginator
+    {
+        return Community::query()
             ->with('actor')
             ->where('is_private', false)
             ->orderByDesc('members_count')
             ->orderBy('slug')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
+    }
 
-        return view('communities.index', [
-            'communities' => $communities,
-        ]);
+    /**
+     * Group remoti a cui l'utente autenticato e' iscritto (Follow accettato).
+     * Per gli ospiti la lista e' vuota: l'iscrizione federata richiede un account.
+     */
+    private function remoteFollowedCommunities(Request $request): LengthAwarePaginator
+    {
+        $viewerActorId = $request->user()?->actor?->id;
+
+        if ($viewerActorId === null) {
+            return Actor::query()
+                ->whereRaw('0 = 1')
+                ->paginate(20)
+                ->withQueryString();
+        }
+
+        return Actor::query()
+            ->where('type', Actor::TYPE_GROUP)
+            ->where('is_local', false)
+            ->where('status', Actor::STATUS_ACTIVE)
+            ->whereIn('id', Follow::query()
+                ->select('following_id')
+                ->where('follower_id', $viewerActorId)
+                ->where('status', Follow::STATUS_ACCEPTED))
+            ->orderBy('preferred_username')
+            ->orderBy('domain')
+            ->paginate(20)
+            ->withQueryString();
     }
 
     public function create(): View

@@ -908,7 +908,7 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap e stato del progetto
 
-Versione corrente: **0.7.8**. Il dettaglio delle modifiche per versione e' in
+Versione corrente: **0.7.9**. Il dettaglio delle modifiche per versione e' in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 - ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,
@@ -924,7 +924,7 @@ Versione corrente: **0.7.8**. Il dettaglio delle modifiche per versione e' in
   sezione "Mondo", outbox/replies remoti on-demand, pannello di controllo,
   signed fetch, notifiche live, miglioramenti UI e correzioni di interoperabilita'.
   Dettaglio in [`CHANGELOG.md`](CHANGELOG.md).
-- 🚧 **Fase 5 — Community** (0.7.0–0.7.8): Actor `Group` locali e remoti,
+- 🚧 **Fase 5 — Community** (0.7.0–0.7.9): Actor `Group` locali e remoti,
   iscrizione, wall, Announce in uscita e in ingresso, moderatori delegati.
   Possibili rifiniture: elenco membri dedicato, avatar/copertina community,
   interoperabilita' estesa con Lemmy/Friendica.
