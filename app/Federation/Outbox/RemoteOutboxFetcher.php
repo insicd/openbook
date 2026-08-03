@@ -31,7 +31,9 @@ use Illuminate\Support\Carbon;
  * Recupera solo la prima pagina dell'outbox (non l'intera cronologia) e
  * solo i post originali, non le risposte. Se l'outbox e' uno stub (Pixelfed
  * espone spesso solo totalItems senza first/orderedItems), ricade sul feed
- * Atom `{actor}.atom` tramite {@see RemoteAtomFeedBackfill}.
+ * Atom `{actor}.atom` tramite {@see RemoteAtomFeedBackfill}. Se l'outbox e'
+ * vuoto in stile Wafrn (`200` senza collection), ricade sull'API pubblica
+ * `/api/v2/blog` tramite {@see RemoteWafrnBlogBackfill}.
  */
 final class RemoteOutboxFetcher
 {
@@ -42,6 +44,7 @@ final class RemoteOutboxFetcher
         private readonly RemoteNoteUpserter $noteUpserter,
         private readonly RemoteNoteDocumentFetcher $noteDocumentFetcher,
         private readonly RemoteAtomFeedBackfill $atomFeedBackfill,
+        private readonly RemoteWafrnBlogBackfill $wafrnBlogBackfill,
         private readonly RemoteActorResolver $remoteActorResolver,
         private readonly AnnounceManager $announceManager,
         private readonly FederationFetchSigner $fetchSigner,
@@ -79,17 +82,35 @@ final class RemoteOutboxFetcher
         }
 
         if ($items === [] && ! $this->hasCachedPosts($actor)) {
-            foreach ($this->atomFeedBackfill->fetchNotes($actor, $signingActor, self::MAX_ITEMS) as $note) {
-                if (($note['inReplyTo'] ?? null) !== null) {
-                    continue;
-                }
+            $this->ingestBackfillNotes(
+                $this->atomFeedBackfill->fetchNotes($actor, $signingActor, self::MAX_ITEMS),
+                $actor,
+            );
+        }
 
-                if (! RemotePostObject::authorMatches($note['attributedTo'] ?? null, $actor->uri)) {
-                    continue;
-                }
+        if ($items === [] && ! $this->hasCachedPosts($actor)) {
+            $this->ingestBackfillNotes(
+                $this->wafrnBlogBackfill->fetchNotes($actor, $signingActor, self::MAX_ITEMS),
+                $actor,
+            );
+        }
+    }
 
-                $this->upsertPublicPost($note, $actor);
+    /**
+     * @param  list<array<string, mixed>>  $notes
+     */
+    private function ingestBackfillNotes(array $notes, Actor $actor): void
+    {
+        foreach ($notes as $note) {
+            if (($note['inReplyTo'] ?? null) !== null) {
+                continue;
             }
+
+            if (! RemotePostObject::authorMatches($note['attributedTo'] ?? null, $actor->uri)) {
+                continue;
+            }
+
+            $this->upsertPublicPost($note, $actor);
         }
     }
 

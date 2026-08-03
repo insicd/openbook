@@ -6,7 +6,7 @@ integrato con il Fediverso. Non e' un microblog, non e' un clone di Mastodon e n
 un aggregatore di link: e' pensato per comunita' personali, territoriali, associative e
 tematiche, con un'interfaccia comprensibile anche a utenti non tecnici.
 
-Versione corrente: **0.8.3** (vedi [`CHANGELOG.md`](CHANGELOG.md)). Openbook e'
+Versione corrente: **0.8.4** (vedi [`CHANGELOG.md`](CHANGELOG.md)). Openbook e'
 oltre la federazione bidirezionale di base: include **community** (Actor `Group`
 locali e remoti, iscrizione, wall, interoperabilita' Lemmy/Friendica) e sta
 lavorando alla **Fase 6** (interoperabilita' ampia con Mastodon, Misskey, PeerTube,
@@ -577,9 +577,10 @@ WriteFreely), `Video` (PeerTube, anche con `attributedTo` Person+Group) e `Image
 Gli allegati immagine remoti restano URL https in `media.remote_url` (galleria e
 rullino profilo) senza download sull'istanza. Se l'outbox e' uno stub (tipico
 Pixelfed: solo `totalItems`), il profilo remoto ricade sul feed Atom `{actor}.atom`.
-La sezione Mondo propone account remoti da scoprire e, oltre i primi 5, l'elenco
-completo in `/mondo/scopri` con scorrimento infinito. SSRF, blocco domini e firme
-HTTP restano i vincoli di sicurezza di base.
+Per Wafrn (outbox vuoto) si usa l'API pubblica `/api/v2/blog`. La sezione Mondo
+propone account remoti da scoprire e, oltre i primi 5, l'elenco completo in
+`/mondo/scopri` con scorrimento infinito. SSRF, blocco domini e firme HTTP
+restano i vincoli di sicurezza di base.
 
 Non fanno ancora parte del prodotto maturo: un vero sistema di destinatari per i
 messaggi diretti (oltre menzioni), e tool avanzati di debug federazione (oltre al
@@ -790,7 +791,7 @@ La suite copre bootstrap/installer/autenticazione, il dominio sociale locale
 federazione sociale (`tests/Feature/Federation`,
 `tests/Unit/Infrastructure/Security`), le community (`tests/Feature/Communities`)
 e i casi di interoperabilita' (Article/Video/allegati, fallback Atom Pixelfed,
-Accept Lemmy, Mondo/scopri, rullino profilo). In particolare:
+API blog Wafrn, Accept Lemmy, Mondo/scopri, rullino profilo). In particolare:
 
 - generazione e verifica delle HTTP Signatures, `SsrfGuard` (rifiuto di IP
   privati/loopback/riservati, DNS che risolve a indirizzi non pubblici, fallimenti di
@@ -933,7 +934,7 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap e stato del progetto
 
-Versione corrente: **0.8.3**. Il dettaglio delle modifiche per versione e' in
+Versione corrente: **0.8.4**. Il dettaglio delle modifiche per versione e' in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 - ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,
@@ -952,9 +953,10 @@ Versione corrente: **0.8.3**. Il dettaglio delle modifiche per versione e' in
   possibili senza bloccare la Fase 6.
 - 🚧 **Fase 6 — Sicurezza e interoperabilita'** (0.8.x, in corso): tipi
   `Article`/`Video`/`Image`, media remoti in galleria, URI `/users/…`, Accept Lemmy,
-  fallback Atom Pixelfed, rullino Foto sul profilo, Mondo → `/mondo/scopri`.
-  Ancora da rafforzare: NodeBB e altri edge-case; eventuale download locale dei
-  media remoti; destinatari dedicati per i messaggi diretti.
+  fallback Atom Pixelfed, API blog Wafrn, rullino Foto sul profilo,
+  Mondo → `/mondo/scopri`. Ancora da rafforzare: NodeBB e altri edge-case;
+  eventuale download locale dei media remoti; destinatari dedicati per i
+  messaggi diretti.
 
 Non si passa a una fase successiva finche' i test della fase precedente non sono
 verdi.

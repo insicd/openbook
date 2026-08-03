@@ -11,6 +11,15 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.4] — Profili Wafrn: post da API blog
+
+### Fixed
+- Le istanze Wafrn espongono un outbox ActivityPub vuoto (`200 OK` senza
+  collection). Visitando un profilo `@utente@istanza.wafrn`, Openbook ricade
+  sull'API pubblica `/api/v2/blog?id=…`, recupera i post pubblici/non elencati
+  e preferisce il documento Note in `/fediverse/post/{id}` (con fallback
+  sintetico se il GET AP risponde 401).
+
 ## [0.8.3] — Elenco completo "Da scoprire" su Mondo
 
 ### Added

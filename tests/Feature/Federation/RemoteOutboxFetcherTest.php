@@ -276,6 +276,129 @@ XML, 200, ['Content-Type' => 'application/atom+xml']),
         ]);
     }
 
+    public function test_wafrn_style_empty_outbox_falls_back_to_blog_api(): void
+    {
+        $viewer = $this->createFullAccount('wafrnviewer');
+        $remote = $this->createRemoteActor('gabboman', 'wafrn.example', [
+            'uri' => 'https://wafrn.example/fediverse/blog/gabboman',
+        ]);
+        $remote->endpoints->forceFill([
+            'inbox' => 'https://wafrn.example/fediverse/blog/gabboman/inbox',
+            'outbox' => 'https://wafrn.example/fediverse/blog/gabboman/outbox',
+            'followers' => 'https://wafrn.example/fediverse/blog/gabboman/followers',
+            'following' => 'https://wafrn.example/fediverse/blog/gabboman/following',
+            'shared_inbox' => 'https://wafrn.example/fediverse/sharedInbox',
+        ])->save();
+
+        $outboxUrl = $remote->endpoints->outbox;
+        $blogApi = 'https://wafrn.example/api/v2/blog?id=gabboman';
+        $noteUri = 'https://wafrn.example/fediverse/post/0482f26d-065c-4c1c-b1b1-9bfb62e5534f';
+        $atomUrl = $remote->uri.'.atom';
+
+        Http::fake([
+            $outboxUrl => Http::response('OK', 200, ['Content-Type' => 'text/plain']),
+            $atomUrl => Http::response('Not Found', 404),
+            $blogApi => Http::response([
+                'rewootIds' => [],
+                'posts' => [
+                    [
+                        'id' => '0482f26d-065c-4c1c-b1b1-9bfb62e5534f',
+                        'content' => '<p>Post pubblico da Wafrn.</p>',
+                        'markdownContent' => 'Post pubblico da Wafrn.',
+                        'title' => '',
+                        'remotePostId' => null,
+                        'privacy' => 0,
+                        'isReblog' => false,
+                        'isReply' => false,
+                        'isDeleted' => false,
+                        'createdAt' => now()->subHour()->toIso8601String(),
+                        'content_warning' => '',
+                        'displayUrl' => 'https://wafrn.example/fediverse/post/0482f26d-065c-4c1c-b1b1-9bfb62e5534f',
+                    ],
+                    [
+                        'id' => 'reply-should-skip',
+                        'content' => '<p>Risposta.</p>',
+                        'remotePostId' => null,
+                        'privacy' => 0,
+                        'isReblog' => false,
+                        'isReply' => true,
+                        'isDeleted' => false,
+                        'createdAt' => now()->subMinutes(30)->toIso8601String(),
+                    ],
+                    [
+                        'id' => 'followers-only',
+                        'content' => '<p>Solo follower.</p>',
+                        'remotePostId' => null,
+                        'privacy' => 1,
+                        'isReblog' => false,
+                        'isReply' => false,
+                        'isDeleted' => false,
+                        'createdAt' => now()->subMinutes(20)->toIso8601String(),
+                    ],
+                ],
+            ], 200, ['Content-Type' => 'application/json']),
+            $noteUri => Http::response([
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>Post pubblico da Wafrn.</p>',
+                'published' => now()->subHour()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('actors.show', $remote));
+
+        $response->assertOk();
+        $response->assertSee('Post pubblico da Wafrn.');
+        $this->assertDatabaseHas('posts', [
+            'uri' => $noteUri,
+            'actor_id' => $remote->id,
+            'body' => 'Post pubblico da Wafrn.',
+        ]);
+        $this->assertSame(1, Post::query()->where('actor_id', $remote->id)->count());
+    }
+
+    public function test_wafrn_blog_api_synthesizes_notes_when_ap_post_is_unauthorized(): void
+    {
+        $viewer = $this->createFullAccount('wafrnviewer2');
+        $remote = $this->createRemoteActor('alice', 'wafrn.example', [
+            'uri' => 'https://wafrn.example/fediverse/blog/alice',
+        ]);
+        $remote->endpoints->forceFill([
+            'outbox' => 'https://wafrn.example/fediverse/blog/alice/outbox',
+        ])->save();
+
+        $postId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+        $noteUri = 'https://wafrn.example/fediverse/post/'.$postId;
+
+        Http::fake([
+            $remote->endpoints->outbox => Http::response('OK', 200, ['Content-Type' => 'text/plain']),
+            $remote->uri.'.atom' => Http::response('Not Found', 404),
+            'https://wafrn.example/api/v2/blog?id=alice' => Http::response([
+                'posts' => [[
+                    'id' => $postId,
+                    'content' => '<p>Solo dall\'API blog.</p>',
+                    'remotePostId' => null,
+                    'privacy' => 0,
+                    'isReblog' => false,
+                    'isReply' => false,
+                    'isDeleted' => false,
+                    'createdAt' => '2026-01-15T12:00:00.000Z',
+                ]],
+            ], 200, ['Content-Type' => 'application/json']),
+            $noteUri => Http::response('Unauthorized', 401, ['Content-Type' => 'text/plain']),
+        ]);
+
+        $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
+
+        $this->assertDatabaseHas('posts', [
+            'uri' => $noteUri,
+            'actor_id' => $remote->id,
+            'body' => 'Solo dall\'API blog.',
+        ]);
+    }
+
     public function test_a_lemmy_group_outbox_announce_create_page_is_ingested(): void
     {
         $viewer = $this->createFullAccount('esploratorelemmy');
