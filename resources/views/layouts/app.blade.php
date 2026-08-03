@@ -145,6 +145,15 @@
         <script src="{{ \App\Support\Assets::url('assets/js/emoji-data.js') }}" defer></script>
         <script src="{{ \App\Support\Assets::url('assets/js/emoji-picker.js') }}" defer></script>
 
+        <div
+            id="ob-mention-suggest"
+            hidden
+            data-url="{{ route('mentions.suggest') }}"
+            data-label="{{ __('openbook.composer.mention_suggest_label') }}"
+            data-empty="{{ __('openbook.composer.mention_suggest_empty') }}"
+        ></div>
+        <script src="{{ \App\Support\Assets::url('assets/js/mention-autocomplete.js') }}" defer></script>
+
         <a
             href="{{ route('feed.index') }}#ob-composer"
             class="ob-compose-btn ob-compose-btn--fab"

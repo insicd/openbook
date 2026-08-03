@@ -95,7 +95,7 @@
                 <input type="hidden" name="parent_comment_id" value="{{ $comment->id }}">
                 <div class="ob-field">
                     <label for="risposta-testo-{{ $comment->id }}" class="ob-field__help">{{ __('openbook.comments.reply_to', ['name' => $displayName]) }}</label>
-                    <textarea id="risposta-testo-{{ $comment->id }}" name="body" rows="2" required maxlength="{{ config('openbook.comments.max_length', 2000) }}"></textarea>
+                    <textarea id="risposta-testo-{{ $comment->id }}" name="body" rows="2" required maxlength="{{ config('openbook.comments.max_length', 2000) }}" data-mention-autocomplete></textarea>
                     <div class="ob-emoji-toolbar">
                         <x-emoji-trigger target="risposta-testo-{{ $comment->id }}" />
                     </div>

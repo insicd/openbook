@@ -154,6 +154,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Autocomplete menzioni (@) nel composer
+    |--------------------------------------------------------------------------
+    |
+    | Prefisso minimo e numero massimo di Person locali/remoti (in cache)
+    | suggeriti mentre si digita "@nome" in post e commenti.
+    */
+    'mentions' => [
+        'suggest_min_length' => (int) env('OPENBOOK_MENTION_SUGGEST_MIN_LENGTH', 1),
+        'suggest_limit' => (int) env('OPENBOOK_MENTION_SUGGEST_LIMIT', 8),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Chiavi crittografiche degli Actor
     |--------------------------------------------------------------------------
     |

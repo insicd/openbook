@@ -102,6 +102,8 @@ return [
     'composer' => [
         'body_label' => 'Cosa vuoi condividere?',
         'placeholder' => 'Scrivi qualcosa...',
+        'mention_suggest_label' => 'Persone da menzionare',
+        'mention_suggest_empty' => 'Nessun account corrispondente.',
         'quote_placeholder' => 'Aggiungi un commento alla citazione...',
         'quoting' => 'Stai citando :name',
         'quote_cancel' => 'Annulla',

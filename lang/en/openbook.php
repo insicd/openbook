@@ -102,6 +102,8 @@ return [
     'composer' => [
         'body_label' => 'What do you want to share?',
         'placeholder' => 'Write something...',
+        'mention_suggest_label' => 'People to mention',
+        'mention_suggest_empty' => 'No matching accounts.',
         'quote_placeholder' => 'Add a comment to your quote...',
         'quoting' => 'Quoting :name',
         'quote_cancel' => 'Cancel',

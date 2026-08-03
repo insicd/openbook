@@ -2255,3 +2255,96 @@ a.ob-post__menu-item {
     border-right-color: var(--ob-color-primary);
   }
 }
+
+/* Autocomplete menzioni (@) nel composer / commenti */
+.ob-mention-suggest {
+  position: fixed;
+  z-index: 80;
+  max-height: 16rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0.35rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: var(--ob-radius);
+  background: var(--ob-color-surface);
+  box-shadow: var(--ob-shadow);
+}
+
+.ob-mention-suggest[hidden] {
+  display: none;
+}
+
+.ob-mention-suggest__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ob-mention-suggest__empty {
+  padding: 0.65rem 0.75rem;
+  color: var(--ob-color-text-muted);
+  font-size: 0.9rem;
+}
+
+.ob-mention-suggest__button {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ob-mention-suggest__item.is-active .ob-mention-suggest__button,
+.ob-mention-suggest__button:hover,
+.ob-mention-suggest__button:focus-visible {
+  background: var(--ob-color-primary-soft);
+  outline: none;
+}
+
+.ob-mention-suggest__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.ob-mention-suggest__avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ob-color-primary);
+  color: var(--ob-color-primary-contrast);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.ob-mention-suggest__meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.ob-mention-suggest__name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ob-mention-suggest__handle {
+  color: var(--ob-color-text-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

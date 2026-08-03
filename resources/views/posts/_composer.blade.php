@@ -40,6 +40,7 @@
                 <label for="composer-body" class="sr-only">{{ __('openbook.composer.body_label') }}</label>
                 <textarea id="composer-body" name="body" rows="{{ $quotedPost ? 3 : 1 }}" required maxlength="{{ config('openbook.posts.max_length') }}"
                     placeholder="{{ $quotedPost ? __('openbook.composer.quote_placeholder') : __('openbook.composer.placeholder') }}"
+                    data-mention-autocomplete
                     @if ($quotedPost) autofocus @endif>{{ old('body') }}</textarea>
             </div>
         </div>

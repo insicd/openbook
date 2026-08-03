@@ -20,6 +20,7 @@ use App\Http\Controllers\HashtagController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstanceRulesController;
 use App\Http\Controllers\LikeController;
+use App\Http\Controllers\MentionSuggestController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
@@ -93,6 +94,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/cerca', [SearchController::class, 'create'])
         ->middleware('throttle:30,1')
         ->name('search.create');
+
+    Route::get('/menzioni/suggerimenti', MentionSuggestController::class)
+        ->middleware('throttle:60,1')
+        ->name('mentions.suggest');
 
     Route::get('/notifiche', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifiche/feed', [NotificationController::class, 'feed'])
