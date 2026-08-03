@@ -6,7 +6,7 @@ integrato con il Fediverso. Non e' un microblog, non e' un clone di Mastodon e n
 un aggregatore di link: e' pensato per comunita' personali, territoriali, associative e
 tematiche, con un'interfaccia comprensibile anche a utenti non tecnici.
 
-Versione corrente: **0.8.9** (vedi [`CHANGELOG.md`](CHANGELOG.md)). Openbook e'
+Versione corrente: **0.8.10** (vedi [`CHANGELOG.md`](CHANGELOG.md)). Openbook e'
 oltre la federazione bidirezionale di base: include **community** (Actor `Group`
 locali e remoti, iscrizione, wall, interoperabilita' Lemmy/Friendica) e sta
 lavorando alla **Fase 6** (interoperabilita' ampia con Mastodon, Misskey, PeerTube,
@@ -937,7 +937,7 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap e stato del progetto
 
-Versione corrente: **0.8.9**. Il dettaglio delle modifiche per versione e' in
+Versione corrente: **0.8.10**. Il dettaglio delle modifiche per versione e' in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 - ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,

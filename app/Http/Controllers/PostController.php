@@ -6,6 +6,7 @@ use App\Application\Services\PostComposer;
 use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use App\Federation\Delivery\ActivityDelivery;
+use App\Federation\Posts\RemotePostRefresher;
 use App\Federation\Replies\RemoteRepliesFetcher;
 use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\NoteSerializer;
@@ -24,6 +25,7 @@ class PostController extends Controller
         private readonly PostComposer $postComposer,
         private readonly ActivityDelivery $delivery,
         private readonly RemoteRepliesFetcher $remoteRepliesFetcher,
+        private readonly RemotePostRefresher $remotePostRefresher,
     ) {}
 
     public function store(StorePostRequest $request): RedirectResponse
@@ -117,6 +119,26 @@ class PostController extends Controller
             'post' => $post,
             'commentTree' => $this->buildCommentTree($comments),
         ]);
+    }
+
+    /**
+     * Recupero on-demand di un post remoto: aggiorna la Note e forza il
+     * fetch delle replies, ignorando il TTL della sola apertura pagina.
+     */
+    public function fetchUpdates(Post $post): RedirectResponse
+    {
+        $viewer = auth()->user()->actor;
+
+        abort_unless(
+            $post->isRemote()
+            && $post->isPublished()
+            && Post::query()->whereKey($post->id)->visibleTo($viewer)->exists(),
+            404,
+        );
+
+        $this->remotePostRefresher->refresh($post);
+
+        return back()->with('status', __('openbook.posts.updates_fetched'));
     }
 
     public function destroy(Post $post): RedirectResponse

@@ -62,6 +62,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/pubblica', [PostController::class, 'store'])->name('posts.store');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
+    Route::post('/posts/{post}/aggiorna', [PostController::class, 'fetchUpdates'])
+        ->middleware('throttle:10,1')
+        ->name('posts.fetch_updates');
 
     Route::post('/posts/{post}/commenti', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('/commenti/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');

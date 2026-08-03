@@ -11,6 +11,38 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.10] — Onboarding, menzioni e recupero post remoti
+
+### Added
+- Welcome kit sulla home vuota: suggerimenti di staff, persone locali e
+  account remoti noti, con link a Mondo e alle community.
+- Notifica ai membri locali quando qualcuno pubblica in una community.
+- Autocomplete `@` nel composer di post e commenti (utenti locali e remoti
+  gia' in cache).
+- Voce di menu "Recupera aggiornamenti" sui post remoti: ri-scarica la Note
+  e forza il fetch delle replies, ignorando il TTL.
+- Dopo la pubblicazione di un post normale, redirect alla pagina del post
+  (non piu' solo alla home).
+
+### Changed
+- Le community private compaiono nell'elenco locali per il creatore e per
+  lo staff dell'istanza (badge "Privata"); gli altri utenti vedono solo le
+  pubbliche.
+- La pagina di attesa MySQL (connessioni transienti) e' uno schermo di
+  caricamento con retry automatico e backoff, non piu' un messaggio di
+  "servizio non disponibile".
+- Ricerca con `#tag`: un solo hashtag trovato apre direttamente la pagina
+  del tag; con piu' risultati resta l'elenco di ricerca.
+- Hashtag e menzioni nei post remoti puntano alle pagine locali di Openbook
+  (o alla ricerca federata `user@dominio` se l'attore non e' ancora in cache).
+- La registrazione atterra sulla home con il welcome kit, non sul profilo.
+
+### Fixed
+- La mail di verifica veniva inviata due volte alla registrazione (listener
+  `Registered` duplicato rispetto a quello di Laravel).
+- A capo nei post/commenti federati verso Mastodon: niente piu' newline
+  residui dopo `<br>` che raddoppiavano le interruzioni di riga.
+
 ## [0.8.9] — Profili Threads senza cronologia outbox
 
 ### Changed

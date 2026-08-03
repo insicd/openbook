@@ -158,6 +158,8 @@ return [
         'confirm_delete' => 'Vuoi davvero eliminare questo post?',
         'menu' => 'Altre azioni sul post',
         'open_original' => 'Apri post originale',
+        'fetch_updates' => 'Recupera aggiornamenti',
+        'updates_fetched' => 'Aggiornamenti recuperati dal server di origine.',
         'video_embed' => 'Video incorporato (:provider)',
         'read_more' => 'Altro...',
         'published' => 'Il tuo post e stato pubblicato.',

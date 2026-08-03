@@ -38,7 +38,7 @@ final class RemoteRepliesFetcher
         private readonly FederationFetchSigner $fetchSigner,
     ) {}
 
-    public function fetchReplies(Post $post): void
+    public function fetchReplies(Post $post, bool $force = false): void
     {
         if (! $post->isRemote() || blank($post->uri) || ! $post->isPublished()) {
             return;
@@ -46,7 +46,11 @@ final class RemoteRepliesFetcher
 
         $ttlHours = (int) config('openbook.federation.replies_cache_ttl_hours', 6);
 
-        if ($post->replies_fetched_at !== null && $post->replies_fetched_at->gt(Carbon::now()->subHours($ttlHours))) {
+        if (
+            ! $force
+            && $post->replies_fetched_at !== null
+            && $post->replies_fetched_at->gt(Carbon::now()->subHours($ttlHours))
+        ) {
             return;
         }
 

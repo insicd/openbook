@@ -46,6 +46,7 @@
             @php
                 $canDeletePost = auth()->check() && auth()->user()->can('delete', $post);
                 $canReportPost = auth()->check() && auth()->user()->can('report', $post);
+                $canFetchUpdates = auth()->check() && $canOpenOriginal;
             @endphp
             @if ($canDeletePost || $canReportPost || $canOpenOriginal)
                 <details class="ob-post__menu">
@@ -58,6 +59,15 @@
                                 <x-icon name="globe" />
                                 {{ __('openbook.posts.open_original') }}
                             </a>
+                        @endif
+                        @if ($canFetchUpdates)
+                            <form method="POST" action="{{ route('posts.fetch_updates', $post) }}">
+                                @csrf
+                                <button type="submit" class="ob-post__menu-item" role="menuitem">
+                                    <x-icon name="refresh" />
+                                    {{ __('openbook.posts.fetch_updates') }}
+                                </button>
+                            </form>
                         @endif
                         @if ($canReportPost)
                             <a href="{{ route('posts.report.create', $post) }}" class="ob-post__menu-item" role="menuitem">

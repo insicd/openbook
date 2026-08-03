@@ -158,6 +158,8 @@ return [
         'confirm_delete' => 'Are you sure you want to delete this post?',
         'menu' => 'More post actions',
         'open_original' => 'Open original post',
+        'fetch_updates' => 'Fetch updates',
+        'updates_fetched' => 'Updates fetched from the origin server.',
         'video_embed' => 'Embedded video (:provider)',
         'read_more' => 'More...',
         'published' => 'Your post has been published.',
