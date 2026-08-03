@@ -3,10 +3,15 @@
 namespace Tests\Unit\Domain\Posts;
 
 use App\Domain\Posts\PostBodyRenderer;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\CreatesAccounts;
+use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
 
 class PostBodyRendererTest extends TestCase
 {
+    use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
+
     public function test_it_turns_a_url_into_a_clickable_link_opening_in_a_new_tab(): void
     {
         $html = (string) PostBodyRenderer::render('Guarda questo: https://esempio.it/pagina');
@@ -136,5 +141,57 @@ class PostBodyRendererTest extends TestCase
 
         $this->assertSame('uno<br><br>due', $html);
         $this->assertStringNotContainsString("\n", $html);
+    }
+
+    public function test_labeled_hashtag_links_from_remote_posts_point_to_local_hashtag_pages(): void
+    {
+        $html = (string) PostBodyRenderer::render(
+            'Guarda [#openbook](https://mastodon.example/tags/openbook) qui.'
+        );
+
+        $this->assertStringContainsString(
+            '<a href="'.e(route('hashtags.show', 'openbook')).'" class="hashtag">#openbook</a>',
+            $html
+        );
+        $this->assertStringNotContainsString('mastodon.example', $html);
+        $this->assertStringNotContainsString('class="post-link"', $html);
+    }
+
+    public function test_labeled_mention_links_from_remote_posts_point_to_local_actor_profiles(): void
+    {
+        $remote = $this->createRemoteActor('alice', 'mastodon.example');
+
+        $html = (string) PostBodyRenderer::render(
+            'Ciao [@alice](https://mastodon.example/@alice)!'
+        );
+
+        $this->assertStringContainsString(
+            '<a href="'.e($remote->profileUrl()).'" class="mention">@alice</a>',
+            $html
+        );
+        $this->assertStringNotContainsString('mastodon.example/@alice', $html);
+        $this->assertStringNotContainsString('class="post-link"', $html);
+    }
+
+    public function test_federated_mention_handles_point_to_cached_remote_profiles(): void
+    {
+        $remote = $this->createRemoteActor('bob', 'social.example');
+
+        $html = (string) PostBodyRenderer::render('Saluti @bob@social.example');
+
+        $this->assertStringContainsString(
+            '<a href="'.e($remote->profileUrl()).'" class="mention">@bob@social.example</a>',
+            $html
+        );
+    }
+
+    public function test_unknown_remote_mentions_fall_back_to_search(): void
+    {
+        $html = (string) PostBodyRenderer::render('Saluti @sconosciuta@lontano.example');
+
+        $this->assertStringContainsString(
+            '<a href="'.e(route('search.create', ['q' => 'sconosciuta@lontano.example'])).'" class="mention">@sconosciuta@lontano.example</a>',
+            $html
+        );
     }
 }

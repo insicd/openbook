@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Domain\Posts\PostBodyRenderer;
 use App\Infrastructure\Installation\InstallationLock;
 use App\Infrastructure\Security\Http\DnsResolver;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
@@ -28,6 +29,8 @@ abstract class TestCase extends BaseTestCase
         // La risoluzione DNS reale non deve mai far parte della suite: i
         // test di federazione usano domini fittizi (es. "remote.example").
         $this->app->bind(DnsResolver::class, FakeDnsResolver::class);
+
+        PostBodyRenderer::clearMentionHrefCache();
 
         $this->originalLockContents = is_file(InstallationLock::path())
             ? file_get_contents(InstallationLock::path())

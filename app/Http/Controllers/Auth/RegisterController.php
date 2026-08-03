@@ -48,7 +48,7 @@ class RegisterController extends Controller
         $request->session()->regenerate();
 
         return redirect()
-            ->route('profile.show', $user->username)
-            ->with('status', 'Benvenuto su Openbook! Il tuo account e stato creato.');
+            ->route('feed.index')
+            ->with('status', __('openbook.auth.welcome', ['app' => config('app.name')]));
     }
 }

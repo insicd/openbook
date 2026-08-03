@@ -74,7 +74,12 @@
                                 @endif
                             </div>
                         </a>
-                        <span class="ob-field__help">{{ trans_choice('openbook.communities.members_count', $community->members_count, ['count' => $community->members_count]) }}</span>
+                        <div class="ob-community-list__meta">
+                            @if ($community->is_private)
+                                <span class="ob-badge">{{ __('openbook.communities.private_badge') }}</span>
+                            @endif
+                            <span class="ob-field__help">{{ trans_choice('openbook.communities.members_count', $community->members_count, ['count' => $community->members_count]) }}</span>
+                        </div>
                     </li>
                 @endforeach
             </ul>

@@ -16,7 +16,7 @@ class NotificationController extends Controller
     {
         $notifications = Notification::query()
             ->where('recipient_id', auth()->id())
-            ->with('actor.user.profile', 'notifiable')
+            ->with(['actor.user.profile', 'notifiable'])
             ->orderByDesc('created_at')
             ->paginate(30);
 
@@ -74,7 +74,7 @@ class NotificationController extends Controller
                 return [
                     'id' => $notification->id,
                     'unread' => ! $notification->isRead(),
-                    'message' => __('openbook.notifications.messages.'.$notification->type, ['name' => $name]),
+                    'message' => $notification->message(),
                     'url' => $notification->targetUrl() ?: route('notifications.index'),
                     'time' => $notification->created_at->diffForHumans(),
                     'actor_name' => $name,

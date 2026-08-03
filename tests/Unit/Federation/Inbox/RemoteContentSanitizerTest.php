@@ -61,4 +61,46 @@ class RemoteContentSanitizerTest extends TestCase
 
         $this->assertSame('[A & B](https://esempio.it/?q=a&b=1)', $text);
     }
+
+    public function test_it_collapses_remote_hashtag_anchors_to_plain_hashtags(): void
+    {
+        $text = RemoteContentSanitizer::toPlainText(
+            '<p>Ciao <a href="https://mastodon.example/tags/openbook" class="mention hashtag" rel="tag">#<span>openbook</span></a>!</p>'
+        );
+
+        $this->assertSame('Ciao #openbook!', $text);
+        $this->assertStringNotContainsString('mastodon.example', $text);
+        $this->assertStringNotContainsString('[#openbook]', $text);
+    }
+
+    public function test_it_collapses_tag_path_anchors_without_hash_in_label(): void
+    {
+        $text = RemoteContentSanitizer::toPlainText(
+            '<a href="https://pixelfed.example/discover/tags/foto">foto</a>'
+        );
+
+        $this->assertSame('#foto', $text);
+    }
+
+    public function test_it_collapses_remote_mention_anchors_to_federated_handles(): void
+    {
+        $text = RemoteContentSanitizer::toPlainText(
+            '<p>Ciao <span class="h-card"><a href="https://mastodon.example/@alice" class="u-url mention">@<span>alice</span></a></span>!</p>'
+        );
+
+        $this->assertSame('Ciao @alice@mastodon.example!', $text);
+        $this->assertStringNotContainsString('[@alice]', $text);
+        $this->assertStringNotContainsString('](https://mastodon.example', $text);
+    }
+
+    public function test_it_keeps_local_mentions_without_domain_suffix(): void
+    {
+        config(['openbook.domain' => 'openbook.test']);
+
+        $text = RemoteContentSanitizer::toPlainText(
+            '<a href="https://openbook.test/@mario" class="mention">@mario</a>'
+        );
+
+        $this->assertSame('@mario', $text);
+    }
 }

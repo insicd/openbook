@@ -692,6 +692,46 @@ p {
   padding-top: 0;
 }
 
+.ob-welcome__intro {
+  margin-bottom: 0.25rem;
+}
+
+.ob-welcome__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.25rem;
+}
+
+.ob-welcome__body {
+  margin: 0;
+  color: var(--ob-color-text-muted);
+}
+
+.ob-welcome__section {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ob-color-border);
+}
+
+.ob-welcome__section-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+}
+
+.ob-welcome__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ob-color-border);
+}
+
+.ob-welcome__actions .ob-field__help {
+  margin: 0;
+  flex: 1 1 100%;
+}
+
 .ob-hashtag-list {
   list-style: none;
   margin: 0;
@@ -1524,6 +1564,14 @@ a.ob-post__menu-item {
 .ob-community-list__item:first-child {
   border-top: none;
   padding-top: 0;
+}
+
+.ob-community-list__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
 }
 
 .ob-community-manage {

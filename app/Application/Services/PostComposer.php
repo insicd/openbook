@@ -9,6 +9,7 @@ use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Domain\Posts\PostAttachment;
+use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Serialization\ActivitySerializer;
@@ -123,6 +124,7 @@ final class PostComposer
         if ($community !== null) {
             $community->loadMissing('actor');
             $this->announceManager->announce($community->actor, $post, notify: false);
+            $this->notifyCommunityMembers($community, $author, $post);
         }
 
         if ($author->isLocal()) {
@@ -137,6 +139,34 @@ final class PostComposer
         }
 
         return $post;
+    }
+
+    /**
+     * Avvisa i membri locali (Follow accettato verso il Group) che e' uscito
+     * un nuovo post. Remoti e autore sono esclusi: le notifiche in-app sono
+     * solo locali e NotificationCreator ignora gia' l'auto-notifica.
+     */
+    private function notifyCommunityMembers(Community $community, Actor $author, Post $post): void
+    {
+        $members = Actor::query()
+            ->where('is_local', true)
+            ->where('type', Actor::TYPE_PERSON)
+            ->where('status', Actor::STATUS_ACTIVE)
+            ->whereKeyNot($author->id)
+            ->whereIn('id', Follow::query()
+                ->select('follower_id')
+                ->where('following_id', $community->actor_id)
+                ->where('status', Follow::STATUS_ACCEPTED))
+            ->get();
+
+        foreach ($members as $member) {
+            $this->notificationCreator->notify(
+                $member,
+                Notification::TYPE_COMMUNITY_POST,
+                $author,
+                $post,
+            );
+        }
     }
 
     private function resolveCommunity(Actor $author, ?string $communityId): ?Community

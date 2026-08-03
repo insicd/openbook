@@ -15,5 +15,9 @@
         'composerCommunities' => $composerCommunities ?? collect(),
     ])
 
-    @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.feed.empty')])
+    @if (($welcomeKit ?? null) !== null)
+        @include('feed._welcome', ['welcomeKit' => $welcomeKit])
+    @else
+        @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.feed.empty')])
+    @endif
 @endsection

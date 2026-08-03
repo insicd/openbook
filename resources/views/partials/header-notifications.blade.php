@@ -35,7 +35,6 @@
             @forelse ($headerNotifications ?? [] as $notification)
                 @php
                     $causedByActor = $notification->actor;
-                    $causedByName = $causedByActor?->displayName() ?: __('openbook.notifications.someone');
                     $url = $notification->targetUrl();
                 @endphp
                 <a
@@ -45,7 +44,7 @@
                 >
                     <x-avatar :actor="$causedByActor" style="width:36px;height:36px;font-size:0.95rem" />
                     <div class="ob-header-notification__body">
-                        <div>{{ __('openbook.notifications.messages.'.$notification->type, ['name' => $causedByName]) }}</div>
+                        <div>{{ $notification->message() }}</div>
                         <div class="ob-notification__time">{{ $notification->created_at->diffForHumans() }}</div>
                     </div>
                 </a>

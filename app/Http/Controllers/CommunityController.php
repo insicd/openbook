@@ -40,15 +40,31 @@ class CommunityController extends Controller
             'scope' => $scope,
             'communities' => $scope === 'remote'
                 ? $this->remoteFollowedCommunities($request)
-                : $this->localPublicCommunities(),
+                : $this->localCommunities($request),
         ]);
     }
 
-    private function localPublicCommunities(): LengthAwarePaginator
+    /**
+     * Elenco community locali: le pubbliche per tutti; le private solo per
+     * chi le ha create e per lo staff dell'istanza.
+     */
+    private function localCommunities(Request $request): LengthAwarePaginator
     {
+        $viewer = $request->user();
+
         return Community::query()
             ->with('actor')
-            ->where('is_private', false)
+            ->when(
+                $viewer?->isStaff(),
+                fn ($query) => $query,
+                fn ($query) => $query->where(function ($visibility) use ($viewer): void {
+                    $visibility->where('is_private', false);
+
+                    if ($viewer !== null) {
+                        $visibility->orWhere('owner_user_id', $viewer->id);
+                    }
+                }),
+            )
             ->orderByDesc('members_count')
             ->orderBy('slug')
             ->paginate(20)

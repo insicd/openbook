@@ -2,6 +2,7 @@
 
 namespace App\Domain\Posts;
 
+use App\Federation\Actors\Actor;
 use Illuminate\Support\HtmlString;
 
 /**
@@ -21,6 +22,10 @@ use Illuminate\Support\HtmlString;
  * "/@nome") verrebbe ri-processato dai pattern successivi, corrompendo
  * l'attributo href gia' scritto. Una singola passata garantisce invece che
  * ogni porzione di testo originale venga considerata una sola volta.
+ *
+ * Hashtag e menzioni provenienti da post remoti (anche gia' salvati come
+ * `[#tag](https://remoto/…)` / `[@user](https://remoto/…)`) vengono
+ * ripuntati alle pagine locali di Openbook quando possibile.
  */
 final class PostBodyRenderer
 {
@@ -35,6 +40,19 @@ final class PostBodyRenderer
      * (es. "vedi https://esempio.it." a fine periodo).
      */
     private const URL_TRAILING_PUNCTUATION = '.,;:!?';
+
+    /**
+     * Cache per-request delle URL profilo risolte, per evitare N query uguali
+     * quando lo stesso handle compare in piu' post del feed.
+     *
+     * @var array<string, string>
+     */
+    private static array $mentionHrefCache = [];
+
+    public static function clearMentionHrefCache(): void
+    {
+        self::$mentionHrefCache = [];
+    }
 
     public static function render(string $body): HtmlString
     {
@@ -83,9 +101,20 @@ final class PostBodyRenderer
      * usata anche per i collegamenti HTML dei post remoti dopo
      * {@see \App\Federation\Inbox\RemoteContentSanitizer}. Etichetta e URL
      * sono gia' sfuggiti da e().
+     *
+     * Se l'etichetta e' un hashtag o una menzione (tipici dei post remoti
+     * gia' in cache), si renderizza verso le pagine locali di Openbook.
      */
     private static function renderLabeledUrl(string $url, string $label): string
     {
+        if (preg_match('/^#[\p{L}\p{N}_]{1,100}$/u', $label) === 1) {
+            return self::renderHashtag($label);
+        }
+
+        if (preg_match('/^@[a-zA-Z0-9_]{1,32}(?:@[a-zA-Z0-9.\-]+)?$/u', $label) === 1) {
+            return self::renderMention($label, $url);
+        }
+
         [$url, $trailing] = self::splitTrailingPunctuation($url);
 
         if ($url === '') {
@@ -142,11 +171,92 @@ final class PostBodyRenderer
         return sprintf('<a href="%s" class="hashtag">#%s</a>', e(route('hashtags.show', $tag)), $name);
     }
 
-    private static function renderMention(string $mention): string
+    private static function renderMention(string $mention, ?string $href = null): string
     {
         $handle = substr($mention, 1);
-        [$username] = explode('@', $handle, 2);
+        $profileHref = self::resolveMentionHref($handle, $href);
 
-        return sprintf('<a href="%s" class="mention">@%s</a>', e(url('/@'.$username)), $handle);
+        return sprintf('<a href="%s" class="mention">@%s</a>', e($profileHref), $handle);
+    }
+
+    private static function resolveMentionHref(string $handle, ?string $href = null): string
+    {
+        $cacheKey = $handle.'|'.($href ?? '');
+
+        if (isset(self::$mentionHrefCache[$cacheKey])) {
+            return self::$mentionHrefCache[$cacheKey];
+        }
+
+        $actor = self::findMentionedActor($handle, $href);
+
+        if ($actor !== null) {
+            return self::$mentionHrefCache[$cacheKey] = $actor->profileUrl();
+        }
+
+        // Non in cache: stessa strada del motore di ricerca (risoluzione
+        // locale o WebFinger al click), invece del profilo sul server remoto.
+        return self::$mentionHrefCache[$cacheKey] = route('search.create', ['q' => $handle]);
+    }
+
+    private static function findMentionedActor(string $handle, ?string $href = null): ?Actor
+    {
+        if (is_string($href) && $href !== '') {
+            $decodedHref = html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $byUri = Actor::query()
+                ->where('uri', $decodedHref)
+                ->where('status', Actor::STATUS_ACTIVE)
+                ->first();
+
+            if ($byUri !== null) {
+                return $byUri;
+            }
+        }
+
+        if (preg_match('/^([a-zA-Z0-9_]{1,32})(?:@([a-zA-Z0-9.\-]+))?$/u', $handle, $match) !== 1) {
+            return null;
+        }
+
+        $username = mb_strtolower($match[1]);
+        $domain = isset($match[2]) && $match[2] !== '' ? mb_strtolower($match[2]) : null;
+        $localDomain = mb_strtolower((string) config('openbook.domain'));
+
+        if ($domain === null || $domain === $localDomain) {
+            $local = Actor::query()
+                ->where('is_local', true)
+                ->where('preferred_username', $username)
+                ->where('status', Actor::STATUS_ACTIVE)
+                ->first();
+
+            if ($local !== null) {
+                return $local;
+            }
+        }
+
+        if ($domain !== null && $domain !== $localDomain) {
+            return Actor::query()
+                ->where('is_local', false)
+                ->where('preferred_username', $username)
+                ->where('domain', $domain)
+                ->where('status', Actor::STATUS_ACTIVE)
+                ->first();
+        }
+
+        if ($href !== null) {
+            $decodedHref = html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $host = parse_url($decodedHref, PHP_URL_HOST);
+            $path = (string) (parse_url($decodedHref, PHP_URL_PATH) ?? '');
+
+            if (is_string($host) && $host !== ''
+                && preg_match('#/(?:users/|@)([a-zA-Z0-9_]{1,32})/?$#u', $path, $pathMatch) === 1
+            ) {
+                return Actor::query()
+                    ->where('preferred_username', mb_strtolower($pathMatch[1]))
+                    ->where('domain', mb_strtolower($host))
+                    ->where('status', Actor::STATUS_ACTIVE)
+                    ->first();
+            }
+        }
+
+        return null;
     }
 }

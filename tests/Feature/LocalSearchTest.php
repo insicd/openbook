@@ -74,7 +74,7 @@ class LocalSearchTest extends TestCase
         $response->assertDontSee('Post remoto di astronomia.', false);
     }
 
-    public function test_a_keyword_search_finds_hashtags(): void
+    public function test_a_single_hashtag_match_with_hash_prefix_opens_the_tag_page(): void
     {
         $viewer = $this->createFullAccount('cercahashtag');
         Hashtag::query()->create(['name' => 'openbook']);
@@ -82,9 +82,35 @@ class LocalSearchTest extends TestCase
 
         $response = $this->actingAs($viewer)->get(route('search.create', ['q' => '#open']));
 
+        $response->assertRedirect(route('hashtags.show', 'openbook'));
+    }
+
+    public function test_multiple_hashtag_matches_keep_the_search_results_page(): void
+    {
+        $viewer = $this->createFullAccount('cercamultihtag');
+        Hashtag::query()->create(['name' => 'openbook']);
+        Hashtag::query()->create(['name' => 'opencore']);
+        Hashtag::query()->create(['name' => 'altro']);
+
+        $response = $this->actingAs($viewer)->get(route('search.create', ['q' => '#open']));
+
         $response->assertOk();
         $response->assertSee('#openbook', false);
+        $response->assertSee('#opencore', false);
         $response->assertDontSee('#altro', false);
+        $response->assertSee(__('openbook.search.hashtags'), false);
+    }
+
+    public function test_hashtag_search_without_hash_prefix_does_not_auto_redirect(): void
+    {
+        $viewer = $this->createFullAccount('cercasenzahash');
+        Hashtag::query()->create(['name' => 'openbook']);
+
+        $response = $this->actingAs($viewer)->get(route('search.create', ['q' => 'openbook']));
+
+        $response->assertOk();
+        $response->assertSee('#openbook', false);
+        $response->assertSee(__('openbook.search.hashtags'), false);
     }
 
     public function test_undiscoverable_accounts_are_excluded_from_keyword_people_results(): void

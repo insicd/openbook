@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Application\Queries\PopularHashtagsQuery;
+use App\Application\Queries\SuggestedLocalActorsQuery;
 use App\Application\Services\InstanceSettings;
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
@@ -112,7 +113,7 @@ class AppServiceProvider extends ServiceProvider
                 // resta raggiungibile dalla sidebar sinistra.
                 'headerNotifications' => Notification::query()
                     ->where('recipient_id', auth()->id())
-                    ->with('actor.user.profile')
+                    ->with(['actor.user.profile', 'notifiable'])
                     ->orderByDesc('created_at')
                     ->limit(8)
                     ->get(),
@@ -121,25 +122,9 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('partials.sidebar-right', function ($view): void {
             $viewerActor = auth()->user()?->actor;
-            $suggestions = collect();
-
-            if ($viewerActor !== null) {
-                $excludedIds = Follow::query()
-                    ->where('follower_id', $viewerActor->id)
-                    ->pluck('following_id')
-                    ->push($viewerActor->id);
-
-                $suggestions = Actor::query()
-                    ->where('is_local', true)
-                    ->where('type', Actor::TYPE_PERSON)
-                    ->where('status', Actor::STATUS_ACTIVE)
-                    ->whereNotIn('id', $excludedIds)
-                    ->whereHas('user.settings', fn ($query) => $query->where('discoverable', true))
-                    ->with('user.profile')
-                    ->latest('created_at')
-                    ->limit(5)
-                    ->get();
-            }
+            $suggestions = $viewerActor !== null
+                ? app(SuggestedLocalActorsQuery::class)->forViewer($viewerActor)
+                : collect();
 
             $trending = app(PopularHashtagsQuery::class)->top(PopularHashtagsQuery::SIDEBAR_LIMIT + 1);
 

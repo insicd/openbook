@@ -9,13 +9,12 @@
         @forelse ($notifications as $notification)
             @php
                 $causedByActor = $notification->actor;
-                $causedByName = $causedByActor?->displayName() ?: __('openbook.notifications.someone');
                 $url = $notification->targetUrl();
             @endphp
             <div class="ob-notification {{ $notification->isRead() ? '' : 'ob-notification--unread' }}">
                 <x-avatar :actor="$causedByActor" style="width:40px;height:40px" />
                 <div>
-                    <div>{{ __('openbook.notifications.messages.'.$notification->type, ['name' => $causedByName]) }}</div>
+                    <div>{{ $notification->message() }}</div>
                     <div class="ob-notification__time">{{ $notification->created_at->diffForHumans() }}</div>
                 </div>
                 @if ($url)

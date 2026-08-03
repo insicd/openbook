@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Communities;
 
+use App\Application\Services\CommunityMembershipService;
 use App\Application\Services\CommunityRegistrar;
+use App\Application\Services\FollowManager;
 use App\Application\Services\PostComposer;
 use App\Application\Services\AnnounceManager;
 use App\Application\Services\CommentComposer;
 use App\Domain\Communities\Community;
+use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Announce;
@@ -77,6 +80,100 @@ class CommunityTest extends TestCase
             ->get(route('communities.show', $community))
             ->assertOk()
             ->assertSee('Il mio libro del mese.');
+    }
+
+    public function test_community_members_are_notified_about_new_posts(): void
+    {
+        $owner = $this->createFullAccount('notifyowner');
+        $member = $this->createFullAccount('notifymember');
+        $otherMember = $this->createFullAccount('notifyother');
+        $outsider = $this->createFullAccount('notifyout');
+
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'avvisi',
+            'name' => 'Bacheca avvisi',
+        ]);
+
+        app(CommunityMembershipService::class)->join($member->actor, $community);
+        app(CommunityMembershipService::class)->join($otherMember->actor, $community);
+
+        $post = app(PostComposer::class)->compose($member->actor, [
+            'body' => 'Nuovo avviso per tutti.',
+            'visibility' => 'public',
+            'community_id' => $community->id,
+        ]);
+
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $owner->id,
+            'actor_id' => $member->actor->id,
+            'type' => Notification::TYPE_COMMUNITY_POST,
+            'notifiable_id' => $post->id,
+        ]);
+
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $otherMember->id,
+            'type' => Notification::TYPE_COMMUNITY_POST,
+            'notifiable_id' => $post->id,
+        ]);
+
+        $this->assertDatabaseMissing('notifications', [
+            'recipient_id' => $member->id,
+            'type' => Notification::TYPE_COMMUNITY_POST,
+            'notifiable_id' => $post->id,
+        ]);
+
+        $this->assertDatabaseMissing('notifications', [
+            'recipient_id' => $outsider->id,
+            'type' => Notification::TYPE_COMMUNITY_POST,
+        ]);
+
+        $this->assertDatabaseMissing('notifications', [
+            'recipient_id' => $owner->id,
+            'type' => Notification::TYPE_SHARE,
+            'notifiable_id' => $post->id,
+        ]);
+
+        $notification = Notification::query()
+            ->where('recipient_id', $owner->id)
+            ->where('type', Notification::TYPE_COMMUNITY_POST)
+            ->with(['actor', 'notifiable'])
+            ->firstOrFail();
+
+        $this->assertStringContainsString('Bacheca avvisi', $notification->message());
+    }
+
+    public function test_pending_private_community_applicants_are_not_notified_of_new_posts(): void
+    {
+        $owner = $this->createFullAccount('privnotifyowner');
+        $applicant = $this->createFullAccount('privnotifyapp');
+
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'segreta-avvisi',
+            'name' => 'Cerchia chiusa',
+            'is_private' => true,
+        ]);
+
+        app(FollowManager::class)->follow($applicant->actor, $community->actor);
+
+        $this->assertSame(
+            Follow::STATUS_PENDING,
+            Follow::query()
+                ->where('follower_id', $applicant->actor->id)
+                ->where('following_id', $community->actor_id)
+                ->value('status')
+        );
+
+        $post = app(PostComposer::class)->compose($owner->actor, [
+            'body' => 'Solo per chi e\' gia\' dentro.',
+            'visibility' => 'public',
+            'community_id' => $community->id,
+        ]);
+
+        $this->assertDatabaseMissing('notifications', [
+            'recipient_id' => $applicant->id,
+            'type' => Notification::TYPE_COMMUNITY_POST,
+            'notifiable_id' => $post->id,
+        ]);
     }
 
     public function test_webfinger_resolves_local_communities(): void
@@ -307,6 +404,55 @@ class CommunityTest extends TestCase
             ->assertSee('!biblioteca')
             ->assertSee(__('openbook.communities.scope_local'))
             ->assertSee(__('openbook.communities.scope_remote'));
+    }
+
+    public function test_communities_index_hides_private_communities_from_guests_and_other_users(): void
+    {
+        $owner = $this->createFullAccount('privlistowner');
+        $other = $this->createFullAccount('privlistother');
+
+        app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'solo-noi',
+            'name' => 'Cerchia nascosta',
+            'is_private' => true,
+        ]);
+
+        $this->get(route('communities.index'))
+            ->assertOk()
+            ->assertDontSee('Cerchia nascosta')
+            ->assertDontSee('!solo-noi');
+
+        $this->actingAs($other)
+            ->get(route('communities.index'))
+            ->assertOk()
+            ->assertDontSee('Cerchia nascosta')
+            ->assertDontSee('!solo-noi');
+    }
+
+    public function test_communities_index_shows_private_communities_to_owner_and_staff(): void
+    {
+        $owner = $this->createFullAccount('privvisible');
+        $staff = $this->createFullAccount('privstaff');
+        $staff->forceFill(['is_moderator' => true])->save();
+
+        app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'archivio-privato',
+            'name' => 'Archivio del creatore',
+            'is_private' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('communities.index'))
+            ->assertOk()
+            ->assertSee('Archivio del creatore')
+            ->assertSee('!archivio-privato')
+            ->assertSee(__('openbook.communities.private_badge'));
+
+        $this->actingAs($staff)
+            ->get(route('communities.index'))
+            ->assertOk()
+            ->assertSee('Archivio del creatore')
+            ->assertSee(__('openbook.communities.private_badge'));
     }
 
     public function test_communities_index_remote_tab_lists_followed_remote_groups(): void

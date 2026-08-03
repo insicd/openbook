@@ -35,7 +35,7 @@ class RegistrationTest extends TestCase
             'password_confirmation' => 'Password123',
         ]);
 
-        $response->assertRedirect(route('profile.show', 'nuovoutente'));
+        $response->assertRedirect(route('feed.index'));
         $this->assertAuthenticated();
 
         $user = User::query()->where('username', 'nuovoutente')->firstOrFail();

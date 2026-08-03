@@ -60,6 +60,7 @@ return [
         'already_registered' => 'Hai gia un account?',
         'not_registered' => 'Non hai ancora un account?',
         'registration_closed' => 'Le registrazioni su questa istanza sono chiuse.',
+        'welcome' => 'Benvenuto su :app! Il tuo account e stato creato.',
     ],
 
     'verify_email' => [
@@ -86,8 +87,14 @@ return [
     ],
 
     'feed' => [
-        'welcome_title' => 'Sei connesso, :name',
-        'welcome_body' => 'Il feed con i post delle persone e delle community che segui arrivera nella prossima fase di sviluppo di Openbook. Per ora puoi visitare il tuo profilo pubblico.',
+        'welcome_title' => 'Inizia da qui',
+        'welcome_body' => 'Il tuo feed e ancora vuoto. Segui qualcuno per riempirlo di conversazioni, oppure pubblica il tuo primo post qui sopra.',
+        'welcome_staff' => 'Lo staff di questa istanza',
+        'welcome_local' => 'Persone su questa istanza',
+        'welcome_remote' => 'Dal fediverso',
+        'welcome_world' => 'Scopri altre persone',
+        'welcome_communities' => 'Esplora le community',
+        'welcome_empty_instance' => 'Per ora non ci sono ancora altri account da suggerire. Pubblica qualcosa o invita qualcuno a unirsi!',
         'view_profile' => 'Vai al tuo profilo',
         'empty' => 'Non ci sono ancora post da mostrare. Segui altre persone o pubblica il tuo primo post.',
     ],
@@ -255,6 +262,7 @@ return [
         'view' => 'Vedi',
         'view_all' => 'Vedi tutte le notifiche',
         'someone' => 'Qualcuno',
+        'a_community' => 'una community',
         'messages' => [
             'new_follower' => ':name ha iniziato a seguirti.',
             'follow_request' => ':name ha richiesto di seguirti.',
@@ -265,6 +273,7 @@ return [
             'mention' => ':name ti ha menzionato.',
             'share' => ':name ha condiviso il tuo post.',
             'quote' => ':name ha citato il tuo post.',
+            'community_post' => ':name ha pubblicato un post in :community.',
         ],
     ],
 

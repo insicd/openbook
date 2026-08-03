@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\LocalSearchQuery;
+use App\Domain\Posts\Hashtag;
 use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Actors\RemoteActorResolver;
 use Illuminate\Contracts\View\View;
@@ -19,6 +20,10 @@ use Illuminate\Validation\ValidationException;
  * 2. Qualunque altra stringa: ricerca *locale* per parole chiave su persone,
  *    post, commenti e hashtag di questa istanza ({@see LocalSearchQuery}),
  *    senza mai interrogare server remoti.
+ *
+ * Se la query inizia con "#" e gli hashtag trovati sono esattamente uno,
+ * si va direttamente alla pagina di quel tag (scelta implicita). Con piu'
+ * hashtag restano i risultati di ricerca, cosi' l'utente puo' scegliere.
  *
  * Il form usa GET (`/cerca?q=...`) cosi' i risultati sono bookmarkabili e un
  * refresh non ripete un POST.
@@ -59,10 +64,28 @@ class SearchController extends Controller
         $viewer = $request->user()?->actor;
         $results = $this->localSearch->search($query, $viewer);
 
+        if ($this->shouldOpenSoleHashtag($query, $results['hashtags'])) {
+            return redirect()->route('hashtags.show', $results['hashtags']->first()->name);
+        }
+
         return view('search.index', [
             'query' => $query,
             'results' => $results,
         ]);
+    }
+
+    /**
+     * Query esplicita da hashtag (`#…`): un solo tag trovato → apri quel tag.
+     *
+     * @param  \Illuminate\Support\Collection<int, Hashtag>  $hashtags
+     */
+    private function shouldOpenSoleHashtag(string $query, $hashtags): bool
+    {
+        if (! str_starts_with($query, '#')) {
+            return false;
+        }
+
+        return $hashtags->count() === 1;
     }
 
     /**

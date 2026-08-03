@@ -19,6 +19,14 @@ use App\Domain\Posts\PostBodyRenderer;
  * Markdown `[etichetta](url)` vengono riscritti in forma plain-text che
  * {@see PostBodyRenderer} sa trasformare in link cliccabili, cosi' non si
  * perde l'URL dietro al testo del link.
+ *
+ * Gli hashtag (tipicamente `&lt;a class="hashtag" href="https://remoto/tags/…"&gt;#tag&lt;/a&gt;`)
+ * vengono invece ridotti al solo testo `#tag`: cosi' il renderer li punta
+ * alle pagine hashtag locali di Openbook, non al server remoto.
+ *
+ * Stessa idea per le menzioni: da `&lt;a class="mention" href="https://remoto/@user"&gt;@user&lt;/a&gt;`
+ * a `@user@remoto` (o `@user` se il dominio e' quello dell'istanza), cosi'
+ * {@see PostBodyRenderer} apre il profilo visto da Openbook.
  */
 final class RemoteContentSanitizer
 {
@@ -48,6 +56,18 @@ final class RemoteContentSanitizer
                 $label = trim(html_entity_decode(strip_tags($match[3]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
                 $label = preg_replace('/\s+/u', ' ', $label) ?? $label;
 
+                $hashtag = self::extractHashtagLabel($label, $match[0], $url);
+
+                if ($hashtag !== null) {
+                    return $hashtag;
+                }
+
+                $mention = self::extractMentionLabel($label, $match[0], $url);
+
+                if ($mention !== null) {
+                    return $mention;
+                }
+
                 if (! self::isSafeHttpUrl($url)) {
                     return $label;
                 }
@@ -64,6 +84,76 @@ final class RemoteContentSanitizer
             },
             $html
         ) ?? $html;
+    }
+
+    /**
+     * Riconosce i link hashtag tipici del fediverso e restituisce `#tag`
+     * plain-text, oppure null se non e' un hashtag.
+     */
+    private static function extractHashtagLabel(string $label, string $anchorHtml, string $url): ?string
+    {
+        if (preg_match('/^#([\p{L}\p{N}_]{1,100})$/u', $label, $match) === 1) {
+            return '#'.$match[1];
+        }
+
+        if (preg_match('/^([\p{L}\p{N}_]{1,100})$/u', $label, $match) !== 1) {
+            return null;
+        }
+
+        $name = $match[1];
+        $markedAsTag = preg_match('/\bhashtag\b/i', $anchorHtml) === 1
+            || preg_match('/\brel\s*=\s*(["\'])[^"\']*\btag\b[^"\']*\1/i', $anchorHtml) === 1;
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+        $pathEndsWithTag = preg_match('#/(?:tags?|hashtags?)/'.preg_quote($name, '#').'/?$#iu', $path) === 1;
+
+        if ($markedAsTag || $pathEndsWithTag) {
+            return '#'.$name;
+        }
+
+        return null;
+    }
+
+    /**
+     * Riconosce i link menzione tipici del fediverso e restituisce
+     * `@user` / `@user@dominio` plain-text, oppure null.
+     */
+    private static function extractMentionLabel(string $label, string $anchorHtml, string $url): ?string
+    {
+        $username = null;
+        $domain = null;
+
+        if (preg_match('/^@([a-zA-Z0-9_]{1,32})(?:@([a-zA-Z0-9.\-]+))?$/u', $label, $match) === 1) {
+            $username = $match[1];
+            $domain = $match[2] ?? null;
+        } else {
+            $markedAsMention = preg_match('/\bmention\b/i', $anchorHtml) === 1
+                || preg_match('/\bh-card\b/i', $anchorHtml) === 1;
+
+            if (! $markedAsMention || preg_match('/^([a-zA-Z0-9_]{1,32})$/u', $label, $match) !== 1) {
+                return null;
+            }
+
+            $username = $match[1];
+        }
+
+        if ($domain === null || $domain === '') {
+            $host = parse_url($url, PHP_URL_HOST);
+            $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+
+            if (is_string($host) && $host !== '' && preg_match('#/(?:users/|@)'.preg_quote($username, '#').'/?$#iu', $path) === 1) {
+                $domain = $host;
+            } elseif (is_string($host) && $host !== '' && preg_match('/\bmention\b/i', $anchorHtml) === 1) {
+                $domain = $host;
+            }
+        }
+
+        $localDomain = (string) config('openbook.domain');
+
+        if ($domain === null || $domain === '' || strcasecmp($domain, $localDomain) === 0) {
+            return '@'.$username;
+        }
+
+        return '@'.$username.'@'.mb_strtolower($domain);
     }
 
     private static function isSafeHttpUrl(string $url): bool

@@ -56,7 +56,7 @@ final class LocalSearchQuery
             'people' => $this->people($term, $pattern, $limit),
             'posts' => $this->posts($pattern, $viewer, $limit),
             'comments' => $this->comments($pattern, $viewer, $limit),
-            'hashtags' => $this->hashtags($this->likePattern(ltrim($term, '#')), $limit),
+            'hashtags' => $this->hashtags(Hashtag::normalize($term), $limit),
         ];
     }
 
@@ -223,12 +223,20 @@ final class LocalSearchQuery
     /**
      * @return Collection<int, Hashtag>
      */
-    private function hashtags(string $pattern, int $limit): Collection
+    private function hashtags(string $normalizedTerm, int $limit): Collection
     {
+        if ($normalizedTerm === '') {
+            return collect();
+        }
+
+        $pattern = $this->likePattern($normalizedTerm);
+
         return Hashtag::query()
             ->where(function ($query) use ($pattern) {
                 $this->whereContains($query, 'name', $pattern);
             })
+            // Match esatto in cima quando si cerca "#tag" o "tag".
+            ->orderByRaw('case when name = ? then 0 else 1 end', [$normalizedTerm])
             ->orderBy('name')
             ->limit($limit)
             ->get();

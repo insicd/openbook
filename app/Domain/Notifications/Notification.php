@@ -49,6 +49,8 @@ class Notification extends Model
 
     public const TYPE_QUOTE = 'quote';
 
+    public const TYPE_COMMUNITY_POST = 'community_post';
+
     /**
      * @var list<string>
      */
@@ -85,6 +87,48 @@ class Notification extends Model
     public function isRead(): bool
     {
         return $this->read_at !== null;
+    }
+
+    /**
+     * Testo localizzato della notifica, con i placeholder tipici (:name e,
+     * per i post in community, :community).
+     */
+    public function message(): string
+    {
+        return __('openbook.notifications.messages.'.$this->type, $this->messageReplacements());
+    }
+
+    /**
+     * @return array{name: string, community?: string}
+     */
+    public function messageReplacements(): array
+    {
+        $replacements = [
+            'name' => $this->actor?->displayName() ?: __('openbook.notifications.someone'),
+        ];
+
+        if ($this->type === self::TYPE_COMMUNITY_POST) {
+            $replacements['community'] = $this->communityDisplayName();
+        }
+
+        return $replacements;
+    }
+
+    private function communityDisplayName(): string
+    {
+        $target = $this->notifiable;
+
+        if ($target instanceof Post) {
+            $target->loadMissing('community.actor');
+            $name = $target->community?->actor?->displayName()
+                ?: $target->community?->slug;
+
+            if (filled($name)) {
+                return (string) $name;
+            }
+        }
+
+        return __('openbook.notifications.a_community');
     }
 
     /**

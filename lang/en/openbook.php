@@ -60,6 +60,7 @@ return [
         'already_registered' => 'Already have an account?',
         'not_registered' => "Don't have an account yet?",
         'registration_closed' => 'Registrations are closed on this instance.',
+        'welcome' => 'Welcome to :app! Your account has been created.',
     ],
 
     'verify_email' => [
@@ -86,8 +87,14 @@ return [
     ],
 
     'feed' => [
-        'welcome_title' => 'You are signed in, :name',
-        'welcome_body' => 'The feed with posts from people and communities you follow will land in the next development phase of Openbook. For now you can visit your public profile.',
+        'welcome_title' => 'Start here',
+        'welcome_body' => 'Your feed is still empty. Follow someone to fill it with conversations, or publish your first post above.',
+        'welcome_staff' => 'This instance\'s staff',
+        'welcome_local' => 'People on this instance',
+        'welcome_remote' => 'From the fediverse',
+        'welcome_world' => 'Discover more people',
+        'welcome_communities' => 'Explore communities',
+        'welcome_empty_instance' => 'There are no other accounts to suggest yet. Post something or invite someone to join!',
         'view_profile' => 'Go to your profile',
         'empty' => 'There are no posts to show yet. Follow other people or publish your first post.',
     ],
@@ -255,6 +262,7 @@ return [
         'view' => 'View',
         'view_all' => 'View all notifications',
         'someone' => 'Someone',
+        'a_community' => 'a community',
         'messages' => [
             'new_follower' => ':name started following you.',
             'follow_request' => ':name requested to follow you.',
@@ -265,6 +273,7 @@ return [
             'mention' => ':name mentioned you.',
             'share' => ':name shared your post.',
             'quote' => ':name quoted your post.',
+            'community_post' => ':name published a post in :community.',
         ],
     ],
 
