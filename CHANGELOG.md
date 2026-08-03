@@ -11,6 +11,14 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.8] — Avatar Threads: URL lunghi
+
+### Fixed
+- La ricerca di profili Threads/Instagram (es. `@barackobama@threads.net`)
+  falliva perche' `actors.icon_url` / `image_url` erano VARCHAR(255) e gli
+  URL CDN firmati superano facilmente quel limite. Ora accettano fino a
+  2048 caratteri.
+
 ## [0.8.7] — Commenti in community private
 
 ### Fixed

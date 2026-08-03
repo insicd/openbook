@@ -29,8 +29,8 @@ return new class extends Migration
             $table->string('uri')->unique();
             $table->string('name')->nullable();
             $table->text('summary')->nullable();
-            $table->string('icon_url')->nullable();
-            $table->string('image_url')->nullable();
+            $table->string('icon_url', 2048)->nullable();
+            $table->string('image_url', 2048)->nullable();
             $table->boolean('manually_approves_followers')->default(false);
             $table->enum('status', ['active', 'suspended', 'blocked'])->default('active');
             $table->timestamp('last_fetched_at')->nullable();
