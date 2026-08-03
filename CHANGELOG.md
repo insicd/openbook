@@ -25,6 +25,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   (non piu' solo alla home).
 - Privacy policy gestibile dal pannello admin (Markdown), pagina pubblica
   `/privacy` e link in footer e sidebar.
+- Markdown ampio (GFM) in post e commenti: grassetto, corsivo, titoli,
+  elenchi, citazioni, codice, tabelle, barrato e link; hashtag/menzioni
+  restano linkificati. Le immagini Markdown sono ignorate (usare gli
+  allegati).
 
 ### Changed
 - Le community private compaiono nell'elenco locali per il creatore e per

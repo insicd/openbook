@@ -376,14 +376,12 @@ basato su `APP_KEY`) e non vengono mai esposte da API, log o messaggi di errore.
 
 ### Post, commenti e reazioni
 
-- Un post e' sempre testo semplice: il corpo digitato dall'utente viene mostrato con
-  escaping automatico di Blade (mai HTML grezzo), con hashtag e menzioni
-  "linkificati" in un secondo momento sul testo gia' sfuggito
-  (`App\Domain\Posts\PostBodyRenderer`). Questo elimina di fatto il rischio di XSS
-  lato contenuti locali senza bisogno di una libreria di sanitizzazione HTML; il
-  contenuto HTML dei post remoti (Fase 4) viene invece ridotto a testo semplice prima
-  di entrare nella stessa pipeline (vedi [Federazione sociale](#federazione-sociale-fase-4)),
-  evitando cosi' di introdurre un sanitizzatore HTML completo.
+- Il corpo di post e commenti e' testo con Markdown ampio (GFM), reso in HTML
+  sicuro da `App\Domain\Posts\PostBodyRenderer` (HTML grezzo rimosso, link
+  esterni con `rel` restrittivi, immagini Markdown ignorate). Hashtag e
+  menzioni vengono linkificati dopo la conversione; il contenuto HTML dei
+  post remoti (Fase 4) viene ridotto a testo semplice prima di entrare nella
+  stessa pipeline (vedi [Federazione sociale](#federazione-sociale-fase-4)).
 - I commenti vivono in una tabella dedicata (`comments`), separata da `posts`, con
   `parent_comment_id` per le risposte annidate: l'intero albero di un post viene
   caricato con un'unica query e ricostruito in memoria.

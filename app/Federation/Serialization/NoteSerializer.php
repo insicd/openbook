@@ -209,7 +209,12 @@ final class NoteSerializer
 
     private static function renderContent(string $body, ?string $title): string
     {
-        $html = '<p>'.((string) PostBodyRenderer::render($body)).'</p>';
+        // PostBodyRenderer produce gia' blocchi HTML (paragrafi, liste, …).
+        $html = (string) PostBodyRenderer::render($body);
+
+        if ($html === '') {
+            $html = '<p></p>';
+        }
 
         if (filled($title)) {
             // Fallback per piattaforme remote che non distinguono un titolo

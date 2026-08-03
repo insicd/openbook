@@ -1616,6 +1616,124 @@ a.ob-post__menu-item {
   overflow-wrap: anywhere;
 }
 
+.ob-post__body > :first-child,
+.ob-comment__body > :first-child,
+.ob-profile-bio > :first-child {
+  margin-top: 0;
+}
+
+.ob-post__body > :last-child,
+.ob-comment__body > :last-child,
+.ob-profile-bio > :last-child {
+  margin-bottom: 0;
+}
+
+.ob-post__body :is(p, ul, ol, blockquote, pre, table),
+.ob-comment__body :is(p, ul, ol, blockquote, pre, table),
+.ob-profile-bio :is(p, ul, ol, blockquote, pre, table) {
+  margin: 0.65em 0;
+}
+
+.ob-post__body :is(h1, h2, h3, h4, h5, h6),
+.ob-comment__body :is(h1, h2, h3, h4, h5, h6),
+.ob-profile-bio :is(h1, h2, h3, h4, h5, h6) {
+  margin: 0.85em 0 0.4em;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.ob-post__body h1,
+.ob-comment__body h1,
+.ob-profile-bio h1 {
+  font-size: 1.35rem;
+}
+
+.ob-post__body h2,
+.ob-comment__body h2,
+.ob-profile-bio h2 {
+  font-size: 1.2rem;
+}
+
+.ob-post__body h3,
+.ob-comment__body h3,
+.ob-profile-bio h3 {
+  font-size: 1.1rem;
+}
+
+.ob-post__body :is(h4, h5, h6),
+.ob-comment__body :is(h4, h5, h6),
+.ob-profile-bio :is(h4, h5, h6) {
+  font-size: 1rem;
+}
+
+.ob-post__body :is(ul, ol),
+.ob-comment__body :is(ul, ol),
+.ob-profile-bio :is(ul, ol) {
+  padding-left: 1.35rem;
+}
+
+.ob-post__body li + li,
+.ob-comment__body li + li,
+.ob-profile-bio li + li {
+  margin-top: 0.2em;
+}
+
+.ob-post__body blockquote,
+.ob-comment__body blockquote,
+.ob-profile-bio blockquote {
+  margin-left: 0;
+  padding: 0.15rem 0 0.15rem 0.85rem;
+  border-left: 3px solid var(--ob-color-border);
+  color: var(--ob-color-text-muted);
+}
+
+.ob-post__body :is(code, pre),
+.ob-comment__body :is(code, pre),
+.ob-profile-bio :is(code, pre) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.ob-post__body code,
+.ob-comment__body code,
+.ob-profile-bio code {
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--ob-color-border) 55%, transparent);
+}
+
+.ob-post__body pre,
+.ob-comment__body pre,
+.ob-profile-bio pre {
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--ob-radius);
+  overflow-x: auto;
+  background: color-mix(in srgb, var(--ob-color-border) 45%, transparent);
+}
+
+.ob-post__body pre code,
+.ob-comment__body pre code,
+.ob-profile-bio pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.ob-post__body table,
+.ob-comment__body table,
+.ob-profile-bio table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.ob-post__body :is(th, td),
+.ob-comment__body :is(th, td),
+.ob-profile-bio :is(th, td) {
+  border: 1px solid var(--ob-color-border);
+  padding: 0.35rem 0.55rem;
+  text-align: left;
+}
+
 .ob-post__excerpt {
   margin: 0;
 }

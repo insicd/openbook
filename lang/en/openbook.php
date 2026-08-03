@@ -102,6 +102,7 @@ return [
     'composer' => [
         'body_label' => 'What do you want to share?',
         'placeholder' => 'Write something...',
+        'markdown_help' => 'Markdown is supported: **bold**, *italic*, lists, `code`, headings, quotes, and links.',
         'mention_suggest_label' => 'People to mention',
         'mention_suggest_empty' => 'No matching accounts.',
         'quote_placeholder' => 'Add a comment to your quote...',

@@ -3,25 +3,28 @@
 namespace App\Domain\Posts;
 
 use App\Federation\Actors\Actor;
+use DOMDocument;
+use DOMElement;
+use DOMNode;
+use DOMText;
+use DOMXPath;
 use Illuminate\Support\HtmlString;
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\Autolink\UrlAutolinkParser;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\DisallowedRawHtml\DisallowedRawHtmlExtension;
+use League\CommonMark\Extension\Strikethrough\StrikethroughExtension;
+use League\CommonMark\Extension\Table\TableExtension;
+use League\CommonMark\Extension\TaskList\TaskListExtension;
+use League\CommonMark\MarkdownConverter;
 
 /**
- * Trasforma il testo grezzo (sempre semplice, mai HTML) di un post o
- * commento in markup sicuro da mostrare nell'interfaccia: l'intero
- * contenuto viene prima sfuggito con {@see e()}, poi vengono aggiunti in
- * modo mirato i soli tag consentiti (link su URL/hashtag/menzioni, a-capo).
- *
- * Il lookbehind degli hashtag esclude "#" subito dopo "&" o ";": altrimenti
- * l'entita' HTML &#039; (apostrofo prodotto da e()) veniva spezzata in un
- * falso hashtag "#039", visibile in UI e nel content ActivityPub.
- *
- * URL, link con etichetta `[testo](url)`, hashtag e menzioni sono
- * riconosciuti in un'unica passata con un solo pattern combinato: operare
- * in piu' passate separate sulla stessa stringa sarebbe pericoloso, perche'
- * un URL gia' trasformato in un tag <a> (es. contenente "#sezione" o
- * "/@nome") verrebbe ri-processato dai pattern successivi, corrompendo
- * l'attributo href gia' scritto. Una singola passata garantisce invece che
- * ogni porzione di testo originale venga considerata una sola volta.
+ * Trasforma il testo grezzo di un post o commento in HTML sicuro: Markdown
+ * ampio (GFM), poi post-processing per hashtag, menzioni e attributi dei
+ * link. L'HTML grezzo in ingresso viene rimosso (`html_input=strip`); le
+ * immagini Markdown vengono scartate (gli allegati restano il canale
+ * dedicato). L'autolink email e' disabilitato: altrimenti `@user@domain`
+ * diventerebbe un `mailto:` spezzando le menzioni federate.
  *
  * Hashtag e menzioni provenienti da post remoti (anche gia' salvati come
  * `[#tag](https://remoto/…)` / `[@user](https://remoto/…)`) vengono
@@ -29,17 +32,10 @@ use Illuminate\Support\HtmlString;
  */
 final class PostBodyRenderer
 {
-    private const LINK_PATTERN = '/(?P<mdlink>\[(?P<mdlabel>[^\]]+)\]\((?P<mdurl>https?:\/\/[^\s\)]+)\))'
-        .'|(?P<url>https?:\/\/[^\s<]+)'
-        .'|(?P<hashtag>(?<![\w\/&;])#[\p{L}\p{N}_]{1,100})'
+    private const INLINE_PATTERN = '/(?P<hashtag>(?<![\w\/&;])#[\p{L}\p{N}_]{1,100})'
         .'|(?P<mention>(?<![\w])@[a-zA-Z0-9_]{1,32}(?:@[a-zA-Z0-9.\-]+)?)/u';
 
-    /**
-     * Punteggiatura finale che, se presente subito dopo un URL individuato
-     * nel testo, quasi certamente appartiene alla frase e non all'indirizzo
-     * (es. "vedi https://esempio.it." a fine periodo).
-     */
-    private const URL_TRAILING_PUNCTUATION = '.,;:!?';
+    private static ?MarkdownConverter $converter = null;
 
     /**
      * Cache per-request delle URL profilo risolte, per evitare N query uguali
@@ -56,128 +52,264 @@ final class PostBodyRenderer
 
     public static function render(string $body): HtmlString
     {
-        $escaped = e($body);
+        if (trim($body) === '') {
+            return new HtmlString('');
+        }
 
-        $rendered = preg_replace_callback(self::LINK_PATTERN, function (array $match) {
-            if (($match['mdlink'] ?? '') !== '') {
-                return self::renderLabeledUrl($match['mdurl'], $match['mdlabel']);
-            }
+        $html = trim((string) self::converter()->convert($body));
 
-            if (($match['url'] ?? '') !== '') {
-                return self::renderUrl($match['url']);
-            }
+        if ($html === '') {
+            return new HtmlString('');
+        }
 
-            if (($match['hashtag'] ?? '') !== '') {
-                return self::renderHashtag($match['hashtag']);
-            }
-
-            return self::renderMention($match['mention']);
-        }, $escaped);
-
-        // Sostituire i newline (non nl2br): nl2br lascia i \n dopo <br>, e
-        // Mastodon li interpreta di nuovo → a capo duplicati in federazione.
-        return new HtmlString(str_replace(["\r\n", "\r", "\n"], '<br>', $rendered));
+        return new HtmlString(self::enhanceRenderedHtml($html));
     }
 
-    /**
-     * $url e' gia' stato sfuggito da e() insieme al resto del testo: puo'
-     * quindi essere riutilizzato cosi' com'e' nell'attributo href, senza
-     * ri-escaping (che produrrebbe una doppia codifica) e senza rischio che
-     * contenga virgolette o "<" letterali (gia' trasformati in entita').
-     */
-    private static function renderUrl(string $url): string
+    private static function converter(): MarkdownConverter
     {
-        [$url, $trailing] = self::splitTrailingPunctuation($url);
-
-        if ($url === '') {
-            return $trailing;
+        if (self::$converter instanceof MarkdownConverter) {
+            return self::$converter;
         }
 
-        return self::anchor($url, $url).$trailing;
+        $environment = new Environment([
+            'html_input' => 'strip',
+            'allow_unsafe_links' => false,
+            'renderer' => [
+                // Mantiene il comportamento storico dei singoli a-capo nei
+                // post "plain text", senza impedire paragrafi/liste Markdown.
+                'soft_break' => '<br>',
+            ],
+        ]);
+
+        $environment->addExtension(new CommonMarkCoreExtension);
+        $environment->addExtension(new DisallowedRawHtmlExtension);
+        $environment->addExtension(new StrikethroughExtension);
+        $environment->addExtension(new TableExtension);
+        $environment->addExtension(new TaskListExtension);
+
+        // Solo URL http(s): niente EmailAutolinkParser (rompe @user@domain).
+        $environment->addInlineParser(new UrlAutolinkParser(['http', 'https'], 'https'));
+
+        return self::$converter = new MarkdownConverter($environment);
     }
 
-    /**
-     * Link con etichetta in forma Markdown leggera `[etichetta](https://...)`,
-     * usata anche per i collegamenti HTML dei post remoti dopo
-     * {@see \App\Federation\Inbox\RemoteContentSanitizer}. Etichetta e URL
-     * sono gia' sfuggiti da e().
-     *
-     * Se l'etichetta e' un hashtag o una menzione (tipici dei post remoti
-     * gia' in cache), si renderizza verso le pagine locali di Openbook.
-     */
-    private static function renderLabeledUrl(string $url, string $label): string
+    private static function enhanceRenderedHtml(string $html): string
     {
-        if (preg_match('/^#[\p{L}\p{N}_]{1,100}$/u', $label) === 1) {
-            return self::renderHashtag($label);
-        }
+        $document = new DOMDocument;
+        $previous = libxml_use_internal_errors(true);
 
-        if (preg_match('/^@[a-zA-Z0-9_]{1,32}(?:@[a-zA-Z0-9.\-]+)?$/u', $label) === 1) {
-            return self::renderMention($label, $url);
-        }
-
-        [$url, $trailing] = self::splitTrailingPunctuation($url);
-
-        if ($url === '') {
-            return $label.$trailing;
-        }
-
-        return self::anchor($url, $label).$trailing;
-    }
-
-    private static function anchor(string $href, string $text): string
-    {
-        return sprintf(
-            '<a href="%s" class="post-link" target="_blank" rel="noopener noreferrer nofollow ugc">%s</a>',
-            $href,
-            $text
+        $document->loadHTML(
+            '<?xml encoding="UTF-8"><div id="ob-md-root">'.$html.'</div>',
+            LIBXML_HTML_NODEFDTD
         );
-    }
 
-    /**
-     * @return array{0: string, 1: string} l'URL ripulito e la punteggiatura
-     *                                     finale scorporata (da riattaccare fuori dal link)
-     */
-    private static function splitTrailingPunctuation(string $url): array
-    {
-        $trailing = '';
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
 
-        while ($url !== '' && str_contains(self::URL_TRAILING_PUNCTUATION, substr($url, -1))) {
-            $trailing = substr($url, -1).$trailing;
-            $url = substr($url, 0, -1);
+        $root = $document->getElementById('ob-md-root');
+
+        if (! $root instanceof DOMElement) {
+            return $html;
         }
 
-        // Una parentesi/chiusura finale resta parte del link solo se l'URL
-        // contiene anche l'apertura corrispondente (es. wikipedia "(disambigua)").
-        foreach ([')' => '(', ']' => '[', '}' => '{'] as $close => $open) {
-            while ($url !== '' && substr($url, -1) === $close && substr_count($url, $open) < substr_count($url, $close)) {
-                $trailing = $close.$trailing;
-                $url = substr($url, 0, -1);
+        self::stripImages($root);
+        self::processAnchors($root);
+        self::linkifyTextNodes($root);
+
+        $result = '';
+
+        foreach ($root->childNodes as $child) {
+            $result .= $document->saveHTML($child);
+        }
+
+        return $result;
+    }
+
+    private static function stripImages(DOMElement $root): void
+    {
+        $xpath = new DOMXPath($root->ownerDocument);
+        $images = [];
+
+        foreach ($xpath->query('.//img', $root) ?: [] as $image) {
+            $images[] = $image;
+        }
+
+        foreach ($images as $image) {
+            $image->parentNode?->removeChild($image);
+        }
+    }
+
+    private static function processAnchors(DOMElement $root): void
+    {
+        $xpath = new DOMXPath($root->ownerDocument);
+        $anchors = [];
+
+        foreach ($xpath->query('.//a', $root) ?: [] as $anchor) {
+            if ($anchor instanceof DOMElement) {
+                $anchors[] = $anchor;
             }
         }
 
-        return [$url, $trailing];
+        foreach ($anchors as $anchor) {
+            $href = trim($anchor->getAttribute('href'));
+            $label = $anchor->textContent ?? '';
+
+            if (! self::isSafeHref($href)) {
+                self::replaceNodeWithText($anchor, $label);
+
+                continue;
+            }
+
+            if (preg_match('/^#[\p{L}\p{N}_]{1,100}$/u', $label) === 1) {
+                self::replaceNode($anchor, self::createHashtagElement($root->ownerDocument, $label));
+
+                continue;
+            }
+
+            if (preg_match('/^@[a-zA-Z0-9_]{1,32}(?:@[a-zA-Z0-9.\-]+)?$/u', $label) === 1) {
+                self::replaceNode($anchor, self::createMentionElement($root->ownerDocument, $label, $href));
+
+                continue;
+            }
+
+            $anchor->setAttribute('href', $href);
+
+            if (preg_match('/^https?:\/\//i', $href) === 1) {
+                $anchor->setAttribute('class', 'post-link');
+                $anchor->setAttribute('target', '_blank');
+                $anchor->setAttribute('rel', 'noopener noreferrer nofollow ugc');
+            } else {
+                $anchor->removeAttribute('target');
+                $anchor->setAttribute('rel', 'noopener noreferrer nofollow ugc');
+                $anchor->setAttribute('class', 'post-link');
+            }
+        }
     }
 
-    /**
-     * $hashtag e $mention contengono solo caratteri che htmlspecialchars()
-     * non tocca mai (lettere, cifre, "_", "." e "-"): possono quindi essere
-     * riusati cosi' come sono, senza bisogno di un secondo escaping.
-     */
-    private static function renderHashtag(string $hashtag): string
+    private static function linkifyTextNodes(DOMElement $root): void
+    {
+        $xpath = new DOMXPath($root->ownerDocument);
+        $textNodes = [];
+
+        foreach ($xpath->query('.//text()[not(ancestor::a) and not(ancestor::code) and not(ancestor::pre)]', $root) ?: [] as $textNode) {
+            if ($textNode instanceof DOMText) {
+                $textNodes[] = $textNode;
+            }
+        }
+
+        foreach ($textNodes as $textNode) {
+            self::linkifyTextNode($textNode);
+        }
+    }
+
+    private static function linkifyTextNode(DOMText $textNode): void
+    {
+        $text = $textNode->wholeText;
+
+        if ($text === '' || (! str_contains($text, '#') && ! str_contains($text, '@'))) {
+            return;
+        }
+
+        if (preg_match_all(self::INLINE_PATTERN, $text, $matches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER) === 0) {
+            return;
+        }
+
+        $document = $textNode->ownerDocument;
+        $parent = $textNode->parentNode;
+
+        if ($document === null || $parent === null) {
+            return;
+        }
+
+        $cursor = 0;
+
+        foreach ($matches as $match) {
+            $full = $match[0][0];
+            $offset = (int) $match[0][1];
+
+            if ($offset > $cursor) {
+                $parent->insertBefore(
+                    $document->createTextNode(substr($text, $cursor, $offset - $cursor)),
+                    $textNode
+                );
+            }
+
+            $hashtag = $match['hashtag'][0] ?? '';
+            $mention = $match['mention'][0] ?? '';
+
+            if ($hashtag !== '') {
+                $parent->insertBefore(self::createHashtagElement($document, $hashtag), $textNode);
+            } elseif ($mention !== '') {
+                $parent->insertBefore(self::createMentionElement($document, $mention), $textNode);
+            }
+
+            $cursor = $offset + strlen($full);
+        }
+
+        if ($cursor < strlen($text)) {
+            $parent->insertBefore(
+                $document->createTextNode(substr($text, $cursor)),
+                $textNode
+            );
+        }
+
+        $parent->removeChild($textNode);
+    }
+
+    private static function isSafeHref(string $href): bool
+    {
+        if ($href === '') {
+            return false;
+        }
+
+        if (str_starts_with($href, '/')) {
+            return ! str_starts_with($href, '//');
+        }
+
+        return preg_match('/^(https?:\/\/|mailto:)/i', $href) === 1;
+    }
+
+    private static function createHashtagElement(DOMDocument $document, string $hashtag): DOMElement
     {
         $name = substr($hashtag, 1);
         $tag = Hashtag::normalize($name);
 
-        return sprintf('<a href="%s" class="hashtag">#%s</a>', e(route('hashtags.show', $tag)), $name);
+        $anchor = $document->createElement('a');
+        $anchor->setAttribute('href', route('hashtags.show', $tag));
+        $anchor->setAttribute('class', 'hashtag');
+        $anchor->appendChild($document->createTextNode('#'.$name));
+
+        return $anchor;
     }
 
-    private static function renderMention(string $mention, ?string $href = null): string
+    private static function createMentionElement(DOMDocument $document, string $mention, ?string $href = null): DOMElement
     {
         $handle = substr($mention, 1);
         $displayHandle = self::federatedMentionHandle($handle, $href);
         $profileHref = self::resolveMentionHref($handle, $href);
 
-        return sprintf('<a href="%s" class="mention">@%s</a>', e($profileHref), e($displayHandle));
+        $anchor = $document->createElement('a');
+        $anchor->setAttribute('href', $profileHref);
+        $anchor->setAttribute('class', 'mention');
+        $anchor->appendChild($document->createTextNode('@'.$displayHandle));
+
+        return $anchor;
+    }
+
+    private static function replaceNode(DOMNode $old, DOMNode $new): void
+    {
+        $old->parentNode?->replaceChild($new, $old);
+    }
+
+    private static function replaceNodeWithText(DOMElement $node, string $text): void
+    {
+        $document = $node->ownerDocument;
+
+        if ($document === null) {
+            return;
+        }
+
+        self::replaceNode($node, $document->createTextNode($text));
     }
 
     private static function resolveMentionHref(string $handle, ?string $href = null): string

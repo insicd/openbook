@@ -42,6 +42,7 @@
                     placeholder="{{ $quotedPost ? __('openbook.composer.quote_placeholder') : __('openbook.composer.placeholder') }}"
                     data-mention-autocomplete
                     @if ($quotedPost) autofocus @endif>{{ old('body') }}</textarea>
+                <p class="ob-field__help">{{ __('openbook.composer.markdown_help') }}</p>
             </div>
         </div>
 

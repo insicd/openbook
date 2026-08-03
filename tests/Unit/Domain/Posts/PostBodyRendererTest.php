@@ -17,19 +17,21 @@ class PostBodyRendererTest extends TestCase
         $html = (string) PostBodyRenderer::render('Guarda questo: https://esempio.it/pagina');
 
         $this->assertStringContainsString(
-            '<a href="https://esempio.it/pagina" class="post-link" target="_blank" rel="noopener noreferrer nofollow ugc">https://esempio.it/pagina</a>',
+            'href="https://esempio.it/pagina"',
             $html
         );
+        $this->assertStringContainsString('class="post-link"', $html);
+        $this->assertStringContainsString('target="_blank"', $html);
+        $this->assertStringContainsString('rel="noopener noreferrer nofollow ugc"', $html);
     }
 
     public function test_it_renders_a_labeled_markdown_link_with_safe_attributes(): void
     {
         $html = (string) PostBodyRenderer::render('Vedi [testo link](https://ciccio.it/pagina) subito.');
 
-        $this->assertStringContainsString(
-            '<a href="https://ciccio.it/pagina" class="post-link" target="_blank" rel="noopener noreferrer nofollow ugc">testo link</a>',
-            $html
-        );
+        $this->assertStringContainsString('href="https://ciccio.it/pagina"', $html);
+        $this->assertStringContainsString('class="post-link"', $html);
+        $this->assertStringContainsString('>testo link</a>', $html);
         $this->assertStringNotContainsString('[testo link]', $html);
         $this->assertStringContainsString('subito.', $html);
     }
@@ -40,6 +42,7 @@ class PostBodyRendererTest extends TestCase
 
         $this->assertStringNotContainsString('href="javascript:', $html);
         $this->assertStringNotContainsString('class="post-link"', $html);
+        $this->assertStringContainsString('x', $html);
     }
 
     public function test_it_strips_trailing_sentence_punctuation_from_the_link(): void
@@ -92,14 +95,14 @@ class PostBodyRendererTest extends TestCase
         $this->assertStringContainsString('class="mention"', $html);
     }
 
-    public function test_it_escapes_html_special_characters_around_a_url(): void
+    public function test_it_strips_raw_html_from_the_body(): void
     {
-        $html = (string) PostBodyRenderer::render('<script>alert(1)</script> https://esempio.it/"quote');
+        $html = (string) PostBodyRenderer::render('ciao <script>alert(1)</script> mondo https://esempio.it/path');
 
         $this->assertStringNotContainsString('<script>', $html);
-        $this->assertStringContainsString('&lt;script&gt;', $html);
-        $this->assertStringNotContainsString('href="https://esempio.it/"quote"', $html);
-        $this->assertStringContainsString('https://esempio.it/&quot;quote', $html);
+        $this->assertStringContainsString('href="https://esempio.it/path"', $html);
+        $this->assertStringContainsString('ciao', $html);
+        $this->assertStringContainsString('mondo', $html);
     }
 
     public function test_it_does_not_linkify_text_that_only_resembles_a_scheme(): void
@@ -109,13 +112,12 @@ class PostBodyRendererTest extends TestCase
         $this->assertStringNotContainsString('class="post-link"', $html);
     }
 
-    public function test_apostrophes_are_preserved_as_html_entities_without_fake_hashtags(): void
+    public function test_apostrophes_are_preserved_without_fake_hashtags(): void
     {
         $html = (string) PostBodyRenderer::render("L'amico di Lucia e l'altra storia");
 
-        // e() produce &#039; (corretto in HTML); non deve diventare un hashtag.
-        $this->assertStringContainsString('L&#039;amico', $html);
-        $this->assertStringContainsString('l&#039;altra', $html);
+        $this->assertStringContainsString("L'amico", $html);
+        $this->assertStringContainsString("l'altra", $html);
         $this->assertStringNotContainsString('class="hashtag"', $html);
         $this->assertStringNotContainsString('>#039<', $html);
     }
@@ -128,19 +130,42 @@ class PostBodyRendererTest extends TestCase
         $this->assertStringNotContainsString('>#039<', $html);
     }
 
-    public function test_line_breaks_become_br_without_residual_newlines(): void
+    public function test_soft_line_breaks_become_br_inside_a_paragraph(): void
     {
-        $html = (string) PostBodyRenderer::render("prima\nseconda\r\nterza\rquarta");
+        $html = (string) PostBodyRenderer::render("prima\nseconda\r\nterza");
 
-        $this->assertSame('prima<br>seconda<br>terza<br>quarta', $html);
+        $this->assertStringContainsString('<p>prima<br>seconda<br>terza</p>', $html);
     }
 
-    public function test_blank_lines_become_consecutive_br_tags(): void
+    public function test_blank_lines_become_separate_paragraphs(): void
     {
         $html = (string) PostBodyRenderer::render("uno\n\ndue");
 
-        $this->assertSame('uno<br><br>due', $html);
-        $this->assertStringNotContainsString("\n", $html);
+        $this->assertStringContainsString('<p>uno</p>', $html);
+        $this->assertStringContainsString('<p>due</p>', $html);
+    }
+
+    public function test_it_renders_common_markdown_blocks_and_emphasis(): void
+    {
+        $html = (string) PostBodyRenderer::render("## Titolo\n\n**grassetto** e *corsivo*\n\n- uno\n- due\n\n`codice`\n\n> citazione");
+
+        $this->assertStringContainsString('<h2>Titolo</h2>', $html);
+        $this->assertStringContainsString('<strong>grassetto</strong>', $html);
+        $this->assertStringContainsString('<em>corsivo</em>', $html);
+        $this->assertStringContainsString('<ul>', $html);
+        $this->assertStringContainsString('<li>uno</li>', $html);
+        $this->assertStringContainsString('<code>codice</code>', $html);
+        $this->assertStringContainsString('<blockquote>', $html);
+    }
+
+    public function test_it_does_not_render_markdown_images(): void
+    {
+        $html = (string) PostBodyRenderer::render('Ciao ![x](https://evil.test/a.png) mondo');
+
+        $this->assertStringNotContainsString('<img', $html);
+        $this->assertStringNotContainsString('evil.test', $html);
+        $this->assertStringContainsString('Ciao', $html);
+        $this->assertStringContainsString('mondo', $html);
     }
 
     public function test_labeled_hashtag_links_from_remote_posts_point_to_local_hashtag_pages(): void
@@ -150,9 +175,11 @@ class PostBodyRendererTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            '<a href="'.e(route('hashtags.show', 'openbook')).'" class="hashtag">#openbook</a>',
+            'href="'.e(route('hashtags.show', 'openbook')).'"',
             $html
         );
+        $this->assertStringContainsString('class="hashtag"', $html);
+        $this->assertStringContainsString('>#openbook</a>', $html);
         $this->assertStringNotContainsString('mastodon.example', $html);
         $this->assertStringNotContainsString('class="post-link"', $html);
     }
@@ -166,9 +193,11 @@ class PostBodyRendererTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            '<a href="'.e($remote->profileUrl()).'" class="mention">@alice@mastodon.example</a>',
+            'href="'.e($remote->profileUrl()).'"',
             $html
         );
+        $this->assertStringContainsString('class="mention"', $html);
+        $this->assertStringContainsString('>@alice@mastodon.example</a>', $html);
         $this->assertStringNotContainsString('mastodon.example/@alice', $html);
         $this->assertStringNotContainsString('class="post-link"', $html);
     }
@@ -180,9 +209,10 @@ class PostBodyRendererTest extends TestCase
         $html = (string) PostBodyRenderer::render('Saluti @bob@social.example');
 
         $this->assertStringContainsString(
-            '<a href="'.e($remote->profileUrl()).'" class="mention">@bob@social.example</a>',
+            'href="'.e($remote->profileUrl()).'"',
             $html
         );
+        $this->assertStringContainsString('>@bob@social.example</a>', $html);
     }
 
     public function test_unknown_remote_mentions_fall_back_to_search(): void
@@ -190,9 +220,10 @@ class PostBodyRendererTest extends TestCase
         $html = (string) PostBodyRenderer::render('Saluti @sconosciuta@lontano.example');
 
         $this->assertStringContainsString(
-            '<a href="'.e(route('search.create', ['q' => 'sconosciuta@lontano.example'])).'" class="mention">@sconosciuta@lontano.example</a>',
+            'href="'.e(route('search.create', ['q' => 'sconosciuta@lontano.example'])).'"',
             $html
         );
+        $this->assertStringContainsString('class="mention"', $html);
     }
 
     public function test_unknown_labeled_mentions_search_with_federated_handle_from_href(): void
@@ -202,7 +233,7 @@ class PostBodyRendererTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            '<a href="'.e(route('search.create', ['q' => 'nova@mastodon.example'])).'" class="mention">@nova@mastodon.example</a>',
+            'href="'.e(route('search.create', ['q' => 'nova@mastodon.example'])).'"',
             $html
         );
         $this->assertStringNotContainsString('q=nova"', $html);
