@@ -92,7 +92,7 @@
     @else
         @include('posts._feed', [
             'posts' => $posts,
-            'emptyMessage' => $isGroup ? __('openbook.communities.wall_empty') : __('openbook.profile.no_posts_yet'),
+            'emptyMessage' => $emptyPostsMessage ?? ($isGroup ? __('openbook.communities.wall_empty') : __('openbook.profile.no_posts_yet')),
         ])
     @endif
 @endsection

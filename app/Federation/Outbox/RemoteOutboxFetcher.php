@@ -33,7 +33,9 @@ use Illuminate\Support\Carbon;
  * espone spesso solo totalItems senza first/orderedItems), ricade sul feed
  * Atom `{actor}.atom` tramite {@see RemoteAtomFeedBackfill}. Se l'outbox e'
  * vuoto in stile Wafrn (`200` senza collection), ricade sull'API pubblica
- * `/api/v2/blog` tramite {@see RemoteWafrnBlogBackfill}.
+ * `/api/v2/blog` tramite {@see RemoteWafrnBlogBackfill}. Threads (Meta) non
+ * espone affatto i post nell'outbox: in quel caso restano solo i contenuti
+ * gia' ricevuti in inbox dopo un Follow.
  */
 final class RemoteOutboxFetcher
 {

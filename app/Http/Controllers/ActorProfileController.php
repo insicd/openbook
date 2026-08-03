@@ -107,6 +107,28 @@ class ActorProfileController extends Controller
             'followingCount' => $followingCount,
             'isFollowing' => $isFollowing,
             'hasPendingRequest' => $hasPendingRequest,
+            'emptyPostsMessage' => $this->emptyPostsMessage($actor, $isFollowing, $hasPendingRequest),
         ]);
+    }
+
+    private function emptyPostsMessage(Actor $actor, bool $isFollowing, bool $hasPendingRequest): string
+    {
+        if ($actor->isGroup()) {
+            return __('openbook.communities.wall_empty');
+        }
+
+        if ($actor->isThreads()) {
+            if ($isFollowing) {
+                return __('openbook.actors.threads_waiting_for_posts');
+            }
+
+            if ($hasPendingRequest) {
+                return __('openbook.actors.threads_pending_follow');
+            }
+
+            return __('openbook.actors.threads_outbox_unavailable');
+        }
+
+        return __('openbook.profile.no_posts_yet');
     }
 }

@@ -11,6 +11,15 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.9] — Profili Threads senza cronologia outbox
+
+### Changed
+- I profili `@utente@threads.net` spiegano perche' l'elenco post e' vuoto:
+  Threads non espone l'outbox ActivityPub (solo stub/`404`). I post arrivano
+  solo in push dopo un Follow, se l'account ha abilitato la condivisione sul
+  Fediverso. Non e' un difetto di Openbook: stesso limite noto su Mastodon,
+  Ghost ActivityPub, ecc.
+
 ## [0.8.8] — Avatar Threads: URL lunghi
 
 ### Fixed

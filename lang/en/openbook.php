@@ -211,6 +211,9 @@ return [
     'actors' => [
         'remote_notice' => 'Remote profile: the data shown here comes from the origin server and may not be up to date in real time.',
         'remote_group_notice' => 'Remote community: profile data and posts come from the origin server (Group Announce relays) and may not be up to date in real time.',
+        'threads_outbox_unavailable' => 'Threads does not expose a post list over ActivityPub (the outbox is empty or missing). Follow the account: new public posts will appear here and in your timeline when Threads delivers them to this instance. The account must also have fediverse sharing enabled.',
+        'threads_pending_follow' => 'Follow request sent. Once accepted, public Threads posts may arrive via push (Threads does not allow downloading history from the outbox).',
+        'threads_waiting_for_posts' => 'You already follow this account. Threads only delivers posts via push and does not publish history on the outbox: they will appear here when they arrive (and only if the account shares to the fediverse).',
     ],
 
     'settings' => [

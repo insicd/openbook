@@ -156,6 +156,17 @@ class Actor extends Model
     }
 
     /**
+     * Host Threads (Meta): l'outbox ActivityPub non espone i post (solo
+     * totalItems o 404). I contenuti arrivano solo via Follow + inbox.
+     */
+    public function isThreads(): bool
+    {
+        $domain = strtolower(preg_replace('/^www\./', '', $this->domain) ?? $this->domain);
+
+        return in_array($domain, ['threads.net', 'threads.com'], true);
+    }
+
+    /**
      * Identificatore ActivityPub da usare in attivita', firme HTTP e documenti.
      * Per gli attori locali e' sempre "/users/{username}" (APP_URL), anche se
      * la colonna "uri" in database e' ancora un alias legacy ("/@...").

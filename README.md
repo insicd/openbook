@@ -6,7 +6,7 @@ integrato con il Fediverso. Non e' un microblog, non e' un clone di Mastodon e n
 un aggregatore di link: e' pensato per comunita' personali, territoriali, associative e
 tematiche, con un'interfaccia comprensibile anche a utenti non tecnici.
 
-Versione corrente: **0.8.8** (vedi [`CHANGELOG.md`](CHANGELOG.md)). Openbook e'
+Versione corrente: **0.8.9** (vedi [`CHANGELOG.md`](CHANGELOG.md)). Openbook e'
 oltre la federazione bidirezionale di base: include **community** (Actor `Group`
 locali e remoti, iscrizione, wall, interoperabilita' Lemmy/Friendica) e sta
 lavorando alla **Fase 6** (interoperabilita' ampia con Mastodon, Misskey, PeerTube,
@@ -577,7 +577,10 @@ WriteFreely), `Video` (PeerTube, anche con `attributedTo` Person+Group) e `Image
 Gli allegati immagine remoti restano URL https in `media.remote_url` (galleria e
 rullino profilo) senza download sull'istanza. Se l'outbox e' uno stub (tipico
 Pixelfed: solo `totalItems`), il profilo remoto ricade sul feed Atom `{actor}.atom`.
-Per Wafrn (outbox vuoto) si usa l'API pubblica `/api/v2/blog`. La sezione Mondo
+Per Wafrn (outbox vuoto) si usa l'API pubblica `/api/v2/blog`. **Threads**
+(Meta) non espone i post nell'outbox ActivityPub: sul profilo remoto si
+possono vedere solo i contenuti gia' ricevuti in inbox dopo un Follow (e
+solo se l'account ha abilitato la condivisione sul Fediverso). La sezione Mondo
 propone account remoti da scoprire e, oltre i primi 5, l'elenco completo in
 `/mondo/scopri` con scorrimento infinito. SSRF, blocco domini e firme HTTP
 restano i vincoli di sicurezza di base.
@@ -934,7 +937,7 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap e stato del progetto
 
-Versione corrente: **0.8.8**. Il dettaglio delle modifiche per versione e' in
+Versione corrente: **0.8.9**. Il dettaglio delle modifiche per versione e' in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 - ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,
