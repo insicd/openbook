@@ -166,7 +166,7 @@ class PostBodyRendererTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            '<a href="'.e($remote->profileUrl()).'" class="mention">@alice</a>',
+            '<a href="'.e($remote->profileUrl()).'" class="mention">@alice@mastodon.example</a>',
             $html
         );
         $this->assertStringNotContainsString('mastodon.example/@alice', $html);
@@ -193,5 +193,19 @@ class PostBodyRendererTest extends TestCase
             '<a href="'.e(route('search.create', ['q' => 'sconosciuta@lontano.example'])).'" class="mention">@sconosciuta@lontano.example</a>',
             $html
         );
+    }
+
+    public function test_unknown_labeled_mentions_search_with_federated_handle_from_href(): void
+    {
+        $html = (string) PostBodyRenderer::render(
+            'Ciao [@nova](https://mastodon.example/@nova)!'
+        );
+
+        $this->assertStringContainsString(
+            '<a href="'.e(route('search.create', ['q' => 'nova@mastodon.example'])).'" class="mention">@nova@mastodon.example</a>',
+            $html
+        );
+        $this->assertStringNotContainsString('q=nova"', $html);
+        $this->assertStringNotContainsString('mastodon.example/@nova', $html);
     }
 }

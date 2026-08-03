@@ -174,9 +174,10 @@ final class PostBodyRenderer
     private static function renderMention(string $mention, ?string $href = null): string
     {
         $handle = substr($mention, 1);
+        $displayHandle = self::federatedMentionHandle($handle, $href);
         $profileHref = self::resolveMentionHref($handle, $href);
 
-        return sprintf('<a href="%s" class="mention">@%s</a>', e($profileHref), $handle);
+        return sprintf('<a href="%s" class="mention">@%s</a>', e($profileHref), e($displayHandle));
     }
 
     private static function resolveMentionHref(string $handle, ?string $href = null): string
@@ -193,9 +194,48 @@ final class PostBodyRenderer
             return self::$mentionHrefCache[$cacheKey] = $actor->profileUrl();
         }
 
-        // Non in cache: stessa strada del motore di ricerca (risoluzione
-        // locale o WebFinger al click), invece del profilo sul server remoto.
-        return self::$mentionHrefCache[$cacheKey] = route('search.create', ['q' => $handle]);
+        // Non in cache: ricerca con handle federato completo (user@dominio),
+        // cosi' SearchController fa WebFinger e apre il profilo in Openbook.
+        $searchQuery = self::federatedMentionHandle($handle, $href);
+
+        return self::$mentionHrefCache[$cacheKey] = route('search.create', ['q' => $searchQuery]);
+    }
+
+    /**
+     * Handle da usare in UI e in ricerca: se manca il dominio ma l'href
+     * remoto lo espone, completa come `user@host`.
+     */
+    private static function federatedMentionHandle(string $handle, ?string $href = null): string
+    {
+        if (str_contains($handle, '@')) {
+            return $handle;
+        }
+
+        if (! is_string($href) || $href === '') {
+            return $handle;
+        }
+
+        $decodedHref = html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $host = parse_url($decodedHref, PHP_URL_HOST);
+        $path = (string) (parse_url($decodedHref, PHP_URL_PATH) ?? '');
+        $username = $handle;
+
+        if (preg_match('#/(?:users/|@)([a-zA-Z0-9_]{1,32})/?$#u', $path, $pathMatch) === 1) {
+            $username = mb_strtolower($pathMatch[1]);
+        }
+
+        if (! is_string($host) || $host === '') {
+            return $handle;
+        }
+
+        $host = mb_strtolower($host);
+        $localDomain = mb_strtolower((string) config('openbook.domain'));
+
+        if ($host === $localDomain) {
+            return $username;
+        }
+
+        return $username.'@'.$host;
     }
 
     private static function findMentionedActor(string $handle, ?string $href = null): ?Actor
