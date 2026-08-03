@@ -100,6 +100,25 @@ final class ActivityDelivery
             return;
         }
 
+        if ($object instanceof Comment) {
+            $object->loadMissing('post.community.actor', 'mentions.actor');
+
+            if ($object->post->isInPrivateCommunity()) {
+                // Come i Create dei post: niente fan-out ai follower
+                // dell'autore. Solo membri remoti del Group (+ destinatari
+                // diretti, es. autore del post padre se remoto).
+                $group = $object->post->community->actor;
+                $this->dispatchToInboxes($this->remoteFollowerInboxes($group), $activity, $author);
+
+                collect($extraDirectTargets)
+                    ->filter(fn (?Actor $target) => $target !== null && ! $target->isLocal() && $target->id !== $author->id)
+                    ->unique('id')
+                    ->each(fn (Actor $target) => $this->deliverTo($author, $target, $activity));
+
+                return;
+            }
+        }
+
         $visibility = $object instanceof Post
             ? $object->visibility
             : ($object->post->visibility ?? Post::VISIBILITY_PUBLIC);

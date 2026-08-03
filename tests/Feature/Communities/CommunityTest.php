@@ -5,6 +5,7 @@ namespace Tests\Feature\Communities;
 use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\PostComposer;
 use App\Application\Services\AnnounceManager;
+use App\Application\Services\CommentComposer;
 use App\Domain\Communities\Community;
 use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
@@ -533,5 +534,81 @@ class CommunityTest extends TestCase
             ->get(route('posts.show', $post))
             ->assertOk()
             ->assertSee('Segreto del circolo.');
+    }
+
+    public function test_comments_on_private_community_posts_are_not_federated_to_author_followers(): void
+    {
+        Queue::fake();
+
+        $owner = $this->createFullAccount('privcmtowner');
+        $member = $this->createFullAccount('privcmtmember');
+        $remoteFollowerOfMember = $this->createRemoteActor('seguacemt', 'fuori.example');
+        $remoteGroupMember = $this->createRemoteActor('membrocmt', 'circolo.example');
+
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'commenti-privati',
+            'name' => 'Commenti chiusi',
+            'is_private' => true,
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $member->actor->id,
+            'following_id' => $community->actor_id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $remoteFollowerOfMember->id,
+            'following_id' => $member->actor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $remoteGroupMember->id,
+            'following_id' => $community->actor_id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $post = app(PostComposer::class)->compose($owner->actor, [
+            'body' => 'Post chiuso da commentare.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'community_id' => $community->id,
+        ]);
+
+        Queue::fake();
+
+        $comment = app(CommentComposer::class)->compose(
+            $member->actor,
+            $post,
+            'Risposta riservata.',
+        );
+
+        $note = NoteSerializer::forComment($comment->fresh(['post.community.actor', 'actor', 'mentions', 'parent']));
+        $this->assertNotContains(
+            NoteSerializer::PUBLIC_STREAM,
+            array_merge($note['to'] ?? [], $note['cc'] ?? [])
+        );
+
+        Queue::assertNotPushed(
+            DeliverActivityJob::class,
+            fn (DeliverActivityJob $job): bool => $job->inboxUrl === $remoteFollowerOfMember->endpoints->shared_inbox
+                || $job->inboxUrl === $remoteFollowerOfMember->endpoints->inbox
+        );
+
+        Queue::assertPushed(
+            DeliverActivityJob::class,
+            fn (DeliverActivityJob $job): bool => $job->inboxUrl === $remoteGroupMember->endpoints->shared_inbox
+                || $job->inboxUrl === $remoteGroupMember->endpoints->inbox
+        );
+
+        $this->actingAs($this->createFullAccount('privcmtoutsider'))
+            ->post(route('comments.store', $post), ['body' => 'Non dovrei potere.'])
+            ->assertNotFound();
     }
 }

@@ -59,7 +59,7 @@ final class CommentComposer
         });
 
         if ($author->isLocal()) {
-            $comment->load('mentions.actor', 'post');
+            $comment->load('mentions.actor', 'post.community.actor', 'parent.actor');
             $repliedToAuthor = $parent !== null ? $parent->actor : $post->actor;
 
             $this->delivery->deliverContent($comment, ActivitySerializer::create($comment), [$repliedToAuthor]);

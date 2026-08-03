@@ -11,6 +11,14 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.7] — Commenti in community private
+
+### Fixed
+- I commenti ai post di community private non vengono piu' consegnati ai
+  follower dell'autore del commento ne' marcati `as:Public`: audience e
+  fan-out restano sui membri remoti del Group. In locale solo chi puo'
+  vedere il post puo' commentarlo.
+
 ## [0.8.6] — Community private: post non pubblici
 
 ### Fixed

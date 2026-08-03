@@ -52,13 +52,20 @@ class CommentController extends Controller
 
     public function store(StoreCommentRequest $request, Post $post): RedirectResponse
     {
+        $viewer = $request->user()->actor;
+
+        abort_unless(
+            Post::query()->whereKey($post->id)->visibleTo($viewer)->exists(),
+            404,
+        );
+
         $data = $request->validated();
 
         $parent = filled($data['parent_comment_id'] ?? null)
             ? Comment::query()->findOrFail($data['parent_comment_id'])
             : null;
 
-        $comment = $this->commentComposer->compose($request->user()->actor, $post, $data['body'], $parent);
+        $comment = $this->commentComposer->compose($viewer, $post, $data['body'], $parent);
 
         return redirect(route('posts.show', $post).'#commento-'.$comment->id);
     }

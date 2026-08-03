@@ -141,8 +141,14 @@ final class NoteSerializer
             $note['updated'] = $comment->edited_at->toAtomString();
         }
 
-        $visibility = $comment->post->visibility ?? Post::VISIBILITY_PUBLIC;
-        [$note['to'], $note['cc']] = self::audienceForVisibility($visibility, $actor, $comment->mentions);
+        $comment->loadMissing('post.community.actor');
+
+        if ($comment->post->isInPrivateCommunity()) {
+            [$note['to'], $note['cc']] = self::privateCommunityAudience($comment->post->community->actor);
+        } else {
+            $visibility = $comment->post->visibility ?? Post::VISIBILITY_PUBLIC;
+            [$note['to'], $note['cc']] = self::audienceForVisibility($visibility, $actor, $comment->mentions);
+        }
 
         $tags = self::mentionTagsFor($comment->mentions)->values()->all();
 
