@@ -259,6 +259,11 @@ return [
         'back_to_profile' => 'Back to profile',
         'empty_followers' => 'No followers yet.',
         'empty_following' => 'Not following anyone yet.',
+        'infinite_scroll' => [
+            'loading' => 'Loading more accounts...',
+            'end' => 'There are no more accounts to show.',
+            'error' => 'Could not load more accounts. Try reloading the page.',
+        ],
     ],
 
     'notifications' => [

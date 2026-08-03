@@ -34,6 +34,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   ingresso.
 
 ### Changed
+- Gli elenchi follower/seguiti usano lo scorrimento infinito come gli altri
+  feed (la paginazione classica resta solo in `<noscript>`).
+
 - Le community private compaiono nell'elenco locali per il creatore e per
   lo staff dell'istanza (badge "Privata"); gli altri utenti vedono solo le
   pubbliche.

@@ -139,4 +139,32 @@ class FollowListTest extends TestCase
         $response->assertSee(route('profile.followers', $user->username));
         $response->assertSee(route('profile.following', $user->username));
     }
+
+    public function test_the_followers_list_exposes_infinite_scroll_markup_when_there_are_more_pages(): void
+    {
+        config(['openbook.feed.per_page' => 2]);
+
+        $alice = $this->createFullAccount('alicepages');
+        $bob = $this->createFullAccount('bobpages');
+        $carol = $this->createFullAccount('carolpages');
+        $dave = $this->createFullAccount('davepages');
+
+        app(FollowManager::class)->follow($bob->actor, $alice->actor);
+        app(FollowManager::class)->follow($carol->actor, $alice->actor);
+        app(FollowManager::class)->follow($dave->actor, $alice->actor);
+
+        $response = $this->get('/@alicepages/follower');
+
+        $response->assertOk();
+        $response->assertSee('id="ob-follow-list"', false);
+        $response->assertSee('data-infinite-scroll', false);
+        $response->assertSee('data-next-url="'.url('/@alicepages/follower?page=2').'"', false);
+        $response->assertSee('<noscript>', false);
+        $response->assertSee('ob-pagination', false);
+
+        $pageTwo = $this->get('/@alicepages/follower?page=2');
+        $pageTwo->assertOk();
+        $pageTwo->assertSee('id="ob-follow-list"', false);
+        $pageTwo->assertDontSee('data-next-url', false);
+    }
 }

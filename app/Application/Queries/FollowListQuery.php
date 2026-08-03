@@ -55,15 +55,16 @@ final class FollowListQuery
      */
     private function mapToActors(LengthAwarePaginator $paginator, string $relation): LengthAwarePaginator
     {
+        // setCollection mantiene path/query della paginazione originale:
+        // ricostruire un LengthAwarePaginator "a mano" spezzava nextPageUrl()
+        // (e quindi sia le frecce sia l'infinite scroll).
         $actors = $paginator->getCollection()
             ->map(fn (Follow $follow) => $follow->{$relation})
             ->values();
 
-        return new LengthAwarePaginator(
-            $actors,
-            $paginator->total(),
-            $paginator->perPage(),
-            $paginator->currentPage(),
-        );
+        /** @var LengthAwarePaginator<int, Actor> $paginator */
+        $paginator->setCollection($actors);
+
+        return $paginator;
     }
 }

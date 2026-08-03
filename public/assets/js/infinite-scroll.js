@@ -1,8 +1,9 @@
 /**
  * Scorrimento infinito per elenchi paginati (feed, Mondo, profilo, hashtag,
- * "Da scoprire"): sostituisce la paginazione a numeri di pagina, che pero'
- * resta disponibile in <noscript> nelle viste che lo usano, cosi' da non
- * perdere alcuna funzionalita' per chi naviga senza JavaScript.
+ * "Da scoprire", follower/seguiti): sostituisce la paginazione a numeri di
+ * pagina, che pero' resta disponibile in <noscript> nelle viste che lo
+ * usano, cosi' da non perdere alcuna funzionalita' per chi naviga senza
+ * JavaScript.
  *
  * Nessuna libreria esterna, nessuna route/API dedicata sul server: quando il
  * segnaposto in fondo alla pagina diventa visibile, viene semplicemente

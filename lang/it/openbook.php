@@ -259,6 +259,11 @@ return [
         'back_to_profile' => 'Torna al profilo',
         'empty_followers' => 'Nessun follower per ora.',
         'empty_following' => 'Non sta ancora seguendo nessuno.',
+        'infinite_scroll' => [
+            'loading' => 'Caricamento altri account...',
+            'end' => 'Non ci sono altri account da mostrare.',
+            'error' => 'Impossibile caricare altri account. Riprova ricaricando la pagina.',
+        ],
     ],
 
     'notifications' => [
