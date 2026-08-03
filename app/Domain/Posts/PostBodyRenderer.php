@@ -56,7 +56,9 @@ final class PostBodyRenderer
             return self::renderMention($match['mention']);
         }, $escaped);
 
-        return new HtmlString(nl2br($rendered, false));
+        // Sostituire i newline (non nl2br): nl2br lascia i \n dopo <br>, e
+        // Mastodon li interpreta di nuovo → a capo duplicati in federazione.
+        return new HtmlString(str_replace(["\r\n", "\r", "\n"], '<br>', $rendered));
     }
 
     /**

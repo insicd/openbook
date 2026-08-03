@@ -71,18 +71,21 @@ class QuotePostTest extends TestCase
             'quoted_post_id' => $original->id,
         ]);
 
-        $response->assertRedirect(route('feed.index'));
+        $response->assertRedirect(route('posts.show', $quote = Post::query()->where('quoted_post_id', $original->id)->first()));
 
-        $quote = Post::query()->where('quoted_post_id', $original->id)->first();
         $this->assertNotNull($quote);
         $this->assertSame('La mia opinione sulla citazione.', $quote->body);
+
+        $detail = $this->actingAs($quoter)->get(route('posts.show', $quote));
+        $detail->assertOk();
+        $detail->assertSee('La mia opinione sulla citazione.', false);
+        $detail->assertSee('Contenuto citato nestato.', false);
+        $detail->assertSee('class="ob-post__quote"', false);
+        $detail->assertSee('ob-post--embed', false);
 
         $feed = $this->actingAs($quoter)->get(route('feed.index'));
         $feed->assertOk();
         $feed->assertSee('La mia opinione sulla citazione.', false);
-        $feed->assertSee('Contenuto citato nestato.', false);
-        $feed->assertSee('class="ob-post__quote"', false);
-        $feed->assertSee('ob-post--embed', false);
 
         $this->assertDatabaseHas('notifications', [
             'recipient_id' => $author->id,

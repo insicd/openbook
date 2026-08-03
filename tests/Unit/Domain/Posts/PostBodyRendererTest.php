@@ -122,4 +122,19 @@ class PostBodyRendererTest extends TestCase
         $this->assertStringNotContainsString('class="hashtag"', $html);
         $this->assertStringNotContainsString('>#039<', $html);
     }
+
+    public function test_line_breaks_become_br_without_residual_newlines(): void
+    {
+        $html = (string) PostBodyRenderer::render("prima\nseconda\r\nterza\rquarta");
+
+        $this->assertSame('prima<br>seconda<br>terza<br>quarta', $html);
+    }
+
+    public function test_blank_lines_become_consecutive_br_tags(): void
+    {
+        $html = (string) PostBodyRenderer::render("uno\n\ndue");
+
+        $this->assertSame('uno<br><br>due', $html);
+        $this->assertStringNotContainsString("\n", $html);
+    }
 }

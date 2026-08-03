@@ -19,10 +19,7 @@ use App\Infrastructure\Security\Http\SystemDnsResolver;
 use App\Policies\CommentPolicy;
 use App\Policies\CommunityPolicy;
 use App\Policies\PostPolicy;
-use Illuminate\Auth\Events\Registered;
-use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -46,8 +43,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Event::listen(Registered::class, SendEmailVerificationNotification::class);
-
         if (config('app.env') === 'production') {
             URL::forceScheme('https');
         }

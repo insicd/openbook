@@ -151,6 +151,7 @@ return [
         'open_original' => 'Open original post',
         'video_embed' => 'Embedded video (:provider)',
         'read_more' => 'More...',
+        'published' => 'Your post has been published.',
     ],
 
     'actions' => [
@@ -504,10 +505,13 @@ return [
     ],
 
     'errors' => [
-        'database_busy_title' => 'Service temporarily busy',
-        'database_busy_body' => 'The database is temporarily overloaded. Trying again in a moment usually helps.',
-        'database_busy_retry' => 'Try again',
-        'database_busy_back' => 'Go back',
+        'database_busy_title' => 'Loading…',
+        'database_busy_body' => 'Getting the page ready — just a moment.',
+        'database_busy_body_slow' => 'This is taking a bit longer than usual — trying again shortly.',
+        'database_busy_body_manual' => 'The action could not be completed due to a traffic spike. Wait a moment and try again.',
+        'database_busy_auto' => 'Retrying automatically…',
+        'database_busy_retry' => 'Retry now',
+        'database_busy_back' => 'Back to home',
     ],
 
     'sidebar' => [

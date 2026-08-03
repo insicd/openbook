@@ -17,14 +17,15 @@ use Throwable;
  * nuove connessioni al secondo, il server risponde con
  * `SQLSTATE[HY000] [2002] Operation not permitted`.
  *
- * Un semplice reload di solito basta (nuova richiesta = nuova chance di
- * rientrare nel rate limit). Qui lo facciamo automaticamente una sola volta
- * per le GET, cosi' l'utente non vede lo stack SQL; se fallisce di nuovo,
- * mostriamo una pagina 503 amichevole invece dell'eccezione grezza.
+ * Per le GET: un redirect automatico una sola volta (equivalente a un reload
+ * silenzioso). Se fallisce di nuovo, invece di una 503 "servizio non
+ * disponibile" mostriamo una pagina di caricamento che ripete da sola la
+ * richiesta con backoff, cosi' all'utente sembra latenza e non un outage.
  *
- * La mitigazione "a monte" resta comunque abilitare le connessioni PDO
- * persistenti (`DB_PERSISTENT=true`), come raccomandato dallo stesso
- * hosting: riduce drasticamente il numero di nuove connessioni al secondo.
+ * POST e simili non si ripetono da soli, per non duplicare azioni.
+ *
+ * La mitigazione "a monte" resta abilitare le connessioni PDO persistenti
+ * (`DB_PERSISTENT=true`): riduce drasticamente le nuove connessioni/secondo.
  */
 final class TransientConnectionHandler
 {
@@ -68,9 +69,13 @@ final class TransientConnectionHandler
                 ->with(self::RETRY_FLASH_KEY, true);
         }
 
-        return response()->view('errors.database-busy', [
-            'retryUrl' => $request->isMethod('GET') ? $request->fullUrl() : null,
-        ], 503);
+        $retryUrl = $request->isMethod('GET') ? $request->fullUrl() : null;
+
+        return response()
+            ->view('errors.database-busy', [
+                'retryUrl' => $retryUrl,
+            ], 503)
+            ->header('Retry-After', '2');
     }
 
     private function matches(string|int $code, string $message, mixed $driverCode): bool

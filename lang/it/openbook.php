@@ -151,6 +151,7 @@ return [
         'open_original' => 'Apri post originale',
         'video_embed' => 'Video incorporato (:provider)',
         'read_more' => 'Altro...',
+        'published' => 'Il tuo post e stato pubblicato.',
     ],
 
     'actions' => [
@@ -504,10 +505,13 @@ return [
     ],
 
     'errors' => [
-        'database_busy_title' => 'Servizio momentaneamente occupato',
-        'database_busy_body' => 'Il database e temporaneamente sovraccarico. Di solito basta riprovare tra un istante.',
-        'database_busy_retry' => 'Riprova',
-        'database_busy_back' => 'Torna indietro',
+        'database_busy_title' => 'Caricamento in corso…',
+        'database_busy_body' => 'Stiamo preparando la pagina, un attimo di pazienza.',
+        'database_busy_body_slow' => 'Sta richiedendo un po\' piu\' tempo del solito: riprovo tra poco.',
+        'database_busy_body_manual' => 'L\'operazione non e\' andata a buon fine per un picco di traffico. Attendi un momento e riprova.',
+        'database_busy_auto' => 'Riprovo automaticamente…',
+        'database_busy_retry' => 'Riprova ora',
+        'database_busy_back' => 'Torna alla home',
     ],
 
     'sidebar' => [

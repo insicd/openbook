@@ -206,5 +206,10 @@
             })();
         </script>
     @endauth
+
+    {{-- Reset del backoff della pagina di attesa DB dopo un caricamento riuscito. --}}
+    <script>
+        try { sessionStorage.removeItem('ob.dbBusy'); } catch (e) {}
+    </script>
 </body>
 </html>

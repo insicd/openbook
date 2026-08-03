@@ -2135,3 +2135,75 @@ a.ob-post__menu-item {
     flex-wrap: wrap;
   }
 }
+
+/* Pagina di attesa per errori MySQL transienti: sembra un caricamento, non un outage. */
+.ob-db-busy {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, var(--ob-color-primary-soft), transparent),
+    var(--ob-color-bg);
+}
+
+.ob-db-busy__panel {
+  width: min(100%, 26rem);
+  text-align: center;
+  padding: 2rem 1.5rem;
+}
+
+.ob-db-busy__spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: 0 auto 1.25rem;
+  border: 3px solid var(--ob-color-primary-soft);
+  border-top-color: var(--ob-color-primary);
+  border-radius: 50%;
+  animation: ob-db-busy-spin 0.75s linear infinite;
+}
+
+@keyframes ob-db-busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ob-db-busy__brand {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ob-color-primary);
+  letter-spacing: 0.01em;
+}
+
+.ob-db-busy__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.ob-db-busy__body,
+.ob-db-busy__hint {
+  margin: 0;
+  color: var(--ob-color-text-muted);
+  font-size: 0.95rem;
+}
+
+.ob-db-busy__hint {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.ob-db-busy__actions {
+  margin: 1.5rem 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-db-busy__spinner {
+    animation: none;
+    border-top-color: var(--ob-color-primary-soft);
+    border-right-color: var(--ob-color-primary);
+  }
+}

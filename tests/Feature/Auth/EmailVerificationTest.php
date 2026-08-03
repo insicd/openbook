@@ -74,7 +74,7 @@ class EmailVerificationTest extends TestCase
 
         $user = User::query()->where('username', 'daverificare')->firstOrFail();
 
-        Notification::assertSentTo($user, VerifyEmail::class);
+        Notification::assertSentToTimes($user, VerifyEmail::class, 1);
     }
 
     public function test_verification_email_can_be_resent(): void

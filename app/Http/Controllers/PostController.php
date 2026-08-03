@@ -49,7 +49,9 @@ class PostController extends Controller
                 ->with('status', __('openbook.communities.remote_post_sent'));
         }
 
-        return redirect()->route('feed.index')->with('status', 'Il tuo post e stato pubblicato.');
+        return redirect()
+            ->route('posts.show', $post)
+            ->with('status', __('openbook.posts.published'));
     }
 
     /**

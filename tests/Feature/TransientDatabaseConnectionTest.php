@@ -12,7 +12,7 @@ use Tests\TestCase;
  * Su certi hosting condivisi (Hostinger) un burst di nuove connessioni MySQL
  * produce `SQLSTATE[HY000] [2002] Operation not permitted`. L'utente non deve
  * vedere lo stack SQL: al primo errore GET riproviamo con un redirect, al
- * secondo mostriamo una pagina 503 comprensibile.
+ * secondo mostriamo una pagina di caricamento che ritenta da sola.
  */
 class TransientDatabaseConnectionTest extends TestCase
 {
@@ -31,7 +31,7 @@ class TransientDatabaseConnectionTest extends TestCase
         $this->assertTrue(session()->has(TransientConnectionHandler::RETRY_FLASH_KEY));
     }
 
-    public function test_a_second_transient_connection_error_shows_a_friendly_page(): void
+    public function test_a_second_transient_connection_error_shows_a_loading_retry_page(): void
     {
         $handler = app(TransientConnectionHandler::class);
 
@@ -42,7 +42,12 @@ class TransientDatabaseConnectionTest extends TestCase
         $result = $handler->handle($request);
 
         $this->assertSame(503, $result->getStatusCode());
+        $this->assertSame('2', $result->headers->get('Retry-After'));
         $this->assertStringContainsString(__('openbook.errors.database_busy_title'), $result->getContent());
+        $this->assertStringContainsString(__('openbook.errors.database_busy_auto'), $result->getContent());
+        $this->assertStringContainsString('ob-db-busy__spinner', $result->getContent());
+        $this->assertStringContainsString('location.replace', $result->getContent());
+        $this->assertStringContainsString('/cerca?q=qualcosa', $result->getContent());
         $this->assertStringNotContainsString('SQLSTATE', $result->getContent());
         $this->assertStringNotContainsString('Operation not permitted', $result->getContent());
     }
@@ -58,6 +63,8 @@ class TransientDatabaseConnectionTest extends TestCase
 
         $this->assertSame(503, $result->getStatusCode());
         $this->assertFalse($result->isRedirect());
+        $this->assertStringContainsString(e(__('openbook.errors.database_busy_body_manual')), $result->getContent());
+        $this->assertStringNotContainsString('location.replace', $result->getContent());
     }
 
     public function test_unrelated_database_errors_are_not_treated_as_transient(): void

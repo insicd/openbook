@@ -24,7 +24,9 @@ class PostControllerTest extends TestCase
             'visibility' => Post::VISIBILITY_PUBLIC,
         ]);
 
-        $response->assertRedirect(route('feed.index'));
+        $post = Post::query()->where('body', 'Il mio post dalla richiesta HTTP.')->first();
+        $this->assertNotNull($post);
+        $response->assertRedirect(route('posts.show', $post));
         $this->assertDatabaseHas('posts', [
             'actor_id' => $user->actor->id,
             'body' => 'Il mio post dalla richiesta HTTP.',
