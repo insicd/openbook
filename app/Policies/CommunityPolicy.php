@@ -12,7 +12,21 @@ class CommunityPolicy
         return $user->isActive();
     }
 
+    /**
+     * Pagina community (nome, descrizione, iscrizione): le private restano
+     * raggiungibili dal link diretto cosi' si puo' richiedere l'accesso.
+     * Il wall e' protetto da {@see viewWall()}.
+     */
     public function view(?User $user, Community $community): bool
+    {
+        return true;
+    }
+
+    /**
+     * Contenuti del wall: pubbliche per tutti; private solo a proprietario
+     * e membri accettati.
+     */
+    public function viewWall(?User $user, Community $community): bool
     {
         if (! $community->is_private) {
             return true;

@@ -15,7 +15,7 @@ use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorUrls;
 use App\Http\Requests\Communities\StoreCommunityRequest;
 use App\Http\Support\ActivityPubNegotiation;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -121,6 +121,7 @@ class CommunityController extends Controller
         $isMember = $viewerActor !== null && $community->isMember($viewerActor);
         $hasPendingRequest = $viewerActor !== null
             && $this->followManager->hasPendingRequest($viewerActor, $community->actor);
+        $canViewWall = Gate::forUser($viewer)->allows('viewWall', $community);
 
         $pendingJoinRequests = collect();
 
@@ -133,8 +134,18 @@ class CommunityController extends Controller
                 ->get();
         }
 
-        $posts = $this->feedQuery->forCommunity($community, $viewerActor);
-        Post::annotateViewerState($posts->getCollection(), $viewerActor);
+        if ($canViewWall) {
+            $posts = $this->feedQuery->forCommunity($community, $viewerActor);
+            Post::annotateViewerState($posts->getCollection(), $viewerActor);
+        } else {
+            $posts = new LengthAwarePaginator(
+                [],
+                0,
+                (int) config('openbook.feed.per_page'),
+                1,
+                ['path' => $request->url(), 'query' => $request->query()],
+            );
+        }
 
         $community->loadMissing('moderators.profile');
 
@@ -143,6 +154,7 @@ class CommunityController extends Controller
             'posts' => $posts,
             'isMember' => $isMember,
             'hasPendingRequest' => $hasPendingRequest,
+            'canViewWall' => $canViewWall,
             'pendingJoinRequests' => $pendingJoinRequests,
             'canPost' => $viewer !== null && Gate::forUser($viewer)->allows('post', $community),
             'canManageModerators' => $viewer !== null && Gate::forUser($viewer)->allows('manageModerators', $community),
@@ -154,12 +166,16 @@ class CommunityController extends Controller
         Gate::authorize('join', $community);
 
         try {
-            $this->membership->join(auth()->user()->actor, $community);
+            $follow = $this->membership->join(auth()->user()->actor, $community);
         } catch (\InvalidArgumentException $exception) {
             throw ValidationException::withMessages(['community' => $exception->getMessage()]);
         }
 
-        return back()->with('status', __('openbook.communities.joined'));
+        $status = $follow->status === Follow::STATUS_PENDING
+            ? __('openbook.communities.request_sent')
+            : __('openbook.communities.joined');
+
+        return back()->with('status', $status);
     }
 
     public function leave(Community $community): RedirectResponse

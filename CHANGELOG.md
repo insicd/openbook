@@ -11,6 +11,14 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.5] — Community private: richiesta di iscrizione
+
+### Fixed
+- Visitare il link di una community privata non restituisce piu' 403 ai
+  non-membri: si vede la pagina (nome, descrizione) con "Richiedi iscrizione"
+  (o login per gli ospiti). Il wall resta nascosto fino all'accettazione della
+  richiesta da parte del proprietario/moderatore.
+
 ## [0.8.4] — Profili Wafrn: post da API blog
 
 ### Fixed

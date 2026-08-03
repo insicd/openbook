@@ -39,10 +39,19 @@
                         @else
                             <form method="POST" action="{{ route('communities.join', $community) }}">
                                 @csrf
-                                <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.communities.join') }}</button>
+                                <button type="submit" class="ob-btn ob-btn--primary">
+                                    {{ $community->is_private ? __('openbook.communities.request_join') : __('openbook.communities.join') }}
+                                </button>
                             </form>
                         @endif
                     </div>
+                @else
+                    @if ($community->is_private)
+                        <p class="ob-field__help" style="margin-top:1rem">
+                            {{ __('openbook.communities.private_login_prompt') }}
+                            <a href="{{ route('login') }}">{{ __('openbook.nav.login') }}</a>
+                        </p>
+                    @endif
                 @endauth
             </div>
         </div>
@@ -128,8 +137,14 @@
         ])
     @endif
 
-    @include('posts._feed', [
-        'posts' => $posts,
-        'emptyMessage' => __('openbook.communities.wall_empty'),
-    ])
+    @if ($canViewWall ?? true)
+        @include('posts._feed', [
+            'posts' => $posts,
+            'emptyMessage' => __('openbook.communities.wall_empty'),
+        ])
+    @else
+        <div class="ob-card">
+            <p class="ob-field__help">{{ __('openbook.communities.private_wall_locked') }}</p>
+        </div>
+    @endif
 @endsection

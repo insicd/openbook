@@ -349,4 +349,103 @@ class CommunityTest extends TestCase
             ->assertSee(__('openbook.communities.empty_remote_guest'))
             ->assertDontSee('Solo con account');
     }
+
+    public function test_a_non_member_can_visit_a_private_community_and_request_to_join(): void
+    {
+        $owner = $this->createFullAccount('privowner');
+        $applicant = $this->createFullAccount('applicant');
+
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'segreta',
+            'name' => 'Cerchia privata',
+            'summary' => 'Solo su invito.',
+            'is_private' => true,
+        ]);
+
+        $secret = app(PostComposer::class)->compose($owner->actor, [
+            'body' => 'Post solo per i membri.',
+            'visibility' => 'public',
+            'community_id' => $community->id,
+        ]);
+
+        $this->assertTrue($community->fresh()->actor->manually_approves_followers);
+
+        $this->actingAs($applicant)
+            ->get(route('communities.show', $community))
+            ->assertOk()
+            ->assertSee('Cerchia privata')
+            ->assertSee(__('openbook.communities.request_join'))
+            ->assertSee(__('openbook.communities.private_wall_locked'))
+            ->assertDontSee('Post solo per i membri.');
+
+        $this->actingAs($applicant)
+            ->from(route('communities.show', $community))
+            ->post(route('communities.join', $community))
+            ->assertRedirect(route('communities.show', $community))
+            ->assertSessionHas('status', __('openbook.communities.request_sent'));
+
+        $this->assertTrue(
+            Follow::query()
+                ->where('follower_id', $applicant->actor->id)
+                ->where('following_id', $community->actor_id)
+                ->where('status', Follow::STATUS_PENDING)
+                ->exists()
+        );
+        $this->assertFalse($community->fresh()->isMember($applicant->actor));
+
+        $this->actingAs($applicant)
+            ->get(route('communities.show', $community))
+            ->assertOk()
+            ->assertSee(__('openbook.communities.pending'))
+            ->assertDontSee('Post solo per i membri.');
+
+        $this->actingAs($owner)
+            ->get(route('communities.show', $community))
+            ->assertOk()
+            ->assertSee('Post solo per i membri.')
+            ->assertSee(__('openbook.communities.pending_requests'))
+            ->assertSee('@applicant');
+
+        $follow = Follow::query()
+            ->where('follower_id', $applicant->actor->id)
+            ->where('following_id', $community->actor_id)
+            ->firstOrFail();
+
+        $this->actingAs($owner)
+            ->post(route('communities.accept', [$community, $follow]))
+            ->assertRedirect();
+
+        $this->assertTrue($community->fresh()->isMember($applicant->actor));
+
+        $this->actingAs($applicant)
+            ->get(route('communities.show', $community))
+            ->assertOk()
+            ->assertSee('Post solo per i membri.')
+            ->assertDontSee(__('openbook.communities.private_wall_locked'));
+
+        $this->assertNotNull($secret->id);
+    }
+
+    public function test_a_guest_can_see_a_private_community_landing_but_not_the_wall(): void
+    {
+        $owner = $this->createFullAccount('privguestowner');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'chiusa',
+            'name' => 'Solo iscritti',
+            'is_private' => true,
+        ]);
+
+        app(PostComposer::class)->compose($owner->actor, [
+            'body' => 'Segreto per ospiti.',
+            'visibility' => 'public',
+            'community_id' => $community->id,
+        ]);
+
+        $this->get(route('communities.show', $community))
+            ->assertOk()
+            ->assertSee('Solo iscritti')
+            ->assertSee(__('openbook.communities.private_login_prompt'))
+            ->assertSee(__('openbook.communities.private_wall_locked'))
+            ->assertDontSee('Segreto per ospiti.');
+    }
 }
