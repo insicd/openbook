@@ -11,6 +11,15 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.6] — Community private: post non pubblici
+
+### Fixed
+- I post nelle community private non sono piu' trattati come pubblici sul
+  Fediverso ne' sui feed/profili di chi non e' membro: `visibleTo` richiede
+  l'iscrizione al Group, niente Create ai follower dell'autore, audience e
+  Announce senza `as:Public`, outbox e feed Locale/Mondo senza quei contenuti.
+  Il wall della community resta leggibile ai membri accettati e all'autore.
+
 ## [0.8.5] — Community private: richiesta di iscrizione
 
 ### Fixed

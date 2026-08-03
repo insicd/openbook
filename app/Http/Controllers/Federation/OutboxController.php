@@ -28,10 +28,20 @@ final class OutboxController extends Controller
 
         $query = Post::query()
             ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED])
-            ->where('status', Post::STATUS_PUBLISHED);
+            ->where('status', Post::STATUS_PUBLISHED)
+            ->where(function ($query) {
+                $query->whereNull('community_id')
+                    ->orWhereHas('community', fn ($community) => $community->where('is_private', false));
+            });
 
         if ($actor->isGroup() && $actor->community !== null) {
             $query->where('community_id', $actor->community->id);
+
+            // Outbox pubblico del Group: le community private non espongono
+            // la cronologia (i membri la ricevono via consegna / wall HTML).
+            if ($actor->community->is_private) {
+                $query->whereRaw('0 = 1');
+            }
         } else {
             $query->where('actor_id', $actor->id);
         }

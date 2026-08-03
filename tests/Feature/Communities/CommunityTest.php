@@ -448,4 +448,90 @@ class CommunityTest extends TestCase
             ->assertSee(__('openbook.communities.private_wall_locked'))
             ->assertDontSee('Segreto per ospiti.');
     }
+
+    public function test_private_community_posts_stay_off_profiles_feeds_and_public_federation(): void
+    {
+        Queue::fake();
+
+        $owner = $this->createFullAccount('privfedowner');
+        $member = $this->createFullAccount('privfedmember');
+        $outsider = $this->createFullAccount('privfedoutsider');
+        $remoteFollower = $this->createRemoteActor('remotefollower', 'fuori.example');
+
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'interni',
+            'name' => 'Solo interni',
+            'is_private' => true,
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $member->actor->id,
+            'following_id' => $community->actor_id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+        $community->increment('members_count');
+
+        Follow::query()->create([
+            'follower_id' => $outsider->actor->id,
+            'following_id' => $owner->actor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $remoteFollower->id,
+            'following_id' => $owner->actor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $post = app(PostComposer::class)->compose($owner->actor, [
+            'body' => 'Segreto del circolo.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'community_id' => $community->id,
+        ]);
+
+        $this->assertSame(Post::VISIBILITY_PUBLIC, $post->fresh()->visibility);
+        $this->assertTrue($post->isInPrivateCommunity());
+
+        Queue::assertNotPushed(
+            DeliverActivityJob::class,
+            fn (DeliverActivityJob $job): bool => $job->inboxUrl === $remoteFollower->endpoints->shared_inbox
+                || $job->inboxUrl === $remoteFollower->endpoints->inbox
+        );
+
+        $note = NoteSerializer::forPost($post->fresh(['community.actor', 'actor', 'mentions', 'media', 'hashtags']));
+        $this->assertNotContains(
+            NoteSerializer::PUBLIC_STREAM,
+            array_merge($note['to'] ?? [], $note['cc'] ?? [])
+        );
+
+        $this->actingAs($outsider)
+            ->get(route('profile.show', $owner->username))
+            ->assertOk()
+            ->assertDontSee('Segreto del circolo.');
+
+        $this->actingAs($outsider)
+            ->get(route('feed.index'))
+            ->assertOk()
+            ->assertDontSee('Segreto del circolo.');
+
+        $this->actingAs($member)
+            ->get(route('communities.show', $community))
+            ->assertOk()
+            ->assertSee('Segreto del circolo.');
+
+        $this->actingAs($outsider)
+            ->get(route('posts.show', $post))
+            ->assertNotFound();
+
+        $this->actingAs($owner)
+            ->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertSee('Segreto del circolo.');
+    }
 }

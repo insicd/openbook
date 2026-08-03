@@ -195,42 +195,72 @@ class Post extends Model
      * sono visibili solo all'autore e agli attori esplicitamente menzionati
      * (in assenza, per questo milestone, di un vero elenco di destinatari).
      *
+     * I post in una community *privata* restano visibili solo all'autore e
+     * ai membri accettati del Group, indipendentemente dalla visibility
+     * salvata (cosi' non compaiono su profilo/feed di chi non e' iscritto).
+     *
      * @param  Builder<Post>  $query
      * @return Builder<Post>
      */
     public function scopeVisibleTo(Builder $query, ?Actor $viewer): Builder
     {
-        return $query->where(function (Builder $query) use ($viewer) {
-            $query->where('visibility', self::VISIBILITY_PUBLIC)
-                ->orWhere('visibility', self::VISIBILITY_UNLISTED);
+        return $query
+            ->where(function (Builder $query) use ($viewer) {
+                $query->where('visibility', self::VISIBILITY_PUBLIC)
+                    ->orWhere('visibility', self::VISIBILITY_UNLISTED);
 
-            if ($viewer === null) {
-                return;
-            }
+                if ($viewer === null) {
+                    return;
+                }
 
-            $query->orWhere('actor_id', $viewer->id);
+                $query->orWhere('actor_id', $viewer->id);
 
-            $query->orWhere(function (Builder $query) use ($viewer) {
-                $query->where('visibility', self::VISIBILITY_FOLLOWERS)
-                    ->whereIn('actor_id', function ($sub) use ($viewer) {
-                        $sub->select('following_id')
-                            ->from('follows')
-                            ->where('follower_id', $viewer->id)
-                            ->where('status', 'accepted');
+                $query->orWhere(function (Builder $query) use ($viewer) {
+                    $query->where('visibility', self::VISIBILITY_FOLLOWERS)
+                        ->whereIn('actor_id', function ($sub) use ($viewer) {
+                            $sub->select('following_id')
+                                ->from('follows')
+                                ->where('follower_id', $viewer->id)
+                                ->where('status', 'accepted');
+                        });
+                });
+
+                $query->orWhere(function (Builder $query) use ($viewer) {
+                    $query->where('visibility', self::VISIBILITY_DIRECT)
+                        ->whereExists(function ($sub) use ($viewer) {
+                            $sub->selectRaw('1')
+                                ->from('mentions')
+                                ->whereColumn('mentions.mentionable_id', 'posts.id')
+                                ->where('mentions.mentionable_type', 'post')
+                                ->where('mentions.actor_id', $viewer->id);
+                        });
+                });
+            })
+            ->where(function (Builder $query) use ($viewer) {
+                $query->whereDoesntHave('community', fn (Builder $community) => $community->where('is_private', true));
+
+                if ($viewer === null) {
+                    return;
+                }
+
+                $query->orWhere('actor_id', $viewer->id)
+                    ->orWhereHas('community', function (Builder $community) use ($viewer) {
+                        $community->where('is_private', true)
+                            ->whereIn('actor_id', function ($sub) use ($viewer) {
+                                $sub->select('following_id')
+                                    ->from('follows')
+                                    ->where('follower_id', $viewer->id)
+                                    ->where('status', 'accepted');
+                            });
                     });
             });
+    }
 
-            $query->orWhere(function (Builder $query) use ($viewer) {
-                $query->where('visibility', self::VISIBILITY_DIRECT)
-                    ->whereExists(function ($sub) use ($viewer) {
-                        $sub->selectRaw('1')
-                            ->from('mentions')
-                            ->whereColumn('mentions.mentionable_id', 'posts.id')
-                            ->where('mentions.mentionable_type', 'post')
-                            ->where('mentions.actor_id', $viewer->id);
-                    });
-            });
-        });
+    public function isInPrivateCommunity(): bool
+    {
+        $this->loadMissing('community');
+
+        return $this->community !== null && $this->community->is_private;
     }
 
     /**

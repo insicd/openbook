@@ -191,6 +191,29 @@ final class LocalSearchQuery
                             });
                     });
             })
+            ->where(function ($query) use ($viewer) {
+                $query->whereNotExists(function ($sub) {
+                    $sub->selectRaw('1')
+                        ->from('communities')
+                        ->whereColumn('communities.id', 'posts.community_id')
+                        ->where('communities.is_private', true);
+                });
+
+                if ($viewer === null) {
+                    return;
+                }
+
+                $query->orWhere('posts.actor_id', $viewer->id)
+                    ->orWhereExists(function ($sub) use ($viewer) {
+                        $sub->selectRaw('1')
+                            ->from('communities')
+                            ->join('follows', 'follows.following_id', '=', 'communities.actor_id')
+                            ->whereColumn('communities.id', 'posts.community_id')
+                            ->where('communities.is_private', true)
+                            ->where('follows.follower_id', $viewer->id)
+                            ->where('follows.status', 'accepted');
+                    });
+            })
             ->orderByDesc('comments.created_at')
             ->orderByDesc('comments.id')
             ->limit($limit)

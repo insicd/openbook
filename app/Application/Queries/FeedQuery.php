@@ -94,6 +94,10 @@ final class FeedQuery
             ->with(Post::CARD_RELATIONS)
             ->where('status', Post::STATUS_PUBLISHED)
             ->where('visibility', Post::VISIBILITY_PUBLIC)
+            ->where(function ($query) {
+                $query->whereNull('community_id')
+                    ->orWhereHas('community', fn ($community) => $community->where('is_private', false));
+            })
             ->whereHas('actor', fn ($query) => $query->where('is_local', true))
             ->orderByDesc('published_at')
             ->orderByDesc(self::TIEBREAKER_COLUMN)
@@ -119,6 +123,10 @@ final class FeedQuery
             ->with(Post::CARD_RELATIONS)
             ->where('status', Post::STATUS_PUBLISHED)
             ->where('visibility', Post::VISIBILITY_PUBLIC)
+            ->where(function ($query) {
+                $query->whereNull('community_id')
+                    ->orWhereHas('community', fn ($community) => $community->where('is_private', false));
+            })
             ->whereHas('actor', fn ($query) => $query->where('is_local', false))
             ->orderByDesc('published_at')
             ->orderByDesc(self::TIEBREAKER_COLUMN)

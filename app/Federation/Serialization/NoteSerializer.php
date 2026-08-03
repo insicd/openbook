@@ -69,12 +69,16 @@ final class NoteSerializer
 
         $groupActors = self::groupActorsForPost($post);
 
-        [$note['to'], $note['cc']] = self::audienceForVisibility(
-            $post->visibility,
-            $actor,
-            $post->mentions,
-            $groupActors,
-        );
+        if ($post->community?->is_private) {
+            [$note['to'], $note['cc']] = self::privateCommunityAudience($post->community->actor);
+        } else {
+            [$note['to'], $note['cc']] = self::audienceForVisibility(
+                $post->visibility,
+                $actor,
+                $post->mentions,
+                $groupActors,
+            );
+        }
 
         $attachments = self::attachmentsFor($post);
 
@@ -226,6 +230,25 @@ final class NoteSerializer
             ->concat($fromMentions)
             ->unique('id')
             ->values();
+    }
+
+    /**
+     * Audience per post in community privata: Group + suoi follower, mai
+     * as:Public (altrimenti Mastodon & co. trattano il contenuto come pubblico).
+     *
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private static function privateCommunityAudience(Actor $group): array
+    {
+        $groupId = $group->activityPubId();
+        $followersUri = $group->isLocal()
+            ? LocalActorUrls::forUsername($group->preferred_username, isGroup: true)['followers']
+            : $group->endpoints?->followers;
+
+        return [
+            array_values(array_filter([$groupId, $followersUri])),
+            [],
+        ];
     }
 
     /**

@@ -73,6 +73,9 @@ final class PostComposer
                 'content_warning' => $data['content_warning'] ?? null,
                 'body' => $data['body'],
                 'language' => $data['language'] ?? null,
+                // Anche se il composer manda "public", i post in community
+                // privata restano chiusi via Post::scopeVisibleTo e non
+                // vengono federati come as:Public (NoteSerializer / delivery).
                 'visibility' => $data['visibility'] ?? Post::VISIBILITY_PUBLIC,
                 'status' => Post::STATUS_PUBLISHED,
                 'published_at' => now(),
@@ -124,8 +127,13 @@ final class PostComposer
 
         if ($author->isLocal()) {
             $post->load(['mentions.actor', 'quotedPost', 'community.actor']);
-            $extraTargets = $addressedGroup !== null ? [$addressedGroup] : [];
-            $this->delivery->deliverContent($post, ActivitySerializer::create($post), $extraTargets);
+
+            // Community privata: niente Create ai follower dell'autore.
+            // I membri remoti del Group ricevono l'Announce del Group.
+            if (! ($community?->is_private)) {
+                $extraTargets = $addressedGroup !== null ? [$addressedGroup] : [];
+                $this->delivery->deliverContent($post, ActivitySerializer::create($post), $extraTargets);
+            }
         }
 
         return $post;
