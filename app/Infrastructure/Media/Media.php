@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\Media;
 
+use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -12,8 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * File immagine legato a un post: locale (caricato su disco) oppure remoto
- * federato ({@see self::$remote_url}, senza download sull'istanza).
+ * File immagine legato a un post o commento: locale (caricato su disco)
+ * oppure remoto federato ({@see self::$remote_url}, senza download).
  *
  * Per i file locali "path" e' sempre un nome generato casualmente: non deve
  * mai essere costruito a partire da input dell'utente (path traversal).
@@ -67,6 +68,11 @@ class Media extends Model
     public function posts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_attachments');
+    }
+
+    public function comments(): BelongsToMany
+    {
+        return $this->belongsToMany(Comment::class, 'comment_attachments');
     }
 
     public function thumbnail(): HasOne

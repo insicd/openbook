@@ -115,7 +115,7 @@ final class NoteSerializer
      */
     public static function forComment(Comment $comment): array
     {
-        $comment->loadMissing(['actor.endpoints', 'parent', 'post', 'mentions.actor']);
+        $comment->loadMissing(['actor.endpoints', 'parent', 'post', 'mentions.actor', 'media']);
 
         $actor = $comment->actor;
         $uri = self::commentUri($comment);
@@ -148,6 +148,12 @@ final class NoteSerializer
         } else {
             $visibility = $comment->post->visibility ?? Post::VISIBILITY_PUBLIC;
             [$note['to'], $note['cc']] = self::audienceForVisibility($visibility, $actor, $comment->mentions);
+        }
+
+        $attachments = self::attachmentsFor($comment);
+
+        if ($attachments !== []) {
+            $note['attachment'] = $attachments;
         }
 
         $tags = self::mentionTagsFor($comment->mentions)->values()->all();
@@ -305,9 +311,11 @@ final class NoteSerializer
     /**
      * @return list<array<string, string>>
      */
-    private static function attachmentsFor(Post $post): array
+    private static function attachmentsFor(Post|Comment $content): array
     {
-        return $post->media->map(fn ($media) => [
+        $content->loadMissing('media');
+
+        return $content->media->map(fn ($media) => [
             'type' => 'Image',
             'mediaType' => $media->mime_type,
             'url' => $media->url(),

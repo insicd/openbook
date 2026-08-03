@@ -52,6 +52,20 @@
 
         <div class="ob-comment__body">{{ \App\Domain\Posts\PostBodyRenderer::render($comment->body) }}</div>
 
+        @if ($comment->media->isNotEmpty())
+            <div class="ob-post__media ob-comment__media" data-lightbox-group>
+                @foreach ($comment->media as $media)
+                    <img
+                        src="{{ $media->thumbnailUrl() }}"
+                        data-full-src="{{ $media->url() }}"
+                        alt="{{ $media->alt_text }}"
+                        loading="lazy"
+                        data-lightbox-trigger
+                    >
+                @endforeach
+            </div>
+        @endif
+
         <div class="ob-post__actions">
             @auth
                 @if ($comment->liked_by_viewer)
@@ -90,7 +104,7 @@
         </div>
 
         @auth
-            <form method="POST" action="{{ route('comments.store', $post) }}" id="risposta-{{ $comment->id }}" hidden style="margin-top:0.6rem">
+            <form method="POST" action="{{ route('comments.store', $post) }}" id="risposta-{{ $comment->id }}" hidden style="margin-top:0.6rem" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="parent_comment_id" value="{{ $comment->id }}">
                 <div class="ob-field">
@@ -100,7 +114,11 @@
                         <x-emoji-trigger target="risposta-testo-{{ $comment->id }}" />
                     </div>
                 </div>
-                <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.actions.reply') }}</button>
+                @include('comments._media_fields', [
+                    'inputId' => 'risposta-images-'.$comment->id,
+                    'altId' => 'risposta-alt-'.$comment->id,
+                ])
+                <button type="submit" class="ob-btn ob-btn--primary" style="margin-top:0.75rem">{{ __('openbook.actions.reply') }}</button>
             </form>
         @endauth
 

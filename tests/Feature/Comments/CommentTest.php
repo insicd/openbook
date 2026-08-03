@@ -8,8 +8,11 @@ use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
+use App\Federation\Serialization\NoteSerializer;
 use App\Policies\CommentPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -159,6 +162,73 @@ class CommentTest extends TestCase
             'body' => 'Commento via HTTP.',
             'parent_comment_id' => null,
         ]);
+    }
+
+    public function test_a_comment_can_include_image_attachments(): void
+    {
+        Storage::fake('public');
+
+        $author = $this->createFullAccount('autorefoto');
+        $commenter = $this->createFullAccount('commentofoto');
+        $post = $this->publishPost($author);
+
+        $comment = app(CommentComposer::class)->compose(
+            $commenter->actor,
+            $post,
+            'Guarda questa.',
+            null,
+            [UploadedFile::fake()->image('reply.jpg', 800, 600)],
+            ['Foto in risposta'],
+        );
+
+        $this->assertCount(1, $comment->media);
+        $media = $comment->media()->first();
+        $this->assertSame('Foto in risposta', $media->alt_text);
+        Storage::disk('public')->assertExists($media->path);
+
+        $note = NoteSerializer::forComment($comment->fresh(['media', 'actor.endpoints', 'post', 'mentions']));
+        $this->assertSame('Image', $note['attachment'][0]['type']);
+        $this->assertSame('Foto in risposta', $note['attachment'][0]['name']);
+    }
+
+    public function test_a_comment_with_image_can_be_posted_through_http(): void
+    {
+        Storage::fake('public');
+
+        $author = $this->createFullAccount('autorehttpfoto');
+        $commenter = $this->createFullAccount('httpfoto');
+        $post = $this->publishPost($author);
+
+        $this->actingAs($commenter)->post(route('comments.store', $post), [
+            'body' => 'Con allegato.',
+            'images' => [UploadedFile::fake()->image('c.jpg')],
+            'alt_texts' => ['Alt commento'],
+        ])->assertRedirect();
+
+        $comment = Comment::query()->where('body', 'Con allegato.')->firstOrFail();
+        $this->assertCount(1, $comment->media);
+
+        $this->actingAs($author)
+            ->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertSee('data-lightbox-trigger', false)
+            ->assertSee('Alt commento', false);
+    }
+
+    public function test_http_rejects_invalid_comment_image_mime(): void
+    {
+        Storage::fake('public');
+
+        $author = $this->createFullAccount('autorepdf');
+        $commenter = $this->createFullAccount('commentopdf');
+        $post = $this->publishPost($author);
+
+        $this->actingAs($commenter)->post(route('comments.store', $post), [
+            'body' => 'PDF non ammesso.',
+            'images' => [UploadedFile::fake()->create('doc.pdf', 10, 'application/pdf')],
+        ])->assertSessionHasErrors('images.0');
+
+        $this->assertDatabaseMissing('comments', ['body' => 'PDF non ammesso.']);
     }
 
     public function test_two_top_level_comments_stay_siblings_not_nested(): void

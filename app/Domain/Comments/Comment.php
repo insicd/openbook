@@ -6,9 +6,11 @@ use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Like;
 use App\Federation\Actors\Actor;
+use App\Infrastructure\Media\Media;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
@@ -86,6 +88,18 @@ class Comment extends Model
     public function mentions(): MorphMany
     {
         return $this->morphMany(Mention::class, 'mentionable');
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(CommentAttachment::class)->orderBy('position');
+    }
+
+    public function media(): BelongsToMany
+    {
+        return $this->belongsToMany(Media::class, 'comment_attachments')
+            ->withPivot('position')
+            ->orderBy('comment_attachments.position');
     }
 
     public function isPublished(): bool

@@ -11,7 +11,7 @@
 
     <div class="ob-card" id="commenta">
         @auth
-            <form method="POST" action="{{ route('comments.store', $post) }}">
+            <form method="POST" action="{{ route('comments.store', $post) }}" enctype="multipart/form-data">
                 @csrf
                 <div class="ob-field">
                     <label for="comment-body">{{ __('openbook.comments.new_label') }}</label>
@@ -21,7 +21,11 @@
                         <x-emoji-trigger target="comment-body" />
                     </div>
                 </div>
-                <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.actions.comment_submit') }}</button>
+                @include('comments._media_fields', [
+                    'inputId' => 'comment-images',
+                    'altId' => 'comment-alt',
+                ])
+                <button type="submit" class="ob-btn ob-btn--primary" style="margin-top:0.75rem">{{ __('openbook.actions.comment_submit') }}</button>
             </form>
         @else
             <p><a href="{{ route('login') }}">{{ __('openbook.comments.login_to_comment') }}</a></p>

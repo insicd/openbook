@@ -1994,6 +1994,14 @@ a.ob-post__menu-item {
   overflow-wrap: anywhere;
 }
 
+.ob-comment__media {
+  margin-top: 0.5rem;
+}
+
+.ob-comment__media img {
+  height: 200px;
+}
+
 .ob-comment .ob-post__actions {
   border-top: none;
   padding-top: 0.4rem;

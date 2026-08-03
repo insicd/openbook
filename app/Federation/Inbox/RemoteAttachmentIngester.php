@@ -2,6 +2,8 @@
 
 namespace App\Federation\Inbox;
 
+use App\Domain\Comments\Comment;
+use App\Domain\Comments\CommentAttachment;
 use App\Domain\Posts\Post;
 use App\Domain\Posts\PostAttachment;
 use App\Federation\Actors\Actor;
@@ -9,16 +11,16 @@ use App\Infrastructure\Media\Media;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Collega a un post remoto le immagini dichiarate in "attachment" (e
- * anteprime icon/image) senza scaricarle: salva solo l'URL https in
- * {@see Media::$remote_url}, riusabile dalla stessa galleria dei post locali.
+ * Collega a un post o commento remoto le immagini dichiarate in "attachment"
+ * (e anteprime icon/image) senza scaricarle: salva solo l'URL https in
+ * {@see Media::$remote_url}, riusabile dalla stessa galleria dei contenuti locali.
  */
 final class RemoteAttachmentIngester
 {
     /**
      * @param  array<string, mixed>  $document
      */
-    public function sync(Post $post, Actor $author, array $document): void
+    public function sync(Post|Comment $content, Actor $author, array $document): void
     {
         if ($author->isLocal()) {
             return;
@@ -30,17 +32,18 @@ final class RemoteAttachmentIngester
             max(0, (int) config('openbook.media.max_attachments_per_post')),
         );
 
-        DB::transaction(function () use ($post, $author, $descriptors): void {
-            $existingRemote = $post->media()
+        DB::transaction(function () use ($content, $author, $descriptors): void {
+            $existingRemote = $content->media()
                 ->whereNotNull('media.remote_url')
                 ->get();
 
             if ($existingRemote->isNotEmpty()) {
-                $post->media()->detach($existingRemote->pluck('id'));
+                $content->media()->detach($existingRemote->pluck('id'));
                 Media::query()
                     ->whereIn('id', $existingRemote->pluck('id'))
                     ->whereNotNull('remote_url')
                     ->whereDoesntHave('posts')
+                    ->whereDoesntHave('comments')
                     ->delete();
             }
 
@@ -66,15 +69,27 @@ final class RemoteAttachmentIngester
                     ])->save();
                 }
 
-                PostAttachment::query()->updateOrCreate(
-                    [
-                        'post_id' => $post->id,
-                        'media_id' => $media->id,
-                    ],
-                    [
-                        'position' => $position,
-                    ],
-                );
+                if ($content instanceof Post) {
+                    PostAttachment::query()->updateOrCreate(
+                        [
+                            'post_id' => $content->id,
+                            'media_id' => $media->id,
+                        ],
+                        [
+                            'position' => $position,
+                        ],
+                    );
+                } else {
+                    CommentAttachment::query()->updateOrCreate(
+                        [
+                            'comment_id' => $content->id,
+                            'media_id' => $media->id,
+                        ],
+                        [
+                            'position' => $position,
+                        ],
+                    );
+                }
             }
         });
     }

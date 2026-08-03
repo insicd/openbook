@@ -109,7 +109,7 @@ class PostController extends Controller
 
         $comments = Comment::query()
             ->where('post_id', $post->id)
-            ->with('actor.user.profile')
+            ->with(['actor.user.profile', 'media.thumbnail'])
             ->orderBy('created_at')
             ->get();
 

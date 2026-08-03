@@ -110,6 +110,8 @@ final class RemoteNoteUpserter
             $this->attachTags($comment, $note, $notifyMentions);
         }
 
+        $this->attachments->sync($comment, $actor, $note);
+
         return $comment;
     }
 

@@ -65,7 +65,19 @@ class CommentController extends Controller
             ? Comment::query()->findOrFail($data['parent_comment_id'])
             : null;
 
-        $comment = $this->commentComposer->compose($viewer, $post, $data['body'], $parent);
+        $images = $request->file('images', []);
+        if (! is_array($images)) {
+            $images = $images !== null ? [$images] : [];
+        }
+
+        $comment = $this->commentComposer->compose(
+            $viewer,
+            $post,
+            $data['body'],
+            $parent,
+            array_values($images),
+            $data['alt_texts'] ?? [],
+        );
 
         return redirect(route('posts.show', $post).'#commento-'.$comment->id);
     }

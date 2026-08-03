@@ -3,6 +3,7 @@
 namespace App\Application\Services;
 
 use App\Domain\Comments\Comment;
+use App\Domain\Comments\CommentAttachment;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\ContentParser;
 use App\Domain\Posts\Mention;
@@ -10,6 +11,8 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Serialization\ActivitySerializer;
+use App\Infrastructure\Media\MediaUploader;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -29,15 +32,32 @@ final class CommentComposer
         private readonly ContentParser $contentParser,
         private readonly NotificationCreator $notificationCreator,
         private readonly ActivityDelivery $delivery,
+        private readonly MediaUploader $mediaUploader,
     ) {}
 
-    public function compose(Actor $author, Post $post, string $body, ?Comment $parent = null): Comment
-    {
+    /**
+     * @param  array<int, UploadedFile>  $images
+     * @param  array<int, string|null>  $altTexts
+     */
+    public function compose(
+        Actor $author,
+        Post $post,
+        string $body,
+        ?Comment $parent = null,
+        array $images = [],
+        array $altTexts = [],
+    ): Comment {
         if ($parent !== null && $parent->post_id !== $post->id) {
             throw new InvalidArgumentException('Il commento padre non appartiene a questo post.');
         }
 
-        $comment = DB::transaction(function () use ($author, $post, $body, $parent) {
+        $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
+
+        if (count($images) > $maxAttachments) {
+            throw new InvalidArgumentException("Puoi allegare al massimo {$maxAttachments} immagini per commento.");
+        }
+
+        $comment = DB::transaction(function () use ($author, $post, $body, $parent, $images, $altTexts) {
             $comment = Comment::query()->create([
                 'post_id' => $post->id,
                 'parent_comment_id' => $parent?->id,
@@ -52,6 +72,16 @@ final class CommentComposer
                 $parent->increment('replies_count');
             }
 
+            foreach (array_values($images) as $position => $image) {
+                $media = $this->mediaUploader->store($image, $author, $altTexts[$position] ?? null);
+
+                CommentAttachment::query()->create([
+                    'comment_id' => $comment->id,
+                    'media_id' => $media->id,
+                    'position' => $position,
+                ]);
+            }
+
             $this->attachMentions($comment, $author);
             $this->notifyThread($comment, $post, $author, $parent);
 
@@ -59,7 +89,7 @@ final class CommentComposer
         });
 
         if ($author->isLocal()) {
-            $comment->load('mentions.actor', 'post.community.actor', 'parent.actor');
+            $comment->load('mentions.actor', 'post.community.actor', 'parent.actor', 'media');
             $repliedToAuthor = $parent !== null ? $parent->actor : $post->actor;
 
             $this->delivery->deliverContent($comment, ActivitySerializer::create($comment), [$repliedToAuthor]);

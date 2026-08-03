@@ -29,6 +29,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   elenchi, citazioni, codice, tabelle, barrato e link; hashtag/menzioni
   restano linkificati. Le immagini Markdown sono ignorate (usare gli
   allegati).
+- Allegati immagine su commenti e risposte (stessi limiti dei post), con
+  galleria/lightbox in thread e `attachment` ActivityPub in uscita e in
+  ingresso.
 
 ### Changed
 - Le community private compaiono nell'elenco locali per il creatore e per

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Federation;
 
 use App\Application\Services\FollowManager;
+use App\Domain\Comments\Comment;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Like;
@@ -654,6 +655,53 @@ class InboxActivityProcessorTest extends TestCase
             'recipient_id' => $author->id,
             'type' => Notification::TYPE_COMMENT,
         ]);
+    }
+
+    public function test_a_remote_reply_with_image_attachment_is_stored_on_the_comment(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('autoreallegato');
+        $remote = $this->createRemoteActor('fotoreply', 'pixelfed.example');
+
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Post originale.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        $noteUri = $remote->uri.'/p/'.uniqid();
+        $imageUrl = 'https://pixelfed.example/storage/m/_v2/'.uniqid().'.jpg';
+        $status = $this->process([
+            'id' => $noteUri.'/activity',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'inReplyTo' => url("/posts/{$post->id}"),
+                'content' => 'Ecco la foto.',
+                'attachment' => [
+                    [
+                        'type' => 'Document',
+                        'mediaType' => 'image/jpeg',
+                        'url' => $imageUrl,
+                        'name' => 'Dettaglio',
+                    ],
+                ],
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ], $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $comment = Comment::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($comment);
+        $this->assertCount(1, $comment->media);
+        $this->assertSame($imageUrl, $comment->media->first()->url());
+        $this->assertSame('Dettaglio', $comment->media->first()->alt_text);
     }
 
     public function test_a_delete_marks_the_remote_cached_post_as_deleted(): void

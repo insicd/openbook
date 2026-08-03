@@ -384,7 +384,8 @@ basato su `APP_KEY`) e non vengono mai esposte da API, log o messaggi di errore.
   stessa pipeline (vedi [Federazione sociale](#federazione-sociale-fase-4)).
 - I commenti vivono in una tabella dedicata (`comments`), separata da `posts`, con
   `parent_comment_id` per le risposte annidate: l'intero albero di un post viene
-  caricato con un'unica query e ricostruito in memoria.
+  caricato con un'unica query e ricostruito in memoria. Possono avere allegati
+  immagine come i post (`comment_attachments`, stessi limiti MIME/dimensione).
 - "Mi piace" (`likes`) e menzioni (`mentions`) sono relazioni polimorfiche, gia'
   pronte per applicarsi sia a post sia a commenti.
 - Le condivisioni (`announces`) non duplicano mai il post originale: sono un
@@ -653,7 +654,7 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   solo hashtag su post pubblicati da Actor *locali*, con visibilita' pubblica o non
   elencata, mai da contenuto remoto semplicemente in cache o da post riservati a
   follower/destinatari diretti.
-- **Lightbox sulle immagini dei post**: cliccando su un'immagine allegata a un post
+- **Lightbox sulle immagini**: cliccando su un'immagine allegata a un post o commento
   si apre un overlay a schermo intero con l'originale a piena risoluzione (frecce
   precedente/successiva se il post ne ha piu' di una, chiusura con Esc, click fuori
   dall'immagine o pulsante dedicato). Nessuna libreria esterna: markup condiviso in
