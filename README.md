@@ -729,7 +729,7 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   azione, con soft-delete opzionale dei soli contenuti locali), gestione
   utenti locali (sospensione / disabilitazione; promozione moderatori e
   admin), impostazioni istanza (`site_name`, `registration_open`, regole
-  Markdown, limiti post/commenti/media), blocchi dominio federato,
+  e privacy policy Markdown, limiti post/commenti/media), blocchi dominio federato,
   ispezione coda federazione e registro azioni. CLI ancora disponibile:
   `openbook:make-admin` / `openbook:make-moderator`.
 - **Embed video**: se il body di un post contiene un link YouTube

@@ -19,6 +19,8 @@ final class InstanceSettings
 
     public const KEY_INSTANCE_RULES = 'instance_rules';
 
+    public const KEY_PRIVACY_POLICY = 'privacy_policy';
+
     public const KEY_POST_MAX_LENGTH = 'post_max_length';
 
     public const KEY_COMMENT_MAX_LENGTH = 'comment_max_length';
@@ -78,6 +80,11 @@ final class InstanceSettings
         return (string) (SystemSetting::get(self::KEY_INSTANCE_RULES) ?? '');
     }
 
+    public function privacyPolicy(): string
+    {
+        return (string) (SystemSetting::get(self::KEY_PRIVACY_POLICY) ?? '');
+    }
+
     public function postMaxLength(): int
     {
         return $this->intSetting(self::KEY_POST_MAX_LENGTH, (int) config('openbook.posts.max_length'));
@@ -103,6 +110,7 @@ final class InstanceSettings
      *     site_name: string,
      *     registration_open: bool,
      *     instance_rules?: string,
+     *     privacy_policy?: string,
      *     post_max_length: int,
      *     comment_max_length: int,
      *     media_max_size_kb: int,
@@ -114,6 +122,7 @@ final class InstanceSettings
         $siteName = trim($data['site_name']);
         $registrationOpen = (bool) $data['registration_open'];
         $rules = (string) ($data['instance_rules'] ?? '');
+        $privacyPolicy = (string) ($data['privacy_policy'] ?? '');
         $postMax = (int) $data['post_max_length'];
         $commentMax = (int) $data['comment_max_length'];
         $mediaKb = (int) $data['media_max_size_kb'];
@@ -122,6 +131,7 @@ final class InstanceSettings
         SystemSetting::put(self::KEY_SITE_NAME, $siteName);
         SystemSetting::putBool(self::KEY_REGISTRATION_OPEN, $registrationOpen);
         SystemSetting::put(self::KEY_INSTANCE_RULES, $rules);
+        SystemSetting::put(self::KEY_PRIVACY_POLICY, $privacyPolicy);
         SystemSetting::put(self::KEY_POST_MAX_LENGTH, (string) $postMax);
         SystemSetting::put(self::KEY_COMMENT_MAX_LENGTH, (string) $commentMax);
         SystemSetting::put(self::KEY_MEDIA_MAX_SIZE_KB, (string) $mediaKb);

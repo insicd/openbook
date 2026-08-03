@@ -23,6 +23,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   e forza il fetch delle replies, ignorando il TTL.
 - Dopo la pubblicazione di un post normale, redirect alla pagina del post
   (non piu' solo alla home).
+- Privacy policy gestibile dal pannello admin (Markdown), pagina pubblica
+  `/privacy` e link in footer e sidebar.
 
 ### Changed
 - Le community private compaiono nell'elenco locali per il creatore e per

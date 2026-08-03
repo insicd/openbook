@@ -22,6 +22,7 @@ class AdminSettingsTest extends TestCase
             'site_name' => 'Openbook Test',
             'registration_open' => '0',
             'instance_rules' => "## Regole\n\nSii gentile.",
+            'privacy_policy' => "## Privacy\n\nNon vendiamo i tuoi dati.",
             'post_max_length' => 4000,
             'comment_max_length' => 1500,
             'media_max_size_kb' => 4096,
@@ -43,6 +44,7 @@ class AdminSettingsTest extends TestCase
         $this->assertSame(4000, app(InstanceSettings::class)->postMaxLength());
         $this->assertSame(1500, app(InstanceSettings::class)->commentMaxLength());
         $this->assertStringContainsString('Sii gentile', app(InstanceSettings::class)->instanceRules());
+        $this->assertStringContainsString('Non vendiamo', app(InstanceSettings::class)->privacyPolicy());
         $this->assertSame('Openbook Test', config('app.name'));
     }
 
@@ -90,5 +92,15 @@ class AdminSettingsTest extends TestCase
             ->assertOk()
             ->assertSee('<h2>Hello</h2>', false)
             ->assertSee('World', false);
+    }
+
+    public function test_privacy_policy_page_renders_markdown(): void
+    {
+        SystemSetting::put(InstanceSettings::KEY_PRIVACY_POLICY, "## Privacy\n\nWe care.");
+
+        $this->get(route('instance.privacy'))
+            ->assertOk()
+            ->assertSee('<h2>Privacy</h2>', false)
+            ->assertSee('We care.', false);
     }
 }

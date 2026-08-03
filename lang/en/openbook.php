@@ -446,6 +446,8 @@ return [
             'registration_help' => 'When off, the registration page returns 403 and NodeInfo reports openRegistrations=false.',
             'instance_rules' => 'Instance rules (Markdown)',
             'instance_rules_help' => 'Public text shown at /regole. Supports basic Markdown.',
+            'privacy_policy' => 'Privacy policy (Markdown)',
+            'privacy_policy_help' => 'Public text shown at /privacy. Supports basic Markdown.',
             'limits_title' => 'Content limits',
             'post_max_length' => 'Max post length (characters)',
             'comment_max_length' => 'Max comment length (characters)',
@@ -494,6 +496,11 @@ return [
     'instance_rules' => [
         'title' => 'Instance rules',
         'empty' => 'The administrator has not published rules for this instance yet.',
+    ],
+
+    'privacy_policy' => [
+        'title' => 'Privacy policy',
+        'empty' => 'The administrator has not published a privacy policy for this instance yet.',
     ],
 
     'reports' => [
@@ -555,6 +562,7 @@ return [
 
     'footer' => [
         'rules' => 'Rules',
+        'privacy' => 'Privacy',
         'license' => 'free software licensed under AGPL-3.0-or-later',
     ],
 

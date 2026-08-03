@@ -51,5 +51,7 @@
     &middot;
     <a href="{{ route('instance.rules') }}">{{ __('openbook.footer.rules') }}</a>
     &middot;
+    <a href="{{ route('instance.privacy') }}">{{ __('openbook.footer.privacy') }}</a>
+    &middot;
     <a href="{{ config('openbook.homepage') }}">Openbook</a> v{{ config('openbook.version') }}
 </p>

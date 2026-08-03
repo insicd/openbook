@@ -446,6 +446,8 @@ return [
             'registration_help' => 'Se disattivato, la pagina di registrazione risponde 403 e NodeInfo segnala openRegistrations=false.',
             'instance_rules' => 'Regole dell istanza (Markdown)',
             'instance_rules_help' => 'Testo pubblico mostrato su /regole. Supporta Markdown di base.',
+            'privacy_policy' => 'Privacy policy (Markdown)',
+            'privacy_policy_help' => 'Testo pubblico mostrato su /privacy. Supporta Markdown di base.',
             'limits_title' => 'Limiti contenuti',
             'post_max_length' => 'Lunghezza massima post (caratteri)',
             'comment_max_length' => 'Lunghezza massima commento (caratteri)',
@@ -494,6 +496,11 @@ return [
     'instance_rules' => [
         'title' => 'Regole dell istanza',
         'empty' => 'L amministratore non ha ancora pubblicato regole per questa istanza.',
+    ],
+
+    'privacy_policy' => [
+        'title' => 'Privacy policy',
+        'empty' => 'L amministratore non ha ancora pubblicato una privacy policy per questa istanza.',
     ],
 
     'reports' => [
@@ -555,6 +562,7 @@ return [
 
     'footer' => [
         'rules' => 'Regole',
+        'privacy' => 'Privacy',
         'license' => 'software libero sotto licenza AGPL-3.0-or-later',
     ],
 

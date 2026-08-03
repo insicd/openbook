@@ -29,6 +29,12 @@
             <p class="ob-field__help">{{ __('openbook.admin.settings.instance_rules_help') }}</p>
         </div>
 
+        <div class="ob-field" style="margin-top:1rem">
+            <label for="privacy_policy">{{ __('openbook.admin.settings.privacy_policy') }}</label>
+            <textarea id="privacy_policy" name="privacy_policy" rows="8" maxlength="20000">{{ old('privacy_policy', $privacyPolicy) }}</textarea>
+            <p class="ob-field__help">{{ __('openbook.admin.settings.privacy_policy_help') }}</p>
+        </div>
+
         <h2 style="margin-top:1.5rem;font-size:1.1rem">{{ __('openbook.admin.settings.limits_title') }}</h2>
 
         <div class="ob-field" style="margin-top:1rem">
