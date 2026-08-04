@@ -38,8 +38,9 @@ final class ObjectResolver
             return $actor;
         }
 
-        // Alias locali "/@nome" o "/users/nome" (anche dopo un cambio di
-        // identificatore ActivityPub): evita di trattarli come Actor remoti.
+        // Alias locali "/@nome", "/users/nome", "/c/slug" (profile URL dei
+        // Group): evita di trattarli come Actor remoti. Lemmy e altri spesso
+        // usano l'URL profilo come object del Follow.
         $localUsername = $this->localActorUsernameFromUri($uri);
 
         if ($localUsername !== null) {
@@ -69,6 +70,10 @@ final class ObjectResolver
         }
 
         if (preg_match('#^/users/([A-Za-z0-9_]+)$#', $path, $matches) === 1) {
+            return mb_strtolower($matches[1]);
+        }
+
+        if (preg_match('#^/c/([A-Za-z0-9_]+)$#', $path, $matches) === 1) {
             return mb_strtolower($matches[1]);
         }
 

@@ -47,6 +47,23 @@ final class FollowManager
                 $existing->setRelation('follower', $follower);
                 $existing->setRelation('following', $target);
 
+                // Heal: Follow pending verso Actor locale aperto (es. Group
+                // pubblico). Senza questo, un Accept perso o un flag errato
+                // lascia la join remota bloccata per sempre.
+                if ($existing->status === Follow::STATUS_PENDING
+                    && $target->isLocal()
+                    && ! $target->manually_approves_followers
+                ) {
+                    $existing->update([
+                        'status' => Follow::STATUS_ACCEPTED,
+                        'accepted_at' => now(),
+                    ]);
+                    $existing->refresh();
+                    $existing->setRelation('follower', $follower);
+                    $existing->setRelation('following', $target);
+                    $this->incrementLocalGroupMembers($target);
+                }
+
                 return $existing;
             }
 

@@ -48,7 +48,9 @@ final class ActivityDelivery
             return;
         }
 
-        $inbox = $target->endpoints?->inbox;
+        // Come il fan-out ai follower: preferisci sharedInbox quando presente
+        // (Lemmy/Mastodon la usano spesso al posto dell'inbox personale).
+        $inbox = $target->endpoints?->shared_inbox ?: $target->endpoints?->inbox;
 
         if (blank($inbox)) {
             return;
@@ -70,7 +72,8 @@ final class ActivityDelivery
         $inboxes = $this->remoteFollowerInboxes($sharer);
 
         if (! $originalAuthor->isLocal() && $originalAuthor->id !== $sharer->id) {
-            $authorInbox = $originalAuthor->endpoints?->inbox;
+            $authorInbox = $originalAuthor->endpoints?->shared_inbox
+                ?: $originalAuthor->endpoints?->inbox;
 
             if (filled($authorInbox)) {
                 $inboxes = $inboxes->push($authorInbox)->unique()->values();

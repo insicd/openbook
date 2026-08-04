@@ -53,12 +53,16 @@ final class ActivitySerializer
      */
     public static function accept(Follow $follow): array
     {
+        // "to" allineato a Lemmy / FEP-1b12: senza destinatario esplicito
+        // molte istanze (soprattutto Lemmy) ignorano l'Accept e la join
+        // resta "in attesa" sul lato remoto.
         return [
             '@context' => self::CONTEXT,
             'id' => self::followActivityUri($follow).'/accetta',
             'type' => 'Accept',
             'actor' => $follow->following->activityPubId(),
             'object' => self::embeddedFollow($follow),
+            'to' => [$follow->follower->activityPubId()],
         ];
     }
 
@@ -73,6 +77,7 @@ final class ActivitySerializer
             'type' => 'Reject',
             'actor' => $follow->following->activityPubId(),
             'object' => self::embeddedFollow($follow),
+            'to' => [$follow->follower->activityPubId()],
         ];
     }
 
@@ -107,6 +112,7 @@ final class ActivitySerializer
             'type' => 'Follow',
             'actor' => $follow->follower->activityPubId(),
             'object' => $follow->following->activityPubId(),
+            'to' => [$follow->following->activityPubId()],
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Federation;
 
+use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\FollowManager;
 use App\Domain\Comments\Comment;
 use App\Domain\Notifications\Notification;
@@ -75,9 +76,10 @@ class InboxActivityProcessorTest extends TestCase
             'remote_activity_uri' => $activity['id'],
         ]);
 
-        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $remote->endpoints->inbox
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === ($remote->endpoints->shared_inbox ?: $remote->endpoints->inbox)
             && $job->activity['type'] === 'Accept'
-            && $job->signingActorId === $target->actor->id);
+            && $job->signingActorId === $target->actor->id
+            && ($job->activity['to'][0] ?? null) === $remote->uri);
     }
 
     public function test_a_follow_to_a_protected_local_account_stays_pending_without_sending_an_accept(): void
@@ -103,6 +105,99 @@ class InboxActivityProcessorTest extends TestCase
             'status' => Follow::STATUS_PENDING,
         ]);
 
+        Queue::assertNotPushed(DeliverActivityJob::class);
+    }
+
+    public function test_a_remote_follow_to_a_public_local_community_is_accepted_and_increments_members(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('groupowner');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'aperta',
+            'name' => 'Community aperta',
+        ]);
+        $remote = $this->createRemoteActor('joinremote');
+
+        $activity = [
+            'id' => 'https://remoto.example/activities/'.uniqid(),
+            'type' => 'Follow',
+            'actor' => $remote->uri,
+            'object' => $community->actor->uri,
+            'to' => [$community->actor->uri],
+        ];
+
+        $status = $this->process($activity, $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('follows', [
+            'follower_id' => $remote->id,
+            'following_id' => $community->actor_id,
+            'status' => Follow::STATUS_ACCEPTED,
+        ]);
+        $this->assertSame(2, $community->fresh()->members_count);
+
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Accept'
+            && $job->signingActorId === $community->actor_id
+            && ($job->activity['to'][0] ?? null) === $remote->uri
+            && ($job->activity['object']['to'][0] ?? null) === $community->actor->uri);
+    }
+
+    public function test_a_remote_follow_using_community_profile_url_is_resolved_and_accepted(): void
+    {
+        Queue::fake();
+        config(['openbook.domain' => 'openbook.test']);
+        $owner = $this->createFullAccount('slugowner');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'profilourl',
+            'name' => 'Via profilo',
+        ]);
+        $remote = $this->createRemoteActor('viaurl');
+
+        $activity = [
+            'id' => 'https://remoto.example/activities/'.uniqid(),
+            'type' => 'Follow',
+            'actor' => $remote->uri,
+            'object' => url('/c/profilourl'),
+        ];
+
+        $status = $this->process($activity, $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('follows', [
+            'follower_id' => $remote->id,
+            'following_id' => $community->actor_id,
+            'status' => Follow::STATUS_ACCEPTED,
+        ]);
+        $this->assertSame(2, $community->fresh()->members_count);
+    }
+
+    public function test_a_remote_follow_to_a_private_local_community_stays_pending(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('privowner');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'privata',
+            'name' => 'Community privata',
+            'is_private' => true,
+        ]);
+        $remote = $this->createRemoteActor('wantin');
+
+        $activity = [
+            'id' => 'https://remoto.example/activities/'.uniqid(),
+            'type' => 'Follow',
+            'actor' => $remote->uri,
+            'object' => $community->actor->uri,
+        ];
+
+        $status = $this->process($activity, $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('follows', [
+            'follower_id' => $remote->id,
+            'following_id' => $community->actor_id,
+            'status' => Follow::STATUS_PENDING,
+        ]);
+        $this->assertSame(1, $community->fresh()->members_count);
         Queue::assertNotPushed(DeliverActivityJob::class);
     }
 

@@ -40,7 +40,7 @@ class OutgoingActivityTest extends TestCase
 
         app(FollowManager::class)->follow($local->actor, $remote);
 
-        $this->assertActivityDispatchedTo($remote->endpoints->inbox, 'Follow');
+        $this->assertActivityDispatchedTo($remote->endpoints->shared_inbox ?: $remote->endpoints->inbox, 'Follow');
     }
 
     public function test_retrying_a_pending_remote_follow_redispatches_the_follow_activity(): void
@@ -69,7 +69,7 @@ class OutgoingActivityTest extends TestCase
         app(FollowManager::class)->follow($local->actor, $remote);
         app(FollowManager::class)->unfollow($local->actor, $remote);
 
-        $this->assertActivityDispatchedTo($remote->endpoints->inbox, 'Undo');
+        $this->assertActivityDispatchedTo($remote->endpoints->shared_inbox ?: $remote->endpoints->inbox, 'Undo');
     }
 
     public function test_liking_content_authored_by_a_remote_actor_dispatches_a_like_activity(): void
@@ -89,7 +89,7 @@ class OutgoingActivityTest extends TestCase
 
         app(ReactionManager::class)->like($liker->actor, $post);
 
-        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->inbox, 'Like');
+        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->shared_inbox ?: $remoteAuthor->endpoints->inbox, 'Like');
     }
 
     public function test_unliking_content_authored_by_a_remote_actor_dispatches_an_undo_like_activity(): void
@@ -110,7 +110,7 @@ class OutgoingActivityTest extends TestCase
         app(ReactionManager::class)->like($liker->actor, $post);
         app(ReactionManager::class)->unlike($liker->actor, $post);
 
-        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->inbox, 'Undo');
+        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->shared_inbox ?: $remoteAuthor->endpoints->inbox, 'Undo');
     }
 
     public function test_announcing_a_remote_authored_post_notifies_the_original_author_directly(): void
@@ -130,7 +130,7 @@ class OutgoingActivityTest extends TestCase
 
         app(AnnounceManager::class)->announce($sharer->actor, $post);
 
-        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->inbox, 'Announce');
+        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->shared_inbox ?: $remoteAuthor->endpoints->inbox, 'Announce');
     }
 
     public function test_unannouncing_a_remote_authored_post_dispatches_an_undo_announce_activity(): void
@@ -151,7 +151,7 @@ class OutgoingActivityTest extends TestCase
         app(AnnounceManager::class)->announce($sharer->actor, $post);
         app(AnnounceManager::class)->unannounce($sharer->actor, $post);
 
-        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->inbox, 'Undo');
+        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->shared_inbox ?: $remoteAuthor->endpoints->inbox, 'Undo');
     }
 
     public function test_publishing_a_local_post_delivers_a_create_activity_to_a_remote_follower(): void
@@ -217,7 +217,7 @@ class OutgoingActivityTest extends TestCase
 
         app(CommentComposer::class)->compose($commenter->actor, $post, 'Ottimo spunto!');
 
-        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->inbox, 'Create');
+        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->shared_inbox ?: $remoteAuthor->endpoints->inbox, 'Create');
     }
 
     public function test_deleting_a_reply_to_a_remote_authored_post_notifies_its_author_directly(): void
@@ -239,6 +239,6 @@ class OutgoingActivityTest extends TestCase
 
         $this->actingAs($commenter)->delete(route('comments.destroy', $comment))->assertRedirect();
 
-        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->inbox, 'Delete');
+        $this->assertActivityDispatchedTo($remoteAuthor->endpoints->shared_inbox ?: $remoteAuthor->endpoints->inbox, 'Delete');
     }
 }

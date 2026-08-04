@@ -125,7 +125,7 @@ class ActivityDeliveryTest extends TestCase
         app(ActivityDelivery::class)->deliverContent($post, ['type' => 'Create', 'id' => 'x']);
 
         Queue::assertPushed(DeliverActivityJob::class, 1);
-        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $mentioned->endpoints->inbox);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === ($mentioned->endpoints->shared_inbox ?: $mentioned->endpoints->inbox));
     }
 
     public function test_a_public_post_is_delivered_to_followers_and_to_an_extra_direct_target(): void
@@ -156,6 +156,6 @@ class ActivityDeliveryTest extends TestCase
 
         Queue::assertPushed(DeliverActivityJob::class, 2);
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $follower->endpoints->shared_inbox);
-        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $repliedTo->endpoints->inbox);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === ($repliedTo->endpoints->shared_inbox ?: $repliedTo->endpoints->inbox));
     }
 }

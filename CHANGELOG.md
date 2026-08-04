@@ -27,6 +27,13 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 - Getting Started del README centrato sul flusso setup + about.openb.app;
   resta documentata anche l'installazione classica con Composer.
 
+### Fixed
+- Follow da istanze remote verso community pubbliche Openbook: Accept con
+  `to` (compatibile Lemmy), risoluzione dell'URI profilo `/c/{slug}`,
+  consegna sulla `sharedInbox` del richiedente e auto-accettazione dei
+  Follow pending verso Group locali aperti (cosi' la join non resta
+  "in attesa" e `members_count` si aggiorna).
+
 ## [0.8.10] — Onboarding, menzioni e recupero post remoti
 
 ### Added
