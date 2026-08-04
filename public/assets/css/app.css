@@ -1131,9 +1131,19 @@ p {
 .ob-composer__main {
   display: flex;
   gap: 0.75rem;
-  align-items: flex-start;
+  align-items: stretch;
   min-width: 0;
   max-width: 100%;
+}
+
+.ob-composer__aside {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  gap: 0.35rem;
+  min-height: 100%;
 }
 
 .ob-composer__avatar {
@@ -1147,51 +1157,51 @@ p {
   max-width: 100%;
 }
 
-.ob-composer__body-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.35rem;
-  min-height: 1.75rem;
-}
-
-.ob-composer__body-head .sr-only + .ob-composer__tip,
-.ob-composer__body-head:has(> .sr-only) {
-  justify-content: flex-end;
-}
-
-.ob-composer__body-head label:not(.sr-only) {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: 0;
+.ob-composer__label {
+  display: block;
+  margin: 0 0 0.35rem;
 }
 
 .ob-composer__tip {
   position: relative;
   flex: 0 0 auto;
+  line-height: 0;
 }
 
 .ob-composer__tip-trigger {
-  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ob-color-text-muted);
   cursor: pointer;
+  list-style: none;
+  line-height: 0;
 }
 
 .ob-composer__tip-trigger::-webkit-details-marker {
   display: none;
 }
 
+.ob-composer__tip-trigger .ob-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
 .ob-composer__tip[open] > .ob-composer__tip-trigger {
-  background: var(--ob-color-primary-soft);
   color: var(--ob-color-primary);
+  background: transparent;
 }
 
 .ob-composer__tip-panel {
   position: absolute;
-  right: 0;
-  top: calc(100% + 0.35rem);
+  left: calc(100% + 0.4rem);
+  bottom: 0;
   z-index: 20;
-  width: min(18rem, calc(100vw - 2rem));
+  width: min(18rem, calc(100vw - 4.5rem));
   padding: 0.7rem 0.85rem;
   border: 1px solid var(--ob-color-border);
   border-radius: var(--ob-radius);
@@ -1287,22 +1297,9 @@ p {
   }
 
   .ob-composer__tip-panel {
-    position: static;
-    width: 100%;
-    margin-top: 0.4rem;
-    box-shadow: none;
-  }
-
-  .ob-composer__tip {
-    width: auto;
-  }
-
-  .ob-composer__body-head:has(.ob-composer__tip[open]) {
-    flex-wrap: wrap;
-  }
-
-  .ob-composer__body-head:has(.ob-composer__tip[open]) .ob-composer__tip {
-    flex: 1 1 100%;
+    left: 0;
+    bottom: calc(100% + 0.35rem);
+    width: min(16rem, calc(100vw - 2rem));
   }
 }
 

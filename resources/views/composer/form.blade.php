@@ -84,25 +84,25 @@
         @endif
 
         <div class="ob-composer__main">
-            <x-avatar :user="auth()->user()" class="ob-composer__avatar" style="width:40px;height:40px" />
+            <div class="ob-composer__aside">
+                <x-avatar :user="auth()->user()" class="ob-composer__avatar" style="width:40px;height:40px" />
+                <details class="ob-composer__tip">
+                    <summary
+                        class="ob-composer__tip-trigger"
+                        aria-label="{{ __('openbook.composer.markdown_tip_label') }}"
+                        title="{{ __('openbook.composer.markdown_tip_label') }}"
+                    >
+                        <x-icon name="info" />
+                    </summary>
+                    <div class="ob-composer__tip-panel" role="note">
+                        {{ __('openbook.composer.markdown_help') }}
+                    </div>
+                </details>
+            </div>
             <div class="ob-field ob-composer__body-field">
-                <div class="ob-composer__body-head">
-                    <label for="{{ $bodyId }}" @class(['sr-only' => ! $showLabel, 'ob-field__help' => $showLabel && $isReply])>
-                        {{ $bodyLabel }}
-                    </label>
-                    <details class="ob-composer__tip">
-                        <summary
-                            class="ob-icon-btn ob-composer__tip-trigger"
-                            aria-label="{{ __('openbook.composer.markdown_tip_label') }}"
-                            title="{{ __('openbook.composer.markdown_tip_label') }}"
-                        >
-                            <x-icon name="info" />
-                        </summary>
-                        <div class="ob-composer__tip-panel" role="note">
-                            {{ __('openbook.composer.markdown_help') }}
-                        </div>
-                    </details>
-                </div>
+                <label for="{{ $bodyId }}" @class(['sr-only' => ! $showLabel, 'ob-field__help ob-composer__label' => $showLabel])>
+                    {{ $bodyLabel }}
+                </label>
                 <textarea
                     id="{{ $bodyId }}"
                     name="body"
