@@ -6,7 +6,7 @@ integrato con il Fediverso. Non e' un microblog, non e' un clone di Mastodon e n
 un aggregatore di link: e' pensato per comunita' personali, territoriali, associative e
 tematiche, con un'interfaccia comprensibile anche a utenti non tecnici.
 
-Versione corrente: **0.8.10** (vedi [`CHANGELOG.md`](CHANGELOG.md)). Openbook e'
+Versione corrente: **0.8.11** (vedi [`CHANGELOG.md`](CHANGELOG.md)). Openbook e'
 oltre la federazione bidirezionale di base: include **community** (Actor `Group`
 locali e remoti, iscrizione, wall, interoperabilita' Lemmy/Friendica) e sta
 lavorando alla **Fase 6** (interoperabilita' ampia con Mastodon, Misskey, PeerTube,
@@ -58,7 +58,26 @@ produzione, Docker, Elasticsearch, object storage o servizi cloud esterni. Quest
 componenti potranno essere supportati in futuro come opzioni avanzate, ma la modalita'
 base usa esclusivamente MySQL, cron PHP e filesystem locale.
 
-## Installazione guidata (consigliata)
+## Installazione guidata (consigliata su shared hosting)
+
+Il percorso piu' semplice non richiede Composer ne' SSH: usa il bootstrap
+`setup-openbook.php` e le release zip pubblicate su
+[about.openb.app](https://about.openb.app).
+
+1. Scarica [`setup-openbook.php`](https://about.openb.app/setup-openbook.php)
+   e caricalo (FTP / File Manager) nella cartella in cui vuoi installare Openbook.
+2. Aprilo nel browser (`https://tuo-dominio.example.org/setup-openbook.php`).
+3. Il wizard verifica i requisiti PHP, scarica l'ultima release ufficiale
+   (archivio con `vendor/` incluso, verificato via SHA-256), prepara `.env`
+   e, se serve, il `.htaccess` di root per layout `public_html` piatto.
+4. Al termine vieni reindirizzato a `/install` per database, nome istanza e
+   account amministratore (installer Laravel gia' esistente).
+5. Configura il cron (vedi [Cron e attivita periodiche](#cron-e-attivita-periodiche)).
+
+> Le release e il manifesto `releases/latest.json` devono essere pubblicati su
+> about.openb.app (vedi `bin/build-release.sh` e `distribution/manifest.example.json`).
+
+### Installazione classica (git / Composer)
 
 1. Scarica il codice sul server (upload via SFTP/pannello, oppure `git clone`) e
    installa le dipendenze di produzione:
@@ -152,10 +171,16 @@ php artisan openbook:make-moderator --promote=nome-utente
 
 ## Aggiornamento di un'istanza esistente
 
-Una volta che l'installer si e' bloccato (`storage/installed.lock`), l'unico modo per
-applicare le migration di una versione successiva e' da riga di comando (richiede
-quindi accesso SSH/CLI all'hosting; su shared hosting privi di CLI non esiste oggi
-un percorso equivalente via web):
+### Via pannello admin (consigliato su shared hosting)
+
+In **Pannello → Aggiornamenti** un amministratore puo' consultare il manifesto
+`https://about.openb.app/releases/latest.json` e, se e' disponibile una versione
+piu' recente, applicare l'archivio ufficiale (verifica SHA-256, manutenzione,
+migrazioni, conservazione di `.env` e `storage/`).
+
+Prima di aggiornare: backup del database.
+
+### Via CLI / SSH
 
 ```bash
 # 1. backup del database prima di qualunque migration
@@ -174,6 +199,15 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 ```
+
+### Pubblicare una release (maintainer)
+
+```bash
+./bin/build-release.sh
+```
+
+Carica su about.openb.app lo zip, `latest.json` generato in `dist/` e
+`setup-openbook.php` dalla root del repository.
 
 ## Configurazione del server web
 

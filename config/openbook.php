@@ -6,7 +6,7 @@
 // sia nel documento NodeInfo sia nello User-Agent delle richieste in uscita:
 // due software del Fediverso che si scambiano segnali di versione diversi
 // per la stessa istanza sono un sintomo classico di misconfigurazione.
-$version = '0.8.10';
+$version = '0.8.11';
 
 return [
 
@@ -34,6 +34,27 @@ return [
     | facilmente al software che la fa funzionare.
     */
     'homepage' => 'https://about.openb.app',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Distribuzione (installazione e aggiornamenti guidati)
+    |--------------------------------------------------------------------------
+    |
+    | Il manifesto JSON su about.openb.app descrive l'ultima release
+    | installabile su shared hosting (zip con vendor/ incluso + checksum).
+    | Usato da setup-openbook.php e dal pannello admin "Aggiornamenti".
+    */
+    'distribution' => [
+        'manifest_url' => env(
+            'OPENBOOK_RELEASE_MANIFEST_URL',
+            'https://about.openb.app/releases/latest.json'
+        ),
+        'setup_url' => env(
+            'OPENBOOK_SETUP_SCRIPT_URL',
+            'https://about.openb.app/setup-openbook.php'
+        ),
+        'http_timeout' => (int) env('OPENBOOK_RELEASE_HTTP_TIMEOUT', 120),
+    ],
 
     /*
     |--------------------------------------------------------------------------

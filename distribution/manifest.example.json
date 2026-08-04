@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "version": "0.8.11",
+  "min_php": "8.2.0",
+  "released_at": "2026-08-04T00:00:00Z",
+  "download_url": "https://about.openb.app/releases/openbook-0.8.11.zip",
+  "sha256": "REPLACE_WITH_SHA256_OF_ZIP",
+  "changelog_url": "https://about.openb.app/releases/openbook-0.8.11-changelog.md",
+  "requires_migration": true,
+  "notes": "Release per shared hosting: include vendor/ e asset compilati."
+}

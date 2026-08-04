@@ -11,6 +11,22 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.11] — Deploy e aggiornamenti guidati su shared hosting
+
+### Added
+- Bootstrap `setup-openbook.php`: wizard pre-Laravel che scarica la release
+  ufficiale da about.openb.app (zip + SHA-256), prepara `.env` / `.htaccess`
+  e avvia `/install`.
+- Pannello admin **Aggiornamenti**: confronta la versione locale con
+  `releases/latest.json`, applica l'archivio preservando `.env` e `storage/`,
+  esegue le migration e registra l'azione in audit.
+- Script `bin/build-release.sh` e template in `distribution/` per pubblicare
+  pacchetti shared hosting (con `vendor/`) e il manifesto JSON.
+
+### Changed
+- Getting Started del README centrato sul flusso setup + about.openb.app;
+  resta documentata anche l'installazione classica con Composer.
+
 ## [0.8.10] — Onboarding, menzioni e recupero post remoti
 
 ### Added

@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\DomainBlockController as AdminDomainBlockControll
 use App\Http\Controllers\Admin\QueueController as AdminQueueController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\UpdateController as AdminUpdateController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AnnounceController;
 use App\Http\Controllers\Auth\EmailVerificationController;
@@ -20,10 +21,10 @@ use App\Http\Controllers\HashtagController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstanceRulesController;
 use App\Http\Controllers\LikeController;
-use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\MentionSuggestController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
@@ -145,6 +146,9 @@ Route::middleware('auth')->group(function () {
 
             Route::get('/impostazioni', [AdminSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/impostazioni', [AdminSettingsController::class, 'update'])->name('settings.update');
+
+            Route::get('/aggiornamenti', [AdminUpdateController::class, 'show'])->name('updates.show');
+            Route::post('/aggiornamenti', [AdminUpdateController::class, 'apply'])->name('updates.apply');
 
             Route::get('/domini', [AdminDomainBlockController::class, 'index'])->name('domain_blocks.index');
             Route::post('/domini', [AdminDomainBlockController::class, 'store'])->name('domain_blocks.store');
