@@ -117,6 +117,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/community/nuova', [CommunityController::class, 'create'])->name('communities.create');
     Route::post('/community', [CommunityController::class, 'store'])->name('communities.store');
+    Route::get('/c/{community:slug}/impostazioni', [CommunityController::class, 'edit'])
+        ->where('community', '[A-Za-z0-9_]+')
+        ->name('communities.edit');
+    Route::put('/c/{community:slug}', [CommunityController::class, 'update'])
+        ->where('community', '[A-Za-z0-9_]+')
+        ->name('communities.update');
     Route::post('/c/{community:slug}/iscriviti', [CommunityController::class, 'join'])->name('communities.join');
     Route::delete('/c/{community:slug}/iscriviti', [CommunityController::class, 'leave'])->name('communities.leave');
     Route::post('/c/{community:slug}/richieste/{follow}/accetta', [CommunityController::class, 'accept'])->name('communities.accept');
@@ -179,6 +185,9 @@ Route::get('/community', [CommunityController::class, 'index'])->name('communiti
 Route::get('/c/{community:slug}', [CommunityController::class, 'show'])
     ->where('community', '[A-Za-z0-9_]+')
     ->name('communities.show');
+Route::get('/c/{community:slug}/membri', [CommunityController::class, 'members'])
+    ->where('community', '[A-Za-z0-9_]+')
+    ->name('communities.members');
 
 // Identificatore canonico dell'Actor locale (Person HTML / Group redirect o AP).
 Route::get('/@{username}', [ProfileController::class, 'show'])

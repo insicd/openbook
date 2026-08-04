@@ -22,6 +22,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   esegue le migration e registra l'azione in audit.
 - Script `bin/build-release.sh` e template in `distribution/` per pubblicare
   pacchetti shared hosting (con `vendor/`) e il manifesto JSON.
+- Elenco membri delle community pubbliche (`/c/{slug}/membri`) con infinite
+  scroll, come follower/seguiti.
+- Impostazioni community per il creatore: avatar e copertina (come i profili),
+  piu' nome e descrizione, con `Update` ActivityPub ai follower del Group.
 
 ### Changed
 - Getting Started del README centrato sul flusso setup + about.openb.app;

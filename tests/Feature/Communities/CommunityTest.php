@@ -18,7 +18,9 @@ use App\Federation\Actors\Actor;
 use App\Federation\Serialization\NoteSerializer;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -756,5 +758,156 @@ class CommunityTest extends TestCase
         $this->actingAs($this->createFullAccount('privcmtoutsider'))
             ->post(route('comments.store', $post), ['body' => 'Non dovrei potere.'])
             ->assertNotFound();
+    }
+
+    public function test_guests_can_browse_members_of_a_public_community(): void
+    {
+        $owner = $this->createFullAccount('membriowner');
+        $member = $this->createFullAccount('membrimembro');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'membri_pubblica',
+            'name' => 'Membri pubblica',
+        ]);
+        app(CommunityMembershipService::class)->join($member->actor, $community);
+
+        $response = $this->get(route('communities.members', $community));
+
+        $response->assertOk();
+        $response->assertSee('membriowner');
+        $response->assertSee('membrimembro');
+        $response->assertSee('id="ob-follow-list"', false);
+        $response->assertSee(route('communities.show', $community), false);
+    }
+
+    public function test_pending_join_requests_are_not_listed_among_community_members(): void
+    {
+        $owner = $this->createFullAccount('pendmembown');
+        $applicant = $this->createFullAccount('pendmembapp');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'privata_membri',
+            'name' => 'Privata membri',
+            'is_private' => true,
+        ]);
+        app(CommunityMembershipService::class)->join($applicant->actor, $community);
+
+        $this->get(route('communities.members', $community))->assertForbidden();
+
+        $public = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'pubblica_pending',
+            'name' => 'Pubblica pending',
+        ]);
+        Follow::query()->create([
+            'follower_id' => $applicant->actor->id,
+            'following_id' => $public->actor_id,
+            'status' => Follow::STATUS_PENDING,
+            'requested_at' => now(),
+        ]);
+
+        $this->get(route('communities.members', $public))
+            ->assertOk()
+            ->assertDontSee('pendmembapp');
+    }
+
+    public function test_public_community_members_list_uses_infinite_scroll_markup(): void
+    {
+        config(['openbook.feed.per_page' => 2]);
+
+        $owner = $this->createFullAccount('scrollown');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'scroll_membri',
+            'name' => 'Scroll membri',
+        ]);
+
+        foreach (['a', 'b', 'c'] as $suffix) {
+            $user = $this->createFullAccount('scrollmem'.$suffix);
+            app(CommunityMembershipService::class)->join($user->actor, $community);
+        }
+
+        $response = $this->get(route('communities.members', $community));
+
+        $response->assertOk();
+        $response->assertSee('data-infinite-scroll', false);
+        $response->assertSee('data-next-url="'.route('communities.members', ['community' => $community, 'page' => 2]).'"', false);
+    }
+
+    public function test_public_community_show_links_to_the_members_list(): void
+    {
+        $owner = $this->createFullAccount('linkmembown');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'link_membri',
+            'name' => 'Link membri',
+        ]);
+
+        $this->get(route('communities.show', $community))
+            ->assertOk()
+            ->assertSee(route('communities.members', $community), false);
+    }
+
+    public function test_owner_can_update_community_avatar_cover_and_name(): void
+    {
+        Storage::fake('public');
+        Queue::fake();
+
+        $owner = $this->createFullAccount('editcommown');
+        $remoteMember = $this->createRemoteActor('editcommremote');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'editabile',
+            'name' => 'Vecchio nome',
+            'summary' => 'Vecchia descrizione',
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $remoteMember->id,
+            'following_id' => $community->actor_id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $response = $this->actingAs($owner)->put(route('communities.update', $community), [
+            'name' => 'Nuovo nome',
+            'summary' => 'Nuova descrizione',
+            'avatar' => UploadedFile::fake()->image('avatar.jpg', 800, 800),
+            'cover' => UploadedFile::fake()->image('cover.jpg', 1600, 900),
+        ]);
+
+        $response->assertRedirect(route('communities.show', $community));
+
+        $actor = $community->actor->fresh();
+        $this->assertSame('Nuovo nome', $actor->name);
+        $this->assertSame('Nuova descrizione', $actor->summary);
+        $this->assertNotNull($actor->icon_url);
+        $this->assertNotNull($actor->image_url);
+        $this->assertSame($actor->icon_url, $actor->avatarUrl());
+        $this->assertSame($actor->image_url, $actor->coverUrl());
+
+        Queue::assertPushed(DeliverActivityJob::class, function (DeliverActivityJob $job) use ($community, $remoteMember): bool {
+            return ($job->inboxUrl === $remoteMember->endpoints->shared_inbox
+                    || $job->inboxUrl === $remoteMember->endpoints->inbox)
+                && $job->signingActorId === $community->actor_id
+                && $job->activity['type'] === 'Update'
+                && ($job->activity['object']['type'] ?? null) === 'Group'
+                && ($job->activity['object']['name'] ?? null) === 'Nuovo nome'
+                && isset($job->activity['object']['icon']['url'])
+                && isset($job->activity['object']['image']['url']);
+        });
+    }
+
+    public function test_non_owner_cannot_edit_a_community(): void
+    {
+        $owner = $this->createFullAccount('noeditown');
+        $other = $this->createFullAccount('noeditother');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'non_editabile',
+            'name' => 'Non editabile',
+        ]);
+
+        $this->actingAs($other)
+            ->get(route('communities.edit', $community))
+            ->assertForbidden();
+
+        $this->actingAs($other)
+            ->put(route('communities.update', $community), ['name' => 'Hijack'])
+            ->assertForbidden();
     }
 }

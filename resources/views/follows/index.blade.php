@@ -2,9 +2,14 @@
 
 @php
     $ownerName = $owner->displayName();
-    $pageTitle = $type === 'followers'
+    $pageTitle = $pageTitle ?? ($type === 'followers'
         ? __('openbook.follows.followers_title', ['name' => $ownerName])
-        : __('openbook.follows.following_title', ['name' => $ownerName]);
+        : __('openbook.follows.following_title', ['name' => $ownerName]));
+    $backUrl = $backUrl ?? $owner->profileUrl();
+    $backLabel = $backLabel ?? __('openbook.follows.back_to_profile');
+    $emptyMessage = $emptyMessage ?? ($type === 'followers'
+        ? __('openbook.follows.empty_followers')
+        : __('openbook.follows.empty_following'));
     $nextUrl = $actors->hasMorePages() ? $actors->nextPageUrl() : null;
 @endphp
 
@@ -13,7 +18,7 @@
 @section('content')
     <div class="ob-card">
         <p class="ob-field__help" style="margin-bottom:0.5rem">
-            <a href="{{ $owner->profileUrl() }}">&larr; {{ __('openbook.follows.back_to_profile') }}</a>
+            <a href="{{ $backUrl }}">&larr; {{ $backLabel }}</a>
         </p>
         <h1 style="margin-bottom:0">{{ $pageTitle }}</h1>
     </div>
@@ -66,7 +71,7 @@
                 </div>
             @empty
                 <div class="ob-empty-state">
-                    <p>{{ $type === 'followers' ? __('openbook.follows.empty_followers') : __('openbook.follows.empty_following') }}</p>
+                    <p>{{ $emptyMessage }}</p>
                 </div>
             @endforelse
         </div>

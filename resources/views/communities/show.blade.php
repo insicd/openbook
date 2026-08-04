@@ -1,61 +1,81 @@
 @extends('layouts.app')
 
-@section('title', $community->actor->displayName().' - '.config('app.name'))
+@php
+    $displayName = $community->actor->displayName();
+    $handle = '!'.$community->slug.'@'.config('openbook.domain');
+@endphp
+
+@section('title', $displayName.' - '.config('app.name'))
 
 @section('content')
-    <div class="ob-card ob-profile">
-        <div class="ob-profile__header">
-            <x-avatar :actor="$community->actor" style="width:88px;height:88px;font-size:2rem" />
-            <div>
-                <h1>{{ $community->actor->displayName() }}</h1>
-                <p class="ob-post__handle">{{ '!'.$community->slug.'@'.config('openbook.domain') }}</p>
-                @if (filled($community->actor->summary))
-                    <div class="ob-profile__bio">{{ \App\Domain\Posts\PostBodyRenderer::render($community->actor->summary) }}</div>
-                @endif
-                <div class="ob-profile-stats">
-                    <div><strong>{{ $community->members_count }}</strong><span>{{ __('openbook.communities.members') }}</span></div>
-                    <div><strong>{{ $community->posts_count }}</strong><span>{{ __('openbook.communities.posts') }}</span></div>
-                </div>
-                <p class="ob-field__help">
-                    {{ __('openbook.communities.owned_by') }}
-                    <a href="{{ route('profile.show', $community->owner->username) }}">{{ $community->owner->profile?->display_name ?: $community->owner->username }}</a>
-                    @if ($community->is_private)
-                        &middot; {{ __('openbook.communities.private_badge') }}
-                    @endif
-                </p>
-
-                @auth
-                    <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap">
-                        @if ($community->isOwnedBy(auth()->user()))
-                            <span class="ob-field__help">{{ __('openbook.communities.you_are_owner') }}</span>
-                        @elseif ($isMember)
-                            <form method="POST" action="{{ route('communities.leave', $community) }}">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="ob-btn ob-btn--ghost">{{ __('openbook.communities.leave') }}</button>
-                            </form>
-                        @elseif ($hasPendingRequest)
-                            <span class="ob-field__help">{{ __('openbook.communities.pending') }}</span>
-                        @else
-                            <form method="POST" action="{{ route('communities.join', $community) }}">
-                                @csrf
-                                <button type="submit" class="ob-btn ob-btn--primary">
-                                    {{ $community->is_private ? __('openbook.communities.request_join') : __('openbook.communities.join') }}
-                                </button>
-                            </form>
-                        @endif
-                    </div>
+    <article class="ob-card" style="padding:0;overflow:hidden">
+        <div class="ob-profile-cover" @if ($community->actor->coverUrl()) style="background-image:url('{{ $community->actor->coverUrl() }}');background-size:cover;background-position:center" @endif></div>
+        <div class="ob-profile-header">
+            <div class="ob-profile-avatar" aria-hidden="true">
+                @if ($community->actor->avatarUrl())
+                    <img src="{{ $community->actor->avatarUrl() }}" alt="">
                 @else
-                    @if ($community->is_private)
-                        <p class="ob-field__help" style="margin-top:1rem">
-                            {{ __('openbook.communities.private_login_prompt') }}
-                            <a href="{{ route('login') }}">{{ __('openbook.nav.login') }}</a>
-                        </p>
-                    @endif
-                @endauth
+                    {{ mb_strtoupper(mb_substr($displayName, 0, 1)) }}
+                @endif
             </div>
+
+            <h1 class="ob-profile-name">{{ $displayName }}</h1>
+            <p class="ob-profile-handle">{{ $handle }}</p>
+
+            @if ($community->is_private)
+                <span class="ob-badge">{{ __('openbook.communities.private_badge') }}</span>
+            @endif
+
+            @if (filled($community->actor->summary))
+                <div class="ob-profile-bio">{{ \App\Domain\Posts\PostBodyRenderer::render($community->actor->summary) }}</div>
+            @endif
+
+            <div class="ob-profile-stats">
+                @if ($canViewMembers ?? false)
+                    <a href="{{ route('communities.members', $community) }}"><strong>{{ $community->members_count }}</strong><span>{{ __('openbook.communities.members') }}</span></a>
+                @else
+                    <div><strong>{{ $community->members_count }}</strong><span>{{ __('openbook.communities.members') }}</span></div>
+                @endif
+                <div><strong>{{ $community->posts_count }}</strong><span>{{ __('openbook.communities.posts') }}</span></div>
+            </div>
+
+            <p class="ob-field__help">
+                {{ __('openbook.communities.owned_by') }}
+                <a href="{{ route('profile.show', $community->owner->username) }}">{{ $community->owner->profile?->display_name ?: $community->owner->username }}</a>
+            </p>
+
+            @auth
+                <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+                    @if ($canUpdate ?? false)
+                        <a href="{{ route('communities.edit', $community) }}" class="ob-btn ob-btn--ghost">{{ __('openbook.communities.edit') }}</a>
+                        <span class="ob-field__help" style="align-self:center">{{ __('openbook.communities.you_are_owner') }}</span>
+                    @elseif ($isMember)
+                        <form method="POST" action="{{ route('communities.leave', $community) }}">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="ob-btn ob-btn--ghost">{{ __('openbook.communities.leave') }}</button>
+                        </form>
+                    @elseif ($hasPendingRequest)
+                        <span class="ob-field__help">{{ __('openbook.communities.pending') }}</span>
+                    @else
+                        <form method="POST" action="{{ route('communities.join', $community) }}">
+                            @csrf
+                            <button type="submit" class="ob-btn ob-btn--primary">
+                                {{ $community->is_private ? __('openbook.communities.request_join') : __('openbook.communities.join') }}
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            @else
+                @if ($community->is_private)
+                    <p class="ob-field__help" style="margin-top:1rem">
+                        {{ __('openbook.communities.private_login_prompt') }}
+                        <a href="{{ route('login') }}">{{ __('openbook.nav.login') }}</a>
+                    </p>
+                @endif
+            @endauth
         </div>
-    </div>
+    </article>
 
     @if ($canManageModerators ?? false)
         @php

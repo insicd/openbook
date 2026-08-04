@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\FeedQuery;
+use App\Application\Queries\FollowListQuery;
 use App\Application\Services\CommunityMembershipService;
 use App\Application\Services\CommunityModeratorManager;
 use App\Application\Services\CommunityRegistrar;
+use App\Application\Services\CommunityUpdater;
 use App\Application\Services\FollowManager;
 use App\Domain\Accounts\User;
 use App\Domain\Communities\Community;
@@ -14,6 +16,7 @@ use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorUrls;
 use App\Http\Requests\Communities\StoreCommunityRequest;
+use App\Http\Requests\Communities\UpdateCommunityRequest;
 use App\Http\Support\ActivityPubNegotiation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
@@ -26,10 +29,12 @@ class CommunityController extends Controller
 {
     public function __construct(
         private readonly CommunityRegistrar $registrar,
+        private readonly CommunityUpdater $updater,
         private readonly CommunityMembershipService $membership,
         private readonly CommunityModeratorManager $moderators,
         private readonly FeedQuery $feedQuery,
         private readonly FollowManager $followManager,
+        private readonly FollowListQuery $followListQuery,
     ) {}
 
     public function index(Request $request): View
@@ -174,7 +179,60 @@ class CommunityController extends Controller
             'pendingJoinRequests' => $pendingJoinRequests,
             'canPost' => $viewer !== null && Gate::forUser($viewer)->allows('post', $community),
             'canManageModerators' => $viewer !== null && Gate::forUser($viewer)->allows('manageModerators', $community),
+            'canUpdate' => $viewer !== null && Gate::forUser($viewer)->allows('update', $community),
+            'canViewMembers' => Gate::forUser($viewer)->allows('viewMembers', $community),
         ]);
+    }
+
+    public function members(Community $community): View
+    {
+        Gate::authorize('viewMembers', $community);
+
+        $community->loadMissing('actor');
+        $paginator = $this->followListQuery->followers($community->actor);
+        $viewerActor = auth()->user()?->actor;
+        $statusMap = $viewerActor !== null
+            ? $this->followManager->statusMapFor($viewerActor, $paginator->getCollection())
+            : [];
+
+        return view('follows.index', [
+            'owner' => $community->actor,
+            'type' => 'followers',
+            'actors' => $paginator,
+            'viewerActor' => $viewerActor,
+            'statusMap' => $statusMap,
+            'pageTitle' => __('openbook.communities.members_title', ['name' => $community->actor->displayName()]),
+            'backUrl' => route('communities.show', $community),
+            'backLabel' => __('openbook.communities.back_to_community'),
+            'emptyMessage' => __('openbook.communities.empty_members'),
+        ]);
+    }
+
+    public function edit(Community $community): View
+    {
+        Gate::authorize('update', $community);
+
+        $community->loadMissing('actor');
+
+        return view('communities.edit', [
+            'community' => $community,
+        ]);
+    }
+
+    public function update(UpdateCommunityRequest $request, Community $community): RedirectResponse
+    {
+        Gate::authorize('update', $community);
+
+        $this->updater->update(
+            $community,
+            $request->validated(),
+            $request->file('avatar'),
+            $request->file('cover'),
+        );
+
+        return redirect()
+            ->route('communities.show', $community)
+            ->with('status', __('openbook.communities.updated'));
     }
 
     public function join(Community $community): RedirectResponse
