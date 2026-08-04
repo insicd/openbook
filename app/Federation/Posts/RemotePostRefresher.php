@@ -10,7 +10,7 @@ use App\Federation\Inbox\RemoteNoteDocumentFetcher;
 use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Federation\Inbox\RemotePostObject;
 use App\Federation\Replies\RemoteRepliesFetcher;
-use Illuminate\Support\Carbon;
+use App\Federation\Support\ActivityPubTimestamp;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -71,9 +71,10 @@ final class RemotePostRefresher
             return;
         }
 
-        $publishedAt = isset($note['published']) && is_string($note['published'])
-            ? Carbon::parse($note['published'])
-            : ($post->published_at ?? now());
+        $publishedAt = ActivityPubTimestamp::parse(
+            isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
+            $post->published_at,
+        );
 
         $this->noteUpserter->upsertPost(
             $note,

@@ -571,6 +571,42 @@ class InboxActivityProcessorTest extends TestCase
         ]);
     }
 
+    public function test_a_remote_note_with_timezone_offset_is_stored_in_app_timezone(): void
+    {
+        Queue::fake();
+        config(['app.timezone' => 'UTC']);
+
+        $follower = $this->createFullAccount('tzfollower');
+        $remote = $this->createRemoteActor('news', 'ziobudda.example');
+        $follow = app(FollowManager::class)->follow($follower->actor, $remote);
+        $follow->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $noteUri = $remote->uri.'/posts/1737';
+        $activity = [
+            'id' => $noteUri.'/attivita',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>News con offset +02:00</p>',
+                // Come ziobudda.org: senza conversione Eloquent salverebbe
+                // 14:30 come UTC e in feed comparirebbe "tra 2 ore".
+                'published' => '2026-08-04T14:30:00+02:00',
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ];
+
+        $status = $this->process($activity, $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+
+        $post = Post::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($post);
+        $this->assertSame('2026-08-04 12:30:00', $post->published_at?->format('Y-m-d H:i:s'));
+    }
+
     public function test_a_wordpress_style_article_create_is_stored(): void
     {
         Queue::fake();

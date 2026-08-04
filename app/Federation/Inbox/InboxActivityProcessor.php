@@ -14,8 +14,8 @@ use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Resolution\ObjectResolver;
 use App\Federation\Serialization\ActivitySerializer;
+use App\Federation\Support\ActivityPubTimestamp;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use JsonException;
@@ -505,9 +505,9 @@ final class InboxActivityProcessor
         }
 
         $body = RemotePostObject::body($note);
-        $publishedAt = isset($note['published']) && is_string($note['published'])
-            ? Carbon::parse($note['published'])
-            : now();
+        $publishedAt = ActivityPubTimestamp::parse(
+            isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
+        );
 
         return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false);
     }
@@ -654,9 +654,9 @@ final class InboxActivityProcessor
         }
 
         $body = RemotePostObject::body($note);
-        $publishedAt = isset($note['published']) && is_string($note['published'])
-            ? Carbon::parse($note['published'])
-            : now();
+        $publishedAt = ActivityPubTimestamp::parse(
+            isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
+        );
 
         $isReply = $parentPost !== null || $parentComment !== null;
 

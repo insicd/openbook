@@ -37,6 +37,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   consegna sulla `sharedInbox` del richiedente e auto-accettazione dei
   Follow pending verso Group locali aperti (cosi' la join non resta
   "in attesa" e `members_count` si aggiorna).
+- Timestamp `published` remoti con offset (es. `+02:00` di ziobudda.org /
+  Friendica): convertiti al timezone dell'app prima del salvataggio, cosi'
+  nel feed non compare piu' "tra xx min/ore" al posto del tempo trascorso.
 
 ## [0.8.10] — Onboarding, menzioni e recupero post remoti
 

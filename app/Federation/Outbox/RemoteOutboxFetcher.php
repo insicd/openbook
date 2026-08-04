@@ -12,6 +12,7 @@ use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\RemoteNoteDocumentFetcher;
 use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Federation\Inbox\RemotePostObject;
+use App\Federation\Support\ActivityPubTimestamp;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use Illuminate\Support\Carbon;
@@ -283,9 +284,9 @@ final class RemoteOutboxFetcher
         }
 
         $body = RemotePostObject::body($note);
-        $publishedAt = isset($note['published']) && is_string($note['published'])
-            ? Carbon::parse($note['published'])
-            : now();
+        $publishedAt = ActivityPubTimestamp::parse(
+            isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
+        );
 
         return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false);
     }

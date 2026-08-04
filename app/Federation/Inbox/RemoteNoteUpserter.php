@@ -12,6 +12,7 @@ use App\Federation\Actors\Actor;
 use App\Federation\Outbox\RemoteOutboxFetcher;
 use App\Federation\Replies\RemoteRepliesFetcher;
 use App\Federation\Serialization\NoteSerializer;
+use App\Federation\Support\ActivityPubTimestamp;
 use Illuminate\Support\Carbon;
 
 /**
@@ -47,7 +48,9 @@ final class RemoteNoteUpserter
             'body' => $body,
             'visibility' => $this->visibilityFromAudience($note),
             'status' => Post::STATUS_PUBLISHED,
-            'published_at' => $publishedAt,
+            // Riconverti sempre al TZ app: i caller possono passare un Carbon
+            // ancora con offset remoto (vedi ActivityPubTimestamp).
+            'published_at' => ActivityPubTimestamp::normalize($publishedAt),
         ]);
 
         if (! $wasNew) {
