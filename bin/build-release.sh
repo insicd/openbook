@@ -14,7 +14,20 @@ cd "$ROOT"
 
 VERSION="${1:-}"
 if [[ -z "$VERSION" ]]; then
-  VERSION="$(php -r "\$c=include 'config/openbook.php'; echo \$c['version'];")"
+  # Non includere config/openbook.php: usa env() di Laravel e fallirebbe fuori dal bootstrap.
+  VERSION="$(php -r '
+    $src = file_get_contents("config/openbook.php");
+    if (!is_string($src) || !preg_match("/\\\$version\s*=\s*'\''([^'\'']+)'\''/", $src, $m)) {
+      fwrite(STDERR, "Impossibile leggere \$version da config/openbook.php\n");
+      exit(1);
+    }
+    echo $m[1];
+  ')"
+fi
+
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+  echo "Versione non valida: $VERSION" >&2
+  exit 1
 fi
 
 DIST_DIR="$ROOT/dist"
@@ -80,6 +93,27 @@ echo "==> Creating zip"
 
 SHA="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
 SIZE="$(wc -c < "$ZIP" | tr -d ' ')"
+CHANGELOG_MD="$DIST_DIR/openbook-$VERSION-changelog.md"
+
+echo "==> Extracting release notes from CHANGELOG.md"
+php -r '
+  $version = $argv[1];
+  $src = file_get_contents("CHANGELOG.md");
+  if (!is_string($src)) {
+    fwrite(STDERR, "CHANGELOG.md non leggibile\n");
+    exit(1);
+  }
+  $pattern = "/^## \\[" . preg_quote($version, "/") . "\\][^\\n]*\\n(?:.*?)(?=^## \\[|\\z)/ms";
+  if (!preg_match($pattern, $src, $m)) {
+    fwrite(STDERR, "Sezione ## [$version] non trovata in CHANGELOG.md\n");
+    exit(1);
+  }
+  $notes = trim($m[0]) . "\n";
+  if (file_put_contents($argv[2], $notes) === false) {
+    fwrite(STDERR, "Impossibile scrivere le note di rilascio\n");
+    exit(1);
+  }
+' "$VERSION" "$CHANGELOG_MD"
 
 cat > "$DIST_DIR/latest.json" <<EOF
 {
@@ -99,8 +133,10 @@ echo
 echo "OK: $ZIP ($SIZE bytes)"
 echo "SHA256: $SHA"
 echo "Manifest: $DIST_DIR/latest.json"
+echo "Changelog: $CHANGELOG_MD"
 echo
 echo "Pubblica su about.openb.app:"
 echo "  /releases/openbook-$VERSION.zip"
+echo "  /releases/openbook-$VERSION-changelog.md"
 echo "  /releases/latest.json"
 echo "  /setup-openbook.php  (copia dalla root del repo)"

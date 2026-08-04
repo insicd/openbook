@@ -64,7 +64,7 @@ Il percorso piu' semplice non richiede Composer ne' SSH: usa il bootstrap
 `setup-openbook.php` e le release zip pubblicate su
 [about.openb.app](https://about.openb.app).
 
-1. Scarica [`setup-openbook.php`](https://about.openb.app/setup-openbook.php)
+1. Scarica [`setup-openbook.php`](https://about.openb.app/dist/setup-openbook.php)
    e caricalo (FTP / File Manager) nella cartella in cui vuoi installare Openbook.
 2. Aprilo nel browser (`https://tuo-dominio.example.org/setup-openbook.php`).
 3. Il wizard verifica i requisiti PHP, scarica l'ultima release ufficiale
@@ -206,8 +206,8 @@ php artisan view:cache
 ./bin/build-release.sh
 ```
 
-Carica su about.openb.app lo zip, `latest.json` generato in `dist/` e
-`setup-openbook.php` dalla root del repository.
+Carica su about.openb.app lo zip, il file `*-changelog.md`, `latest.json`
+generati in `dist/` e `setup-openbook.php` dalla root del repository.
 
 ## Configurazione del server web
 
