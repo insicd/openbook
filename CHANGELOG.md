@@ -36,6 +36,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 ### Changed
 - Gli elenchi follower/seguiti usano lo scorrimento infinito come gli altri
   feed (la paginazione classica resta solo in `<noscript>`).
+- Composer unificato per post, commenti e risposte: tip Markdown dietro
+  icona info, Pubblica a tutta larghezza sotto le opzioni, pannelli a
+  fisarmonica e layout piu' usabile su mobile (senza community nei
+  commenti).
 
 - Le community private compaiono nell'elenco locali per il creatore e per
   lo staff dell'istanza (badge "Privata"); gli altri utenti vedono solo le

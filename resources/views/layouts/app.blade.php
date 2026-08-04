@@ -132,6 +132,7 @@
     <script src="{{ \App\Support\Assets::url('assets/js/header-panels.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/notifications-live.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/compose-shortcut.js') }}" defer></script>
+    <script src="{{ \App\Support\Assets::url('assets/js/composer.js') }}" defer></script>
 
     @auth
         <div

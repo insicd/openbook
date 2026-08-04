@@ -102,6 +102,7 @@ return [
     'composer' => [
         'body_label' => 'What do you want to share?',
         'placeholder' => 'Write something...',
+        'markdown_tip_label' => 'Markdown tips',
         'markdown_help' => 'Markdown is supported: **bold**, *italic*, lists, `code`, headings, quotes, and links.',
         'mention_suggest_label' => 'People to mention',
         'mention_suggest_empty' => 'No matching accounts.',
@@ -113,7 +114,7 @@ return [
         'cw_label' => 'Content warning (optional)',
         'cw_placeholder' => 'E.g. spoiler, sensitive topic...',
         'images_label' => 'Images',
-        'images_help' => 'Up to :count images per post (JPEG, PNG, WebP or GIF).',
+        'images_help' => 'Up to :count images (JPEG, PNG, WebP or GIF).',
         'alt_label' => 'Alt text for the first image',
         'alt_help' => 'Describe the image content for people using a screen reader.',
         'visibility_label' => 'Visibility',

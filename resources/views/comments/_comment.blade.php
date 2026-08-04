@@ -91,7 +91,7 @@
                     type="button"
                     class="ob-post__action"
                     aria-label="{{ __('openbook.actions.reply') }}"
-                    onclick="document.getElementById('risposta-{{ $comment->id }}').hidden = false"
+                    onclick="(function(){var c=document.getElementById('risposta-{{ $comment->id }}');if(!c)return;c.hidden=false;var t=document.getElementById('risposta-testo-{{ $comment->id }}');if(t){t.focus();}}())"
                 >
                     <x-icon name="comment" />
                 </button>
@@ -104,22 +104,20 @@
         </div>
 
         @auth
-            <form method="POST" action="{{ route('comments.store', $post) }}" id="risposta-{{ $comment->id }}" hidden style="margin-top:0.6rem" enctype="multipart/form-data">
-                @csrf
-                <input type="hidden" name="parent_comment_id" value="{{ $comment->id }}">
-                <div class="ob-field">
-                    <label for="risposta-testo-{{ $comment->id }}" class="ob-field__help">{{ __('openbook.comments.reply_to', ['name' => $displayName]) }}</label>
-                    <textarea id="risposta-testo-{{ $comment->id }}" name="body" rows="2" required maxlength="{{ config('openbook.comments.max_length', 2000) }}" data-mention-autocomplete></textarea>
-                    <div class="ob-emoji-toolbar">
-                        <x-emoji-trigger target="risposta-testo-{{ $comment->id }}" />
-                    </div>
-                </div>
-                @include('comments._media_fields', [
-                    'inputId' => 'risposta-images-'.$comment->id,
-                    'altId' => 'risposta-alt-'.$comment->id,
+            <div style="margin-top:0.6rem">
+                @include('composer.form', [
+                    'mode' => 'reply',
+                    'formId' => 'risposta-'.$comment->id,
+                    'bodyId' => 'risposta-testo-'.$comment->id,
+                    'prefix' => 'risposta-'.$comment->id,
+                    'action' => route('comments.store', $post),
+                    'parentCommentId' => $comment->id,
+                    'formHidden' => true,
+                    'showLabel' => true,
+                    'replyToName' => $displayName,
+                    'rows' => 2,
                 ])
-                <button type="submit" class="ob-btn ob-btn--primary" style="margin-top:0.75rem">{{ __('openbook.actions.reply') }}</button>
-            </form>
+            </div>
         @endauth
 
         @if ($children !== [])

@@ -9,26 +9,22 @@
 @section('content')
     @include('posts._card', ['post' => $post, 'linkToPost' => false])
 
-    <div class="ob-card" id="commenta">
+    <div id="commenta">
         @auth
-            <form method="POST" action="{{ route('comments.store', $post) }}" enctype="multipart/form-data">
-                @csrf
-                <div class="ob-field">
-                    <label for="comment-body">{{ __('openbook.comments.new_label') }}</label>
-                    <textarea id="comment-body" name="body" rows="3" required maxlength="{{ config('openbook.comments.max_length', 2000) }}" data-mention-autocomplete>{{ old('body') }}</textarea>
-                    <p class="ob-field__help">{{ __('openbook.composer.markdown_help') }}</p>
-                    <div class="ob-emoji-toolbar">
-                        <x-emoji-trigger target="comment-body" />
-                    </div>
-                </div>
-                @include('comments._media_fields', [
-                    'inputId' => 'comment-images',
-                    'altId' => 'comment-alt',
-                ])
-                <button type="submit" class="ob-btn ob-btn--primary" style="margin-top:0.75rem">{{ __('openbook.actions.comment_submit') }}</button>
-            </form>
+            @include('composer.form', [
+                'mode' => 'comment',
+                'formId' => null,
+                'bodyId' => 'comment-body',
+                'prefix' => 'comment',
+                'action' => route('comments.store', $post),
+                'showLabel' => true,
+                'bodyLabel' => __('openbook.comments.new_label'),
+                'rows' => 3,
+            ])
         @else
-            <p><a href="{{ route('login') }}">{{ __('openbook.comments.login_to_comment') }}</a></p>
+            <div class="ob-card">
+                <p><a href="{{ route('login') }}">{{ __('openbook.comments.login_to_comment') }}</a></p>
+            </div>
         @endauth
     </div>
 

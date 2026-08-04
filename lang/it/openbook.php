@@ -102,6 +102,7 @@ return [
     'composer' => [
         'body_label' => 'Cosa vuoi condividere?',
         'placeholder' => 'Scrivi qualcosa...',
+        'markdown_tip_label' => 'Suggerimenti Markdown',
         'markdown_help' => 'Puoi usare Markdown: **grassetto**, *corsivo*, elenchi, `codice`, titoli, citazioni e link.',
         'mention_suggest_label' => 'Persone da menzionare',
         'mention_suggest_empty' => 'Nessun account corrispondente.',
@@ -113,7 +114,7 @@ return [
         'cw_label' => 'Avviso sul contenuto (facoltativo)',
         'cw_placeholder' => 'Es. spoiler, argomento sensibile...',
         'images_label' => 'Immagini',
-        'images_help' => 'Fino a :count immagini per post (JPEG, PNG, WebP o GIF).',
+        'images_help' => 'Fino a :count immagini (JPEG, PNG, WebP o GIF).',
         'alt_label' => 'Testo alternativo per la prima immagine',
         'alt_help' => 'Descrivi il contenuto dell\'immagine per chi usa uno screen reader.',
         'visibility_label' => 'Visibilita',
