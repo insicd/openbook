@@ -7,9 +7,11 @@ use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\RemoteActorResolver;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Calcola le inbox remote di destinazione per un'attivita' in uscita e
@@ -48,11 +50,31 @@ final class ActivityDelivery
             return;
         }
 
+        $target->loadMissing('endpoints');
+
         // Come il fan-out ai follower: preferisci sharedInbox quando presente
         // (Lemmy/Mastodon la usano spesso al posto dell'inbox personale).
         $inbox = $target->endpoints?->shared_inbox ?: $target->endpoints?->inbox;
 
+        // Actor remoto in cache senza endpoint (fetch parziale / vecchio):
+        // ritenta un refresh prima di abbandonare il Follow.
         if (blank($inbox)) {
+            $refreshed = app(RemoteActorResolver::class)->refresh($target);
+
+            if ($refreshed !== null) {
+                $target = $refreshed;
+                $inbox = $target->endpoints?->shared_inbox ?: $target->endpoints?->inbox;
+            }
+        }
+
+        if (blank($inbox)) {
+            Log::channel('single')->warning('federation.delivery_skipped', [
+                'reason' => 'missing_inbox',
+                'target_uri' => $target->uri,
+                'activity_type' => $activity['type'] ?? null,
+                'activity_id' => $activity['id'] ?? null,
+            ]);
+
             return;
         }
 
@@ -191,10 +213,24 @@ final class ActivityDelivery
 
         foreach ($inboxUrls as $inboxUrl) {
             if (app(DomainBlockManager::class)->isBlockedUrl($inboxUrl)) {
+                Log::channel('single')->info('federation.delivery_skipped', [
+                    'reason' => 'domain_blocked',
+                    'inbox' => $inboxUrl,
+                    'activity_type' => $activity['type'] ?? null,
+                    'activity_id' => $activity['id'] ?? null,
+                ]);
+
                 continue;
             }
 
             DeliverActivityJob::dispatch($inboxUrl, $activity, $signingActor->id)->afterCommit();
+
+            Log::channel('single')->info('federation.delivery_queued', [
+                'inbox' => $inboxUrl,
+                'activity_type' => $activity['type'] ?? null,
+                'activity_id' => $activity['id'] ?? null,
+                'signing_actor_id' => $signingActor->id,
+            ]);
         }
     }
 }

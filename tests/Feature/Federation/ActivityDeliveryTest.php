@@ -8,6 +8,7 @@ use App\Domain\SocialGraph\Follow;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
@@ -79,6 +80,10 @@ class ActivityDeliveryTest extends TestCase
     public function test_deliver_to_skips_local_targets_and_targets_without_an_inbox(): void
     {
         Queue::fake();
+        Http::fake([
+            'https://remoto.example/users/senzainbox' => Http::response('gone', 404),
+        ]);
+
         $author = $this->createFullAccount('mittente');
         $localTarget = $this->createFullAccount('destinatariolocale');
         $remoteWithoutEndpoints = $this->createRemoteActor('senzainbox');

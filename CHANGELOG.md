@@ -37,8 +37,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   - verifica RFC 9421 (`Signature-Input` / `Content-Digest`), anche senza
     `alg` e con spazi dopo `;` come Mastodon; fallback a draft-cavage;
     Digest `sha-256` case-insensitive.
-  - Log `federation.delivery_ok` / `delivery_rejected` per diagnosticare
-    Follow in uscita bloccati (es. coda `delivery` / cron).
+  - Log `federation.delivery_queued` / `delivery_ok` / `delivery_rejected` /
+    `delivery_skipped` per diagnosticare Follow in uscita; se l'Actor remoto
+    non ha inbox in cache si ritenta un refresh prima di abbandonare.
   Sblocca Accept/follow-back da bot come `@_followback@tags.pub`.
 
 ## [0.8.11] — Deploy e aggiornamenti guidati su shared hosting
