@@ -52,29 +52,101 @@ final class RemoteActorResolver
             return $this->resolveByUri($withoutFragment);
         }
 
-        // keyId senza frammento: puo' essere un CryptographicKey a se'
-        // stante (tags.pub) oppure, in casi rari, l'URI Actor stesso.
+        // Dopo un Follow abbiamo gia' Actor + PEM dal documento Person.
+        // Preferisci la cache: un GET firmato verso …/publickey su tags.pub
+        // puo' tornare 400 (Signature non verificabile su risorse pubbliche)
+        // e far fallire altrimenti l'Accept del follow-back.
+        $cachedOwner = $this->resolveCachedOwnerForKeyId($keyId);
+
+        if ($cachedOwner !== null) {
+            return $cachedOwner;
+        }
+
+        // keyId senza frammento: CryptographicKey (tags.pub) o, raro, URI Actor.
+        // true = rifiuto definitivo (es. owner su altro host): niente fallback.
         $fromKeyDocument = $this->resolveFromKeyDocumentUrl($keyId);
+
+        if ($fromKeyDocument === false) {
+            return null;
+        }
 
         if ($fromKeyDocument !== null) {
             return $fromKeyDocument;
+        }
+
+        $ownerUri = $this->guessOwnerUriFromKeyId($keyId);
+
+        if ($ownerUri !== null) {
+            return $this->resolveByUri($ownerUri);
         }
 
         return $this->resolveByUri($keyId);
     }
 
     /**
+     * Se il keyId segue il pattern activitypub-bot {@code …/publickey} e
+     * l'owner e' gia' in cache con una PEM, riusala senza rete.
+     */
+    private function resolveCachedOwnerForKeyId(string $keyId): ?Actor
+    {
+        $ownerUri = $this->guessOwnerUriFromKeyId($keyId);
+
+        if ($ownerUri === null) {
+            return null;
+        }
+
+        $actor = Actor::query()
+            ->where('uri', $ownerUri)
+            ->where('is_local', false)
+            ->with(['key', 'endpoints'])
+            ->first();
+
+        if ($actor === null || $actor->key === null || blank($actor->key->public_key)) {
+            return null;
+        }
+
+        return $actor;
+    }
+
+    /**
+     * Deriva l'URI Actor da un keyId standalone noto (tags.pub / activitypub-bot).
+     */
+    private function guessOwnerUriFromKeyId(string $keyId): ?string
+    {
+        if (preg_match('#^(https?://.+)/publickey$#i', $keyId, $matches) === 1) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
+    /**
      * Recupera un documento all'URL del keyId: se e' un CryptographicKey,
      * risolve l'Actor "owner" e aggiorna la chiave pubblica in cache.
+     *
+     * @return Actor|false|null Actor se risolto; false se il documento e'
+     *                          un CryptographicKey rifiutato (stop); null se
+     *                          il fetch non ha prodotto una chiave usabile
+     *                          (il chiamante puo' tentare altri fallback).
      */
-    private function resolveFromKeyDocumentUrl(string $keyId): ?Actor
+    private function resolveFromKeyDocumentUrl(string $keyId): Actor|false|null
     {
         try {
+            // Le chiavi pubbliche sono risorse pubbliche: niente authorized
+            // fetch. tags.pub / activitypub-bot rispondono 400 ai GET firmati
+            // non verificabili invece di servire il documento.
             $response = $this->httpClient->get($keyId, [
                 'Accept' => 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"',
-            ], $this->fetchSigner->resolve());
+            ]);
         } catch (SsrfViolationException $exception) {
             Log::channel('single')->info('federation.key_fetch_blocked', [
+                'key_id' => $keyId,
+                'reason' => $exception->getMessage(),
+            ]);
+
+            return null;
+        } catch (\Throwable $exception) {
+            Log::channel('single')->info('federation.key_fetch_failed', [
                 'key_id' => $keyId,
                 'reason' => $exception->getMessage(),
             ]);
@@ -93,7 +165,13 @@ final class RemoteActorResolver
         }
 
         if ($this->isCryptographicKeyDocument($document, $keyId)) {
-            return $this->resolveActorFromCryptographicKey($document, $keyId);
+            return $this->resolveActorFromCryptographicKey($document, $keyId) ?? false;
+        }
+
+        // Documento CryptographicKey presente ma non accettabile (es. owner
+        // su altro host): non tentare euristiche sull'owner dal path.
+        if ($this->looksLikeRejectedCryptographicKey($document, $keyId)) {
+            return false;
         }
 
         // Alcuni server rispondono all'URL della chiave con l'Actor che la
@@ -106,6 +184,27 @@ final class RemoteActorResolver
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     */
+    private function looksLikeRejectedCryptographicKey(array $document, string $keyId): bool
+    {
+        $id = $document['id'] ?? null;
+        $owner = $document['owner'] ?? null;
+        $pem = $document['publicKeyPem'] ?? null;
+        $type = $document['type'] ?? null;
+
+        if ($type !== null && $type !== 'CryptographicKey') {
+            return false;
+        }
+
+        if (! is_string($id) || $id !== $keyId) {
+            return false;
+        }
+
+        return is_string($owner) && $owner !== '' && is_string($pem) && $pem !== '';
     }
 
     /**

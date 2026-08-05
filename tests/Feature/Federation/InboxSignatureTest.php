@@ -216,4 +216,150 @@ class InboxSignatureTest extends TestCase
 
         $this->postSigned($parts)->assertStatus(404);
     }
+
+    public function test_a_cavage_signature_with_standalone_publickey_key_id_is_accepted(): void
+    {
+        // tags.pub / activitypub-bot: keyId = …/publickey (CryptographicKey).
+        $keyId = self::REMOTE_ACTOR_URI.'/publickey';
+
+        Http::fake([
+            self::REMOTE_ACTOR_URI => Http::response([
+                'id' => self::REMOTE_ACTOR_URI,
+                'type' => 'Person',
+                'preferredUsername' => 'carol',
+                'inbox' => self::REMOTE_ACTOR_URI.'/inbox',
+                'outbox' => self::REMOTE_ACTOR_URI.'/outbox',
+                'followers' => self::REMOTE_ACTOR_URI.'/followers',
+                'following' => self::REMOTE_ACTOR_URI.'/following',
+                'publicKey' => [
+                    'id' => $keyId,
+                    'owner' => self::REMOTE_ACTOR_URI,
+                    'publicKeyPem' => $this->remoteKeyPair->publicKey,
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        // Come dopo un Follow: Actor gia' in cache con la PEM.
+        $this->assertNotNull(app(\App\Federation\Actors\RemoteActorResolver::class)->resolveByUri(self::REMOTE_ACTOR_URI));
+
+        $target = $this->createFullAccount('tagskey');
+        $path = '/users/tagskey/inbox';
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => 'https://remoto.example/activities/'.uniqid(),
+            'type' => 'Follow',
+            'actor' => self::REMOTE_ACTOR_URI,
+            'object' => $target->actor->uri,
+        ];
+        $body = json_encode($activity, JSON_THROW_ON_ERROR);
+        $date = now()->toRfc7231String();
+        $digest = HttpSignatureSigner::digest($body);
+        $host = parse_url(url('/'), PHP_URL_HOST);
+
+        $signature = (new HttpSignatureSigner)->sign(
+            'POST',
+            $path,
+            ['host' => $host, 'date' => $date, 'digest' => $digest],
+            $keyId,
+            $this->remoteKeyPair->privateKey,
+            ['(request-target)', 'host', 'date', 'digest']
+        );
+
+        $response = $this->call('POST', $path, [], [], [], [
+            'CONTENT_TYPE' => 'application/activity+json',
+            'HTTP_DATE' => $date,
+            'HTTP_DIGEST' => $digest,
+            'HTTP_SIGNATURE' => $signature,
+        ], $body);
+
+        $response->assertStatus(202);
+        $this->assertDatabaseHas('inbox_items', [
+            'remote_activity_uri' => $activity['id'],
+            'signature_valid' => true,
+        ]);
+    }
+
+    public function test_an_rfc_9421_signature_is_accepted(): void
+    {
+        $target = $this->createFullAccount('rfc9421');
+        $path = '/users/rfc9421/inbox';
+        $fullUrl = url($path);
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => 'https://remoto.example/activities/'.uniqid(),
+            'type' => 'Follow',
+            'actor' => self::REMOTE_ACTOR_URI,
+            'object' => $target->actor->uri,
+        ];
+        $body = json_encode($activity, JSON_THROW_ON_ERROR);
+        $date = now()->toRfc7231String();
+        $contentDigest = 'sha-256=:'.base64_encode(hash('sha256', $body, true)).':';
+        $host = (string) parse_url(url('/'), PHP_URL_HOST);
+        $contentType = 'application/activity+json';
+        $keyId = self::REMOTE_ACTOR_URI.'#main-key';
+        $created = time();
+
+        $components = ['@method', '@target-uri', 'host', 'date', 'content-type', 'content-digest'];
+        $componentList = implode(' ', array_map(static fn (string $c): string => '"'.$c.'"', $components));
+        $attrStr = "({$componentList});keyid=\"{$keyId}\";alg=\"rsa-v1_5-sha256\";created={$created}";
+
+        $headerValues = [
+            'host' => $host,
+            'date' => $date,
+            'content-type' => $contentType,
+            'content-digest' => $contentDigest,
+        ];
+
+        $pairs = [];
+        foreach ($components as $component) {
+            $value = match ($component) {
+                '@method' => 'POST',
+                '@target-uri' => $fullUrl,
+                default => $headerValues[$component],
+            };
+            $pairs[] = '"'.$component.'": '.$value;
+        }
+        $pairs[] = '"@signature-params": '.$attrStr;
+        $signingString = implode("\n", $pairs);
+
+        $ok = openssl_sign($signingString, $signatureBinary, $this->remoteKeyPair->privateKey, OPENSSL_ALGO_SHA256);
+        $this->assertTrue($ok);
+
+        $response = $this->call('POST', $path, [], [], [], [
+            'CONTENT_TYPE' => $contentType,
+            'HTTP_DATE' => $date,
+            'HTTP_CONTENT_DIGEST' => $contentDigest,
+            'HTTP_SIGNATURE_INPUT' => 'sig1='.$attrStr,
+            'HTTP_SIGNATURE' => 'sig1=:'.base64_encode($signatureBinary).':',
+        ], $body);
+
+        $response->assertStatus(202);
+        $this->assertDatabaseHas('inbox_items', [
+            'remote_activity_uri' => $activity['id'],
+            'signature_valid' => true,
+        ]);
+    }
+
+    public function test_a_cavage_digest_with_lowercase_algorithm_is_accepted(): void
+    {
+        $target = $this->createFullAccount('digestcase');
+        $parts = $this->buildSignedFollowActivity('/users/digestcase/inbox', $target->actor->uri);
+        // activitypub-bot Digester.equals e' case-insensitive sull'algoritmo.
+        $parts['digest'] = preg_replace('/^SHA-256=/', 'sha-256=', $parts['digest']) ?? $parts['digest'];
+
+        // La firma e' stata calcolata sul Digest originale SHA-256=…: aggiorna
+        // anche la stringa firmata ricostruendo la Signature con lo stesso valore
+        // inviato (come farebbe un peer che manda sha-256= minuscolo ovunque).
+        $host = parse_url(url('/'), PHP_URL_HOST);
+        $parts['signature'] = (new HttpSignatureSigner)->sign(
+            'POST',
+            $parts['path'],
+            ['host' => $host, 'date' => $parts['date'], 'digest' => $parts['digest']],
+            self::REMOTE_ACTOR_URI.'#main-key',
+            $this->remoteKeyPair->privateKey,
+            ['(request-target)', 'host', 'date', 'digest']
+        );
+
+        $this->postSigned($parts)->assertStatus(202);
+    }
 }

@@ -29,10 +29,14 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   usano l'URI ActivityPub dell'attore (es. openb.app) e non la pagina
   locale `/attori/…`: su Mastodon e simili la menzione apre l'istanza
   di destinazione. Dentro Openbook restano i link alla cache locale.
-- Firme HTTP in ingresso con `keyId` su documento CryptographicKey
-  (es. tags.pub / `…/publickey`, non solo `#main-key`): si risolve
-  l'`owner` e si carica la PEM. Sblocca Accept/follow-back da bot come
-  `@_followback@tags.pub`.
+- Firme HTTP in ingresso da tags.pub / activitypub-bot:
+  - `keyId` su documento CryptographicKey (`…/publickey`): si usa la PEM
+    gia' in cache dall'Actor (dopo il Follow) oppure si recupera il
+    documento chiave *senza* authorized fetch (i GET firmati verso
+    tags.pub spesso tornano 400);
+  - verifica anche RFC 9421 (`Signature-Input` / `Content-Digest`) oltre
+    al draft-cavage; Digest con algoritmo `sha-256` case-insensitive.
+  Sblocca Accept/follow-back da bot come `@_followback@tags.pub`.
 
 ## [0.8.11] — Deploy e aggiornamenti guidati su shared hosting
 

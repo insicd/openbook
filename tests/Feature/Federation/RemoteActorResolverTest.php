@@ -171,6 +171,36 @@ class RemoteActorResolverTest extends TestCase
         $this->assertSame($pem, $actor->key?->public_key);
         Http::assertSent(fn ($request): bool => $request->url() === $keyId);
         Http::assertSent(fn ($request): bool => $request->url() === self::ACTOR_URI);
+        // Documento chiave: GET pubblico, senza Signature (authorized fetch).
+        Http::assertSent(fn ($request): bool => $request->url() === $keyId && ! $request->hasHeader('Signature'));
+    }
+
+    public function test_resolve_by_key_id_uses_cached_owner_without_fetching_the_key_document(): void
+    {
+        $keyId = self::ACTOR_URI.'/publickey';
+        $pem = '-----BEGIN PUBLIC KEY-----cached-----END PUBLIC KEY-----';
+
+        Http::fake([
+            self::ACTOR_URI => Http::response($this->fakeActorDocument([
+                'publicKey' => [
+                    'id' => $keyId,
+                    'owner' => self::ACTOR_URI,
+                    'publicKeyPem' => $pem,
+                ],
+            ]), 200, ['Content-Type' => 'application/activity+json']),
+            $keyId => Http::response(['error' => 'should not be fetched'], 500),
+        ]);
+
+        // Simula il Follow: Actor gia' in cache con PEM dal documento Person.
+        $this->assertNotNull(app(RemoteActorResolver::class)->resolveByUri(self::ACTOR_URI));
+        Http::fake(); // nessun'altra richiesta consentita
+
+        $actor = app(RemoteActorResolver::class)->resolveByKeyId($keyId);
+
+        $this->assertNotNull($actor);
+        $this->assertSame(self::ACTOR_URI, $actor->uri);
+        $this->assertSame($pem, $actor->key?->public_key);
+        Http::assertNothingSent();
     }
 
     public function test_resolve_by_key_id_rejects_a_cryptographic_key_whose_owner_is_on_another_host(): void
