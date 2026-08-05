@@ -29,6 +29,11 @@ use League\CommonMark\MarkdownConverter;
  * Hashtag e menzioni provenienti da post remoti (anche gia' salvati come
  * `[#tag](https://remoto/…)` / `[@user](https://remoto/…)`) vengono
  * ripuntati alle pagine locali di Openbook quando possibile.
+ *
+ * Per l'HTML federato ({@see renderForFederation()}) le menzioni usano
+ * invece l'identificatore ActivityPub canonico dell'attore (URI remoto o
+ * `/users/…` locale), cosi' Mastodon e altri client aprono il profilo
+ * sull'istanza di destinazione e non sulla cache `/attori/…` di Openbook.
  */
 final class PostBodyRenderer
 {
@@ -52,6 +57,20 @@ final class PostBodyRenderer
 
     public static function render(string $body): HtmlString
     {
+        return self::renderBody($body, forFederation: false);
+    }
+
+    /**
+     * Come {@see render()}, ma gli href delle menzioni puntano agli id
+     * ActivityPub (non alle pagine HTML locali di Openbook).
+     */
+    public static function renderForFederation(string $body): HtmlString
+    {
+        return self::renderBody($body, forFederation: true);
+    }
+
+    private static function renderBody(string $body, bool $forFederation): HtmlString
+    {
         if (trim($body) === '') {
             return new HtmlString('');
         }
@@ -62,7 +81,7 @@ final class PostBodyRenderer
             return new HtmlString('');
         }
 
-        return new HtmlString(self::enhanceRenderedHtml($html));
+        return new HtmlString(self::enhanceRenderedHtml($html, $forFederation));
     }
 
     private static function converter(): MarkdownConverter
@@ -93,7 +112,7 @@ final class PostBodyRenderer
         return self::$converter = new MarkdownConverter($environment);
     }
 
-    private static function enhanceRenderedHtml(string $html): string
+    private static function enhanceRenderedHtml(string $html, bool $forFederation = false): string
     {
         $document = new DOMDocument;
         $previous = libxml_use_internal_errors(true);
@@ -113,8 +132,8 @@ final class PostBodyRenderer
         }
 
         self::stripImages($root);
-        self::processAnchors($root);
-        self::linkifyTextNodes($root);
+        self::processAnchors($root, $forFederation);
+        self::linkifyTextNodes($root, $forFederation);
 
         $result = '';
 
@@ -139,7 +158,7 @@ final class PostBodyRenderer
         }
     }
 
-    private static function processAnchors(DOMElement $root): void
+    private static function processAnchors(DOMElement $root, bool $forFederation = false): void
     {
         $xpath = new DOMXPath($root->ownerDocument);
         $anchors = [];
@@ -167,7 +186,7 @@ final class PostBodyRenderer
             }
 
             if (preg_match('/^@[a-zA-Z0-9_]{1,32}(?:@[a-zA-Z0-9.\-]+)?$/u', $label) === 1) {
-                self::replaceNode($anchor, self::createMentionElement($root->ownerDocument, $label, $href));
+                self::replaceNode($anchor, self::createMentionElement($root->ownerDocument, $label, $href, $forFederation));
 
                 continue;
             }
@@ -186,7 +205,7 @@ final class PostBodyRenderer
         }
     }
 
-    private static function linkifyTextNodes(DOMElement $root): void
+    private static function linkifyTextNodes(DOMElement $root, bool $forFederation = false): void
     {
         $xpath = new DOMXPath($root->ownerDocument);
         $textNodes = [];
@@ -198,11 +217,11 @@ final class PostBodyRenderer
         }
 
         foreach ($textNodes as $textNode) {
-            self::linkifyTextNode($textNode);
+            self::linkifyTextNode($textNode, $forFederation);
         }
     }
 
-    private static function linkifyTextNode(DOMText $textNode): void
+    private static function linkifyTextNode(DOMText $textNode, bool $forFederation = false): void
     {
         $text = $textNode->wholeText;
 
@@ -240,7 +259,7 @@ final class PostBodyRenderer
             if ($hashtag !== '') {
                 $parent->insertBefore(self::createHashtagElement($document, $hashtag), $textNode);
             } elseif ($mention !== '') {
-                $parent->insertBefore(self::createMentionElement($document, $mention), $textNode);
+                $parent->insertBefore(self::createMentionElement($document, $mention, null, $forFederation), $textNode);
             }
 
             $cursor = $offset + strlen($full);
@@ -282,11 +301,15 @@ final class PostBodyRenderer
         return $anchor;
     }
 
-    private static function createMentionElement(DOMDocument $document, string $mention, ?string $href = null): DOMElement
-    {
+    private static function createMentionElement(
+        DOMDocument $document,
+        string $mention,
+        ?string $href = null,
+        bool $forFederation = false,
+    ): DOMElement {
         $handle = substr($mention, 1);
         $displayHandle = self::federatedMentionHandle($handle, $href);
-        $profileHref = self::resolveMentionHref($handle, $href);
+        $profileHref = self::resolveMentionHref($handle, $href, $forFederation);
 
         $anchor = $document->createElement('a');
         $anchor->setAttribute('href', $profileHref);
@@ -312,9 +335,9 @@ final class PostBodyRenderer
         self::replaceNode($node, $document->createTextNode($text));
     }
 
-    private static function resolveMentionHref(string $handle, ?string $href = null): string
+    private static function resolveMentionHref(string $handle, ?string $href = null, bool $forFederation = false): string
     {
-        $cacheKey = $handle.'|'.($href ?? '');
+        $cacheKey = ($forFederation ? 'f:' : 'l:').$handle.'|'.($href ?? '');
 
         if (isset(self::$mentionHrefCache[$cacheKey])) {
             return self::$mentionHrefCache[$cacheKey];
@@ -323,13 +346,36 @@ final class PostBodyRenderer
         $actor = self::findMentionedActor($handle, $href);
 
         if ($actor !== null) {
-            return self::$mentionHrefCache[$cacheKey] = $actor->profileUrl();
+            // UI: pagina locale Openbook. Federazione: id ActivityPub
+            // (URI remoto o /users/… locale) cosi' i client remoti non
+            // aprono la cache /attori/… dell'istanza che ha pubblicato.
+            return self::$mentionHrefCache[$cacheKey] = $forFederation
+                ? $actor->activityPubId()
+                : $actor->profileUrl();
         }
 
-        // Non in cache: ricerca con handle federato completo (user@dominio),
-        // cosi' SearchController fa WebFinger e apre il profilo in Openbook.
         $searchQuery = self::federatedMentionHandle($handle, $href);
 
+        if ($forFederation) {
+            // Preferisci l'href originale del link remoto, altrimenti un
+            // profilo pubblico convenzionale sul dominio della menzione.
+            if (is_string($href) && $href !== '') {
+                $decodedHref = html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+                if (self::isSafeHref($decodedHref) && preg_match('/^https?:\/\//i', $decodedHref) === 1) {
+                    return self::$mentionHrefCache[$cacheKey] = $decodedHref;
+                }
+            }
+
+            if (str_contains($searchQuery, '@')) {
+                [$username, $domain] = explode('@', $searchQuery, 2);
+
+                return self::$mentionHrefCache[$cacheKey] = 'https://'.$domain.'/@'.$username;
+            }
+        }
+
+        // Non in cache (UI): ricerca con handle federato completo
+        // (user@dominio), cosi' SearchController fa WebFinger.
         return self::$mentionHrefCache[$cacheKey] = route('search.create', ['q' => $searchQuery]);
     }
 

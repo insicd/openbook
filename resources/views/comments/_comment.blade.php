@@ -68,24 +68,29 @@
 
         <div class="ob-post__actions">
             @auth
-                @if ($comment->liked_by_viewer)
-                    <form method="POST" action="{{ route('comments.unlike', $comment) }}">
-                        @csrf
+                <form
+                    method="POST"
+                    action="{{ $comment->liked_by_viewer ? route('comments.unlike', $comment) : route('comments.like', $comment) }}"
+                    data-like-form
+                    data-like-action="{{ route('comments.like', $comment) }}"
+                    data-unlike-action="{{ route('comments.unlike', $comment) }}"
+                    data-liked="{{ $comment->liked_by_viewer ? '1' : '0' }}"
+                    data-label-like="{{ __('openbook.actions.like', ['count' => '__COUNT__']) }}"
+                    data-label-liked="{{ __('openbook.actions.liked', ['count' => '__COUNT__']) }}"
+                >
+                    @csrf
+                    @if ($comment->liked_by_viewer)
                         @method('DELETE')
-                        <button type="submit" class="ob-post__action ob-post__action--active" aria-label="{{ __('openbook.actions.liked', ['count' => $comment->likes_count]) }}">
-                            <x-icon name="heart" />
-                            <span class="ob-post__action-count">{{ $comment->likes_count }}</span>
-                        </button>
-                    </form>
-                @else
-                    <form method="POST" action="{{ route('comments.like', $comment) }}">
-                        @csrf
-                        <button type="submit" class="ob-post__action" aria-label="{{ __('openbook.actions.like', ['count' => $comment->likes_count]) }}">
-                            <x-icon name="heart" />
-                            <span class="ob-post__action-count">{{ $comment->likes_count }}</span>
-                        </button>
-                    </form>
-                @endif
+                    @endif
+                    <button
+                        type="submit"
+                        class="ob-post__action{{ $comment->liked_by_viewer ? ' ob-post__action--active' : '' }}"
+                        aria-label="{{ $comment->liked_by_viewer ? __('openbook.actions.liked', ['count' => $comment->likes_count]) : __('openbook.actions.like', ['count' => $comment->likes_count]) }}"
+                    >
+                        <x-icon name="heart" />
+                        <span class="ob-post__action-count">{{ $comment->likes_count }}</span>
+                    </button>
+                </form>
 
                 <button
                     type="button"

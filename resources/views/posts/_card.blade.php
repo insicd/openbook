@@ -14,7 +14,7 @@
     $canOpenOriginal = $post->isRemote() && filled($post->uri);
 @endphp
 
-<article class="ob-card ob-post{{ $embed ? ' ob-post--embed' : '' }}">
+<article @if (! $embed) id="post-{{ $post->id }}" @endif class="ob-card ob-post{{ $embed ? ' ob-post--embed' : '' }}">
     @if ($sharedBy)
         <div class="ob-post__shared-by">
             <x-icon name="share" />
@@ -47,47 +47,58 @@
                 $canDeletePost = auth()->check() && auth()->user()->can('delete', $post);
                 $canReportPost = auth()->check() && auth()->user()->can('report', $post);
                 $canFetchUpdates = auth()->check() && $canOpenOriginal;
+                $postPermalink = route('posts.show', $post);
             @endphp
-            @if ($canDeletePost || $canReportPost || $canOpenOriginal)
-                <details class="ob-post__menu">
-                    <summary class="ob-icon-btn" aria-label="{{ __('openbook.posts.menu') }}">
-                        <x-icon name="more-vertical" />
-                    </summary>
-                    <div class="ob-post__menu-panel" role="menu">
-                        @if ($canOpenOriginal)
-                            <a href="{{ $post->uri }}" class="ob-post__menu-item" role="menuitem" target="_blank" rel="noopener noreferrer">
-                                <x-icon name="globe" />
-                                {{ __('openbook.posts.open_original') }}
-                            </a>
-                        @endif
-                        @if ($canFetchUpdates)
-                            <form method="POST" action="{{ route('posts.fetch_updates', $post) }}">
-                                @csrf
-                                <button type="submit" class="ob-post__menu-item" role="menuitem">
-                                    <x-icon name="refresh" />
-                                    {{ __('openbook.posts.fetch_updates') }}
-                                </button>
-                            </form>
-                        @endif
-                        @if ($canReportPost)
-                            <a href="{{ route('posts.report.create', $post) }}" class="ob-post__menu-item" role="menuitem">
-                                <x-icon name="flag" />
-                                {{ __('openbook.actions.report') }}
-                            </a>
-                        @endif
-                        @if ($canDeletePost)
-                            <form method="POST" action="{{ route('posts.destroy', $post) }}" onsubmit="return confirm('{{ __('openbook.posts.confirm_delete') }}')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="ob-post__menu-item" role="menuitem">
-                                    <x-icon name="trash" />
-                                    {{ __('openbook.actions.delete') }}
-                                </button>
-                            </form>
-                        @endif
-                    </div>
-                </details>
-            @endif
+            <details class="ob-post__menu">
+                <summary class="ob-icon-btn" aria-label="{{ __('openbook.posts.menu') }}">
+                    <x-icon name="more-vertical" />
+                </summary>
+                <div class="ob-post__menu-panel" role="menu">
+                    <button
+                        type="button"
+                        class="ob-post__menu-item"
+                        role="menuitem"
+                        data-copy-url="{{ $postPermalink }}"
+                        data-copy-label="{{ __('openbook.posts.copy_link') }}"
+                        data-copy-done="{{ __('openbook.posts.link_copied') }}"
+                        data-copy-error="{{ __('openbook.posts.copy_link_error') }}"
+                    >
+                        <x-icon name="link" />
+                        <span data-copy-text>{{ __('openbook.posts.copy_link') }}</span>
+                    </button>
+                    @if ($canOpenOriginal)
+                        <a href="{{ $post->uri }}" class="ob-post__menu-item" role="menuitem" target="_blank" rel="noopener noreferrer">
+                            <x-icon name="globe" />
+                            {{ __('openbook.posts.open_original') }}
+                        </a>
+                    @endif
+                    @if ($canFetchUpdates)
+                        <form method="POST" action="{{ route('posts.fetch_updates', $post) }}">
+                            @csrf
+                            <button type="submit" class="ob-post__menu-item" role="menuitem">
+                                <x-icon name="refresh" />
+                                {{ __('openbook.posts.fetch_updates') }}
+                            </button>
+                        </form>
+                    @endif
+                    @if ($canReportPost)
+                        <a href="{{ route('posts.report.create', $post) }}" class="ob-post__menu-item" role="menuitem">
+                            <x-icon name="flag" />
+                            {{ __('openbook.actions.report') }}
+                        </a>
+                    @endif
+                    @if ($canDeletePost)
+                        <form method="POST" action="{{ route('posts.destroy', $post) }}" onsubmit="return confirm('{{ __('openbook.posts.confirm_delete') }}')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="ob-post__menu-item" role="menuitem">
+                                <x-icon name="trash" />
+                                {{ __('openbook.actions.delete') }}
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            </details>
         @endif
     </div>
 
@@ -152,24 +163,29 @@
         @unless ($embed)
             <div class="ob-post__actions">
                 @auth
-                    @if ($post->liked_by_viewer)
-                        <form method="POST" action="{{ route('posts.unlike', $post) }}">
-                            @csrf
+                    <form
+                        method="POST"
+                        action="{{ $post->liked_by_viewer ? route('posts.unlike', $post) : route('posts.like', $post) }}"
+                        data-like-form
+                        data-like-action="{{ route('posts.like', $post) }}"
+                        data-unlike-action="{{ route('posts.unlike', $post) }}"
+                        data-liked="{{ $post->liked_by_viewer ? '1' : '0' }}"
+                        data-label-like="{{ __('openbook.actions.like', ['count' => '__COUNT__']) }}"
+                        data-label-liked="{{ __('openbook.actions.liked', ['count' => '__COUNT__']) }}"
+                    >
+                        @csrf
+                        @if ($post->liked_by_viewer)
                             @method('DELETE')
-                            <button type="submit" class="ob-post__action ob-post__action--active" aria-label="{{ __('openbook.actions.liked', ['count' => $post->likes_count]) }}">
-                                <x-icon name="heart" />
-                                <span class="ob-post__action-count">{{ $post->likes_count }}</span>
-                            </button>
-                        </form>
-                    @else
-                        <form method="POST" action="{{ route('posts.like', $post) }}">
-                            @csrf
-                            <button type="submit" class="ob-post__action" aria-label="{{ __('openbook.actions.like', ['count' => $post->likes_count]) }}">
-                                <x-icon name="heart" />
-                                <span class="ob-post__action-count">{{ $post->likes_count }}</span>
-                            </button>
-                        </form>
-                    @endif
+                        @endif
+                        <button
+                            type="submit"
+                            class="ob-post__action{{ $post->liked_by_viewer ? ' ob-post__action--active' : '' }}"
+                            aria-label="{{ $post->liked_by_viewer ? __('openbook.actions.liked', ['count' => $post->likes_count]) : __('openbook.actions.like', ['count' => $post->likes_count]) }}"
+                        >
+                            <x-icon name="heart" />
+                            <span class="ob-post__action-count">{{ $post->likes_count }}</span>
+                        </button>
+                    </form>
 
                     <a href="{{ route('posts.show', $post) }}#commenta" class="ob-post__action" aria-label="{{ __('openbook.actions.comment', ['count' => $post->comments_count]) }}">
                         <x-icon name="comment" />

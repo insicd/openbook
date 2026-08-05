@@ -215,6 +215,32 @@ class PostBodyRendererTest extends TestCase
         $this->assertStringContainsString('>@bob@social.example</a>', $html);
     }
 
+    public function test_federation_html_mentions_use_activitypub_ids_not_local_actor_pages(): void
+    {
+        $remote = $this->createRemoteActor('nuke', 'openb.app');
+
+        $html = (string) PostBodyRenderer::renderForFederation('Ciao @nuke@openb.app');
+
+        $this->assertStringContainsString(
+            'href="'.e($remote->activityPubId()).'"',
+            $html
+        );
+        $this->assertStringContainsString('>@nuke@openb.app</a>', $html);
+        $this->assertStringNotContainsString($remote->profileUrl(), $html);
+        $this->assertStringNotContainsString('/attori/', $html);
+    }
+
+    public function test_federation_html_keeps_remote_href_for_unknown_labeled_mentions(): void
+    {
+        $html = (string) PostBodyRenderer::renderForFederation(
+            'Ciao [@nova](https://mastodon.example/@nova)!'
+        );
+
+        $this->assertStringContainsString('href="https://mastodon.example/@nova"', $html);
+        $this->assertStringNotContainsString('search.create', $html);
+        $this->assertStringNotContainsString('/cerca', $html);
+    }
+
     public function test_unknown_remote_mentions_fall_back_to_search(): void
     {
         $html = (string) PostBodyRenderer::render('Saluti @sconosciuta@lontano.example');

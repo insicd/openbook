@@ -151,4 +151,54 @@ class ReactionTest extends TestCase
         $this->post(route('posts.like', $post))->assertRedirect(route('login'));
         $this->post(route('posts.announce', $post))->assertRedirect(route('login'));
     }
+
+    public function test_liking_a_post_via_json_returns_updated_state_without_redirect(): void
+    {
+        $author = $this->createFullAccount('jsonlikeauthor');
+        $liker = $this->createFullAccount('jsonliker');
+        $post = $this->publishPost($author);
+
+        $response = $this->actingAs($liker)->postJson(route('posts.like', $post));
+
+        $response->assertOk();
+        $response->assertJson([
+            'liked' => true,
+            'likes_count' => 1,
+        ]);
+        $this->assertSame(1, $post->fresh()->likes_count);
+
+        $unlike = $this->actingAs($liker)->deleteJson(route('posts.unlike', $post));
+        $unlike->assertOk();
+        $unlike->assertJson([
+            'liked' => false,
+            'likes_count' => 0,
+        ]);
+    }
+
+    public function test_html_like_redirects_back_to_the_post_fragment(): void
+    {
+        $author = $this->createFullAccount('htmllikeauthor');
+        $liker = $this->createFullAccount('htmlliker');
+        $post = $this->publishPost($author);
+
+        $response = $this->actingAs($liker)
+            ->from(route('feed.index'))
+            ->post(route('posts.like', $post));
+
+        $response->assertRedirect();
+        $this->assertStringContainsString('#post-'.$post->id, $response->headers->get('Location'));
+    }
+
+    public function test_post_cards_expose_an_anchor_and_ajax_like_markup(): void
+    {
+        $author = $this->createFullAccount('anchorlike');
+        $post = $this->publishPost($author);
+
+        $this->actingAs($author)
+            ->get(route('feed.index'))
+            ->assertOk()
+            ->assertSee('id="post-'.$post->id.'"', false)
+            ->assertSee('data-like-form', false)
+            ->assertSee('data-like-action="'.route('posts.like', $post).'"', false);
+    }
 }

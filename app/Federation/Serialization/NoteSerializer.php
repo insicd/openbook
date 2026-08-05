@@ -215,8 +215,8 @@ final class NoteSerializer
 
     private static function renderContent(string $body, ?string $title): string
     {
-        // PostBodyRenderer produce gia' blocchi HTML (paragrafi, liste, …).
-        $html = (string) PostBodyRenderer::render($body);
+        // HTML federato: menzioni con id ActivityPub (non /attori/… locali).
+        $html = (string) PostBodyRenderer::renderForFederation($body);
 
         if ($html === '') {
             $html = '<p></p>';

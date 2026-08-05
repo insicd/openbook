@@ -60,6 +60,28 @@ class PostCardActionsTest extends TestCase
         $response->assertDontSee(__('openbook.posts.open_original'), false);
     }
 
+    public function test_the_overflow_menu_offers_copy_link_for_guests_and_authors(): void
+    {
+        $author = $this->createFullAccount('copylink');
+        $post = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Post da condividere con un link.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        $permalink = route('posts.show', $post);
+
+        $this->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertSee('data-copy-url="'.$permalink.'"', false)
+            ->assertSee(__('openbook.posts.copy_link'), false);
+
+        $this->actingAs($author)
+            ->get(route('feed.index'))
+            ->assertOk()
+            ->assertSee('data-copy-url="'.$permalink.'"', false)
+            ->assertSee(__('openbook.posts.copy_link'), false);
+    }
+
     public function test_action_buttons_are_icon_only_without_word_labels(): void
     {
         $author = $this->createFullAccount('iconeazioni');

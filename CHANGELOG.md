@@ -18,6 +18,17 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   composer della home (layout e opzioni identici); alla pubblicazione si
   va al dettaglio del post. In home resta lo scroll/focus sul composer
   inline.
+- Voce **Copia link** nel menu di ogni post: copia l'URL locale del post
+  negli appunti.
+
+### Fixed
+- Like/unlike su post e commenti via Ajax: niente piu' ricarica della
+  timeline che riporta in cima. Senza JS resta il redirect con anchor
+  (`#post-…` / `#commento-…`).
+- Nelle Note ActivityPub in uscita, i link HTML delle menzioni remote
+  usano l'URI ActivityPub dell'attore (es. openb.app) e non la pagina
+  locale `/attori/…`: su Mastodon e simili la menzione apre l'istanza
+  di destinazione. Dentro Openbook restano i link alla cache locale.
 
 ## [0.8.11] — Deploy e aggiornamenti guidati su shared hosting
 
