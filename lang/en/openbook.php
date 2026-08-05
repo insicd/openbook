@@ -28,6 +28,8 @@ return [
         'search' => 'Search',
         'settings' => 'Settings',
         'new_post' => 'New post',
+        'new_post_dialog' => 'Write a new post',
+        'new_post_close' => 'Close',
         'admin' => 'Control panel',
         'login' => 'Log in',
         'register' => 'Sign up',

@@ -49,7 +49,12 @@
     $visibilityFilled = $isPost && old('visibility', $defaultVisibility) !== 'public';
     $communityFilled = $isPost && filled($selectedCommunityId);
 
-    $cardClass = 'ob-card ob-composer'.($isPost && $quotedPost ? ' ob-composer--quoting' : '').($isReply ? ' ob-composer--reply' : '').($mode === 'comment' ? ' ob-composer--comment' : '');
+    $inModal = (bool) ($inModal ?? false);
+    $composerUi = $composerUi ?? null;
+    $cardClass = ($inModal ? 'ob-composer ob-composer--in-modal' : 'ob-card ob-composer')
+        .($isPost && $quotedPost ? ' ob-composer--quoting' : '')
+        .($isReply ? ' ob-composer--reply' : '')
+        .($mode === 'comment' ? ' ob-composer--comment' : '');
 @endphp
 
 <div
@@ -61,6 +66,10 @@
 >
     <form method="POST" action="{{ $action }}" enctype="multipart/form-data">
         @csrf
+
+        @if (filled($composerUi))
+            <input type="hidden" name="composer_ui" value="{{ $composerUi }}">
+        @endif
 
         @if ($parentCommentId)
             <input type="hidden" name="parent_comment_id" value="{{ $parentCommentId }}">

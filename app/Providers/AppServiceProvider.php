@@ -99,10 +99,14 @@ class AppServiceProvider extends ServiceProvider
                 $view->with([
                     'unreadNotificationsCount' => 0,
                     'headerNotifications' => collect(),
+                    'modalComposerCommunities' => collect(),
+                    'isHomeFeed' => false,
                 ]);
 
                 return;
             }
+
+            $actorId = auth()->user()->actor?->id;
 
             $view->with([
                 'unreadNotificationsCount' => Notification::query()
@@ -117,6 +121,18 @@ class AppServiceProvider extends ServiceProvider
                     ->orderByDesc('created_at')
                     ->limit(8)
                     ->get(),
+                // Community iscrivibili nel composer del dialog "+".
+                'modalComposerCommunities' => $actorId === null
+                    ? collect()
+                    : Community::query()
+                        ->with('actor')
+                        ->whereIn('actor_id', Follow::query()
+                            ->select('following_id')
+                            ->where('follower_id', $actorId)
+                            ->where('status', Follow::STATUS_ACCEPTED))
+                        ->orderBy('slug')
+                        ->get(),
+                'isHomeFeed' => request()->routeIs('feed.index'),
             ]);
         });
 

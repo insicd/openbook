@@ -28,6 +28,8 @@ return [
         'search' => 'Cerca',
         'settings' => 'Impostazioni',
         'new_post' => 'Nuovo post',
+        'new_post_dialog' => 'Scrivi un nuovo post',
+        'new_post_close' => 'Chiudi',
         'admin' => 'Pannello',
         'login' => 'Accedi',
         'register' => 'Registrati',

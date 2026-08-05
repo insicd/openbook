@@ -28,12 +28,20 @@
                 <div class="ob-header__center">
                     <a
                         href="{{ route('feed.index') }}#ob-composer"
-                        class="ob-compose-btn ob-compose-btn--header"
+                        class="ob-compose-btn ob-compose-btn--header{{ ($isHomeFeed ?? false) ? '' : ' is-visible' }}"
                         id="ob-compose-header"
+                        data-compose-trigger
+                        data-compose-home="{{ ($isHomeFeed ?? false) ? '1' : '0' }}"
                         aria-label="{{ __('openbook.nav.new_post') }}"
                         title="{{ __('openbook.nav.new_post') }}"
-                        aria-hidden="true"
-                        tabindex="-1"
+                        aria-haspopup="dialog"
+                        aria-controls="ob-compose-modal"
+                        @if ($isHomeFeed ?? false)
+                            aria-hidden="true"
+                            tabindex="-1"
+                        @else
+                            aria-hidden="false"
+                        @endif
                     >
                         <x-icon name="plus" />
                     </a>
@@ -158,15 +166,25 @@
 
         <a
             href="{{ route('feed.index') }}#ob-composer"
-            class="ob-compose-btn ob-compose-btn--fab"
+            class="ob-compose-btn ob-compose-btn--fab{{ ($isHomeFeed ?? false) ? '' : ' is-visible' }}"
             id="ob-compose-fab"
+            data-compose-trigger
+            data-compose-home="{{ ($isHomeFeed ?? false) ? '1' : '0' }}"
             aria-label="{{ __('openbook.nav.new_post') }}"
             title="{{ __('openbook.nav.new_post') }}"
-            aria-hidden="true"
-            tabindex="-1"
+            aria-haspopup="dialog"
+            aria-controls="ob-compose-modal"
+            @if ($isHomeFeed ?? false)
+                aria-hidden="true"
+                tabindex="-1"
+            @else
+                aria-hidden="false"
+            @endif
         >
             <x-icon name="plus" />
         </a>
+
+        @include('partials.compose-modal')
 
         <div class="ob-sidebar-overlay" id="ob-sidebar-overlay" hidden></div>
         <script>

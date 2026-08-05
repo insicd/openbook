@@ -11,6 +11,14 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.8.12] — Composer rapido dalla navbar
+
+### Added
+- Pulsante + in header/FAB: fuori dalla home apre un dialog con lo stesso
+  composer della home (layout e opzioni identici); alla pubblicazione si
+  va al dettaglio del post. In home resta lo scroll/focus sul composer
+  inline.
+
 ## [0.8.11] — Deploy e aggiornamenti guidati su shared hosting
 
 ### Added
