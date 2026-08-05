@@ -129,4 +129,66 @@ class RemoteActorResolverTest extends TestCase
 
         $this->assertNull($actor);
     }
+
+    public function test_resolve_by_key_id_with_fragment_uses_the_actor_uri(): void
+    {
+        Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument(), 200, ['Content-Type' => 'application/activity+json'])]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByKeyId(self::ACTOR_URI.'#main-key');
+
+        $this->assertNotNull($actor);
+        $this->assertSame(self::ACTOR_URI, $actor->uri);
+        Http::assertSentCount(1);
+    }
+
+    public function test_resolve_by_key_id_follows_a_cryptographic_key_document_to_its_owner(): void
+    {
+        // Come tags.pub / activitypub-bot: keyId e' un URL di CryptographicKey,
+        // non l'URI Actor con frammento #main-key.
+        $keyId = self::ACTOR_URI.'/publickey';
+        $pem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtest\n-----END PUBLIC KEY-----\n";
+
+        Http::fake([
+            $keyId => Http::response([
+                'id' => $keyId,
+                'type' => 'CryptographicKey',
+                'owner' => self::ACTOR_URI,
+                'publicKeyPem' => $pem,
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            self::ACTOR_URI => Http::response($this->fakeActorDocument([
+                'publicKey' => [
+                    'id' => $keyId,
+                    'owner' => self::ACTOR_URI,
+                    'publicKeyPem' => $pem,
+                ],
+            ]), 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByKeyId($keyId);
+
+        $this->assertNotNull($actor);
+        $this->assertSame(self::ACTOR_URI, $actor->uri);
+        $this->assertSame($pem, $actor->key?->public_key);
+        Http::assertSent(fn ($request): bool => $request->url() === $keyId);
+        Http::assertSent(fn ($request): bool => $request->url() === self::ACTOR_URI);
+    }
+
+    public function test_resolve_by_key_id_rejects_a_cryptographic_key_whose_owner_is_on_another_host(): void
+    {
+        $keyId = self::ACTOR_URI.'/publickey';
+
+        Http::fake([
+            $keyId => Http::response([
+                'id' => $keyId,
+                'type' => 'CryptographicKey',
+                'owner' => 'https://altro.example/users/impostore',
+                'publicKeyPem' => '-----BEGIN PUBLIC KEY-----x-----END PUBLIC KEY-----',
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByKeyId($keyId);
+
+        $this->assertNull($actor);
+        $this->assertDatabaseCount('actors', 0);
+    }
 }

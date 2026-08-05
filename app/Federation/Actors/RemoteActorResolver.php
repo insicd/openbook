@@ -29,11 +29,144 @@ final class RemoteActorResolver
     ) {}
 
     /**
-     * @param  string  $keyId  es. "https://remoto.example/users/alice#main-key"
+     * Risolve l'Actor firmatario a partire dal keyId della Signature HTTP.
+     *
+     * Formati supportati:
+     * - Mastodon / tipico: {@code https://host/users/alice#main-key}
+     *   (frammento → URI Actor)
+     * - tags.pub / activitypub-bot: {@code https://host/user/alice/publickey}
+     *   (documento {@code CryptographicKey} con {@code owner} + {@code publicKeyPem})
+     *
+     * @param  string  $keyId
      */
     public function resolveByKeyId(string $keyId): ?Actor
     {
-        return $this->resolveByUri(explode('#', $keyId, 2)[0]);
+        if ($this->domainBlocks->isBlockedUrl($keyId)) {
+            return null;
+        }
+
+        $withoutFragment = explode('#', $keyId, 2)[0];
+
+        // keyId con frammento: e' l'URI Actor (caso Mastodon).
+        if ($withoutFragment !== $keyId) {
+            return $this->resolveByUri($withoutFragment);
+        }
+
+        // keyId senza frammento: puo' essere un CryptographicKey a se'
+        // stante (tags.pub) oppure, in casi rari, l'URI Actor stesso.
+        $fromKeyDocument = $this->resolveFromKeyDocumentUrl($keyId);
+
+        if ($fromKeyDocument !== null) {
+            return $fromKeyDocument;
+        }
+
+        return $this->resolveByUri($keyId);
+    }
+
+    /**
+     * Recupera un documento all'URL del keyId: se e' un CryptographicKey,
+     * risolve l'Actor "owner" e aggiorna la chiave pubblica in cache.
+     */
+    private function resolveFromKeyDocumentUrl(string $keyId): ?Actor
+    {
+        try {
+            $response = $this->httpClient->get($keyId, [
+                'Accept' => 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"',
+            ], $this->fetchSigner->resolve());
+        } catch (SsrfViolationException $exception) {
+            Log::channel('single')->info('federation.key_fetch_blocked', [
+                'key_id' => $keyId,
+                'reason' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $document = $response->json();
+
+        if (! is_array($document)) {
+            return null;
+        }
+
+        if ($this->isCryptographicKeyDocument($document, $keyId)) {
+            return $this->resolveActorFromCryptographicKey($document, $keyId);
+        }
+
+        // Alcuni server rispondono all'URL della chiave con l'Actor che la
+        // incorpora (publicKey.id == keyId).
+        if ($this->isValidActorDocument($document, (string) ($document['id'] ?? ''))
+            && is_string($document['publicKey']['id'] ?? null)
+            && $document['publicKey']['id'] === $keyId
+        ) {
+            return $this->applyRemoteDocument($document, (string) $document['id']);
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     */
+    private function isCryptographicKeyDocument(array $document, string $keyId): bool
+    {
+        $id = $document['id'] ?? null;
+        $owner = $document['owner'] ?? null;
+        $pem = $document['publicKeyPem'] ?? null;
+        $type = $document['type'] ?? null;
+
+        if (! is_string($id) || $id !== $keyId) {
+            return false;
+        }
+
+        if (! is_string($owner) || $owner === '' || ! is_string($pem) || $pem === '') {
+            return false;
+        }
+
+        // type assente o CryptographicKey (activitypub-bot / W3C security vocabulary).
+        if ($type !== null && $type !== 'CryptographicKey') {
+            return false;
+        }
+
+        $keyHost = parse_url($keyId, PHP_URL_HOST);
+        $ownerHost = parse_url($owner, PHP_URL_HOST);
+
+        if (! is_string($keyHost) || ! is_string($ownerHost) || strcasecmp($keyHost, $ownerHost) !== 0) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     */
+    private function resolveActorFromCryptographicKey(array $document, string $keyId): ?Actor
+    {
+        $owner = (string) $document['owner'];
+        $pem = (string) $document['publicKeyPem'];
+
+        $actor = $this->resolveByUri($owner);
+
+        if ($actor === null) {
+            return null;
+        }
+
+        ActorKey::query()->updateOrCreate(
+            ['actor_id' => $actor->id],
+            ['public_key' => $pem]
+        );
+
+        Log::channel('single')->debug('federation.key_resolved_from_cryptographic_key', [
+            'key_id' => $keyId,
+            'owner' => $owner,
+            'actor_id' => $actor->id,
+        ]);
+
+        return $actor->fresh(['key', 'endpoints']);
     }
 
     /**
