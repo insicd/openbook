@@ -33,7 +33,86 @@ final class RemoteActorResolver
      */
     public function resolveByKeyId(string $keyId): ?Actor
     {
-        return $this->resolveByUri(explode('#', $keyId, 2)[0]);
+        $actorUri = explode('#', $keyId, 2)[0];
+        $actor = $this->resolveByUri($actorUri);
+
+        if ($actor !== null || str_contains($keyId, '#')) {
+            return $actor;
+        }
+
+        return $this->resolveByStandaloneKeyDocument($keyId);
+    }
+
+    /**
+     * Risolve un keyId che punta a una risorsa CryptographicKey autonoma,
+     * anziche' all'Actor con un fragment "#main-key". Il documento della
+     * chiave viene usato solo per individuare l'owner: la chiave PEM deve
+     * comunque coincidere con quella pubblicata dal documento Actor.
+     */
+    private function resolveByStandaloneKeyDocument(string $keyId): ?Actor
+    {
+        if ($this->domainBlocks->isBlockedUrl($keyId)) {
+            return null;
+        }
+
+        try {
+            $response = $this->httpClient->get($keyId, [
+                'Accept' => 'application/activity+json',
+            ], $this->fetchSigner->resolve());
+        } catch (SsrfViolationException) {
+            return null;
+        }
+
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $document = $response->json();
+
+        if (! $this->isValidStandaloneKeyDocument($document, $keyId)) {
+            return null;
+        }
+
+        $ownerUri = (string) $document['owner'];
+        $actor = $this->resolveByUri($ownerUri);
+
+        if ($actor === null || $actor->key === null) {
+            return null;
+        }
+
+        if (! hash_equals((string) $document['publicKeyPem'], (string) $actor->key->public_key)) {
+            return null;
+        }
+
+        return $actor;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $document
+     */
+    private function isValidStandaloneKeyDocument(?array $document, string $expectedKeyId): bool
+    {
+        if ($document === null
+            || ! isset($document['id'], $document['type'], $document['owner'], $document['publicKeyPem'])
+            || ! is_string($document['id'])
+            || ! is_string($document['owner'])
+            || ! is_string($document['publicKeyPem'])) {
+            return false;
+        }
+
+        if ($document['id'] !== $expectedKeyId
+            || $document['type'] !== 'CryptographicKey'
+            || $document['owner'] === ''
+            || $document['publicKeyPem'] === '') {
+            return false;
+        }
+
+        $keyHost = parse_url($expectedKeyId, PHP_URL_HOST);
+        $ownerHost = parse_url($document['owner'], PHP_URL_HOST);
+
+        return is_string($keyHost)
+            && is_string($ownerHost)
+            && strcasecmp($keyHost, $ownerHost) === 0;
     }
 
     /**
