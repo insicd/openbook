@@ -927,9 +927,11 @@ attivita' in uscita avvengono solo quando qualcuno esegue periodicamente il coma
 `openbook:cron`, che a sua volta invoca in sequenza:
 
 - `openbook:process-inbox` — processa la coda `inbox` (`InboxActivityProcessor`);
-- `openbook:deliver` — processa la coda `delivery` (`DeliverActivityJob`).
+- `openbook:deliver` — processa la coda `delivery` (`DeliverActivityJob`);
+- `openbook:confirm-outgoing-follows` — conferma Follow remoti ancora pending
+  se risultiamo gia' nella collection `followers` del target (Accept mancante).
 
-Entrambi i sotto-comandi girano con `queue:work --stop-when-empty`, cosi' terminano da
+I primi due sotto-comandi girano con `queue:work --stop-when-empty`, cosi' terminano da
 soli invece di restare in ascolto indefinitamente: adatto a un cron classico, mai a un
 supervisore di processi permanenti.
 

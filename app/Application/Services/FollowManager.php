@@ -21,6 +21,10 @@ use InvalidArgumentException;
  * specifica ActivityPub, indipendentemente dal flag "manuallyApprovesFollowers"
  * dichiarato dall'attore remoto (che resta solo informativo).
  *
+ * Se l'Accept non arriva ma il remoto ci elenca gia' nei suoi followers
+ * (es. tags.pub), {@see markOutgoingAccepted()} completa la relazione in
+ * locale senza inviare un Accept in uscita.
+ *
  * Per i Group locali (community) aggiorna anche members_count e notifica il
  * proprietario della community.
  */
@@ -150,6 +154,43 @@ final class FollowManager
         }
 
         return $follow;
+    }
+
+    /**
+     * Completa un Follow *in uscita* (follower locale → target remoto) quando
+     * il remoto ha gia' accettato di fatto ma l'Accept non e' stato ricevuto.
+     * Non consegna attivita' verso il remoto.
+     */
+    public function markOutgoingAccepted(Follow $follow): Follow
+    {
+        $follow->loadMissing(['follower', 'following']);
+
+        if ($follow->status === Follow::STATUS_ACCEPTED) {
+            return $follow;
+        }
+
+        if ($follow->status !== Follow::STATUS_PENDING
+            || $follow->follower === null
+            || $follow->following === null
+            || ! $follow->follower->isLocal()
+            || $follow->following->isLocal()
+        ) {
+            throw new InvalidArgumentException('Solo un Follow pending in uscita puo\' essere confermato cosi\'.');
+        }
+
+        $follow->update([
+            'status' => Follow::STATUS_ACCEPTED,
+            'accepted_at' => now(),
+        ]);
+
+        $this->notificationCreator->notify(
+            $follow->follower,
+            Notification::TYPE_FOLLOW_ACCEPTED,
+            $follow->following,
+            $follow,
+        );
+
+        return $follow->refresh();
     }
 
     public function reject(Actor $target, Actor $follower): void

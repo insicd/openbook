@@ -40,6 +40,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   - Log `federation.delivery_queued` / `delivery_ok` / `delivery_rejected` /
     `delivery_skipped` per diagnosticare Follow in uscita; se l'Actor remoto
     non ha inbox in cache si ritenta un refresh prima di abbandonare.
+  - Follow remoti bloccati in pending senza Accept (tags.pub / activitypub-bot
+    aggiunge ai followers ma non consegna l'Accept): dopo un Follow 2xx si
+    verifica la collection `followers` remota e si conferma in locale
+    (`openbook:confirm-outgoing-follows` nel cron).
   Sblocca Accept/follow-back da bot come `@_followback@tags.pub`.
 
 ## [0.8.11] — Deploy e aggiornamenti guidati su shared hosting

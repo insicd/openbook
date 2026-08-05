@@ -110,6 +110,33 @@ final class DeliverActivityJob implements ShouldQueue
             'activity_id' => $this->activity['id'] ?? null,
             'http_status' => $response->status,
         ]);
+
+        $this->scheduleOutgoingFollowConfirmation();
+    }
+
+    /**
+     * tags.pub e altri bot possono accettare il Follow senza consegnare
+     * l'Accept: dopo un 2xx si verifica la collection followers.
+     */
+    private function scheduleOutgoingFollowConfirmation(): void
+    {
+        if (($this->activity['type'] ?? null) !== 'Follow') {
+            return;
+        }
+
+        $activityId = $this->activity['id'] ?? null;
+
+        if (! is_string($activityId) || $activityId === '') {
+            return;
+        }
+
+        // id = …/activities/follows/{uuid}
+        if (preg_match('#/activities/follows/([0-9a-fA-F-]{36})\s*$#', $activityId, $matches) !== 1) {
+            return;
+        }
+
+        ConfirmOutgoingFollowJob::dispatch($matches[1])
+            ->delay(now()->addSeconds(15));
     }
 
     public function failed(?Throwable $exception): void
