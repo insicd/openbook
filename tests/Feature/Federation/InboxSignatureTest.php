@@ -281,8 +281,27 @@ class InboxSignatureTest extends TestCase
 
     public function test_an_rfc_9421_signature_is_accepted(): void
     {
-        $target = $this->createFullAccount('rfc9421');
-        $path = '/users/rfc9421/inbox';
+        $this->assertRfc9421Accepted(
+            username: 'rfc9421',
+            withAlg: true,
+            spaceAfterSemicolon: false,
+        );
+    }
+
+    public function test_a_mastodon_style_rfc_9421_signature_without_alg_is_accepted(): void
+    {
+        // Mastodon 4.5+: Signature-Input senza alg, spesso con `; created=`.
+        $this->assertRfc9421Accepted(
+            username: 'masto9421',
+            withAlg: false,
+            spaceAfterSemicolon: true,
+        );
+    }
+
+    private function assertRfc9421Accepted(string $username, bool $withAlg, bool $spaceAfterSemicolon): void
+    {
+        $target = $this->createFullAccount($username);
+        $path = '/users/'.$username.'/inbox';
         $fullUrl = url($path);
         $activity = [
             '@context' => 'https://www.w3.org/ns/activitystreams',
@@ -299,27 +318,20 @@ class InboxSignatureTest extends TestCase
         $keyId = self::REMOTE_ACTOR_URI.'#main-key';
         $created = time();
 
-        $components = ['@method', '@target-uri', 'host', 'date', 'content-type', 'content-digest'];
+        $components = ['@method', '@target-uri', 'content-digest'];
         $componentList = implode(' ', array_map(static fn (string $c): string => '"'.$c.'"', $components));
-        $attrStr = "({$componentList});keyid=\"{$keyId}\";alg=\"rsa-v1_5-sha256\";created={$created}";
-
-        $headerValues = [
-            'host' => $host,
-            'date' => $date,
-            'content-type' => $contentType,
-            'content-digest' => $contentDigest,
-        ];
-
-        $pairs = [];
-        foreach ($components as $component) {
-            $value = match ($component) {
-                '@method' => 'POST',
-                '@target-uri' => $fullUrl,
-                default => $headerValues[$component],
-            };
-            $pairs[] = '"'.$component.'": '.$value;
+        $sep = $spaceAfterSemicolon ? '; ' : ';';
+        $attrStr = "({$componentList}){$sep}created={$created}{$sep}keyid=\"{$keyId}\"";
+        if ($withAlg) {
+            $attrStr .= $sep.'alg="rsa-v1_5-sha256"';
         }
-        $pairs[] = '"@signature-params": '.$attrStr;
+
+        $pairs = [
+            '"@method": POST',
+            '"@target-uri": '.$fullUrl,
+            '"content-digest": '.$contentDigest,
+            '"@signature-params": '.$attrStr,
+        ];
         $signingString = implode("\n", $pairs);
 
         $ok = openssl_sign($signingString, $signatureBinary, $this->remoteKeyPair->privateKey, OPENSSL_ALGO_SHA256);

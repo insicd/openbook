@@ -91,10 +91,25 @@ final class DeliverActivityJob implements ShouldQueue
         }
 
         if (! $response->successful()) {
+            Log::channel('single')->info('federation.delivery_rejected', [
+                'inbox' => $this->inboxUrl,
+                'activity_type' => $this->activity['type'] ?? null,
+                'activity_id' => $this->activity['id'] ?? null,
+                'http_status' => $response->status,
+                'body' => mb_substr($response->body, 0, 500),
+            ]);
+
             throw new RuntimeException(
                 "Consegna a {$this->inboxUrl} fallita con HTTP {$response->status}."
             );
         }
+
+        Log::channel('single')->info('federation.delivery_ok', [
+            'inbox' => $this->inboxUrl,
+            'activity_type' => $this->activity['type'] ?? null,
+            'activity_id' => $this->activity['id'] ?? null,
+            'http_status' => $response->status,
+        ]);
     }
 
     public function failed(?Throwable $exception): void

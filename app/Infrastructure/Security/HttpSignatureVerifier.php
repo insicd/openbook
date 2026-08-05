@@ -30,8 +30,27 @@ final class HttpSignatureVerifier
         $signatureHeader = $request->header('Signature');
         $signatureInput = $request->header('Signature-Input');
 
+        // Double-knock inverso: prova RFC 9421, poi draft-cavage (Mastodon e
+        // tags.pub possono mandare Signature-Input non nel sottoinsieme che
+        // supportiamo, oppure entrambi gli header nello stesso tentativo).
         if (filled($signatureInput) && filled($signatureHeader) && $this->isRfc9421SignatureHeader($signatureHeader)) {
-            return $this->verifyRfc9421($request, $signatureInput, $signatureHeader);
+            $rfc9421 = $this->verifyRfc9421($request, $signatureInput, $signatureHeader);
+
+            if ($rfc9421->valid) {
+                return $rfc9421;
+            }
+
+            $cavage = $this->verifyCavage($request, $signatureHeader);
+
+            if ($cavage->valid) {
+                return $cavage;
+            }
+
+            // Preferisci l'errore Cavage se la Signature e' in quel formato,
+            // altrimenti quello RFC 9421 (diagnostica nei log).
+            return $this->parseCavageSignatureHeader($signatureHeader) !== null
+                ? $cavage
+                : $rfc9421;
         }
 
         return $this->verifyCavage($request, $signatureHeader);
@@ -282,7 +301,8 @@ final class HttpSignatureVerifier
 
             $values = ['name' => $name, 'params' => $params, 'attrStr' => $attrStr];
 
-            if (preg_match_all('/;(\w+)=("(?:[^"\\\\]|\\\\.)*"|\\d+)/', $paramSuffix, $paramMatches, PREG_SET_ORDER) > 0) {
+            // Mastodon lascia spesso uno spazio dopo `;` (`; created=…`).
+            if (preg_match_all('/;\s*(\w+)=("(?:[^"\\\\]|\\\\.)*"|\\d+)/', $paramSuffix, $paramMatches, PREG_SET_ORDER) > 0) {
                 foreach ($paramMatches as $paramMatch) {
                     $key = $paramMatch[1];
                     $raw = $paramMatch[2];
@@ -290,28 +310,31 @@ final class HttpSignatureVerifier
                 }
             }
 
+            // Mastodon omette `alg` (implicito rsa-v1_5-sha256); activitypub-bot lo include.
+            if (! isset($values['alg'])) {
+                $values['alg'] = 'rsa-v1_5-sha256';
+            }
+
             $inputs[] = $values;
         }
 
-        foreach (['rsa-v1_5-sha256'] as $alg) {
-            foreach ($inputs as $input) {
-                if (($input['alg'] ?? null) !== $alg) {
-                    continue;
-                }
-
-                if (! in_array('@method', $input['params'], true)) {
-                    continue;
-                }
-
-                if (! in_array('@target-uri', $input['params'], true)
-                    && ! (in_array('@scheme', $input['params'], true)
-                        && in_array('@authority', $input['params'], true)
-                        && in_array('@path', $input['params'], true))) {
-                    continue;
-                }
-
-                return $input;
+        foreach ($inputs as $input) {
+            if (($input['alg'] ?? null) !== 'rsa-v1_5-sha256') {
+                continue;
             }
+
+            if (! in_array('@method', $input['params'], true)) {
+                continue;
+            }
+
+            if (! in_array('@target-uri', $input['params'], true)
+                && ! (in_array('@scheme', $input['params'], true)
+                    && in_array('@authority', $input['params'], true)
+                    && in_array('@path', $input['params'], true))) {
+                continue;
+            }
+
+            return $input;
         }
 
         return null;
