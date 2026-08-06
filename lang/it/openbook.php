@@ -464,6 +464,8 @@ return [
             'site_name' => 'Nome dell istanza',
             'registration_open' => 'Registrazioni aperte',
             'registration_help' => 'Se disattivato, la pagina di registrazione risponde 403 e NodeInfo segnala openRegistrations=false.',
+            'show_home_staff' => 'Mostra amministrazione sulla home',
+            'show_home_staff_help' => 'Se attivo, i visitatori non autenticati vedono sulla home l elenco di amministratori e moderatori dell istanza.',
             'instance_rules' => 'Regole dell istanza (Markdown)',
             'instance_rules_help' => 'Testo pubblico mostrato su /regole. Supporta Markdown di base.',
             'privacy_policy' => 'Privacy policy (Markdown)',

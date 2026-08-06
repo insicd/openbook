@@ -464,6 +464,8 @@ return [
             'site_name' => 'Instance name',
             'registration_open' => 'Open registrations',
             'registration_help' => 'When off, the registration page returns 403 and NodeInfo reports openRegistrations=false.',
+            'show_home_staff' => 'Show staff on the home page',
+            'show_home_staff_help' => 'When on, guests see administrators and moderators of this instance on the public home page.',
             'instance_rules' => 'Instance rules (Markdown)',
             'instance_rules_help' => 'Public text shown at /regole. Supports basic Markdown.',
             'privacy_policy' => 'Privacy policy (Markdown)',

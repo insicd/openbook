@@ -29,6 +29,8 @@ final class InstanceSettings
 
     public const KEY_MEDIA_MAX_ATTACHMENTS = 'media_max_attachments';
 
+    public const KEY_SHOW_HOME_STAFF = 'show_home_staff';
+
     public function __construct(
         private readonly EnvironmentFileWriter $envWriter,
         private readonly AuditLogger $auditLogger,
@@ -106,9 +108,25 @@ final class InstanceSettings
     }
 
     /**
+     * Blocco "Amministrazione" sulla home guest (elenco admin/moderatori).
+     * Default true: comportamento storico se la chiave non e' ancora in DB.
+     */
+    public function showHomeStaff(): bool
+    {
+        $stored = SystemSetting::get(self::KEY_SHOW_HOME_STAFF);
+
+        if ($stored === null) {
+            return true;
+        }
+
+        return filter_var($stored, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
      * @param  array{
      *     site_name: string,
      *     registration_open: bool,
+     *     show_home_staff: bool,
      *     instance_rules?: string,
      *     privacy_policy?: string,
      *     post_max_length: int,
@@ -121,6 +139,7 @@ final class InstanceSettings
     {
         $siteName = trim($data['site_name']);
         $registrationOpen = (bool) $data['registration_open'];
+        $showHomeStaff = (bool) $data['show_home_staff'];
         $rules = (string) ($data['instance_rules'] ?? '');
         $privacyPolicy = (string) ($data['privacy_policy'] ?? '');
         $postMax = (int) $data['post_max_length'];
@@ -130,6 +149,7 @@ final class InstanceSettings
 
         SystemSetting::put(self::KEY_SITE_NAME, $siteName);
         SystemSetting::putBool(self::KEY_REGISTRATION_OPEN, $registrationOpen);
+        SystemSetting::putBool(self::KEY_SHOW_HOME_STAFF, $showHomeStaff);
         SystemSetting::put(self::KEY_INSTANCE_RULES, $rules);
         SystemSetting::put(self::KEY_PRIVACY_POLICY, $privacyPolicy);
         SystemSetting::put(self::KEY_POST_MAX_LENGTH, (string) $postMax);
@@ -159,6 +179,7 @@ final class InstanceSettings
             $this->auditLogger->log($actor, 'settings.update', null, [
                 'site_name' => $siteName,
                 'registration_open' => $registrationOpen,
+                'show_home_staff' => $showHomeStaff,
             ]);
         }
     }

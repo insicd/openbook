@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Application\Services\InstanceSettings;
 use App\Domain\Accounts\User;
+use App\Infrastructure\Database\SystemSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
@@ -49,5 +51,19 @@ class HomeInstanceStaffTest extends TestCase
 
         $response->assertOk();
         $response->assertDontSee(__('openbook.home.staff_title'), false);
+    }
+
+    public function test_guest_home_hides_staff_section_when_disabled_in_settings(): void
+    {
+        $admin = $this->createFullAccount('alice');
+        $admin->forceFill(['is_admin' => true])->save();
+
+        SystemSetting::putBool(InstanceSettings::KEY_SHOW_HOME_STAFF, false);
+
+        $response = $this->get(route('home'));
+
+        $response->assertOk();
+        $response->assertDontSee(__('openbook.home.staff_title'), false);
+        $response->assertDontSee('@alice', false);
     }
 }

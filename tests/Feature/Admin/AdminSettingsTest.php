@@ -21,6 +21,7 @@ class AdminSettingsTest extends TestCase
         return array_merge([
             'site_name' => 'Openbook Test',
             'registration_open' => '0',
+            'show_home_staff' => '1',
             'instance_rules' => "## Regole\n\nSii gentile.",
             'privacy_policy' => "## Privacy\n\nNon vendiamo i tuoi dati.",
             'post_max_length' => 4000,
@@ -41,11 +42,26 @@ class AdminSettingsTest extends TestCase
 
         $this->assertSame('Openbook Test', SystemSetting::get(InstanceSettings::KEY_SITE_NAME));
         $this->assertFalse(app(InstanceSettings::class)->registrationOpen());
+        $this->assertTrue(app(InstanceSettings::class)->showHomeStaff());
         $this->assertSame(4000, app(InstanceSettings::class)->postMaxLength());
         $this->assertSame(1500, app(InstanceSettings::class)->commentMaxLength());
         $this->assertStringContainsString('Sii gentile', app(InstanceSettings::class)->instanceRules());
         $this->assertStringContainsString('Non vendiamo', app(InstanceSettings::class)->privacyPolicy());
         $this->assertSame('Openbook Test', config('app.name'));
+    }
+
+    public function test_admin_can_hide_staff_block_on_guest_home(): void
+    {
+        $admin = $this->createFullAccount('adminstafftoggle');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'show_home_staff' => '0',
+            ]))
+            ->assertRedirect(route('admin.settings.edit'));
+
+        $this->assertFalse(app(InstanceSettings::class)->showHomeStaff());
     }
 
     public function test_closed_registrations_block_register_and_nodeinfo(): void

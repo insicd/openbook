@@ -20,6 +20,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   inline.
 - Voce **Copia link** nel menu di ogni post: copia l'URL locale del post
   negli appunti.
+- Impostazione admin **Mostra amministrazione sulla home**: rende
+  visibile o nasconde il blocco guest con amministratori e moderatori
+  dell'istanza (default: visibile).
 
 ### Fixed
 - Like/unlike su post e commenti via Ajax: niente piu' ricarica della

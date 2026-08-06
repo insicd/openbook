@@ -24,6 +24,14 @@
         </div>
 
         <div class="ob-field" style="margin-top:1rem">
+            <label style="display:flex;align-items:center;gap:0.5rem;font-weight:500">
+                <input type="checkbox" name="show_home_staff" value="1" @checked(old('show_home_staff', $showHomeStaff))>
+                {{ __('openbook.admin.settings.show_home_staff') }}
+            </label>
+            <p class="ob-field__help">{{ __('openbook.admin.settings.show_home_staff_help') }}</p>
+        </div>
+
+        <div class="ob-field" style="margin-top:1rem">
             <label for="instance_rules">{{ __('openbook.admin.settings.instance_rules') }}</label>
             <textarea id="instance_rules" name="instance_rules" rows="8" maxlength="20000">{{ old('instance_rules', $instanceRules) }}</textarea>
             <p class="ob-field__help">{{ __('openbook.admin.settings.instance_rules_help') }}</p>

@@ -15,6 +15,7 @@ final class SettingsController extends Controller
         return view('admin.settings.edit', [
             'siteName' => $settings->siteName(),
             'registrationOpen' => $settings->registrationOpen(),
+            'showHomeStaff' => $settings->showHomeStaff(),
             'instanceRules' => $settings->instanceRules(),
             'privacyPolicy' => $settings->privacyPolicy(),
             'postMaxLength' => $settings->postMaxLength(),
@@ -29,6 +30,7 @@ final class SettingsController extends Controller
         $data = $request->validate([
             'site_name' => ['required', 'string', 'max:100'],
             'registration_open' => ['sometimes', 'boolean'],
+            'show_home_staff' => ['sometimes', 'boolean'],
             'instance_rules' => ['nullable', 'string', 'max:20000'],
             'privacy_policy' => ['nullable', 'string', 'max:20000'],
             'post_max_length' => ['required', 'integer', 'min:100', 'max:50000'],
@@ -40,6 +42,7 @@ final class SettingsController extends Controller
         $settings->update([
             'site_name' => $data['site_name'],
             'registration_open' => $request->boolean('registration_open'),
+            'show_home_staff' => $request->boolean('show_home_staff'),
             'instance_rules' => $data['instance_rules'] ?? '',
             'privacy_policy' => $data['privacy_policy'] ?? '',
             'post_max_length' => (int) $data['post_max_length'],
