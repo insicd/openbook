@@ -40,6 +40,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   piu' riscritto dal pannello (modifica manuale o installer al primo setup).
 - Pagine `/regole` e `/privacy`: layout a tutta larghezza della colonna
   centrale, allineato al resto del sito (niente colonna stretta da 420px).
+- Sidebar sinistra: firma in fondo con nome istanza (link alla home locale)
+  e link al progetto Openbook, come nel footer globale.
 - Like/unlike su post e commenti via Ajax: niente piu' ricarica della
   timeline che riporta in cima. Senza JS resta il redirect con anchor
   (`#post-…` / `#commento-…`).

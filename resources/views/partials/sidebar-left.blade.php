@@ -47,7 +47,7 @@
 </nav>
 
 <p class="ob-sidebar-footer">
-    <a href="{{ config('openbook.homepage') }}">Openbook</a>
+    <a href="{{ route('home') }}">{{ config('app.name') }}</a>
     &middot;
     <a href="{{ route('instance.rules') }}">{{ __('openbook.footer.rules') }}</a>
     &middot;
