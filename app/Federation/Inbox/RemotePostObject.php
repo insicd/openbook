@@ -246,6 +246,118 @@ final class RemotePostObject
     }
 
     /**
+     * URI del post citato (quote), se presente. Ordine di preferenza allineato
+     * a Mastodon: {@code quote} (FEP-044f), poi legacy {@code quoteUrl} /
+     * {@code quoteUri} / {@code _misskey_quote}.
+     *
+     * @param  array<string, mixed>  $document
+     */
+    public static function quoteUri(array $document): ?string
+    {
+        foreach (['quote', 'quoteUrl', 'quoteUri', '_misskey_quote'] as $key) {
+            $uri = self::valueOrId($document[$key] ?? null);
+
+            if ($uri !== null) {
+                return $uri;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Oggetto Note/Page incorporato in {@code quote} (FEP-044f), se presente.
+     *
+     * @param  array<string, mixed>  $document
+     * @return array<string, mixed>|null
+     */
+    public static function embeddedQuote(array $document): ?array
+    {
+        $quote = $document['quote'] ?? null;
+
+        if (! is_array($quote)) {
+            return null;
+        }
+
+        if (self::isPostable($quote['type'] ?? null)) {
+            return $quote;
+        }
+
+        foreach ($quote as $item) {
+            if (is_array($item) && self::isPostable($item['type'] ?? null)) {
+                return $item;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Rimuove dal corpo il fallback testuale della citazione (link nudo o
+     * riga "RE: …") cosi' in UI resta solo la card del post citato.
+     */
+    public static function stripQuoteFallbackFromBody(string $body, string $quoteUri): string
+    {
+        $body = trim($body);
+
+        if ($body === '' || $quoteUri === '') {
+            return $body;
+        }
+
+        $escaped = preg_quote($quoteUri, '/');
+
+        $patterns = [
+            '/(?:\r?\n)+\s*RE:\s*'.$escaped.'\s*$/iu',
+            '/(?:\r?\n)+\s*RE:\s*.{0,200}'.$escaped.'.{0,200}$/iu',
+            '/(?:\r?\n)+\s*\[[^\]]*\]\('.$escaped.'\)\s*$/u',
+            '/(?:\r?\n)+\s*'.$escaped.'\s*$/u',
+            '/^RE:\s*'.$escaped.'\s*$/iu',
+            '/^RE:\s*.{0,200}'.$escaped.'.{0,200}$/iu',
+            '/^'.$escaped.'\s*$/u',
+            '/^\[[^\]]*\]\('.$escaped.'\)\s*$/u',
+        ];
+
+        foreach ($patterns as $pattern) {
+            $stripped = preg_replace($pattern, '', $body);
+
+            if (is_string($stripped) && $stripped !== $body) {
+                $body = trim($stripped);
+            }
+        }
+
+        return $body;
+    }
+
+    private static function valueOrId(mixed $value): ?string
+    {
+        if (is_string($value) && self::isSafeHttpUrl($value)) {
+            return $value;
+        }
+
+        if (! is_array($value)) {
+            return null;
+        }
+
+        if (is_string($value['id'] ?? null) && self::isSafeHttpUrl($value['id'])) {
+            return $value['id'];
+        }
+
+        if (is_string($value['href'] ?? null) && self::isSafeHttpUrl($value['href'])) {
+            return $value['href'];
+        }
+
+        foreach ($value as $item) {
+            $uri = self::valueOrId($item);
+
+            if ($uri !== null) {
+                return $uri;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @param  mixed  $type
      */
     public static function hasType(mixed $type, string $expected): bool

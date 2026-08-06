@@ -684,6 +684,65 @@ class InboxActivityProcessorTest extends TestCase
         ]);
     }
 
+    public function test_a_remote_quote_post_with_quote_url_embeds_the_cited_post(): void
+    {
+        Queue::fake();
+        $follower = $this->createFullAccount('quotefollower');
+        $quoter = $this->createRemoteActor('citante', 'masto.example');
+        $originalAuthor = $this->createRemoteActor('originale', 'altra.example');
+
+        $follow = app(FollowManager::class)->follow($follower->actor, $quoter);
+        $follow->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $quotedUri = $originalAuthor->uri.'/statuses/quoted-1';
+        $quoteUri = $quoter->uri.'/statuses/quote-1';
+
+        Http::fake([
+            $quotedUri => Http::response([
+                'id' => $quotedUri,
+                'type' => 'Note',
+                'attributedTo' => $originalAuthor->uri,
+                'content' => '<p>Post originale citato</p>',
+                'published' => now()->subHour()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $activity = [
+            'id' => $quoteUri.'/activity',
+            'type' => 'Create',
+            'actor' => $quoter->uri,
+            'object' => [
+                'id' => $quoteUri,
+                'type' => 'Note',
+                'attributedTo' => $quoter->uri,
+                'content' => '<p>La mia citazione</p><p>RE: '.$quotedUri.'</p>',
+                'quoteUrl' => $quotedUri,
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ];
+
+        $status = $this->process($activity, $quoter);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+
+        $quoted = Post::query()->where('uri', $quotedUri)->first();
+        $quote = Post::query()->where('uri', $quoteUri)->first();
+
+        $this->assertNotNull($quoted);
+        $this->assertNotNull($quote);
+        $this->assertSame($quoted->id, $quote->quoted_post_id);
+        $this->assertSame('La mia citazione', $quote->body);
+        $this->assertSame('Post originale citato', $quoted->body);
+
+        $html = $this->actingAs($follower)->get(route('posts.show', $quote));
+        $html->assertOk();
+        $html->assertSee('class="ob-post__quote"', false);
+        $html->assertSee('Post originale citato', false);
+        $html->assertDontSee('RE: '.$quotedUri, false);
+    }
+
     public function test_a_remote_note_with_timezone_offset_is_stored_in_app_timezone(): void
     {
         Queue::fake();

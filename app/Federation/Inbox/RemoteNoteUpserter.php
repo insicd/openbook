@@ -9,11 +9,13 @@ use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Outbox\RemoteOutboxFetcher;
 use App\Federation\Replies\RemoteRepliesFetcher;
 use App\Federation\Serialization\NoteSerializer;
 use App\Federation\Support\ActivityPubTimestamp;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Salva (creando o aggiornando) la rappresentazione locale di una Note o
@@ -22,26 +24,53 @@ use Illuminate\Support\Carbon;
  * {@see RemoteRepliesFetcher}, cosi' che le strade producano sempre lo
  * stesso risultato. Lemmy usa "Page" per i post di community; i commenti
  * restano "Note".
+ *
+ * Le citazioni remote ({@code quoteUrl} / FEP-044f {@code quote} / Misskey)
+ * risolvono il post citato in {@see Post::$quoted_post_id} e tolgono dal
+ * corpo il fallback testuale "RE: …" / link nudo.
  */
 final class RemoteNoteUpserter
 {
     public function __construct(
         private readonly NotificationCreator $notificationCreator,
         private readonly RemoteAttachmentIngester $attachments,
+        private readonly RemoteNoteDocumentFetcher $noteDocumentFetcher,
+        private readonly RemoteActorResolver $remoteActorResolver,
     ) {}
 
     /**
      * @param  array<string, mixed>  $note
      */
-    public function upsertPost(array $note, string $noteUri, Actor $actor, string $body, Carbon $publishedAt, bool $notifyMentions = true): Post
-    {
+    public function upsertPost(
+        array $note,
+        string $noteUri,
+        Actor $actor,
+        string $body,
+        Carbon $publishedAt,
+        bool $notifyMentions = true,
+        bool $resolveQuote = true,
+    ): Post {
+        $quotedPost = null;
+        $quoteUri = null;
+
+        if ($resolveQuote) {
+            $quoteUri = RemotePostObject::quoteUri($note);
+            $quotedPost = $this->resolveQuotedPost($note, $noteUri);
+
+            if ($quotedPost !== null && filled($quotedPost->uri)) {
+                $body = RemotePostObject::stripQuoteFallbackFromBody($body, $quotedPost->uri);
+            } elseif ($quoteUri !== null) {
+                $body = RemotePostObject::stripQuoteFallbackFromBody($body, $quoteUri);
+            }
+        }
+
         $sensitive = (bool) ($note['sensitive'] ?? false);
 
         /** @var Post $post */
         $post = Post::query()->where('uri', $noteUri)->first() ?? new Post(['uri' => $noteUri]);
         $wasNew = ! $post->exists;
 
-        $post->fill([
+        $attributes = [
             'actor_id' => $actor->id,
             'title' => RemotePostObject::title($note),
             'content_warning' => $sensitive ? (is_string($note['summary'] ?? null) ? mb_substr($note['summary'], 0, 255) : null) : null,
@@ -51,7 +80,18 @@ final class RemoteNoteUpserter
             // Riconverti sempre al TZ app: i caller possono passare un Carbon
             // ancora con offset remoto (vedi ActivityPubTimestamp).
             'published_at' => ActivityPubTimestamp::normalize($publishedAt),
-        ]);
+        ];
+
+        if ($resolveQuote) {
+            if ($quotedPost !== null) {
+                $attributes['quoted_post_id'] = $quotedPost->id;
+            } elseif ($quoteUri === null) {
+                $attributes['quoted_post_id'] = null;
+            }
+            // quoteUri presente ma non risolto: lascia l'eventuale citazione gia' in cache.
+        }
+
+        $post->fill($attributes);
 
         if (! $wasNew) {
             $post->edited_at = now();
@@ -66,6 +106,85 @@ final class RemoteNoteUpserter
         $this->attachments->sync($post, $actor, $note);
 
         return $post;
+    }
+
+    /**
+     * @param  array<string, mixed>  $note
+     */
+    private function resolveQuotedPost(array $note, string $quotingUri): ?Post
+    {
+        $quoteUri = RemotePostObject::quoteUri($note);
+
+        if ($quoteUri === null || $quoteUri === '' || $quoteUri === $quotingUri) {
+            return null;
+        }
+
+        $existing = Post::query()->where('uri', $quoteUri)->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $document = RemotePostObject::embeddedQuote($note);
+
+        if ($document === null) {
+            $document = $this->noteDocumentFetcher->fetch($quoteUri);
+        }
+
+        if ($document === null || ! RemotePostObject::isPostable($document['type'] ?? null)) {
+            Log::channel('single')->debug('federation.quote_unresolved', [
+                'quoting_uri' => $quotingUri,
+                'quote_uri' => $quoteUri,
+            ]);
+
+            return null;
+        }
+
+        // Solo post di primo livello: una risposta citata senza thread in
+        // cache non ha senso come card annidata.
+        if (($document['inReplyTo'] ?? null) !== null) {
+            return null;
+        }
+
+        $documentUri = is_string($document['id'] ?? null) ? $document['id'] : $quoteUri;
+
+        if ($documentUri === '' || $documentUri === $quotingUri) {
+            return null;
+        }
+
+        $authorUri = RemotePostObject::primaryAuthorUri($document['attributedTo'] ?? null);
+
+        if ($authorUri === null) {
+            return null;
+        }
+
+        $author = $this->remoteActorResolver->resolveByUri($authorUri);
+
+        if ($author === null) {
+            return null;
+        }
+
+        $visibility = $this->visibilityFromAudience($document);
+
+        if (! in_array($visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED], true)) {
+            return null;
+        }
+
+        $body = RemotePostObject::body($document);
+        $publishedAt = ActivityPubTimestamp::parse(
+            isset($document['published']) && is_string($document['published']) ? $document['published'] : null,
+        );
+
+        // Un solo livello: non risolvere citazioni annidate del post citato.
+        return $this->upsertPost(
+            $document,
+            $documentUri,
+            $author,
+            $body,
+            $publishedAt,
+            notifyMentions: false,
+            resolveQuote: false,
+        );
     }
 
     /**

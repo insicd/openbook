@@ -49,6 +49,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   recupera/incorpora il post come gia' per i Group, cosi' le ricondivisioni
   di bot seguiti (es. tags.pub) compaiono nel feed. Prima venivano ignorate
   se l'oggetto non era un post locale gia' presente in DB.
+- Citazioni remote (`quoteUrl` / `quote` FEP-044f / `_misskey_quote`): il
+  post citato viene recuperato in cache e mostrato nella card annidata
+  (`ob-post__quote`), togliendo dal testo il fallback "RE: …" / link nudo.
 
 ## [0.8.11] — Deploy e aggiornamenti guidati su shared hosting
 
