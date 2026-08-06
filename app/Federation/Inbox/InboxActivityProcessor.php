@@ -510,7 +510,10 @@ final class InboxActivityProcessor
             return null;
         }
 
-        $author = $this->objects->resolveActor($authorUri);
+        // Come l'outbox Group: l'autore del post boostato e' spesso sconosciuto
+        // (tags.pub Annuncia solo l'URI). ObjectResolver non basta.
+        $author = $this->objects->resolveActor($authorUri)
+            ?? $this->remoteActorResolver->resolveByUri($authorUri);
 
         if ($author === null) {
             return null;

@@ -525,20 +525,37 @@ class InboxActivityProcessorTest extends TestCase
         Queue::fake();
         $follower = $this->createFullAccount('seguacefetch');
         $bot = $this->createRemoteActor('relaybot', 'bot.example');
-        $author = $this->createRemoteActor('remoto', 'origine.example');
 
         $follow = app(FollowManager::class)->follow($follower->actor, $bot);
         $follow->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
 
-        $noteUri = $author->uri.'/posts/solo-id';
+        // Come tags.pub: object = solo URI; autore remoto non ancora in cache.
+        $authorUri = 'https://origine.example/users/remoto';
+        $noteUri = $authorUri.'/posts/solo-id';
+        $pem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu\n-----END PUBLIC KEY-----";
+
         Http::fake([
             $noteUri => Http::response([
                 'id' => $noteUri,
                 'type' => 'Note',
-                'attributedTo' => $author->uri,
+                'attributedTo' => $authorUri,
                 'content' => '<p>Fetchata dall URI</p>',
                 'published' => now()->subHour()->toAtomString(),
                 'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $authorUri => Http::response([
+                'id' => $authorUri,
+                'type' => 'Person',
+                'preferredUsername' => 'remoto',
+                'inbox' => $authorUri.'/inbox',
+                'outbox' => $authorUri.'/outbox',
+                'followers' => $authorUri.'/followers',
+                'following' => $authorUri.'/following',
+                'publicKey' => [
+                    'id' => $authorUri.'#main-key',
+                    'owner' => $authorUri,
+                    'publicKeyPem' => $pem,
+                ],
             ], 200, ['Content-Type' => 'application/activity+json']),
         ]);
 
@@ -552,6 +569,10 @@ class InboxActivityProcessorTest extends TestCase
         $status = $this->process($activity, $bot);
 
         $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('actors', [
+            'uri' => $authorUri,
+            'is_local' => false,
+        ]);
         $this->assertDatabaseHas('posts', [
             'uri' => $noteUri,
             'body' => 'Fetchata dall URI',

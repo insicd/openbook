@@ -48,7 +48,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 - Announce (boost) da Person/bot di Note remote non ancora in cache: si
   recupera/incorpora il post come gia' per i Group, cosi' le ricondivisioni
   di bot seguiti (es. tags.pub) compaiono nel feed. Prima venivano ignorate
-  se l'oggetto non era un post locale gia' presente in DB.
+  se l'oggetto non era un post locale gia' presente in DB. Se l'Announce
+  porta solo l'URI (tipico tags.pub), si recupera anche l'Actor autore
+  remoto via fetch — senza di cio' restavano `ignored` in `inbox_items`.
 - Citazioni remote (`quoteUrl` / `quote` FEP-044f / `_misskey_quote`): il
   post citato viene recuperato in cache e mostrato nella card annidata
   (`ob-post__quote`), togliendo dal testo il fallback "RE: …" / link nudo.
