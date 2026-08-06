@@ -61,6 +61,12 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   nella collection replies: non fallisce piu' con UniqueConstraint (non si
   tenta di re-ingerire il commento locale ne' di creare un Actor remoto
   sul dominio dell'istanza).
+- Inbox forwarding ActivityPub: se la firma HTTP e' di un Actor diverso da
+  `activity.actor` (tipico delle risposte inoltrate), si autentica l'attivita'
+  in ordine con (1) Linked Data Signature `RsaSignature2017` (stile Mastodon)
+  e (2) GET same-origin sull'id dichiarato. Le attivita' in uscita vengono
+  firmate anche con LD Signature, cosi' i peer possono inoltrarle. Sblocca i
+  commenti remoti ai thread che prima restavano `actor_mismatch`.
 
 ## [0.8.11] — Deploy e aggiornamenti guidati su shared hosting
 

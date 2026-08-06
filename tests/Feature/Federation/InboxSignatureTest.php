@@ -176,13 +176,258 @@ class InboxSignatureTest extends TestCase
     public function test_an_activity_whose_actor_field_does_not_match_the_signer_is_rejected(): void
     {
         $target = $this->createFullAccount('spoofato');
+        // Actor dichiarato su un altro host: niente same-origin refetch.
         $parts = $this->buildSignedFollowActivity(
             '/users/spoofato/inbox',
             $target->actor->uri,
-            claimedActor: 'https://remoto.example/users/qualcunaltro'
+            claimedActor: 'https://altro.example/users/qualcunaltro'
         );
 
         $response = $this->postSigned($parts);
+
+        $response->assertStatus(401);
+        $this->assertDatabaseCount('inbox_items', 0);
+    }
+
+    public function test_a_forwarded_create_with_ld_signature_is_accepted_without_origin_fetch(): void
+    {
+        $forwarderUri = self::REMOTE_ACTOR_URI;
+        $commenterUri = 'https://commentatore.example/users/alice';
+        $commenterKey = (new RsaKeyPairGenerator)->generate(2048);
+
+        // Commentatore gia' in cache (come dopo un Follow o un Create precedente).
+        $commenter = \App\Federation\Actors\Actor::query()->create([
+            'type' => \App\Federation\Actors\Actor::TYPE_PERSON,
+            'is_local' => false,
+            'preferred_username' => 'alice',
+            'domain' => 'commentatore.example',
+            'uri' => $commenterUri,
+            'name' => 'Alice',
+            'status' => \App\Federation\Actors\Actor::STATUS_ACTIVE,
+            'last_fetched_at' => now(),
+        ]);
+        \App\Federation\Actors\ActorKey::query()->create([
+            'actor_id' => $commenter->id,
+            'public_key' => $commenterKey->publicKey,
+            'private_key' => $commenterKey->privateKey,
+        ]);
+        $commenter->load('key');
+
+        $activityId = $commenterUri.'/statuses/77/activity';
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $activityId,
+            'type' => 'Create',
+            'actor' => $commenterUri,
+            'object' => [
+                'id' => $commenterUri.'/statuses/77',
+                'type' => 'Note',
+                'attributedTo' => $commenterUri,
+                'content' => '<p>Con LD Signature</p>',
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ];
+
+        $signed = app(\App\Infrastructure\Security\LinkedData\LinkedDataSignature::class)
+            ->sign($activity, $commenter);
+
+        Http::fake([
+            $forwarderUri => Http::response([
+                'id' => $forwarderUri,
+                'type' => 'Person',
+                'preferredUsername' => 'carol',
+                'inbox' => $forwarderUri.'/inbox',
+                'outbox' => $forwarderUri.'/outbox',
+                'followers' => $forwarderUri.'/followers',
+                'following' => $forwarderUri.'/following',
+                'publicKey' => [
+                    'id' => $forwarderUri.'#main-key',
+                    'owner' => $forwarderUri,
+                    'publicKeyPem' => $this->remoteKeyPair->publicKey,
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            // Nessun fetch dell'attivita': se LD fallisce, il test fallisce.
+        ]);
+
+        $target = $this->createFullAccount('seguaceld');
+        $path = '/users/seguaceld/inbox';
+        $body = json_encode($signed, JSON_THROW_ON_ERROR);
+        $date = now()->toRfc7231String();
+        $digest = HttpSignatureSigner::digest($body);
+        $host = parse_url(url('/'), PHP_URL_HOST);
+        $signature = (new HttpSignatureSigner)->sign(
+            'POST',
+            $path,
+            ['host' => $host, 'date' => $date, 'digest' => $digest],
+            $forwarderUri.'#main-key',
+            $this->remoteKeyPair->privateKey,
+            ['(request-target)', 'host', 'date', 'digest']
+        );
+
+        $response = $this->call('POST', $path, [], [], [], [
+            'CONTENT_TYPE' => 'application/activity+json',
+            'HTTP_DATE' => $date,
+            'HTTP_DIGEST' => $digest,
+            'HTTP_SIGNATURE' => $signature,
+        ], $body);
+
+        $response->assertStatus(202);
+        $this->assertDatabaseHas('inbox_items', [
+            'remote_activity_uri' => $activityId,
+            'actor_uri' => $commenterUri,
+            'activity_type' => 'Create',
+        ]);
+        Http::assertNotSent(fn ($request) => $request->url() === $activityId);
+    }
+
+    public function test_a_forwarded_create_is_accepted_after_same_origin_refetch(): void
+    {
+        // Inbox forwarding: HTTP firmata dal forwarder, activity.actor = commentatore.
+        // Autenticazione via GET dell'id attivita' sullo stesso host dell'actor.
+        $forwarderUri = self::REMOTE_ACTOR_URI;
+        $commenterUri = 'https://commentatore.example/users/alice';
+        $activityId = $commenterUri.'/statuses/42/activity';
+        $noteId = $commenterUri.'/statuses/42';
+
+        $originActivity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $activityId,
+            'type' => 'Create',
+            'actor' => $commenterUri,
+            'object' => [
+                'id' => $noteId,
+                'type' => 'Note',
+                'attributedTo' => $commenterUri,
+                'content' => '<p>Risposta inoltrata</p>',
+                'inReplyTo' => 'https://remoto.example/users/carol/statuses/1',
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ];
+
+        Http::fake([
+            $forwarderUri => Http::response([
+                'id' => $forwarderUri,
+                'type' => 'Person',
+                'preferredUsername' => 'carol',
+                'inbox' => $forwarderUri.'/inbox',
+                'outbox' => $forwarderUri.'/outbox',
+                'followers' => $forwarderUri.'/followers',
+                'following' => $forwarderUri.'/following',
+                'publicKey' => [
+                    'id' => $forwarderUri.'#main-key',
+                    'owner' => $forwarderUri,
+                    'publicKeyPem' => $this->remoteKeyPair->publicKey,
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $activityId => Http::response($originActivity, 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $target = $this->createFullAccount('seguacefwd');
+        $path = '/users/seguacefwd/inbox';
+
+        // Payload consegnato (puo' differire leggermente): actor = commentatore, firma = forwarder.
+        $delivered = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $activityId,
+            'type' => 'Create',
+            'actor' => $commenterUri,
+            'object' => $noteId,
+        ];
+        $body = json_encode($delivered, JSON_THROW_ON_ERROR);
+        $date = now()->toRfc7231String();
+        $digest = HttpSignatureSigner::digest($body);
+        $host = parse_url(url('/'), PHP_URL_HOST);
+
+        $signature = (new HttpSignatureSigner)->sign(
+            'POST',
+            $path,
+            ['host' => $host, 'date' => $date, 'digest' => $digest],
+            $forwarderUri.'#main-key',
+            $this->remoteKeyPair->privateKey,
+            ['(request-target)', 'host', 'date', 'digest']
+        );
+
+        $response = $this->call('POST', $path, [], [], [], [
+            'CONTENT_TYPE' => 'application/activity+json',
+            'HTTP_DATE' => $date,
+            'HTTP_DIGEST' => $digest,
+            'HTTP_SIGNATURE' => $signature,
+        ], $body);
+
+        $response->assertStatus(202);
+        $this->assertDatabaseHas('inbox_items', [
+            'remote_activity_uri' => $activityId,
+            'activity_type' => 'Create',
+            'actor_uri' => $commenterUri,
+            'status' => InboxItem::STATUS_PENDING,
+            'signature_valid' => true,
+        ]);
+
+        $item = InboxItem::query()->where('remote_activity_uri', $activityId)->first();
+        $this->assertNotNull($item);
+        $payload = json_decode((string) $item->payload, true);
+        $this->assertIsArray($payload);
+        $this->assertSame('Create', $payload['type']);
+        $this->assertIsArray($payload['object'] ?? null);
+        $this->assertSame($noteId, $payload['object']['id']);
+    }
+
+    public function test_a_forwarded_activity_is_rejected_when_origin_actor_does_not_match(): void
+    {
+        $forwarderUri = self::REMOTE_ACTOR_URI;
+        $claimedActor = 'https://commentatore.example/users/alice';
+        $activityId = $claimedActor.'/statuses/99/activity';
+
+        Http::fake([
+            $forwarderUri => Http::response([
+                'id' => $forwarderUri,
+                'type' => 'Person',
+                'preferredUsername' => 'carol',
+                'inbox' => $forwarderUri.'/inbox',
+                'outbox' => $forwarderUri.'/outbox',
+                'followers' => $forwarderUri.'/followers',
+                'following' => $forwarderUri.'/following',
+                'publicKey' => [
+                    'id' => $forwarderUri.'#main-key',
+                    'owner' => $forwarderUri,
+                    'publicKeyPem' => $this->remoteKeyPair->publicKey,
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $activityId => Http::response([
+                'id' => $activityId,
+                'type' => 'Create',
+                'actor' => 'https://commentatore.example/users/impostore',
+                'object' => $claimedActor.'/statuses/99',
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $target = $this->createFullAccount('seguacereject');
+        $path = '/users/seguacereject/inbox';
+        $delivered = [
+            'id' => $activityId,
+            'type' => 'Create',
+            'actor' => $claimedActor,
+            'object' => $claimedActor.'/statuses/99',
+        ];
+        $body = json_encode($delivered, JSON_THROW_ON_ERROR);
+        $date = now()->toRfc7231String();
+        $digest = HttpSignatureSigner::digest($body);
+        $host = parse_url(url('/'), PHP_URL_HOST);
+        $signature = (new HttpSignatureSigner)->sign(
+            'POST',
+            $path,
+            ['host' => $host, 'date' => $date, 'digest' => $digest],
+            $forwarderUri.'#main-key',
+            $this->remoteKeyPair->privateKey,
+            ['(request-target)', 'host', 'date', 'digest']
+        );
+
+        $response = $this->call('POST', $path, [], [], [], [
+            'CONTENT_TYPE' => 'application/activity+json',
+            'HTTP_DATE' => $date,
+            'HTTP_DIGEST' => $digest,
+            'HTTP_SIGNATURE' => $signature,
+        ], $body);
 
         $response->assertStatus(401);
         $this->assertDatabaseCount('inbox_items', 0);

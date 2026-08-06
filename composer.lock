@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3b3e1a02fcc6de30a3c0241048b27cb4",
+    "content-hash": "af7439b81dd1e153fe18a8cfeb7fc4ec",
     "packages": [
         {
             "name": "brick/math",
@@ -507,6 +507,51 @@
                 }
             ],
             "time": "2025-03-06T22:45:56+00:00"
+        },
+        {
+            "name": "friendica/json-ld",
+            "version": "1.1.5",
+            "source": {
+                "type": "git",
+                "url": "https://git.friendi.ca/friendica/php-json-ld",
+                "reference": "0bb148c3af22c3dbe4f187b122d6f47457a8dab5"
+            },
+            "require": {
+                "ext-json": "*",
+                "php": ">=5.4.0"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "jsonld.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Digital Bazaar, Inc.",
+                    "email": "support@digitalbazaar.com",
+                    "homepage": "http://digitalbazaar.com/"
+                },
+                {
+                    "name": "Friendica Team",
+                    "homepage": "https://friendi.ca/"
+                }
+            ],
+            "description": "A JSON-LD Processor and API implementation in PHP.",
+            "homepage": "https://git.friendi.ca/friendica/php-json-ld",
+            "keywords": [
+                "JSON-LD",
+                "Linked Data",
+                "RDF",
+                "Semantic Web",
+                "json",
+                "jsonld"
+            ],
+            "time": "2026-05-19T21:13:39+00:00"
         },
         {
             "name": "fruitcake/php-cors",

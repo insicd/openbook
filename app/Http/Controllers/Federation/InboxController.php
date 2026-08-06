@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Federation;
 use App\Application\Services\DomainBlockManager;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorResolver;
+use App\Federation\Inbox\ForwardedActivityAuthenticator;
 use App\Federation\Inbox\InboxItem;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Security\HttpSignatureVerifier;
@@ -29,6 +30,7 @@ final class InboxController extends Controller
         private readonly HttpSignatureVerifier $verifier,
         private readonly DomainBlockManager $domainBlocks,
         private readonly LocalActorResolver $localActors,
+        private readonly ForwardedActivityAuthenticator $forwardedActivities,
     ) {}
 
     public function forUser(Request $request, string $username): JsonResponse
@@ -99,16 +101,33 @@ final class InboxController extends Controller
             return response()->json(['error' => 'Firma non valida.'], 401);
         }
 
-        // L'attore che ha firmato la richiesta deve coincidere con quello
-        // dichiarato nel campo "actor" dell'attivita': impedisce a un Actor
-        // di firmare validamente un'attivita' spacciandosi per un altro.
+        // Consegna diretta: firmatario HTTP = activity.actor.
+        // Inbox forwarding: firma HTTP di un altro Actor + LD Signature
+        // (Mastodon) oppure refetch same-origin (Primer ActivityPub).
         if ($verification->actor === null || $verification->actor->uri !== $actorUri) {
-            Log::channel('single')->info('federation.inbox.actor_mismatch', [
+            $authenticated = $this->forwardedActivities->authenticate($activity, $actorUri);
+
+            if ($authenticated === null) {
+                Log::channel('single')->info('federation.inbox.actor_mismatch', [
+                    'signed_by' => $verification->actor?->uri,
+                    'claimed_actor' => $actorUri,
+                    'activity_id' => $activity['id'],
+                ]);
+
+                return response()->json(['error' => 'Attore firmatario non corrispondente.'], 401);
+            }
+
+            Log::channel('single')->info('federation.inbox.forwarded_accepted', [
                 'signed_by' => $verification->actor?->uri,
                 'claimed_actor' => $actorUri,
+                'activity_id' => $authenticated['id'] ?? $activity['id'],
             ]);
 
-            return response()->json(['error' => 'Attore firmatario non corrispondente.'], 401);
+            $activity = $authenticated;
+            $actorUri = is_string($activity['actor'] ?? null)
+                ? $activity['actor']
+                : (is_array($activity['actor'] ?? null) ? ($activity['actor']['id'] ?? $actorUri) : $actorUri);
+            $body = json_encode($activity, JSON_THROW_ON_ERROR);
         }
 
         if (InboxItem::query()->where('remote_activity_uri', $activity['id'])->exists()) {

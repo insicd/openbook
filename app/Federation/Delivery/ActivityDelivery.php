@@ -8,10 +8,12 @@ use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
+use App\Infrastructure\Security\LinkedData\LinkedDataSignature;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Calcola le inbox remote di destinazione per un'attivita' in uscita e
@@ -27,6 +29,10 @@ use Illuminate\Support\Facades\Log;
  */
 final class ActivityDelivery
 {
+    public function __construct(
+        private readonly LinkedDataSignature $linkedDataSignatures,
+    ) {}
+
     /**
      * Consegna un'attivita' a tutti i follower *remoti* accettati di un
      * Actor locale (usato per Create/Update/Delete di post pubblici).
@@ -209,6 +215,22 @@ final class ActivityDelivery
     {
         if (! $signingActor->isLocal() || $inboxUrls->isEmpty()) {
             return;
+        }
+
+        // LD Signature sul documento: i peer Mastodon possono inoltrare
+        // l'attivita' verificando la prova indipendentemente dalla firma HTTP.
+        $signingActor->loadMissing('key');
+
+        if ($signingActor->key !== null && $signingActor->key->hasPrivateKey() && ! isset($activity['signature'])) {
+            try {
+                $activity = $this->linkedDataSignatures->sign($activity, $signingActor);
+            } catch (Throwable $exception) {
+                Log::channel('single')->warning('federation.ld_signature.sign_failed', [
+                    'activity_id' => $activity['id'] ?? null,
+                    'actor_id' => $signingActor->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
         }
 
         foreach ($inboxUrls as $inboxUrl) {
