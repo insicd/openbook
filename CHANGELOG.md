@@ -42,6 +42,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   centrale, allineato al resto del sito (niente colonna stretta da 420px).
 - Sidebar sinistra: firma in fondo con nome istanza (link alla home locale)
   e link al progetto Openbook, come nel footer globale.
+- Moderazione utenti: sospensione/disabilitazione sincronizzano lo stato
+  ActivityPub (`actors.status`); esclusi da "Persone da seguire" e ricerca;
+  profilo sospeso oscurato, profilo disabilitato 404. Migrazione allinea i
+  dati gia\' presenti.
 - Like/unlike su post e commenti via Ajax: niente piu' ricarica della
   timeline che riporta in cima. Senza JS resta il redirect con anchor
   (`#post-…` / `#commento-…`).

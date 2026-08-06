@@ -78,6 +78,7 @@ return [
         'communities' => 'Communities',
         'joined_on' => 'Joined on :date',
         'protected' => 'Protected account',
+        'suspended_notice' => 'This account has been suspended by the instance staff. The profile is temporarily unavailable.',
         'pinned_posts' => 'Pinned posts',
         'no_posts_yet' => 'There are no posts to show yet.',
         'tabs_aria' => 'Profile sections',
@@ -429,6 +430,7 @@ return [
         ],
         'users' => [
             'title' => 'Local users',
+            'status_help' => 'Suspended: cannot log in, profile obscured, excluded from suggestions and search. Disabled: account hidden from public view (profile returns 404).',
             'search' => 'Search',
             'search_placeholder' => 'Username or email',
             'suspend' => 'Suspend',

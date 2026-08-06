@@ -41,6 +41,14 @@ final class FollowManager
             throw new InvalidArgumentException('Non puoi seguire te stesso.');
         }
 
+        if (! $target->isActive()) {
+            throw new InvalidArgumentException('Non puoi seguire questo account.');
+        }
+
+        if ($target->isLocal() && ($target->user === null || ! $target->user->isActive())) {
+            throw new InvalidArgumentException('Non puoi seguire questo account.');
+        }
+
         $follow = DB::transaction(function () use ($follower, $target) {
             $existing = Follow::query()
                 ->where('follower_id', $follower->id)

@@ -3,11 +3,15 @@
 namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
+use App\Federation\Actors\Actor;
 use InvalidArgumentException;
 
 /**
  * Azioni staff sugli account locali: sospensione, disabilitazione e
  * promozione/demozione a moderatore o amministratore (ruoli solo da admin).
+ *
+ * Sospensione: account non autenticabile, profilo oscurato, escluso da
+ * suggerimenti/ricerche. Disabilitazione: profilo non raggiungibile (404).
  */
 final class StaffUserManager
 {
@@ -19,6 +23,7 @@ final class StaffUserManager
     {
         $this->assertCanChangeStatus($actor, $target);
         $target->forceFill(['status' => User::STATUS_SUSPENDED])->save();
+        $this->syncLocalActorStatus($target, User::STATUS_SUSPENDED);
         $this->auditLogger->log($actor, 'user.suspend', $target);
     }
 
@@ -26,6 +31,7 @@ final class StaffUserManager
     {
         $this->assertCanChangeStatus($actor, $target);
         $target->forceFill(['status' => User::STATUS_ACTIVE])->save();
+        $this->syncLocalActorStatus($target, User::STATUS_ACTIVE);
         $this->auditLogger->log($actor, 'user.unsuspend', $target);
     }
 
@@ -33,6 +39,7 @@ final class StaffUserManager
     {
         $this->assertCanChangeStatus($actor, $target);
         $target->forceFill(['status' => User::STATUS_DISABLED])->save();
+        $this->syncLocalActorStatus($target, User::STATUS_DISABLED);
         $this->auditLogger->log($actor, 'user.disable', $target);
     }
 
@@ -121,6 +128,25 @@ final class StaffUserManager
 
         if ($actor->id === $target->id) {
             throw new InvalidArgumentException('Non puoi modificare il tuo stesso account da qui.');
+        }
+    }
+
+    private function syncLocalActorStatus(User $target, string $userStatus): void
+    {
+        $actor = $target->actor;
+
+        if ($actor === null || ! $actor->isLocal()) {
+            return;
+        }
+
+        $actorStatus = match ($userStatus) {
+            User::STATUS_SUSPENDED => Actor::STATUS_SUSPENDED,
+            User::STATUS_DISABLED => Actor::STATUS_BLOCKED,
+            default => Actor::STATUS_ACTIVE,
+        };
+
+        if ($actor->status !== $actorStatus) {
+            $actor->forceFill(['status' => $actorStatus])->save();
         }
     }
 }

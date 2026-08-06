@@ -23,6 +23,11 @@
             <h1 class="ob-profile-name">{{ $displayName }}</h1>
             <p class="ob-profile-handle">{{ $handle }}</p>
 
+            @if ($profileSuspended ?? false)
+                <div class="ob-alert ob-alert--error" style="margin-top:1rem" role="status">
+                    {{ __('openbook.profile.suspended_notice') }}
+                </div>
+            @else
             @if ($profileUser->actor?->manually_approves_followers)
                 <span class="ob-badge">{{ __('openbook.profile.protected') }}</span>
             @endif
@@ -87,9 +92,11 @@
                 'postsUrl' => route('profile.show', $profileUser->username),
                 'photosUrl' => route('profile.photos', $profileUser->username),
             ])
+            @endif
         </div>
     </article>
 
+    @if (! ($profileSuspended ?? false))
     @if ($isOwnProfile && ($activeTab ?? 'posts') === 'posts' && $pendingFollowRequests->isNotEmpty())
         <div class="ob-card">
             <h2>{{ __('openbook.follow.pending_requests') }}</h2>
@@ -122,5 +129,6 @@
         @include('profile._photo_grid', ['media' => $media])
     @else
         @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.profile.no_posts_yet')])
+    @endif
     @endif
 @endsection

@@ -82,7 +82,9 @@ class ProfileController extends Controller
 
     private function renderPersonProfile(Request $request, string $username, string $activeTab): View|JsonResponse|RedirectResponse
     {
-        $actor = $this->localActors->findByUsernameOrFail($username);
+        $actor = $this->localActors->findByUsernameForPublicProfile($username);
+
+        abort_if($actor === null, 404);
 
         if ($activeTab === 'posts' && ActivityPubNegotiation::wantsActivityPub($request)) {
             return redirect()->away(
@@ -99,6 +101,8 @@ class ProfileController extends Controller
         abort_if($user === null, 404);
 
         $user->loadMissing(['profile', 'actor.endpoints']);
+
+        $profileSuspended = $actor->isSuspended();
 
         $viewerActor = auth()->user()?->actor;
 
@@ -134,14 +138,17 @@ class ProfileController extends Controller
         $media = null;
 
         if ($activeTab === 'photos') {
-            $media = $this->mediaQuery->forActor($user->actor, $viewerActor);
+            $media = $profileSuspended ? null : $this->mediaQuery->forActor($user->actor, $viewerActor);
         } else {
-            $posts = $this->feedQuery->forProfile($user->actor, $viewerActor);
-            Post::annotateViewerState($posts->getCollection(), $viewerActor);
+            $posts = $profileSuspended ? null : $this->feedQuery->forProfile($user->actor, $viewerActor);
+            if ($posts !== null) {
+                Post::annotateViewerState($posts->getCollection(), $viewerActor);
+            }
         }
 
         return view('profile.show', [
             'profileUser' => $user,
+            'profileSuspended' => $profileSuspended,
             'activeTab' => $activeTab,
             'posts' => $posts,
             'media' => $media,

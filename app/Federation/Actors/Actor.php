@@ -147,6 +147,16 @@ class Actor extends Model
         return $this->status === self::STATUS_ACTIVE;
     }
 
+    public function isSuspended(): bool
+    {
+        return $this->status === self::STATUS_SUSPENDED;
+    }
+
+    public function isBlocked(): bool
+    {
+        return $this->status === self::STATUS_BLOCKED;
+    }
+
     /**
      * Indirizzo federato "username@dominio" (formato WebFinger senza "acct:").
      */

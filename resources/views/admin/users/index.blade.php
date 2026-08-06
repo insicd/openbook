@@ -4,6 +4,7 @@
 
 @section('content')
     <h1>{{ __('openbook.admin.users.title') }}</h1>
+    <p class="ob-field__help">{{ __('openbook.admin.users.status_help') }}</p>
 
     <form method="GET" action="{{ route('admin.users.index') }}" class="ob-admin-search">
         <input type="search" name="q" value="{{ $q }}" placeholder="{{ __('openbook.admin.users.search_placeholder') }}">

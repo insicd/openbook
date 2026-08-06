@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Domain\Accounts\User;
+use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
@@ -22,12 +23,14 @@ class AdminUserModerationTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(User::STATUS_SUSPENDED, $target->fresh()->status);
+        $this->assertSame(Actor::STATUS_SUSPENDED, $target->actor->fresh()->status);
 
         $this->actingAs($mod)
             ->post(route('admin.users.unsuspend', $target))
             ->assertRedirect();
 
         $this->assertSame(User::STATUS_ACTIVE, $target->fresh()->status);
+        $this->assertSame(Actor::STATUS_ACTIVE, $target->actor->fresh()->status);
     }
 
     public function test_staff_can_disable_a_local_user(): void
@@ -41,6 +44,7 @@ class AdminUserModerationTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(User::STATUS_DISABLED, $target->fresh()->status);
+        $this->assertSame(Actor::STATUS_BLOCKED, $target->actor->fresh()->status);
     }
 
     public function test_only_admins_can_promote_and_demote_moderators(): void

@@ -2,6 +2,7 @@
 
 namespace App\Application\Queries;
 
+use App\Domain\Accounts\User;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use Illuminate\Support\Collection;
@@ -35,6 +36,7 @@ final class SuggestedLocalActorsQuery
             ->where('is_local', true)
             ->where('type', Actor::TYPE_PERSON)
             ->where('status', Actor::STATUS_ACTIVE)
+            ->whereHas('user', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             ->whereNotIn('id', $excludedIds)
             ->whereHas('user.settings', fn ($query) => $query->where('discoverable', true))
             ->with('user.profile')

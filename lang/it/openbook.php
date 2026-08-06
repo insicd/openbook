@@ -78,6 +78,7 @@ return [
         'communities' => 'Community',
         'joined_on' => 'Iscritto dal :date',
         'protected' => 'Account protetto',
+        'suspended_notice' => 'Questo account è stato sospeso dallo staff dell\'istanza. Il profilo è temporaneamente non disponibile.',
         'pinned_posts' => 'Post fissati',
         'no_posts_yet' => 'Non ci sono ancora post da mostrare.',
         'tabs_aria' => 'Sezioni del profilo',
@@ -429,6 +430,7 @@ return [
         ],
         'users' => [
             'title' => 'Utenti locali',
+            'status_help' => 'Sospeso: non puo accedere, profilo oscurato, escluso da suggerimenti e ricerche. Disabilitato: account rimosso dalla vista pubblica (profilo 404).',
             'search' => 'Cerca',
             'search_placeholder' => 'Username o email',
             'suspend' => 'Sospendi',
