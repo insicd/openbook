@@ -31,6 +31,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   al massimo una volta ogni 24 ore, stessa retention del pannello admin.
 
 ### Fixed
+- Post con GIF animate (locali o federati): le immagini inline nel content
+  HTML remoto vengono estratte come allegati in galleria; gli upload locali
+  conservano l'animazione (niente ricodifica GD) e nel feed si usa il file
+  originale anziche' una miniatura statica.
 - Like/unlike su post e commenti via Ajax: niente piu' ricarica della
   timeline che riporta in cima. Senza JS resta il redirect con anchor
   (`#post-…` / `#commento-…`).

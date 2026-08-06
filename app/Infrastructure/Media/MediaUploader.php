@@ -89,6 +89,10 @@ final class MediaUploader
      */
     private function stripMetadataIfPossible(string $realPath, string $mimeType): ?string
     {
+        if ($mimeType === 'image/gif') {
+            return null;
+        }
+
         if (! extension_loaded('gd')) {
             return null;
         }
@@ -110,6 +114,10 @@ final class MediaUploader
 
     private function generateThumbnail(Media $media, string $mimeType, int $width, int $height): void
     {
+        if ($mimeType === 'image/gif') {
+            return;
+        }
+
         if (! extension_loaded('gd')) {
             return;
         }

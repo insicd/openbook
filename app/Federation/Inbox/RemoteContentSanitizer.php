@@ -32,7 +32,8 @@ final class RemoteContentSanitizer
 {
     public static function toPlainText(string $html): string
     {
-        $withLinks = self::preserveAnchors($html);
+        $withoutImages = self::removeInlineImages($html);
+        $withLinks = self::preserveAnchors($withoutImages);
         $withBreaks = preg_replace('#<br\s*/?>#i', "\n", $withLinks) ?? $withLinks;
         $withParagraphs = preg_replace('#</p>|</div>|</li>#i', "\n\n", $withBreaks) ?? $withBreaks;
 
@@ -40,6 +41,74 @@ final class RemoteContentSanitizer
         $text = preg_replace('/\n{3,}/', "\n\n", $text) ?? $text;
 
         return trim($text);
+    }
+
+    /**
+     * Estrae le immagini inline (&lt;img src&gt;) dal content HTML remoto, da
+     * unire agli attachment ActivityPub quando il client non invia "attachment".
+     *
+     * @return list<array{url: string, mime: string|null, alt: string|null}>
+     */
+    public static function extractInlineImages(string $html): array
+    {
+        if ($html === '') {
+            return [];
+        }
+
+        $found = [];
+
+        if (preg_match_all('#<img\b[^>]*>#is', $html, $tags) === false) {
+            return [];
+        }
+
+        foreach ($tags[0] as $tag) {
+            if (preg_match('#\bsrc\s*=\s*(["\'])(.*?)\1#is', $tag, $srcMatch) !== 1) {
+                continue;
+            }
+
+            $url = html_entity_decode(trim($srcMatch[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            if (! self::isSafeHttpUrl($url)) {
+                continue;
+            }
+
+            $alt = null;
+
+            if (preg_match('#\balt\s*=\s*(["\'])(.*?)\1#is', $tag, $altMatch) === 1) {
+                $alt = html_entity_decode(trim($altMatch[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $alt = mb_substr($alt, 0, 1000) ?: null;
+            }
+
+            $found[$url] = [
+                'url' => $url,
+                'mime' => self::guessImageMimeFromUrl($url),
+                'alt' => $alt,
+            ];
+        }
+
+        return array_values($found);
+    }
+
+    /**
+     * Rimuove i tag img cosi' il corpo non ripete l'URL in plain-text quando
+     * l'immagine viene mostrata in galleria.
+     */
+    private static function removeInlineImages(string $html): string
+    {
+        return preg_replace('#<img\b[^>]*>#is', '', $html) ?? $html;
+    }
+
+    private static function guessImageMimeFromUrl(string $url): ?string
+    {
+        $path = strtolower((string) (parse_url($url, PHP_URL_PATH) ?? ''));
+
+        return match (true) {
+            preg_match('/\.png(\?|$)/', $path) === 1 => 'image/png',
+            preg_match('/\.gif(\?|$)/', $path) === 1 => 'image/gif',
+            preg_match('/\.webp(\?|$)/', $path) === 1 => 'image/webp',
+            preg_match('/\.jpe?g(\?|$)/', $path) === 1 => 'image/jpeg',
+            default => null,
+        };
     }
 
     /**

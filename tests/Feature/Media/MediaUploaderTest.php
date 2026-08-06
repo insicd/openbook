@@ -76,6 +76,22 @@ class MediaUploaderTest extends TestCase
         $this->assertNull($media->thumbnail);
     }
 
+    public function test_it_preserves_animated_gif_bytes_without_thumbnail(): void
+    {
+        Storage::fake('public');
+        $author = $this->createFullAccount('uploadergif');
+
+        $gifBytes = base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
+        $file = UploadedFile::fake()->createWithContent('anim.gif', $gifBytes, 'image/gif');
+
+        $media = app(MediaUploader::class)->store($file, $author->actor);
+
+        $this->assertSame('image/gif', $media->mime_type);
+        $this->assertNull($media->thumbnail);
+        $this->assertSame($gifBytes, Storage::disk('public')->get($media->path));
+        $this->assertSame($media->url(), $media->displayUrl());
+    }
+
     public function test_it_makes_the_uploaded_directory_traversable_even_with_a_restrictive_umask(): void
     {
         Storage::fake('public');

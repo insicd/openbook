@@ -130,7 +130,7 @@
             <div class="ob-post__media" data-lightbox-group>
                 @foreach ($post->media as $media)
                     <img
-                        src="{{ $media->thumbnailUrl() }}"
+                        src="{{ $media->displayUrl() }}"
                         data-full-src="{{ $media->url() }}"
                         alt="{{ $media->alt_text }}"
                         loading="lazy"

@@ -108,4 +108,16 @@ class Media extends Model
 
         return Storage::disk($thumbnail->disk)->url($thumbnail->path);
     }
+
+    /**
+     * URL da usare nel feed: le GIF restano animate (niente miniatura statica).
+     */
+    public function displayUrl(): string
+    {
+        if ($this->mime_type === 'image/gif') {
+            return $this->url();
+        }
+
+        return $this->thumbnailUrl();
+    }
 }

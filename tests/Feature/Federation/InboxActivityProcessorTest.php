@@ -935,6 +935,41 @@ class InboxActivityProcessorTest extends TestCase
         $this->assertSame('Tramonto', $post->media->first()->alt_text);
     }
 
+    public function test_a_note_with_inline_gif_in_content_stores_media_attachment(): void
+    {
+        Queue::fake();
+        $follower = $this->createFullAccount('giffollower');
+        $remote = $this->createRemoteActor('gifposter', 'mastodon.example');
+        app(FollowManager::class)->follow($follower->actor, $remote)
+            ->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $noteUri = $remote->uri.'/p/'.uniqid();
+        $gifUrl = 'https://mastodon.example/media/'.uniqid().'.gif';
+        $status = $this->process([
+            'id' => $noteUri.'/activity',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>Reazione:</p><p><img src="'.$gifUrl.'" alt="Applausi"></p>',
+                'url' => $noteUri,
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ], $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $post = Post::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($post);
+        $this->assertSame('Reazione:', $post->body);
+        $this->assertCount(1, $post->media);
+        $this->assertSame($gifUrl, $post->media->first()->url());
+        $this->assertSame('image/gif', $post->media->first()->mime_type);
+        $this->assertSame('Applausi', $post->media->first()->alt_text);
+    }
+
     public function test_a_create_note_replying_to_a_local_post_is_stored_as_a_comment(): void
     {
         Queue::fake();

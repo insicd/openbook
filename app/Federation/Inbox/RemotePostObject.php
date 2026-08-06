@@ -242,6 +242,10 @@ final class RemotePostObject
             }
         }
 
+        foreach (RemoteContentSanitizer::extractInlineImages(self::rawContent($document)) as $descriptor) {
+            $found[$descriptor['url']] = $descriptor;
+        }
+
         return array_values($found);
     }
 

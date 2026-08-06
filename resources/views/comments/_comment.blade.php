@@ -56,7 +56,7 @@
             <div class="ob-post__media ob-comment__media" data-lightbox-group>
                 @foreach ($comment->media as $media)
                     <img
-                        src="{{ $media->thumbnailUrl() }}"
+                        src="{{ $media->displayUrl() }}"
                         data-full-src="{{ $media->url() }}"
                         alt="{{ $media->alt_text }}"
                         loading="lazy"

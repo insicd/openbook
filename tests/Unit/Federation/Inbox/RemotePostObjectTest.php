@@ -82,4 +82,32 @@ class RemotePostObjectTest extends TestCase
         $this->assertSame('https://pixelfed.example/storage/photo.jpg', $attachments[0]['url']);
         $this->assertSame('Una foto', $attachments[0]['alt']);
     }
+
+    public function test_image_attachments_include_inline_img_from_html_content(): void
+    {
+        $gifUrl = 'https://mastodon.example/media_attachments/files/1/2/original/abc123.gif';
+
+        $attachments = RemotePostObject::imageAttachments([
+            'type' => 'Note',
+            'content' => '<p>Guarda questo:</p><p><img src="'.$gifUrl.'" alt="GIF divertente"></p>',
+        ]);
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame($gifUrl, $attachments[0]['url']);
+        $this->assertSame('image/gif', $attachments[0]['mime']);
+        $this->assertSame('GIF divertente', $attachments[0]['alt']);
+    }
+
+    public function test_body_does_not_repeat_inline_image_url(): void
+    {
+        $gifUrl = 'https://mastodon.example/media/photo.gif';
+
+        $this->assertSame(
+            'Guarda questo:',
+            RemotePostObject::body([
+                'type' => 'Note',
+                'content' => '<p>Guarda questo:</p><p><img src="'.$gifUrl.'" alt=""></p>',
+            ]),
+        );
+    }
 }

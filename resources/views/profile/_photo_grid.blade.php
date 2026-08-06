@@ -13,7 +13,7 @@
                 @endphp
                 <figure class="ob-photo-grid__item">
                     <img
-                        src="{{ $item->thumbnailUrl() }}"
+                        src="{{ $item->displayUrl() }}"
                         data-full-src="{{ $item->url() }}"
                         alt="{{ $item->alt_text ?: __('openbook.profile.photo_alt') }}"
                         loading="lazy"

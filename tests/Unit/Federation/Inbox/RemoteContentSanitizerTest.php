@@ -103,4 +103,26 @@ class RemoteContentSanitizerTest extends TestCase
 
         $this->assertSame('@mario', $text);
     }
+
+    public function test_it_extracts_inline_gif_images_from_html(): void
+    {
+        $images = RemoteContentSanitizer::extractInlineImages(
+            '<p><img src="https://cdn.example/anim.gif" alt="loop"></p>'
+        );
+
+        $this->assertCount(1, $images);
+        $this->assertSame('https://cdn.example/anim.gif', $images[0]['url']);
+        $this->assertSame('image/gif', $images[0]['mime']);
+        $this->assertSame('loop', $images[0]['alt']);
+    }
+
+    public function test_it_removes_inline_images_from_plain_text_body(): void
+    {
+        $text = RemoteContentSanitizer::toPlainText(
+            '<p>Testo</p><img src="https://cdn.example/anim.gif" alt="">'
+        );
+
+        $this->assertSame('Testo', $text);
+        $this->assertStringNotContainsString('cdn.example', $text);
+    }
 }
