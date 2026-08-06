@@ -278,6 +278,13 @@ final class RemoteActorResolver
             return null;
         }
 
+        // Mai trattare il dominio locale come remoto: evita UniqueConstraint su
+        // (preferred_username, domain) quando in replies ricompare un commento
+        // nostro e l'URI in cache e' ancora un alias legacy (/@user).
+        if ($this->isLocalDomainUri($actorUri)) {
+            return null;
+        }
+
         $existing = Actor::query()->where('uri', $actorUri)->with(['key', 'endpoints'])->first();
 
         // Un URI che punta a un Actor locale non e' un attore remoto
@@ -295,6 +302,24 @@ final class RemoteActorResolver
         }
 
         return $this->fetchAndStore($actorUri) ?? $existing;
+    }
+
+    private function isLocalDomainUri(string $uri): bool
+    {
+        $host = parse_url($uri, PHP_URL_HOST);
+        $domain = (string) config('openbook.domain');
+
+        if (! is_string($host) || $domain === '') {
+            return false;
+        }
+
+        $domainHost = parse_url('//'.$domain, PHP_URL_HOST);
+
+        if (! is_string($domainHost) || $domainHost === '') {
+            $domainHost = $domain;
+        }
+
+        return strcasecmp($host, $domainHost) === 0;
     }
 
     /**

@@ -342,13 +342,15 @@ final class RemoteNoteUpserter
                     continue;
                 }
 
-                Mention::query()->create([
-                    'mentionable_type' => $target->getMorphClass(),
-                    'mentionable_id' => $target->id,
-                    'actor_id' => $mentionedActor->id,
-                ]);
+                $created = Mention::query()->firstOrCreate(
+                    [
+                        'mentionable_type' => $target->getMorphClass(),
+                        'mentionable_id' => $target->id,
+                        'actor_id' => $mentionedActor->id,
+                    ],
+                );
 
-                if ($notifyMentions) {
+                if ($notifyMentions && $created->wasRecentlyCreated) {
                     $this->notificationCreator->notify($mentionedActor, Notification::TYPE_MENTION, $target->actor, $target);
                 }
             }

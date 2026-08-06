@@ -52,6 +52,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 - Citazioni remote (`quoteUrl` / `quote` FEP-044f / `_misskey_quote`): il
   post citato viene recuperato in cache e mostrato nella card annidata
   (`ob-post__quote`), togliendo dal testo il fallback "RE: …" / link nudo.
+- "Recupera aggiornamenti" su un post remoto con un proprio commento locale
+  nella collection replies: non fallisce piu' con UniqueConstraint (non si
+  tenta di re-ingerire il commento locale ne' di creare un Actor remoto
+  sul dominio dell'istanza).
 
 ## [0.8.11] — Deploy e aggiornamenti guidati su shared hosting
 

@@ -111,6 +111,87 @@ class RemotePostRefreshTest extends TestCase
         $this->assertSame(1, Comment::query()->where('post_id', $post->id)->count());
     }
 
+    public function test_fetch_updates_with_own_local_reply_in_remote_collection_does_not_error(): void
+    {
+        $viewer = $this->createFullAccount('localreplyrefresh');
+        // URI legacy /@user: prima del repair, resolveByUri non riconosceva
+        // l'attore locale e tentava di creare un duplicato → UniqueConstraint.
+        $viewer->actor->forceFill([
+            'uri' => url('/@'.$viewer->actor->preferred_username),
+        ])->saveQuietly();
+
+        $author = $this->createRemoteActor('refreshwithlocal');
+        $post = $this->createRemotePost($author, 'with-local');
+
+        $localComment = Comment::query()->create([
+            'post_id' => $post->id,
+            'actor_id' => $viewer->actor->id,
+            'body' => 'Commento fatto da questa istanza.',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+
+        $localCommentUri = url('/comments/'.$localComment->id);
+        $localActorApId = url('/users/'.$viewer->actor->preferred_username);
+        $repliesPageUrl = $post->uri.'/replies?page=1';
+        $otherReplier = $this->createRemoteActor('altroreply', 'altro.example');
+        $otherReplyUri = $otherReplier->uri.'/statuses/other-reply';
+
+        Http::fake([
+            $post->uri => Http::response([
+                'id' => $post->uri,
+                'type' => 'Note',
+                'attributedTo' => $author->uri,
+                'content' => '<p>Post remoto.</p>',
+                'published' => now()->subDay()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+                'replies' => [
+                    'id' => $post->uri.'/replies',
+                    'type' => 'Collection',
+                    'first' => $repliesPageUrl,
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $repliesPageUrl => Http::response([
+                'id' => $repliesPageUrl,
+                'type' => 'CollectionPage',
+                'partOf' => $post->uri.'/replies',
+                'items' => [
+                    [
+                        'id' => $localCommentUri,
+                        'type' => 'Note',
+                        'attributedTo' => $localActorApId,
+                        'inReplyTo' => $post->uri,
+                        'content' => '<p>Commento fatto da questa istanza.</p>',
+                        'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+                    ],
+                    [
+                        'id' => $otherReplyUri,
+                        'type' => 'Note',
+                        'attributedTo' => $otherReplier->uri,
+                        'inReplyTo' => $post->uri,
+                        'content' => '<p>Altro commento remoto.</p>',
+                        'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+                    ],
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            // Non deve essere chiamato: il dominio locale e' bloccato nel resolver.
+            $localActorApId => Http::response(['error' => 'should not fetch'], 500),
+        ]);
+
+        $this->actingAs($viewer)
+            ->from(route('posts.show', $post))
+            ->post(route('posts.fetch_updates', $post))
+            ->assertRedirect(route('posts.show', $post))
+            ->assertSessionHas('status', __('openbook.posts.updates_fetched'));
+
+        $this->assertSame(1, Comment::query()->where('post_id', $post->id)->where('actor_id', $viewer->actor->id)->count());
+        $this->assertDatabaseHas('comments', [
+            'post_id' => $post->id,
+            'uri' => $otherReplyUri,
+            'body' => 'Altro commento remoto.',
+        ]);
+        $this->assertSame(1, Actor::query()->where('preferred_username', $viewer->actor->preferred_username)->count());
+    }
+
     public function test_guests_cannot_fetch_updates(): void
     {
         $author = $this->createRemoteActor('refreshguest');

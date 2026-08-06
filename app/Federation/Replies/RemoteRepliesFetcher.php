@@ -9,6 +9,7 @@ use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Fetch\FederationFetchSigner;
 use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Federation\Inbox\RemotePostObject;
+use App\Federation\Resolution\ObjectResolver;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use Illuminate\Support\Carbon;
@@ -35,6 +36,7 @@ final class RemoteRepliesFetcher
         private readonly SafeHttpClient $httpClient,
         private readonly RemoteNoteUpserter $noteUpserter,
         private readonly RemoteActorResolver $remoteActorResolver,
+        private readonly ObjectResolver $objects,
         private readonly FederationFetchSigner $fetchSigner,
     ) {}
 
@@ -279,6 +281,25 @@ final class RemoteRepliesFetcher
             return;
         }
 
+        // Commento locale gia' presente (/comments/{uuid} senza colonna uri):
+        // non re-ingerire (evita UniqueConstraint creando un Actor "remoto"
+        // omomorfo sul dominio locale).
+        $existingComment = $this->objects->resolveComment($noteUri);
+
+        if ($existingComment !== null) {
+            $existingComment->loadMissing('actor');
+
+            if ($existingComment->actor?->isLocal()) {
+                Log::channel('single')->info('federation.replies.skip', [
+                    'post_uri' => $post->uri,
+                    'reason' => 'local_comment',
+                    'item' => $noteUri,
+                ]);
+
+                return;
+            }
+        }
+
         [$parentPost, $parentComment] = $this->resolveParents($inReplyTo, $post);
 
         if ($parentPost === null && $parentComment === null) {
@@ -305,12 +326,17 @@ final class RemoteRepliesFetcher
             return;
         }
 
-        $actor = $this->remoteActorResolver->resolveByUri($attributedTo);
+        // ObjectResolver riconosce anche alias locali (/@user, /users/user).
+        $actor = $this->objects->resolveActor($attributedTo);
+
+        if ($actor === null) {
+            $actor = $this->remoteActorResolver->resolveByUri($attributedTo);
+        }
 
         if ($actor === null || $actor->isLocal()) {
             Log::channel('single')->info('federation.replies.skip', [
                 'post_uri' => $post->uri,
-                'reason' => 'actor_unresolved',
+                'reason' => $actor?->isLocal() ? 'local_actor' : 'actor_unresolved',
                 'item' => $noteUri,
                 'attributed_to' => $attributedTo,
             ]);
