@@ -461,7 +461,7 @@ return [
         ],
         'settings' => [
             'title' => 'Instance settings',
-            'intro' => 'Basic settings, rules and limits. Domain, database and federation keys stay in the .env file.',
+            'intro' => 'Basic settings, rules and limits: stored in the database. Domain, database, mail and federation keys stay in the .env file (edit manually).',
             'site_name' => 'Instance name',
             'registration_open' => 'Open registrations',
             'registration_help' => 'When off, the registration page returns 403 and NodeInfo reports openRegistrations=false.',

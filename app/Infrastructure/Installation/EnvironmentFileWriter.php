@@ -7,7 +7,7 @@ use RuntimeException;
 /**
  * Aggiorna in modo mirato le coppie chiave/valore del file .env, preservando
  * le righe esistenti (commenti compresi) e senza dipendere da pacchetti
- * esterni. Usato esclusivamente dall'installer guidato.
+ * esterni. Usato dall'installer guidato; il pannello admin non modifica .env.
  */
 final class EnvironmentFileWriter
 {

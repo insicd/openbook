@@ -461,7 +461,7 @@ return [
         ],
         'settings' => [
             'title' => 'Impostazioni istanza',
-            'intro' => 'Impostazioni di base, regole e limiti. Dominio, database e chiavi di federazione restano nel file .env.',
+            'intro' => 'Impostazioni di base, regole e limiti: salvate nel database. Dominio, database, posta e chiavi di federazione restano nel file .env (modifica manuale).',
             'site_name' => 'Nome dell istanza',
             'registration_open' => 'Registrazioni aperte',
             'registration_help' => 'Se disattivato, la pagina di registrazione risponde 403 e NodeInfo segnala openRegistrations=false.',

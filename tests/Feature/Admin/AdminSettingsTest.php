@@ -50,6 +50,31 @@ class AdminSettingsTest extends TestCase
         $this->assertSame('Openbook Test', config('app.name'));
     }
 
+    public function test_admin_settings_save_does_not_modify_env_file(): void
+    {
+        $envPath = base_path('.env');
+
+        if (! is_file($envPath)) {
+            $this->markTestSkipped('File .env assente in questo ambiente di test.');
+        }
+
+        $before = file_get_contents($envPath);
+        $this->assertNotFalse($before);
+
+        $admin = $this->createFullAccount('adminnoenv');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'site_name' => 'Nome Solo DB',
+            ]))
+            ->assertRedirect(route('admin.settings.edit'))
+            ->assertSessionHas('status');
+
+        $this->assertSame($before, file_get_contents($envPath));
+        $this->assertSame('Nome Solo DB', SystemSetting::get(InstanceSettings::KEY_SITE_NAME));
+    }
+
     public function test_admin_can_hide_staff_block_on_guest_home(): void
     {
         $admin = $this->createFullAccount('adminstafftoggle');

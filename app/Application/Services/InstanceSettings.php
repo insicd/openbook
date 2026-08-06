@@ -4,12 +4,13 @@ namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
 use App\Infrastructure\Database\SystemSetting;
-use App\Infrastructure\Installation\EnvironmentFileWriter;
 use Illuminate\Support\Facades\Config;
 
 /**
  * Impostazioni istanza gestibili dal pannello admin: source of truth in
- * {@see SystemSetting}, con fallback a config/.env e sync di APP_NAME.
+ * {@see SystemSetting}. I valori in .env/config restano default di bootstrap
+ * (installazione); a runtime {@see applyToRuntimeConfig()} applica gli override
+ * salvati in DB. Il pannello admin non scrive mai su .env.
  */
 final class InstanceSettings
 {
@@ -32,7 +33,6 @@ final class InstanceSettings
     public const KEY_SHOW_HOME_STAFF = 'show_home_staff';
 
     public function __construct(
-        private readonly EnvironmentFileWriter $envWriter,
         private readonly AuditLogger $auditLogger,
     ) {}
 
@@ -163,17 +163,6 @@ final class InstanceSettings
         Config::set('openbook.comments.max_length', $commentMax);
         Config::set('openbook.media.max_size_kb', $mediaKb);
         Config::set('openbook.media.max_attachments_per_post', $mediaAttachments);
-
-        if (! app()->runningUnitTests() && is_file(base_path('.env'))) {
-            $this->envWriter->update([
-                'APP_NAME' => $siteName,
-                'OPENBOOK_REGISTRATION_OPEN' => $registrationOpen ? 'true' : 'false',
-                'OPENBOOK_POST_MAX_LENGTH' => (string) $postMax,
-                'OPENBOOK_COMMENT_MAX_LENGTH' => (string) $commentMax,
-                'OPENBOOK_MEDIA_MAX_SIZE_KB' => (string) $mediaKb,
-                'OPENBOOK_MEDIA_MAX_ATTACHMENTS' => (string) $mediaAttachments,
-            ]);
-        }
 
         if ($actor !== null) {
             $this->auditLogger->log($actor, 'settings.update', null, [
