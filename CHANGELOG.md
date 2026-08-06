@@ -45,6 +45,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
     verifica la collection `followers` remota e si conferma in locale
     (`openbook:confirm-outgoing-follows` nel cron).
   Sblocca Accept/follow-back da bot come `@_followback@tags.pub`.
+- Announce (boost) da Person/bot di Note remote non ancora in cache: si
+  recupera/incorpora il post come gia' per i Group, cosi' le ricondivisioni
+  di bot seguiti (es. tags.pub) compaiono nel feed. Prima venivano ignorate
+  se l'oggetto non era un post locale gia' presente in DB.
 
 ## [0.8.11] — Deploy e aggiornamenti guidati su shared hosting
 

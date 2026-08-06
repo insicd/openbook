@@ -478,6 +478,119 @@ class InboxActivityProcessorTest extends TestCase
         ]);
     }
 
+    public function test_a_followed_person_announce_of_a_remote_note_is_cached_and_shared(): void
+    {
+        Queue::fake();
+        $follower = $this->createFullAccount('seguacebot');
+        $bot = $this->createRemoteActor('hashtagbot', 'tags.example');
+        $author = $this->createRemoteActor('autoreoriginale', 'mastodon.example');
+
+        $follow = app(FollowManager::class)->follow($follower->actor, $bot);
+        $follow->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $noteUri = $author->uri.'/statuses/'.uniqid();
+        $activity = [
+            'id' => $bot->uri.'/activities/'.uniqid(),
+            'type' => 'Announce',
+            'actor' => $bot->uri,
+            'published' => now()->subMinute()->toAtomString(),
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $author->uri,
+                'content' => '<p>Nota boostata dal bot</p>',
+                'published' => now()->subHour()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ];
+
+        $status = $this->process($activity, $bot);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('posts', [
+            'uri' => $noteUri,
+            'actor_id' => $author->id,
+            'body' => 'Nota boostata dal bot',
+        ]);
+        $post = Post::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($post);
+        $this->assertDatabaseHas('announces', [
+            'actor_id' => $bot->id,
+            'post_id' => $post->id,
+        ]);
+    }
+
+    public function test_a_person_announce_of_a_remote_note_uri_is_fetched_when_followed(): void
+    {
+        Queue::fake();
+        $follower = $this->createFullAccount('seguacefetch');
+        $bot = $this->createRemoteActor('relaybot', 'bot.example');
+        $author = $this->createRemoteActor('remoto', 'origine.example');
+
+        $follow = app(FollowManager::class)->follow($follower->actor, $bot);
+        $follow->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $noteUri = $author->uri.'/posts/solo-id';
+        Http::fake([
+            $noteUri => Http::response([
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $author->uri,
+                'content' => '<p>Fetchata dall URI</p>',
+                'published' => now()->subHour()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $activity = [
+            'id' => $bot->uri.'/activities/'.uniqid(),
+            'type' => 'Announce',
+            'actor' => $bot->uri,
+            'object' => $noteUri,
+        ];
+
+        $status = $this->process($activity, $bot);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('posts', [
+            'uri' => $noteUri,
+            'body' => 'Fetchata dall URI',
+        ]);
+        $post = Post::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($post);
+        $this->assertDatabaseHas('announces', [
+            'actor_id' => $bot->id,
+            'post_id' => $post->id,
+        ]);
+    }
+
+    public function test_a_person_announce_of_a_remote_note_is_ignored_without_local_followers(): void
+    {
+        Queue::fake();
+        $bot = $this->createRemoteActor('botorfano', 'tags.example');
+        $author = $this->createRemoteActor('sconosciuto', 'mastodon.example');
+
+        $noteUri = $author->uri.'/statuses/'.uniqid();
+        $activity = [
+            'id' => $bot->uri.'/activities/'.uniqid(),
+            'type' => 'Announce',
+            'actor' => $bot->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $author->uri,
+                'content' => '<p>Non rilevante</p>',
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ];
+
+        $status = $this->process($activity, $bot);
+
+        $this->assertSame(InboxItem::STATUS_IGNORED, $status);
+        $this->assertDatabaseMissing('posts', ['uri' => $noteUri]);
+        $this->assertDatabaseCount('announces', 0);
+    }
+
     public function test_a_remote_group_announce_of_a_lemmy_style_page_is_cached(): void
     {
         Queue::fake();

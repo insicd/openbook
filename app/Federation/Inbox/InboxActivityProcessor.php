@@ -360,7 +360,7 @@ final class InboxActivityProcessor
         $targetUri = $this->objectId($embeddedAnnounce['object'] ?? null);
         $post = $targetUri !== null ? $this->objects->resolvePost($targetUri) : null;
 
-        if ($post === null || ! $post->actor->isLocal()) {
+        if ($post === null) {
             return InboxItem::STATUS_IGNORED;
         }
 
@@ -387,8 +387,11 @@ final class InboxActivityProcessor
     }
 
     /**
-     * Condivisione classica (Person che Annuncia un post locale) oppure
-     * ritrasmissione FEP-1b12 (Group che Annuncia una Note/Page, anche remota).
+     * Condivisione classica (Person/bot che Annuncia un post) oppure
+     * ritrasmissione FEP-1b12 (Group che Annuncia una Note/Page).
+     * Se l'oggetto non e' ancora in cache, si recupera/incorpora come per
+     * i Group: cosi' i boost di bot (es. tags.pub) compaiono nel feed di
+     * chi li segue anche se il post originale non era conosciuto.
      *
      * @param  array<string, mixed>  $activity
      */
@@ -398,8 +401,14 @@ final class InboxActivityProcessor
 
         $post = $targetUri !== null ? $this->objects->resolvePost($targetUri) : null;
 
-        if ($post === null && $actor->isGroup()) {
-            $post = $this->resolveGroupAnnouncedPost($targetUri, $embeddedNote);
+        // Post sconosciuto: fetch/upsert solo se chi Annuncia e' seguito in
+        // locale (altrimenti non comparirebbe nel feed e occuperebbe solo spazio).
+        if ($post === null) {
+            if (! $this->hasLocalFollower($actor)) {
+                return InboxItem::STATUS_IGNORED;
+            }
+
+            $post = $this->resolveAnnouncedRemotePost($targetUri, $embeddedNote);
         }
 
         if ($post === null) {
@@ -408,22 +417,28 @@ final class InboxActivityProcessor
 
         $post->loadMissing('actor');
 
-        // Person: solo boost di post locali (comportamento storico).
-        // Group: qualunque Note/Page (locale o remota) se almeno un Actor
-        // locale segue il Group, oppure se l'autore del post e' locale.
-        if ($actor->isGroup()) {
-            if (! $post->actor->isLocal() && ! $this->hasLocalFollower($actor)) {
-                return InboxItem::STATUS_IGNORED;
-            }
-        } elseif (! $post->actor->isLocal()) {
+        // Rilevanza: post di autore locale (boost del nostro contenuto) oppure
+        // chi Annuncia e' seguito da almeno un Actor locale.
+        if (! $post->actor->isLocal() && ! $this->hasLocalFollower($actor)) {
             return InboxItem::STATUS_IGNORED;
+        }
+
+        $occurredAt = null;
+
+        if ($actor->isGroup()) {
+            $occurredAt = $post->published_at;
+        } elseif (! $post->actor->isLocal()
+            && isset($activity['published'])
+            && is_string($activity['published'])
+        ) {
+            $occurredAt = ActivityPubTimestamp::parse($activity['published']);
         }
 
         $this->announceManager->announce(
             $actor,
             $post,
             notify: $post->actor->isLocal(),
-            occurredAt: $actor->isGroup() ? $post->published_at : null,
+            occurredAt: $occurredAt,
         );
 
         return InboxItem::STATUS_PROCESSED;
@@ -454,9 +469,12 @@ final class InboxActivityProcessor
     }
 
     /**
+     * Risolve il post oggetto di un Announce non ancora in cache: Note/Page
+     * incorporata oppure fetch HTTP dell'URI (Person e Group).
+     *
      * @param  array<string, mixed>|null  $embeddedNote
      */
-    private function resolveGroupAnnouncedPost(?string $targetUri, ?array $embeddedNote): ?Post
+    private function resolveAnnouncedRemotePost(?string $targetUri, ?array $embeddedNote): ?Post
     {
         $note = $embeddedNote;
 
@@ -480,8 +498,8 @@ final class InboxActivityProcessor
             return $existing;
         }
 
-        // Solo post originali: le risposte annunciate dal Group senza padre
-        // in cache non sono agganciabili in modo utile.
+        // Solo post originali: le risposte annunciate senza padre in cache
+        // non sono agganciabili in modo utile.
         if (($note['inReplyTo'] ?? null) !== null) {
             return null;
         }
