@@ -12,13 +12,7 @@
                     $sourcePost = $item->posts->first();
                 @endphp
                 <figure class="ob-photo-grid__item">
-                    <img
-                        src="{{ $item->displayUrl() }}"
-                        data-full-src="{{ $item->url() }}"
-                        alt="{{ $item->alt_text ?: __('openbook.profile.photo_alt') }}"
-                        loading="lazy"
-                        data-lightbox-trigger
-                    >
+                    @include('media._attachment', ['media' => $item, 'altFallback' => __('openbook.profile.photo_alt')])
                     @if ($sourcePost)
                         <a href="{{ route('posts.show', $sourcePost) }}" class="ob-photo-grid__post">{{ __('openbook.profile.open_photo_post') }}</a>
                     @endif

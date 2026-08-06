@@ -125,4 +125,25 @@ class RemoteContentSanitizerTest extends TestCase
         $this->assertSame('Testo', $text);
         $this->assertStringNotContainsString('cdn.example', $text);
     }
+
+    public function test_it_extracts_inline_mp4_videos_from_html(): void
+    {
+        $videos = RemoteContentSanitizer::extractInlineVideos(
+            '<video loop muted><source src="https://cdn.example/loop.mp4" type="video/mp4"></video>'
+        );
+
+        $this->assertCount(1, $videos);
+        $this->assertSame('https://cdn.example/loop.mp4', $videos[0]['url']);
+        $this->assertSame('video/mp4', $videos[0]['mime']);
+    }
+
+    public function test_it_removes_inline_videos_from_plain_text_body(): void
+    {
+        $text = RemoteContentSanitizer::toPlainText(
+            '<p>Reazione</p><video><source src="https://cdn.example/loop.mp4" type="video/mp4"></video>'
+        );
+
+        $this->assertSame('Reazione', $text);
+        $this->assertStringNotContainsString('cdn.example', $text);
+    }
 }

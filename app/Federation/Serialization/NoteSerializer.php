@@ -316,7 +316,7 @@ final class NoteSerializer
         $content->loadMissing('media');
 
         return $content->media->map(fn ($media) => [
-            'type' => 'Image',
+            'type' => str_starts_with($media->mime_type, 'video/') ? 'Document' : 'Image',
             'mediaType' => $media->mime_type,
             'url' => $media->url(),
             'name' => $media->alt_text ?: '',

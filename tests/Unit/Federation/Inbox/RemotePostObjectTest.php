@@ -110,4 +110,41 @@ class RemotePostObjectTest extends TestCase
             ]),
         );
     }
+
+    public function test_media_attachments_include_mastodon_gif_as_mp4_document(): void
+    {
+        $mp4Url = 'https://mastodon.example/media_attachments/files/1/2/original/abc.mp4';
+
+        $attachments = RemotePostObject::mediaAttachments([
+            'type' => 'Note',
+            'content' => '',
+            'attachment' => [
+                [
+                    'type' => 'Document',
+                    'mediaType' => 'video/mp4',
+                    'url' => $mp4Url,
+                    'name' => 'GIF animata',
+                ],
+            ],
+        ]);
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame($mp4Url, $attachments[0]['url']);
+        $this->assertSame('video/mp4', $attachments[0]['mime']);
+        $this->assertSame('GIF animata', $attachments[0]['alt']);
+    }
+
+    public function test_media_attachments_include_inline_video_from_html_content(): void
+    {
+        $mp4Url = 'https://mastodon.example/media/loop.mp4';
+
+        $attachments = RemotePostObject::mediaAttachments([
+            'type' => 'Note',
+            'content' => '<p><video loop muted playsinline><source src="'.$mp4Url.'" type="video/mp4"></video></p>',
+        ]);
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame($mp4Url, $attachments[0]['url']);
+        $this->assertSame('video/mp4', $attachments[0]['mime']);
+    }
 }

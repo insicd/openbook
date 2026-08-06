@@ -129,13 +129,7 @@
         @if ($post->media->isNotEmpty())
             <div class="ob-post__media" data-lightbox-group>
                 @foreach ($post->media as $media)
-                    <img
-                        src="{{ $media->displayUrl() }}"
-                        data-full-src="{{ $media->url() }}"
-                        alt="{{ $media->alt_text }}"
-                        loading="lazy"
-                        data-lightbox-trigger
-                    >
+                    @include('media._attachment', ['media' => $media])
                 @endforeach
             </div>
         @endif

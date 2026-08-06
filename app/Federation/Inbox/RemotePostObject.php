@@ -188,20 +188,19 @@ final class RemotePostObject
     }
 
     /**
-     * Allegati immagine da mostrare in galleria (Image/Document con mime
-     * immagine, oppure Image top-level). Non scarica i file: solo URL https.
+     * Allegati media da mostrare in galleria (immagini, GIF, video MP4 loop
+     * stile Mastodon). Non scarica i file: solo URL https.
      *
      * @param  array<string, mixed>  $document
      * @return list<array{url: string, mime: string|null, alt: string|null}>
      */
-    public static function imageAttachments(array $document): array
+    public static function mediaAttachments(array $document): array
     {
         $found = [];
 
         $attachments = $document['attachment'] ?? null;
 
         if (is_array($attachments)) {
-            // attachment puo' essere un singolo oggetto.
             if (isset($attachments['type']) || isset($attachments['url']) || isset($attachments['href'])) {
                 $attachments = [$attachments];
             }
@@ -211,7 +210,8 @@ final class RemotePostObject
                     continue;
                 }
 
-                $descriptor = self::imageDescriptorFromObject($item);
+                $descriptor = self::videoDescriptorFromObject($item)
+                    ?? self::imageDescriptorFromObject($item);
 
                 if ($descriptor !== null) {
                     $found[$descriptor['url']] = $descriptor;
@@ -219,9 +219,16 @@ final class RemotePostObject
             }
         }
 
-        // Image top-level (raro) o icon/image di anteprima Video/Article.
         if (self::hasType($document['type'] ?? null, 'Image')) {
             $descriptor = self::imageDescriptorFromObject($document);
+
+            if ($descriptor !== null) {
+                $found[$descriptor['url']] = $descriptor;
+            }
+        }
+
+        if (self::hasType($document['type'] ?? null, 'Video')) {
+            $descriptor = self::videoDescriptorFromObject($document);
 
             if ($descriptor !== null) {
                 $found[$descriptor['url']] = $descriptor;
@@ -242,11 +249,29 @@ final class RemotePostObject
             }
         }
 
-        foreach (RemoteContentSanitizer::extractInlineImages(self::rawContent($document)) as $descriptor) {
+        $contentHtml = self::rawContent($document);
+
+        foreach (RemoteContentSanitizer::extractInlineImages($contentHtml) as $descriptor) {
+            $found[$descriptor['url']] = $descriptor;
+        }
+
+        foreach (RemoteContentSanitizer::extractInlineVideos($contentHtml) as $descriptor) {
             $found[$descriptor['url']] = $descriptor;
         }
 
         return array_values($found);
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     * @return list<array{url: string, mime: string|null, alt: string|null}>
+     */
+    public static function imageAttachments(array $document): array
+    {
+        return array_values(array_filter(
+            self::mediaAttachments($document),
+            static fn (array $descriptor): bool => ! str_starts_with((string) ($descriptor['mime'] ?? ''), 'video/'),
+        ));
     }
 
     /**
@@ -510,6 +535,51 @@ final class RemotePostObject
      * @param  array<string, mixed>  $object
      * @return array{url: string, mime: string|null, alt: string|null}|null
      */
+    private static function videoDescriptorFromObject(array $object): ?array
+    {
+        $type = $object['type'] ?? null;
+        $mime = is_string($object['mediaType'] ?? null) ? strtolower($object['mediaType']) : null;
+        $alt = null;
+
+        if (is_string($object['name'] ?? null)) {
+            $alt = mb_substr(trim($object['name']), 0, 1000) ?: null;
+        }
+
+        $url = self::extractUrl($object['url'] ?? null, preferHtml: false)
+            ?? (is_string($object['href'] ?? null) ? $object['href'] : null);
+
+        if ($url === null && is_string($object['id'] ?? null) && self::looksLikeVideoUrl($object['id'])) {
+            $url = $object['id'];
+        }
+
+        if ($url === null || ! self::isSafeHttpUrl($url)) {
+            return null;
+        }
+
+        $isVideoType = self::hasType($type, 'Video')
+            || ($mime !== null && str_starts_with($mime, 'video/'))
+            || (self::hasType($type, 'Document') && $mime !== null && str_starts_with($mime, 'video/'))
+            || self::looksLikeVideoUrl($url);
+
+        if (! $isVideoType) {
+            return null;
+        }
+
+        if ($mime === null) {
+            $mime = match (strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION))) {
+                'webm' => 'video/webm',
+                'mp4', 'm4v', 'mov' => 'video/mp4',
+                default => 'video/mp4',
+            };
+        }
+
+        return ['url' => $url, 'mime' => $mime, 'alt' => $alt];
+    }
+
+    /**
+     * @param  array<string, mixed>  $object
+     * @return array{url: string, mime: string|null, alt: string|null}|null
+     */
     private static function imageDescriptorFromObject(array $object): ?array
     {
         $type = $object['type'] ?? null;
@@ -569,5 +639,12 @@ final class RemotePostObject
         $path = strtolower((string) (parse_url($url, PHP_URL_PATH) ?? ''));
 
         return (bool) preg_match('/\.(jpe?g|png|gif|webp|avif)(\?|$)/', $path);
+    }
+
+    private static function looksLikeVideoUrl(string $url): bool
+    {
+        $path = strtolower((string) (parse_url($url, PHP_URL_PATH) ?? ''));
+
+        return (bool) preg_match('/\.(mp4|webm|m4v|mov)(\?|$)/', $path);
     }
 }

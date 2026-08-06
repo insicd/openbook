@@ -32,8 +32,8 @@ final class RemoteContentSanitizer
 {
     public static function toPlainText(string $html): string
     {
-        $withoutImages = self::removeInlineImages($html);
-        $withLinks = self::preserveAnchors($withoutImages);
+        $withoutMedia = self::removeInlineVideos(self::removeInlineImages($html));
+        $withLinks = self::preserveAnchors($withoutMedia);
         $withBreaks = preg_replace('#<br\s*/?>#i', "\n", $withLinks) ?? $withLinks;
         $withParagraphs = preg_replace('#</p>|</div>|</li>#i', "\n\n", $withBreaks) ?? $withBreaks;
 
@@ -90,12 +90,80 @@ final class RemoteContentSanitizer
     }
 
     /**
+     * Estrae i video inline (&lt;video&gt; / &lt;source&gt;) dal content HTML
+     * remoto — tipico delle GIF convertite in MP4 su Mastodon.
+     *
+     * @return list<array{url: string, mime: string|null, alt: string|null}>
+     */
+    public static function extractInlineVideos(string $html): array
+    {
+        if ($html === '') {
+            return [];
+        }
+
+        $found = [];
+
+        if (preg_match_all('#<(?:video|source)\b[^>]*>#is', $html, $tags) !== false) {
+            foreach ($tags[0] as $tag) {
+                if (preg_match('#\bsrc\s*=\s*(["\'])(.*?)\1#is', $tag, $srcMatch) !== 1) {
+                    continue;
+                }
+
+                $mime = null;
+
+                if (preg_match('#\btype\s*=\s*(["\'])(.*?)\1#is', $tag, $typeMatch) === 1) {
+                    $mime = strtolower(html_entity_decode(trim($typeMatch[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                }
+
+                if ($mime !== null && ! str_starts_with($mime, 'video/')) {
+                    continue;
+                }
+
+                $url = html_entity_decode(trim($srcMatch[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+                if (! self::isSafeHttpUrl($url)) {
+                    continue;
+                }
+
+                $found[$url] = [
+                    'url' => $url,
+                    'mime' => $mime ?? self::guessVideoMimeFromUrl($url),
+                    'alt' => null,
+                ];
+            }
+        }
+
+        return array_values($found);
+    }
+
+    /**
      * Rimuove i tag img cosi' il corpo non ripete l'URL in plain-text quando
      * l'immagine viene mostrata in galleria.
      */
     private static function removeInlineImages(string $html): string
     {
         return preg_replace('#<img\b[^>]*>#is', '', $html) ?? $html;
+    }
+
+    /**
+     * Rimuove i player video inline (GIF-as-MP4 Mastodon) dal testo del post.
+     */
+    private static function removeInlineVideos(string $html): string
+    {
+        $html = preg_replace('#<video\b[^>]*>.*?</video>#is', '', $html) ?? $html;
+
+        return preg_replace('#<source\b[^>]*>#is', '', $html) ?? $html;
+    }
+
+    private static function guessVideoMimeFromUrl(string $url): ?string
+    {
+        $path = strtolower((string) (parse_url($url, PHP_URL_PATH) ?? ''));
+
+        return match (true) {
+            preg_match('/\.webm(\?|$)/', $path) === 1 => 'video/webm',
+            preg_match('/\.(mp4|m4v|mov)(\?|$)/', $path) === 1 => 'video/mp4',
+            default => null,
+        };
     }
 
     private static function guessImageMimeFromUrl(string $url): ?string

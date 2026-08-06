@@ -2132,6 +2132,16 @@ a.ob-post__menu-item {
   cursor: zoom-in;
 }
 
+.ob-post__media video,
+.ob-post__media-video {
+  display: block;
+  border-radius: var(--ob-radius);
+  width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+  background: var(--ob-color-bg);
+}
+
 .ob-post__hashtags {
   margin-top: 0.5rem;
   font-size: 0.9rem;

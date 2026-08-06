@@ -34,7 +34,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 - Post con GIF animate (locali o federati): le immagini inline nel content
   HTML remoto vengono estratte come allegati in galleria; gli upload locali
   conservano l'animazione (niente ricodifica GD) e nel feed si usa il file
-  originale anziche' una miniatura statica.
+  originale anziche' una miniatura statica. Supporto anche alle GIF Mastodon
+  convertite in MP4 loop (`video/mp4` in attachment o tag `<video>` inline).
 - Like/unlike su post e commenti via Ajax: niente piu' ricarica della
   timeline che riporta in cima. Senza JS resta il redirect con anchor
   (`#post-…` / `#commento-…`).

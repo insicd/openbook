@@ -27,7 +27,7 @@ final class RemoteAttachmentIngester
         }
 
         $descriptors = array_slice(
-            RemotePostObject::imageAttachments($document),
+            RemotePostObject::mediaAttachments($document),
             0,
             max(0, (int) config('openbook.media.max_attachments_per_post')),
         );
@@ -56,7 +56,8 @@ final class RemoteAttachmentIngester
                     [
                         'disk' => 'remote',
                         'path' => 'remote/'.sha1($descriptor['url']),
-                        'mime_type' => $descriptor['mime'] ?? 'image/jpeg',
+                        'mime_type' => $descriptor['mime']
+                            ?? (str_contains($descriptor['url'], '.mp4') ? 'video/mp4' : 'image/jpeg'),
                         'byte_size' => 0,
                         'alt_text' => $descriptor['alt'],
                     ],
