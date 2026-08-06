@@ -30,6 +30,7 @@ class CronCommand extends Command
         $this->call('openbook:deliver', ['--max-time' => $slice]);
         // Accept mancanti (tags.pub): conferma via collection followers.
         $this->call('openbook:confirm-outgoing-follows', ['--limit' => 5]);
+        $this->call('openbook:purge-database');
 
         return self::SUCCESS;
     }

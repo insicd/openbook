@@ -50,6 +50,9 @@
                 <a href="{{ route('admin.audit.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.audit.*') ? 'is-active' : '' }}">
                     <x-icon name="info" /> {{ __('openbook.admin.nav.audit') }}
                 </a>
+                <a href="{{ route('admin.database.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.database.*') ? 'is-active' : '' }}">
+                    <x-icon name="trash" /> {{ __('openbook.admin.nav.database') }}
+                </a>
             @endcan
         </aside>
 

@@ -23,6 +23,12 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 - Impostazione admin **Mostra amministrazione sulla home**: rende
   visibile o nasconde il blocco guest con amministratori e moderatori
   dell'istanza (default: visibile).
+- Pannello admin **Database** (`/admin/database`): dimensioni e righe
+  eliminabili per tabelle operative (inbox grezzo, job falliti, cache,
+  sessioni, token reset); pulizia singola o totale con retention di 24 ore
+  (le voci inbox `pending` non vengono mai eliminate).
+- Pulizia database automatica in `openbook:cron` (`openbook:purge-database`):
+  al massimo una volta ogni 24 ore, stessa retention del pannello admin.
 
 ### Fixed
 - Like/unlike su post e commenti via Ajax: niente piu' ricarica della

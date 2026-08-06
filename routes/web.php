@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActorProfileController;
 use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\DatabaseMaintenanceController as AdminDatabaseMaintenanceController;
 use App\Http\Controllers\Admin\DomainBlockController as AdminDomainBlockController;
 use App\Http\Controllers\Admin\QueueController as AdminQueueController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
@@ -166,6 +167,9 @@ Route::middleware('auth')->group(function () {
             Route::post('/coda/falliti/riprova-tutti', [AdminQueueController::class, 'retryAllFailed'])->name('queue.retry_all');
 
             Route::get('/audit', [AdminAuditLogController::class, 'index'])->name('audit.index');
+
+            Route::get('/database', [AdminDatabaseMaintenanceController::class, 'index'])->name('database.index');
+            Route::post('/database/pulisci', [AdminDatabaseMaintenanceController::class, 'purge'])->name('database.purge');
         });
     });
 });
