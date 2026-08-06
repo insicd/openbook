@@ -38,6 +38,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   convertite in MP4 loop (`video/mp4` in attachment o tag `<video>` inline).
 - Impostazioni admin: salvataggio solo in database; il file `.env` non viene
   piu' riscritto dal pannello (modifica manuale o installer al primo setup).
+- Pagine `/regole` e `/privacy`: layout a tutta larghezza della colonna
+  centrale, allineato al resto del sito (niente colonna stretta da 420px).
 - Like/unlike su post e commenti via Ajax: niente piu' ricarica della
   timeline che riporta in cima. Senza JS resta il redirect con anchor
   (`#post-…` / `#commento-…`).

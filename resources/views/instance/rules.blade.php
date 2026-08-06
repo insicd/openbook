@@ -3,7 +3,7 @@
 @section('title', __('openbook.instance_rules.title').' - '.config('app.name'))
 
 @section('content')
-    <div class="ob-card ob-narrow">
+    <div class="ob-card">
         <h1>{{ __('openbook.instance_rules.title') }}</h1>
         @if ($rulesHtml)
             <div class="ob-prose" style="margin-top:1rem">{!! $rulesHtml !!}</div>
