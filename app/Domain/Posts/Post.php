@@ -150,7 +150,8 @@ class Post extends Model
 
     public function hashtags(): BelongsToMany
     {
-        return $this->belongsToMany(Hashtag::class, 'post_hashtags');
+        return $this->belongsToMany(Hashtag::class, 'post_hashtags')
+            ->where('hashtags.name', '!=', '');
     }
 
     public function mentions(): MorphMany

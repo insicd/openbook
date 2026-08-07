@@ -293,6 +293,13 @@ final class PostBodyRenderer
         $name = substr($hashtag, 1);
         $tag = Hashtag::normalize($name);
 
+        if (! Hashtag::isValidName($tag)) {
+            $span = $document->createElement('span');
+            $span->appendChild($document->createTextNode($hashtag));
+
+            return $span;
+        }
+
         $anchor = $document->createElement('a');
         $anchor->setAttribute('href', route('hashtags.show', $tag));
         $anchor->setAttribute('class', 'hashtag');

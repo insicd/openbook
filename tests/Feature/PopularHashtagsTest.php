@@ -120,4 +120,31 @@ class PopularHashtagsTest extends TestCase
         $response->assertSee(__('openbook.hashtags.index_title'), false);
         $response->assertSee('#laravel');
     }
+
+    public function test_it_excludes_empty_hashtag_names_from_trending(): void
+    {
+        $alice = $this->createFullAccount('alice');
+        $post = $this->publishPost($alice, 'Post normale su #valido');
+
+        $empty = Hashtag::query()->create(['name' => '']);
+        $post->hashtags()->attach($empty->id);
+
+        $names = app(PopularHashtagsQuery::class)->top()->pluck('name');
+
+        $this->assertSame(['valido'], $names->all());
+    }
+
+    public function test_the_home_feed_renders_when_an_empty_hashtag_is_attached_to_a_post(): void
+    {
+        $alice = $this->createFullAccount('alice');
+        $post = $this->publishPost($alice, 'Post visibile');
+
+        $empty = Hashtag::query()->create(['name' => '']);
+        $post->hashtags()->attach($empty->id);
+
+        $response = $this->actingAs($alice)->get('/home');
+
+        $response->assertOk();
+        $response->assertSee('Post visibile');
+    }
 }

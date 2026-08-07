@@ -329,7 +329,13 @@ final class RemoteNoteUpserter
             }
 
             if ($target instanceof Post && ($tag['type'] ?? null) === 'Hashtag' && is_string($tag['name'] ?? null)) {
-                $hashtag = Hashtag::query()->firstOrCreate(['name' => Hashtag::normalize($tag['name'])]);
+                $name = Hashtag::normalize($tag['name']);
+
+                if (! Hashtag::isValidName($name)) {
+                    continue;
+                }
+
+                $hashtag = Hashtag::query()->firstOrCreate(['name' => $name]);
                 $target->hashtags()->syncWithoutDetaching([$hashtag->id]);
 
                 continue;

@@ -34,4 +34,13 @@ class Hashtag extends Model
     {
         return mb_strtolower(ltrim(trim($raw), '#'));
     }
+
+    /**
+     * Nome canonico non vuoto, coerente con {@see ContentParser} e i tag
+     * ActivityPub accettati in ingresso.
+     */
+    public static function isValidName(string $name): bool
+    {
+        return $name !== '' && preg_match('/^[\p{L}\p{N}_]{1,100}$/u', $name) === 1;
+    }
 }

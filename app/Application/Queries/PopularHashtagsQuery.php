@@ -25,6 +25,7 @@ final class PopularHashtagsQuery
             ->selectRaw('count(*) as usage_count')
             ->join('post_hashtags', 'post_hashtags.hashtag_id', '=', 'hashtags.id')
             ->join('posts', 'posts.id', '=', 'post_hashtags.post_id')
+            ->where('hashtags.name', '!=', '')
             ->where('posts.status', Post::STATUS_PUBLISHED)
             ->whereIn('posts.visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED])
             ->groupBy('hashtags.id', 'hashtags.name', 'hashtags.created_at', 'hashtags.updated_at')

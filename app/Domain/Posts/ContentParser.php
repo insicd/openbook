@@ -30,6 +30,7 @@ final class ContentParser
 
         return collect($matches[1] ?? [])
             ->map(fn (string $tag) => Hashtag::normalize($tag))
+            ->filter(fn (string $name) => Hashtag::isValidName($name))
             ->unique()
             ->values();
     }

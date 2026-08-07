@@ -46,6 +46,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   ActivityPub (`actors.status`); esclusi da "Persone da seguire" e ricerca;
   profilo sospeso oscurato, profilo disabilitato 404. Migrazione allinea i
   dati gia\' presenti.
+- Hashtag con nome vuoto (es. tag ActivityPub malformati): esclusi da
+  "In tendenza", dal feed e dalla creazione futura; migrazione rimuove i
+  record invalidi gia\' presenti (niente piu' errore URL dopo il login).
 - Like/unlike su post e commenti via Ajax: niente piu' ricarica della
   timeline che riporta in cima. Senza JS resta il redirect con anchor
   (`#post-…` / `#commento-…`).
