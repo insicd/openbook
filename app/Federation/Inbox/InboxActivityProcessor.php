@@ -635,6 +635,9 @@ final class InboxActivityProcessor
             return InboxItem::STATUS_IGNORED;
         }
 
+        $note = $this->mergeActivityAudience($activity, $note);
+        $note = $this->ensureNoteContent($activity, $note);
+
         $noteUri = $note['id'] ?? null;
 
         if (! is_string($noteUri) || $noteUri === '') {
@@ -676,6 +679,11 @@ final class InboxActivityProcessor
         }
 
         $body = RemotePostObject::body($note);
+
+        if ($this->noteUpserter->visibilityFromAudience($note) === Post::VISIBILITY_DIRECT) {
+            $body = $this->sanitizeDirectMessageBody($note, $body);
+        }
+
         $publishedAt = ActivityPubTimestamp::parse(
             isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
         );
@@ -723,6 +731,149 @@ final class InboxActivityProcessor
         }
 
         return null;
+    }
+
+    /**
+     * Mastodon e altri server spesso inviano il Create con to/cc sull'attivita'
+     * e una Note incorporata senza audience completa.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $note
+     * @return array<string, mixed>
+     */
+    private function mergeActivityAudience(array $activity, array $note): array
+    {
+        foreach (['to', 'cc'] as $field) {
+            $noteValue = $note[$field] ?? null;
+            $activityValue = $activity[$field] ?? null;
+
+            if ($this->audienceFieldIsEmpty($noteValue) && ! $this->audienceFieldIsEmpty($activityValue)) {
+                $note[$field] = $activityValue;
+            }
+        }
+
+        return $note;
+    }
+
+    private function audienceFieldIsEmpty(mixed $value): bool
+    {
+        if ($value === null) {
+            return true;
+        }
+
+        if (is_string($value)) {
+            return $value === '';
+        }
+
+        return is_array($value) && $value === [];
+    }
+
+    /**
+     * Recupera il testo mancante quando l'oggetto e' uno stub (typical DM
+     * Mastodon). Per i direct message il fetch va firmato come destinatario
+     * locale, altrimenti molti server non restituiscono {@code content}.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $note
+     * @return array<string, mixed>
+     */
+    private function ensureNoteContent(array $activity, array $note): array
+    {
+        if (RemotePostObject::hasRawContent($note)) {
+            return $note;
+        }
+
+        $noteUri = $note['id'] ?? null;
+
+        if (! is_string($noteUri) || $noteUri === '') {
+            return $note;
+        }
+
+        $localRecipient = $this->resolveLocalRecipientFromAudience($note);
+        $fetched = $this->noteDocumentFetcher->fetch($noteUri, $localRecipient);
+
+        if ($fetched === null || ! RemotePostObject::hasRawContent($fetched)) {
+            return $note;
+        }
+
+        return $this->mergeActivityAudience($activity, $fetched);
+    }
+
+    /**
+     * @param  array<string, mixed>  $note
+     */
+    private function resolveLocalRecipientFromAudience(array $note): ?Actor
+    {
+        foreach (['to', 'cc'] as $field) {
+            $value = $note[$field] ?? null;
+
+            if (is_string($value) && $value !== '') {
+                $actor = $this->localPersonActorForUri($value);
+
+                if ($actor !== null) {
+                    return $actor;
+                }
+
+                continue;
+            }
+
+            if (! is_array($value)) {
+                continue;
+            }
+
+            foreach ($value as $item) {
+                if (! is_string($item) || $item === '') {
+                    continue;
+                }
+
+                $actor = $this->localPersonActorForUri($item);
+
+                if ($actor !== null) {
+                    return $actor;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function localPersonActorForUri(string $uri): ?Actor
+    {
+        if (! $this->isLocalActorUri($uri)) {
+            return null;
+        }
+
+        $actor = Actor::query()->where('uri', $uri)->first();
+
+        if ($actor === null || ! $actor->isLocal() || ! $actor->isPerson() || ! $actor->isActive()) {
+            return null;
+        }
+
+        return $actor;
+    }
+
+    /**
+     * @param  array<string, mixed>  $note
+     */
+    private function sanitizeDirectMessageBody(array $note, string $body): string
+    {
+        if (RemotePostObject::hasRawContent($note)) {
+            return $body;
+        }
+
+        $trimmed = trim($body);
+
+        if ($trimmed === '') {
+            return $body;
+        }
+
+        $noteUri = is_string($note['id'] ?? null) ? trim($note['id']) : null;
+
+        if ($noteUri !== null && $trimmed === $noteUri) {
+            return '';
+        }
+
+        return $body;
     }
 
     /**

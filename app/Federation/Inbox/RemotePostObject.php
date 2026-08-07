@@ -77,6 +77,16 @@ final class RemotePostObject
     }
 
     /**
+     * True se la Note ha testo in content, contentMap o source.
+     *
+     * @param  array<string, mixed>  $document
+     */
+    public static function hasRawContent(array $document): bool
+    {
+        return self::rawContent($document) !== '';
+    }
+
+    /**
      * Corpo testuale: content HTML ripulito, poi contentMap / source /
      * summary / url canonico / name. Cosi' Article senza content breve,
      * Video PeerTube e link-post Lemmy restano leggibili.

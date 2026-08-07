@@ -38,6 +38,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 ### Fixed
 - Invio messaggio: errore SQL su `conversation_reads` (chiave composta senza
   colonna `id`); aggiornamento lettura via query diretta.
+- Ricezione DM federati: testo mancante in conversazione quando la Note
+  arriva come stub senza `content` (typical Mastodon). OpenBook ora recupera
+  il documento completo con fetch firmato come destinatario locale e unisce
+  l'audience `to`/`cc` dell'attivita' Create.
 
 ## [0.8.12] — Composer rapido dalla navbar
 
