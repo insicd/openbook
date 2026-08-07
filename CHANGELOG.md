@@ -39,6 +39,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 - Feed, profili, ricerca locale e media: i post collegati a conversazioni
   private (`conversation_id`) non compaiono piu' nelle timeline pubbliche,
   solo in `/messaggi`.
+- Pagina **Notifiche** (`/notifiche`): scorrimento infinito al posto della
+  paginazione a numeri (fallback `<noscript>` invariato).
 
 ### Fixed
 - Invio messaggio: errore SQL su `conversation_reads` (chiave composta senza

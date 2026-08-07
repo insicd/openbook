@@ -2,35 +2,37 @@
 
 @section('title', __('openbook.notifications.title').' - '.config('app.name'))
 
+@php
+    $nextUrl = $notifications->hasMorePages() ? $notifications->nextPageUrl() : null;
+@endphp
+
 @section('content')
     <div class="ob-card">
         <h1>{{ __('openbook.notifications.title') }}</h1>
 
-        @forelse ($notifications as $notification)
-            @php
-                $causedByActor = $notification->actor;
-                $url = $notification->targetUrl();
-            @endphp
-            <div class="ob-notification {{ $notification->isRead() ? '' : 'ob-notification--unread' }}">
-                <x-avatar :actor="$causedByActor" style="width:40px;height:40px" />
-                <div>
-                    <div>{{ $notification->message() }}</div>
-                    <div class="ob-notification__time">{{ $notification->created_at->diffForHumans() }}</div>
+        <div
+            id="ob-notification-list"
+            data-infinite-scroll
+            @if ($nextUrl) data-next-url="{{ $nextUrl }}" @endif
+            data-loading-label="{{ __('openbook.infinite_scroll.loading') }}"
+            data-end-label="{{ __('openbook.infinite_scroll.end') }}"
+            data-error-label="{{ __('openbook.infinite_scroll.error') }}"
+        >
+            @forelse ($notifications as $notification)
+                @include('notifications._row', ['notification' => $notification])
+            @empty
+                <div class="ob-empty-state">
+                    <p>{{ __('openbook.notifications.empty') }}</p>
                 </div>
-                @if ($url)
-                    <a href="{{ $url }}" class="ob-btn ob-btn--ghost" style="margin-left:auto">{{ __('openbook.notifications.view') }}</a>
-                @endif
-            </div>
-        @empty
-            <div class="ob-empty-state">
-                <p>{{ __('openbook.notifications.empty') }}</p>
-            </div>
-        @endforelse
+            @endforelse
+        </div>
 
         @if ($notifications->hasPages())
-            <div class="ob-pagination">
-                {{ $notifications->onEachSide(1)->links() }}
-            </div>
+            <noscript>
+                <div class="ob-pagination">
+                    {{ $notifications->onEachSide(1)->links() }}
+                </div>
+            </noscript>
         @endif
     </div>
 @endsection

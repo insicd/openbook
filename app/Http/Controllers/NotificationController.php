@@ -18,7 +18,7 @@ class NotificationController extends Controller
             ->where('recipient_id', auth()->id())
             ->with(['actor.user.profile', 'notifiable'])
             ->orderByDesc('created_at')
-            ->paginate(30);
+            ->paginate((int) config('openbook.notifications.per_page', 30));
 
         $this->markUnreadAsRead(auth()->user());
 

@@ -159,6 +159,10 @@ return [
         'body_excerpt_length' => (int) env('OPENBOOK_FEED_BODY_EXCERPT', 150),
     ],
 
+    'notifications' => [
+        'per_page' => (int) env('OPENBOOK_NOTIFICATIONS_PER_PAGE', 30),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Ricerca locale

@@ -156,4 +156,32 @@ class NotificationTest extends TestCase
     {
         $this->getJson(route('notifications.feed'))->assertUnauthorized();
     }
+
+    public function test_the_notifications_page_uses_infinite_scroll_when_there_are_more_pages(): void
+    {
+        config(['openbook.notifications.per_page' => 2]);
+
+        $target = $this->createFullAccount('notifpages');
+
+        foreach (['one', 'two', 'three'] as $username) {
+            $follower = $this->createFullAccount($username);
+            app(FollowManager::class)->follow($follower->actor, $target->actor);
+        }
+
+        $response = $this->actingAs($target)->get(route('notifications.index'));
+
+        $response->assertOk();
+        $response->assertSee('id="ob-notification-list"', false);
+        $response->assertSee('data-infinite-scroll', false);
+        $response->assertSee('data-next-url="'.route('notifications.index', ['page' => 2]).'"', false);
+        $response->assertSee('<noscript>', false);
+        $response->assertSee('ob-pagination', false);
+
+        $pageTwo = $this->actingAs($target)->get(route('notifications.index', ['page' => 2]));
+
+        $pageTwo->assertOk();
+        $pageTwo->assertSee('id="ob-notification-list"', false);
+        $pageTwo->assertSee('one', false);
+        $pageTwo->assertDontSee('data-next-url', false);
+    }
 }
