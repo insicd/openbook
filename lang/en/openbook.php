@@ -313,6 +313,7 @@ return [
         'send' => 'Send',
         'cannot_send' => 'You cannot message this person.',
         'message_action' => 'Message',
+        'message_aria' => 'Send a private message',
         'errors' => [
             'empty_body' => 'Write a message before sending.',
             'cannot_message' => 'You cannot message this person.',

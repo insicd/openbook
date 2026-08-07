@@ -1147,8 +1147,33 @@ html.ob-compose-modal-open {
 .ob-profile-stats {
   display: flex;
   gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-top: 0;
+}
+
+.ob-profile-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   margin-top: 1rem;
   flex-wrap: wrap;
+}
+
+.ob-profile-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.ob-profile-toolbar__form {
+  display: inline-flex;
+  margin: 0;
+}
+
+.ob-profile-toolbar__message {
+  flex-shrink: 0;
 }
 
 .ob-profile-stats strong {

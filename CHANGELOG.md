@@ -28,6 +28,12 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 - Ricezione DM federati: visibilita' corretta quando `to`/`cc` contengono
   solo destinatari specifici; inbox accetta Note indirizzate a un actor
   locale anche senza tag `Mention`.
+- Profili: azioni **Segui/Smetti di seguire** e messaggio (icona) sulla
+  stessa riga dei contatori follower/seguiti.
+
+### Fixed
+- Invio messaggio: errore SQL su `conversation_reads` (chiave composta senza
+  colonna `id`); aggiornamento lettura via query diretta.
 
 ## [0.8.12] — Composer rapido dalla navbar
 

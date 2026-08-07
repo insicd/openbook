@@ -313,6 +313,7 @@ return [
         'send' => 'Invia',
         'cannot_send' => 'Non puoi inviare messaggi a questa persona.',
         'message_action' => 'Messaggio',
+        'message_aria' => 'Invia un messaggio privato',
         'errors' => [
             'empty_body' => 'Scrivi un messaggio prima di inviare.',
             'cannot_message' => 'Non puoi inviare messaggi a questa persona.',

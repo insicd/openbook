@@ -8,6 +8,7 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Segna conversazioni come lette e calcola messaggi non letti.
@@ -22,7 +23,7 @@ final class ConversationReadTracker
             return;
         }
 
-        ConversationRead::query()->updateOrCreate(
+        DB::table('conversation_reads')->updateOrInsert(
             [
                 'conversation_id' => $conversation->id,
                 'user_id' => $userId,

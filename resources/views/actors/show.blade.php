@@ -39,39 +39,45 @@
                 <div class="ob-profile-bio">{{ \App\Domain\Posts\PostBodyRenderer::render(\App\Federation\Inbox\RemoteContentSanitizer::toPlainText($profileActor->summary)) }}</div>
             @endif
 
-                    <div class="ob-profile-stats">
-                        <a href="{{ route('actors.followers', $profileActor) }}"><strong>{{ $followersCount }}</strong><span>{{ $isGroup ? __('openbook.communities.members') : __('openbook.profile.followers') }}</span></a>
-                        @unless ($isGroup)
-                            <a href="{{ route('actors.following', $profileActor) }}"><strong>{{ $followingCount }}</strong><span>{{ __('openbook.profile.following') }}</span></a>
-                        @endunless
-                    </div>
+            <div class="ob-profile-toolbar">
+                <div class="ob-profile-stats">
+                    <a href="{{ route('actors.followers', $profileActor) }}"><strong>{{ $followersCount }}</strong><span>{{ $isGroup ? __('openbook.communities.members') : __('openbook.profile.followers') }}</span></a>
+                    @unless ($isGroup)
+                        <a href="{{ route('actors.following', $profileActor) }}"><strong>{{ $followingCount }}</strong><span>{{ __('openbook.profile.following') }}</span></a>
+                    @endunless
+                </div>
 
-            <div style="margin-top:1rem">
-                @auth
-                    @if ($isFollowing)
-                        <form method="POST" action="{{ route('actors.unfollow', $profileActor) }}">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="ob-btn ob-btn--ghost">{{ $isGroup ? __('openbook.communities.leave') : __('openbook.follow.unfollow') }}</button>
-                        </form>
-                    @elseif ($hasPendingRequest)
-                        <form method="POST" action="{{ route('actors.unfollow', $profileActor) }}">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="ob-btn ob-btn--ghost">{{ $isGroup ? __('openbook.communities.pending') : __('openbook.follow.cancel_request') }}</button>
-                        </form>
+                <div class="ob-profile-toolbar__actions">
+                    @auth
+                        @if ($isFollowing)
+                            <form method="POST" action="{{ route('actors.unfollow', $profileActor) }}" class="ob-profile-toolbar__form">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ $isGroup ? __('openbook.communities.leave') : __('openbook.follow.unfollow') }}</button>
+                            </form>
+                        @elseif ($hasPendingRequest)
+                            <form method="POST" action="{{ route('actors.unfollow', $profileActor) }}" class="ob-profile-toolbar__form">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ $isGroup ? __('openbook.communities.pending') : __('openbook.follow.cancel_request') }}</button>
+                            </form>
+                        @else
+                            <form method="POST" action="{{ route('actors.follow', $profileActor) }}" class="ob-profile-toolbar__form">
+                                @csrf
+                                <button type="submit" class="ob-btn ob-btn--primary ob-btn--small">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</button>
+                            </form>
+                        @endif
+                        @if (! $isGroup)
+                            <a href="{{ route('messages.open_actor', $profileActor) }}" class="ob-icon-btn ob-profile-toolbar__message"
+                                aria-label="{{ __('openbook.messages.message_aria') }}"
+                                title="{{ __('openbook.messages.message_aria') }}">
+                                <x-icon name="message" />
+                            </a>
+                        @endif
                     @else
-                        <form method="POST" action="{{ route('actors.follow', $profileActor) }}">
-                            @csrf
-                            <button type="submit" class="ob-btn ob-btn--primary">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</button>
-                        </form>
-                    @endif
-                    @if (! $isGroup)
-                        <a href="{{ route('messages.open_actor', $profileActor) }}" class="ob-btn ob-btn--ghost">{{ __('openbook.messages.message_action') }}</a>
-                    @endif
-                @else
-                    <a href="{{ route('login') }}" class="ob-btn ob-btn--primary">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</a>
-                @endauth
+                        <a href="{{ route('login') }}" class="ob-btn ob-btn--primary ob-btn--small">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</a>
+                    @endauth
+                </div>
             </div>
 
             @include('profile._tabs', [

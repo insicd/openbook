@@ -44,39 +44,45 @@
                 </ul>
             @endif
 
-            <div class="ob-profile-stats">
-                <a href="{{ route('profile.followers', $profileUser->username) }}"><strong>{{ $followersCount }}</strong><span>{{ __('openbook.profile.followers') }}</span></a>
-                <a href="{{ route('profile.following', $profileUser->username) }}"><strong>{{ $followingCount }}</strong><span>{{ __('openbook.profile.following') }}</span></a>
-                <div><strong>{{ $communitiesCount ?? 0 }}</strong><span>{{ __('openbook.profile.communities') }}</span></div>
-            </div>
-
-            @unless ($isOwnProfile)
-                <div style="margin-top:1rem">
-                    @auth
-                        @if ($isFollowing)
-                            <form method="POST" action="{{ route('follow.destroy', $profileUser) }}">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="ob-btn ob-btn--ghost">{{ __('openbook.follow.unfollow') }}</button>
-                            </form>
-                        @elseif ($hasPendingRequest)
-                            <form method="POST" action="{{ route('follow.destroy', $profileUser) }}">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="ob-btn ob-btn--ghost">{{ __('openbook.follow.cancel_request') }}</button>
-                            </form>
-                        @else
-                            <form method="POST" action="{{ route('follow.store', $profileUser) }}">
-                                @csrf
-                                <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.follow.follow') }}</button>
-                            </form>
-                        @endif
-                        <a href="{{ route('messages.open', $profileUser->username) }}" class="ob-btn ob-btn--ghost">{{ __('openbook.messages.message_action') }}</a>
-                    @else
-                        <a href="{{ route('login') }}" class="ob-btn ob-btn--primary">{{ __('openbook.follow.follow') }}</a>
-                    @endauth
+            <div class="ob-profile-toolbar">
+                <div class="ob-profile-stats">
+                    <a href="{{ route('profile.followers', $profileUser->username) }}"><strong>{{ $followersCount }}</strong><span>{{ __('openbook.profile.followers') }}</span></a>
+                    <a href="{{ route('profile.following', $profileUser->username) }}"><strong>{{ $followingCount }}</strong><span>{{ __('openbook.profile.following') }}</span></a>
+                    <div><strong>{{ $communitiesCount ?? 0 }}</strong><span>{{ __('openbook.profile.communities') }}</span></div>
                 </div>
-            @endunless
+
+                @unless ($isOwnProfile)
+                    <div class="ob-profile-toolbar__actions">
+                        @auth
+                            @if ($isFollowing)
+                                <form method="POST" action="{{ route('follow.destroy', $profileUser) }}" class="ob-profile-toolbar__form">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.follow.unfollow') }}</button>
+                                </form>
+                            @elseif ($hasPendingRequest)
+                                <form method="POST" action="{{ route('follow.destroy', $profileUser) }}" class="ob-profile-toolbar__form">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.follow.cancel_request') }}</button>
+                                </form>
+                            @else
+                                <form method="POST" action="{{ route('follow.store', $profileUser) }}" class="ob-profile-toolbar__form">
+                                    @csrf
+                                    <button type="submit" class="ob-btn ob-btn--primary ob-btn--small">{{ __('openbook.follow.follow') }}</button>
+                                </form>
+                            @endif
+                            <a href="{{ route('messages.open', $profileUser->username) }}" class="ob-icon-btn ob-profile-toolbar__message"
+                                aria-label="{{ __('openbook.messages.message_aria') }}"
+                                title="{{ __('openbook.messages.message_aria') }}">
+                                <x-icon name="message" />
+                            </a>
+                        @else
+                            <a href="{{ route('login') }}" class="ob-btn ob-btn--primary ob-btn--small">{{ __('openbook.follow.follow') }}</a>
+                        @endauth
+                    </div>
+                @endunless
+            </div>
 
             @if ($isOwnProfile)
                 <div style="margin-top:1rem">

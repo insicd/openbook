@@ -83,6 +83,11 @@ class ConversationTest extends TestCase
             ->assertOk()
             ->assertSee('Segreto condiviso');
 
+        $this->assertDatabaseHas('conversation_reads', [
+            'conversation_id' => $conversation->id,
+            'user_id' => $bob->id,
+        ]);
+
         $this->actingAs($this->createFullAccount('stranger'))
             ->get(route('messages.show', $conversation))
             ->assertNotFound();
