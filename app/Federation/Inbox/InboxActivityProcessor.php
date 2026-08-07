@@ -688,19 +688,46 @@ final class InboxActivityProcessor
             isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
         );
 
-        $isReply = $parentPost !== null || $parentComment !== null;
+        $isDirectMessageReply = $this->isDirectMessageReply($note, $parentPost, $parentComment);
+        $isReply = ($parentPost !== null || $parentComment !== null) && ! $isDirectMessageReply;
 
-        return DB::transaction(function () use ($isReply, $note, $noteUri, $author, $body, $publishedAt, $parentPost, $parentComment) {
+        return DB::transaction(function () use ($isReply, $isDirectMessageReply, $note, $noteUri, $author, $body, $publishedAt, $parentPost, $parentComment) {
             if ($isReply) {
                 $comment = $this->noteUpserter->upsertComment($note, $noteUri, $author, $body, $parentPost, $parentComment);
 
                 return $comment !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
             }
 
-            $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt);
+            $this->noteUpserter->upsertPost(
+                $note,
+                $noteUri,
+                $author,
+                $body,
+                $publishedAt,
+                directMessageThreadParent: $isDirectMessageReply ? $parentPost : null,
+            );
 
             return InboxItem::STATUS_PROCESSED;
         });
+    }
+
+    /**
+     * Risposte a un messaggio privato (typical Mastodon DM thread con
+     * {@code inReplyTo}) restano messaggi nella conversazione, non commenti.
+     *
+     * @param  array<string, mixed>  $note
+     */
+    private function isDirectMessageReply(array $note, ?Post $parentPost, ?Comment $parentComment): bool
+    {
+        if ($parentPost === null || $parentComment !== null) {
+            return false;
+        }
+
+        if ($parentPost->visibility === Post::VISIBILITY_DIRECT) {
+            return true;
+        }
+
+        return $this->noteUpserter->visibilityFromAudience($note) === Post::VISIBILITY_DIRECT;
     }
 
     /**

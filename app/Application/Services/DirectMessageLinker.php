@@ -23,19 +23,27 @@ final class DirectMessageLinker
     /**
      * @param  array<string, mixed>  $note
      */
-    public function link(Post $post, Actor $author, array $note, bool $wasNew): void
+    public function link(Post $post, Actor $author, array $note, bool $wasNew, ?Post $threadParent = null): void
     {
         if ($post->visibility !== Post::VISIBILITY_DIRECT) {
             return;
         }
 
-        $other = $this->resolveOtherParticipant($post, $author, $note);
+        $conversation = null;
 
-        if ($other === null || $other->id === $author->id) {
-            return;
+        if ($threadParent?->conversation_id !== null) {
+            $conversation = Conversation::query()->find($threadParent->conversation_id);
         }
 
-        $conversation = $this->conversations->findOrCreate($author, $other);
+        if ($conversation === null) {
+            $other = $this->resolveOtherParticipant($post, $author, $note);
+
+            if ($other === null || $other->id === $author->id) {
+                return;
+            }
+
+            $conversation = $this->conversations->findOrCreate($author, $other);
+        }
 
         if ($post->conversation_id !== $conversation->id) {
             $post->update(['conversation_id' => $conversation->id]);
@@ -43,7 +51,10 @@ final class DirectMessageLinker
 
         $this->conversations->touch($conversation, $post->published_at);
 
-        if ($wasNew && $other->isLocal() && $other->isPerson() && $author->id !== $other->id) {
+        $conversation->loadMissing(['participantLow', 'participantHigh']);
+        $other = $conversation->otherParticipant($author);
+
+        if ($wasNew && $other !== null && $other->isLocal() && $other->isPerson() && $author->id !== $other->id) {
             $this->notificationCreator->notify(
                 $other,
                 Notification::TYPE_DIRECT_MESSAGE,

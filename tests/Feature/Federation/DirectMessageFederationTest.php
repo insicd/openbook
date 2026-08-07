@@ -4,6 +4,7 @@ namespace Tests\Feature\Federation;
 
 use App\Domain\Messaging\Conversation;
 use App\Domain\Notifications\Notification;
+use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\InboxItem;
@@ -229,5 +230,155 @@ class DirectMessageFederationTest extends TestCase
         $post = Post::query()->where('uri', $noteUri)->first();
         $this->assertNotNull($post);
         $this->assertSame('', $post->body);
+    }
+
+    public function test_inbound_direct_message_reply_stays_in_the_conversation_thread(): void
+    {
+        $local = $this->createFullAccount('local');
+        $remote = $this->createRemoteActor('sender', 'remoto.example');
+
+        $firstUri = 'https://remoto.example/users/sender/statuses/1';
+        $firstActivity = [
+            'id' => 'https://remoto.example/activities/first',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'to' => [$local->actor->uri],
+            'cc' => [$remote->uri],
+            'object' => [
+                'id' => $firstUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'to' => [$local->actor->uri],
+                'cc' => [$remote->uri],
+                'content' => '<p>Primo messaggio</p>',
+                'published' => now()->subMinute()->toAtomString(),
+            ],
+        ];
+
+        $firstItem = InboxItem::query()->create([
+            'is_shared' => false,
+            'remote_activity_uri' => $firstActivity['id'],
+            'activity_type' => 'Create',
+            'actor_uri' => $remote->uri,
+            'payload' => json_encode($firstActivity, JSON_THROW_ON_ERROR),
+            'signature_valid' => true,
+            'status' => InboxItem::STATUS_PENDING,
+            'received_at' => now(),
+        ]);
+
+        app(InboxActivityProcessor::class)->process($firstItem);
+
+        $firstPost = Post::query()->where('uri', $firstUri)->firstOrFail();
+        $conversationId = $firstPost->conversation_id;
+        $this->assertNotNull($conversationId);
+
+        $replyUri = 'https://remoto.example/users/sender/statuses/2';
+        $replyActivity = [
+            'id' => 'https://remoto.example/activities/reply',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'to' => [$local->actor->uri],
+            'cc' => [$remote->uri],
+            'object' => [
+                'id' => $replyUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'inReplyTo' => $firstUri,
+                'to' => [$local->actor->uri],
+                'cc' => [$remote->uri],
+                'content' => '<p>Risposta nel thread</p>',
+                'published' => now()->toAtomString(),
+            ],
+        ];
+
+        $replyItem = InboxItem::query()->create([
+            'is_shared' => false,
+            'remote_activity_uri' => $replyActivity['id'],
+            'activity_type' => 'Create',
+            'actor_uri' => $remote->uri,
+            'payload' => json_encode($replyActivity, JSON_THROW_ON_ERROR),
+            'signature_valid' => true,
+            'status' => InboxItem::STATUS_PENDING,
+            'received_at' => now(),
+        ]);
+
+        $status = app(InboxActivityProcessor::class)->process($replyItem);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseMissing('comments', ['uri' => $replyUri]);
+
+        $replyPost = Post::query()->where('uri', $replyUri)->first();
+        $this->assertNotNull($replyPost);
+        $this->assertSame(Post::VISIBILITY_DIRECT, $replyPost->visibility);
+        $this->assertSame($conversationId, $replyPost->conversation_id);
+        $this->assertSame('Risposta nel thread', $replyPost->body);
+    }
+
+    public function test_inbound_direct_message_reply_to_local_outbound_message_stays_in_thread(): void
+    {
+        $local = $this->createFullAccount('local');
+        $remote = $this->createRemoteActor('sender', 'remoto.example');
+        $conversation = Conversation::query()->create([
+            'participant_low_id' => Conversation::orderParticipantIds($local->actor->id, $remote->id)[0],
+            'participant_high_id' => Conversation::orderParticipantIds($local->actor->id, $remote->id)[1],
+            'last_message_at' => now()->subMinute(),
+        ]);
+
+        $outbound = Post::query()->create([
+            'actor_id' => $local->actor->id,
+            'body' => 'Ciao da OpenBook',
+            'visibility' => Post::VISIBILITY_DIRECT,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subMinute(),
+            'conversation_id' => $conversation->id,
+        ]);
+        $outboundUri = url('/posts/'.$outbound->id);
+        $outbound->update(['uri' => $outboundUri]);
+
+        Mention::query()->create([
+            'mentionable_type' => $outbound->getMorphClass(),
+            'mentionable_id' => $outbound->id,
+            'actor_id' => $remote->id,
+        ]);
+
+        $replyUri = 'https://remoto.example/users/sender/statuses/reply-local';
+        $replyActivity = [
+            'id' => 'https://remoto.example/activities/reply-local',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'to' => [$local->actor->uri],
+            'cc' => [$remote->uri],
+            'object' => [
+                'id' => $replyUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'inReplyTo' => $outboundUri,
+                'to' => [$local->actor->uri],
+                'cc' => [$remote->uri],
+                'content' => '<p>Risposta al tuo messaggio</p>',
+                'published' => now()->toAtomString(),
+            ],
+        ];
+
+        $replyItem = InboxItem::query()->create([
+            'is_shared' => false,
+            'remote_activity_uri' => $replyActivity['id'],
+            'activity_type' => 'Create',
+            'actor_uri' => $remote->uri,
+            'payload' => json_encode($replyActivity, JSON_THROW_ON_ERROR),
+            'signature_valid' => true,
+            'status' => InboxItem::STATUS_PENDING,
+            'received_at' => now(),
+        ]);
+
+        $status = app(InboxActivityProcessor::class)->process($replyItem);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseMissing('comments', ['uri' => $replyUri]);
+
+        $replyPost = Post::query()->where('uri', $replyUri)->first();
+        $this->assertNotNull($replyPost);
+        $this->assertSame($conversation->id, $replyPost->conversation_id);
+        $this->assertSame('Risposta al tuo messaggio', $replyPost->body);
     }
 }

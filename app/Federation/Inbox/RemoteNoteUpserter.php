@@ -51,6 +51,7 @@ final class RemoteNoteUpserter
         Carbon $publishedAt,
         bool $notifyMentions = true,
         bool $resolveQuote = true,
+        ?Post $directMessageThreadParent = null,
     ): Post {
         $quotedPost = null;
         $quoteUri = null;
@@ -68,6 +69,12 @@ final class RemoteNoteUpserter
 
         $sensitive = (bool) ($note['sensitive'] ?? false);
 
+        $visibility = $this->visibilityFromAudience($note);
+
+        if ($directMessageThreadParent !== null && $directMessageThreadParent->visibility === Post::VISIBILITY_DIRECT) {
+            $visibility = Post::VISIBILITY_DIRECT;
+        }
+
         /** @var Post $post */
         $post = Post::query()->where('uri', $noteUri)->first() ?? new Post(['uri' => $noteUri]);
         $wasNew = ! $post->exists;
@@ -77,7 +84,7 @@ final class RemoteNoteUpserter
             'title' => RemotePostObject::title($note),
             'content_warning' => $sensitive ? (is_string($note['summary'] ?? null) ? mb_substr($note['summary'], 0, 255) : null) : null,
             'body' => $body,
-            'visibility' => $this->visibilityFromAudience($note),
+            'visibility' => $visibility,
             'status' => Post::STATUS_PUBLISHED,
             // Riconverti sempre al TZ app: i caller possono passare un Carbon
             // ancora con offset remoto (vedi ActivityPubTimestamp).
@@ -106,11 +113,11 @@ final class RemoteNoteUpserter
             $this->attachTags($post, $note, $notifyMentions);
 
             if ($post->visibility === Post::VISIBILITY_DIRECT) {
-                $this->directMessageLinker->link($post, $actor, $note, true);
+                $this->directMessageLinker->link($post, $actor, $note, true, $directMessageThreadParent);
             }
         } elseif ($post->visibility === Post::VISIBILITY_DIRECT && $post->conversation_id === null) {
             $this->attachAudienceRecipients($post, $note, $actor);
-            $this->directMessageLinker->link($post, $actor, $note, false);
+            $this->directMessageLinker->link($post, $actor, $note, false, $directMessageThreadParent);
         }
 
         $this->attachments->sync($post, $actor, $note);

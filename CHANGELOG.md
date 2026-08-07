@@ -42,6 +42,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   arriva come stub senza `content` (typical Mastodon). OpenBook ora recupera
   il documento completo con fetch firmato come destinatario locale e unisce
   l'audience `to`/`cc` dell'attivita' Create.
+- Risposte DM federate (`inReplyTo` su un messaggio privato): restano nel
+  thread chat anziche' essere salvate come commenti fuori conversazione.
 
 ## [0.8.12] — Composer rapido dalla navbar
 
