@@ -23,6 +23,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   thread anziche' la pagina post.
 - Impostazione **Chi puo scriverti in privato**: chiunque, solo follower,
   nessuno (`user_settings.direct_message_policy`).
+- Comando `openbook:repair-dm-comments` per spostare in `/messaggi` i reply
+  DM gia' salvati per errore come commenti (`--dry-run` per anteprima).
 
 ### Changed
 - Ricezione DM federati: visibilita' corretta quando `to`/`cc` contengono
@@ -34,6 +36,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   senza ricaricare la pagina.
 - **Nuova conversazione** in `/messaggi`: campo destinatario con
   autocompletamento (persone locali e remoti in cache) senza passare dal profilo.
+- Feed, profili, ricerca locale e media: i post collegati a conversazioni
+  private (`conversation_id`) non compaiono piu' nelle timeline pubbliche,
+  solo in `/messaggi`.
 
 ### Fixed
 - Invio messaggio: errore SQL su `conversation_reads` (chiave composta senza
@@ -47,11 +52,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   riconosciuto anche il flag Mastodon `directMessage: true`, il campo
   `inReplyToAtomUri` e il `conversation_id` del messaggio padre (rete di
   sicurezza se il fetch HTTP del Note remoto perde i metadati Mastodon).
-
-### Changed
-- Feed, profili, ricerca locale e media: i post collegati a conversazioni
-  private (`conversation_id`) non compaiono piu' nelle timeline pubbliche,
-  solo in `/messaggi`.
+- Routing inbox riscritto: qualsiasi Note con `directMessage: true` o
+  audience `direct` va sempre in conversazione, senza passare dal percorso
+  commenti (elimina doppia notifica menzione + commento).
 
 ## [0.8.12] — Composer rapido dalla navbar
 

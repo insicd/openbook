@@ -691,32 +691,30 @@ final class InboxActivityProcessor
             isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
         );
 
-        $isDirectMessageReply = $this->isDirectMessageReply($note, $parentPost, $parentComment);
+        $conversationThreadParent = $this->resolveConversationThreadParent($note, $parentPost, $parentComment);
 
-        if ($parentPost !== null && $parentPost->conversation_id !== null) {
-            $isDirectMessageReply = true;
+        if ($this->shouldStoreAsConversationMessage($note, $parentPost, $parentComment)) {
+            return DB::transaction(function () use ($note, $noteUri, $author, $body, $publishedAt, $conversationThreadParent) {
+                $this->noteUpserter->upsertPost(
+                    $note,
+                    $noteUri,
+                    $author,
+                    $body,
+                    $publishedAt,
+                    directMessageThreadParent: $conversationThreadParent,
+                );
+
+                return InboxItem::STATUS_PROCESSED;
+            });
         }
 
-        $isReply = ($parentPost !== null || $parentComment !== null) && ! $isDirectMessageReply;
+        $isReply = $parentPost !== null || $parentComment !== null;
 
-        return DB::transaction(function () use ($isReply, $isDirectMessageReply, $note, $noteUri, $author, $body, $publishedAt, $parentPost, $parentComment) {
+        return DB::transaction(function () use ($isReply, $note, $noteUri, $author, $body, $publishedAt, $parentPost, $parentComment) {
             if ($isReply) {
                 $comment = $this->noteUpserter->upsertComment($note, $noteUri, $author, $body, $parentPost, $parentComment);
 
-                if ($comment === null) {
-                    $this->noteUpserter->upsertPost(
-                        $note,
-                        $noteUri,
-                        $author,
-                        $body,
-                        $publishedAt,
-                        directMessageThreadParent: $parentPost,
-                    );
-
-                    return InboxItem::STATUS_PROCESSED;
-                }
-
-                return InboxItem::STATUS_PROCESSED;
+                return $comment !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
             }
 
             $this->noteUpserter->upsertPost(
@@ -725,7 +723,6 @@ final class InboxActivityProcessor
                 $author,
                 $body,
                 $publishedAt,
-                directMessageThreadParent: $isDirectMessageReply ? $parentPost : null,
             );
 
             return InboxItem::STATUS_PROCESSED;
@@ -733,35 +730,63 @@ final class InboxActivityProcessor
     }
 
     /**
-     * Risposte a un messaggio privato (typical Mastodon DM thread con
-     * {@code inReplyTo}) restano messaggi nella conversazione, non commenti.
+     * Un messaggio privato federato va sempre in /messaggi, mai come commento
+     * sotto un post pubblico (typical reply DM Mastodon con menzione + commento).
      *
      * @param  array<string, mixed>  $note
      */
-    private function isDirectMessageReply(array $note, ?Post $parentPost, ?Comment $parentComment): bool
+    private function shouldStoreAsConversationMessage(array $note, ?Post $parentPost, ?Comment $parentComment): bool
     {
-        if ($parentComment !== null) {
-            return false;
+        if (RemotePostObject::isExplicitDirectMessage($note)) {
+            return true;
         }
 
-        $inReplyTo = RemotePostObject::inReplyToTarget($note);
-
-        if (RemotePostObject::isExplicitDirectMessage($note) && $inReplyTo !== null) {
+        if ($this->noteUpserter->visibilityFromAudience($note) === Post::VISIBILITY_DIRECT) {
             return true;
         }
 
         if ($parentPost !== null) {
-            if ($parentPost->conversation_id !== null) {
-                return true;
-            }
-
-            if ($parentPost->visibility === Post::VISIBILITY_DIRECT) {
+            if ($parentPost->conversation_id !== null || $parentPost->visibility === Post::VISIBILITY_DIRECT) {
                 return true;
             }
         }
 
-        return $inReplyTo !== null
-            && $this->noteUpserter->visibilityFromAudience($note) === Post::VISIBILITY_DIRECT;
+        if ($parentComment !== null) {
+            $parentComment->loadMissing('post');
+            $rootPost = $parentComment->post;
+
+            if ($rootPost !== null && ($rootPost->conversation_id !== null || $rootPost->visibility === Post::VISIBILITY_DIRECT)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Post padre del thread chat da cui ereditare {@see Post::$conversation_id}.
+     *
+     * @param  array<string, mixed>  $note
+     */
+    private function resolveConversationThreadParent(array $note, ?Post $parentPost, ?Comment $parentComment): ?Post
+    {
+        if ($parentPost !== null) {
+            return $parentPost;
+        }
+
+        if ($parentComment !== null) {
+            $parentComment->loadMissing('post');
+
+            return $parentComment->post;
+        }
+
+        $inReplyTo = RemotePostObject::inReplyToTarget($note);
+
+        if ($inReplyTo === null) {
+            return null;
+        }
+
+        return $this->objects->resolvePost($inReplyTo);
     }
 
     /**

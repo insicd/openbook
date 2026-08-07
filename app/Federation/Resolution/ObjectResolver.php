@@ -82,13 +82,67 @@ final class ObjectResolver
 
     public function resolvePost(string $uri): ?Post
     {
+        foreach ($this->localPostIdCandidates($uri) as $localId) {
+            $post = Post::query()->find($localId);
+
+            if ($post !== null) {
+                return $post;
+            }
+        }
+
+        $normalized = rtrim($uri, '/');
+
+        return Post::query()
+            ->where(function ($query) use ($uri, $normalized) {
+                $query->where('uri', $uri)
+                    ->orWhere('uri', $normalized);
+
+                if ($normalized !== $uri) {
+                    $query->orWhere('uri', $uri.'/');
+                }
+            })
+            ->first();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function localPostIdCandidates(string $uri): array
+    {
+        $ids = [];
+
         $localId = $this->localPathSegment($uri, 'posts');
 
         if ($localId !== null) {
-            return Post::query()->find($localId);
+            $ids[] = $localId;
         }
 
-        return Post::query()->where('uri', $uri)->first();
+        $hosts = array_values(array_unique(array_filter([
+            parse_url('//'.config('openbook.domain'), PHP_URL_HOST),
+            parse_url((string) config('app.url'), PHP_URL_HOST),
+        ], static fn ($host) => is_string($host) && $host !== '')));
+
+        $path = (string) parse_url($uri, PHP_URL_PATH);
+
+        if (preg_match('#^/posts/([0-9a-fA-F-]{36})$#', $path, $matches) !== 1) {
+            return $ids;
+        }
+
+        $uriHost = parse_url($uri, PHP_URL_HOST);
+
+        if (! is_string($uriHost) || $uriHost === '') {
+            return $ids;
+        }
+
+        foreach ($hosts as $host) {
+            if (strcasecmp($uriHost, $host) === 0) {
+                $ids[] = $matches[1];
+
+                break;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     public function resolveComment(string $uri): ?Comment
