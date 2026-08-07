@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $manually_approves_followers
  * @property string $default_post_visibility
  * @property bool $discoverable
+ * @property string $direct_message_policy
  */
 class UserSetting extends Model
 {
@@ -29,6 +30,12 @@ class UserSetting extends Model
 
     public const VISIBILITY_DIRECT = 'direct';
 
+    public const DM_POLICY_EVERYONE = 'everyone';
+
+    public const DM_POLICY_FOLLOWERS = 'followers';
+
+    public const DM_POLICY_NOBODY = 'nobody';
+
     /**
      * @var list<string>
      */
@@ -39,6 +46,7 @@ class UserSetting extends Model
         'manually_approves_followers',
         'default_post_visibility',
         'discoverable',
+        'direct_message_policy',
     ];
 
     /**

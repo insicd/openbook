@@ -24,6 +24,7 @@ return [
         'world' => 'World',
         'communities' => 'Communities',
         'profile' => 'Profile',
+        'messages' => 'Messages',
         'notifications' => 'Notifications',
         'search' => 'Search',
         'settings' => 'Settings',
@@ -258,6 +259,11 @@ return [
         'protected_account_help' => 'When enabled, new follow requests stay pending until you approve them manually.',
         'discoverable_label' => 'Include my account in suggestions and search results',
         'discoverable_help' => 'When disabled, you will not appear under "People to follow" or in this instance\'s search results (you remain reachable through your direct address).',
+        'direct_message_policy_label' => 'Who can message you privately',
+        'direct_message_policy_everyone' => 'Anyone',
+        'direct_message_policy_followers' => 'Only your followers',
+        'direct_message_policy_nobody' => 'Nobody',
+        'direct_message_policy_help' => 'Applies to federated private messages (ActivityPub). Messages from other instances still follow the sender\'s server rules.',
     ],
 
     'follows' => [
@@ -291,6 +297,25 @@ return [
             'share' => ':name shared your post.',
             'quote' => ':name quoted your post.',
             'community_post' => ':name published a post in :community.',
+            'direct_message' => ':name sent you a private message.',
+        ],
+    ],
+
+    'messages' => [
+        'title' => 'Messages',
+        'empty' => 'You have no conversations yet.',
+        'you_prefix' => 'You: ',
+        'back' => 'Messages',
+        'view_profile' => 'Profile',
+        'thread_empty' => 'No messages in this conversation yet. Say hello!',
+        'compose_label' => 'Message',
+        'compose_placeholder' => 'Write to :name…',
+        'send' => 'Send',
+        'cannot_send' => 'You cannot message this person.',
+        'message_action' => 'Message',
+        'errors' => [
+            'empty_body' => 'Write a message before sending.',
+            'cannot_message' => 'You cannot message this person.',
         ],
     ],
 

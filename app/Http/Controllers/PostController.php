@@ -81,7 +81,7 @@ class PostController extends Controller
      * negotiation, l'oggetto ActivityStreams "Note" (o "Tombstone" se il
      * post e' stato eliminato).
      */
-    public function show(Request $request, Post $post): View|JsonResponse
+    public function show(Request $request, Post $post): View|JsonResponse|RedirectResponse
     {
         $wantsActivityPub = ActivityPubNegotiation::wantsActivityPub($request);
         $viewer = $wantsActivityPub ? null : auth()->user()?->actor;
@@ -90,6 +90,14 @@ class PostController extends Controller
             Post::query()->whereKey($post->id)->visibleTo($viewer)->exists(),
             404,
         );
+
+        if (! $wantsActivityPub && $post->isDirectMessage() && $viewer !== null) {
+            $post->loadMissing('conversation');
+
+            if ($post->conversation !== null && $post->conversation->involves($viewer)) {
+                return redirect()->route('messages.show', $post->conversation_id);
+            }
+        }
 
         if ($wantsActivityPub) {
             return ActivityPubNegotiation::response(

@@ -71,6 +71,7 @@
                                 <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.follow.follow') }}</button>
                             </form>
                         @endif
+                        <a href="{{ route('messages.open', $profileUser->username) }}" class="ob-btn ob-btn--ghost">{{ __('openbook.messages.message_action') }}</a>
                     @else
                         <a href="{{ route('login') }}" class="ob-btn ob-btn--primary">{{ __('openbook.follow.follow') }}</a>
                     @endauth

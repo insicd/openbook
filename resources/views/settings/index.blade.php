@@ -128,6 +128,20 @@
                 <p class="ob-field__help">{{ __('openbook.settings.discoverable_help') }}</p>
             </div>
 
+            <div class="ob-field">
+                <label for="settings-dm-policy">{{ __('openbook.settings.direct_message_policy_label') }}</label>
+                @php $dmPolicy = old('direct_message_policy', $viewer->settings?->direct_message_policy ?: 'everyone'); @endphp
+                <select id="settings-dm-policy" name="direct_message_policy">
+                    <option value="everyone" @selected($dmPolicy === 'everyone')>{{ __('openbook.settings.direct_message_policy_everyone') }}</option>
+                    <option value="followers" @selected($dmPolicy === 'followers')>{{ __('openbook.settings.direct_message_policy_followers') }}</option>
+                    <option value="nobody" @selected($dmPolicy === 'nobody')>{{ __('openbook.settings.direct_message_policy_nobody') }}</option>
+                </select>
+                <p class="ob-field__help">{{ __('openbook.settings.direct_message_policy_help') }}</p>
+                @error('direct_message_policy')
+                    <p class="ob-field__error">{{ $message }}</p>
+                @enderror
+            </div>
+
             <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.settings.save') }}</button>
         </form>
     </div>

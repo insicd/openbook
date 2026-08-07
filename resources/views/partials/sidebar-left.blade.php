@@ -24,6 +24,12 @@
     <a href="{{ route('communities.index') }}" class="ob-side-nav__link {{ request()->routeIs('communities.*') ? 'is-active' : '' }}">
         <x-icon name="people" /> {{ __('openbook.nav.communities') }}
     </a>
+    <a href="{{ route('messages.index') }}" class="ob-side-nav__link {{ request()->routeIs('messages.*') ? 'is-active' : '' }}">
+        <x-icon name="message" /> {{ __('openbook.nav.messages') }}
+        @if (($unreadMessagesCount ?? 0) > 0)
+            <span class="ob-badge-count">{{ $unreadMessagesCount > 9 ? '9+' : $unreadMessagesCount }}</span>
+        @endif
+    </a>
     <a href="{{ route('notifications.index') }}" class="ob-side-nav__link {{ request()->routeIs('notifications.index') ? 'is-active' : '' }}" data-notifications-nav>
         <x-icon name="bell" /> {{ __('openbook.nav.notifications') }}
         @if (($unreadNotificationsCount ?? 0) > 0)

@@ -3,6 +3,7 @@
 namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
+use App\Domain\Accounts\UserSetting;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Serialization\ActivitySerializer;
@@ -23,7 +24,7 @@ final class AccountPreferencesUpdater
     ) {}
 
     /**
-     * @param  array{locale: string, default_post_visibility: string, manually_approves_followers?: bool|null, discoverable?: bool|null}  $data
+     * @param  array{locale: string, default_post_visibility: string, manually_approves_followers?: bool|null, discoverable?: bool|null, direct_message_policy: string}  $data
      */
     public function update(User $user, array $data): void
     {
@@ -34,6 +35,9 @@ final class AccountPreferencesUpdater
             'default_post_visibility' => $data['default_post_visibility'],
             'manually_approves_followers' => $manuallyApprovesFollowers,
             'discoverable' => (bool) ($data['discoverable'] ?? false),
+            'direct_message_policy' => $data['direct_message_policy']
+                ?? $user->settings->direct_message_policy
+                ?? UserSetting::DM_POLICY_EVERYONE,
         ]);
 
         $actor = $user->actor;

@@ -41,4 +41,14 @@ class VisibilityFromAudienceTest extends TestCase
             'to' => ['Public'],
         ]));
     }
+
+    public function test_it_treats_specific_recipients_without_public_as_direct(): void
+    {
+        $visibility = app(RemoteNoteUpserter::class)->visibilityFromAudience([
+            'to' => ['https://remoto.example/users/bob'],
+            'cc' => ['https://remoto.example/users/alice'],
+        ]);
+
+        $this->assertSame(Post::VISIBILITY_DIRECT, $visibility);
+    }
 }

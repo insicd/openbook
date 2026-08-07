@@ -14,6 +14,7 @@ use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Resolution\ObjectResolver;
 use App\Federation\Serialization\ActivitySerializer;
+use App\Federation\Serialization\NoteSerializer;
 use App\Federation\Support\ActivityPubTimestamp;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -751,7 +752,50 @@ final class InboxActivityProcessor
             return true;
         }
 
-        return $this->mentionsLocalActor($note);
+        return $this->mentionsLocalActor($note) || $this->addressesLocalActor($note);
+    }
+
+    /**
+     * @param  array<string, mixed>  $note
+     */
+    private function addressesLocalActor(array $note): bool
+    {
+        foreach (['to', 'cc'] as $field) {
+            $value = $note[$field] ?? null;
+
+            if (is_string($value) && $value !== '' && $this->isLocalActorUri($value)) {
+                return true;
+            }
+
+            if (! is_array($value)) {
+                continue;
+            }
+
+            foreach ($value as $item) {
+                if (is_string($item) && $item !== '' && $this->isLocalActorUri($item)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function isLocalActorUri(string $uri): bool
+    {
+        if (in_array($uri, [
+            NoteSerializer::PUBLIC_STREAM,
+            'as:Public',
+            'Public',
+        ], true)) {
+            return false;
+        }
+
+        if (str_ends_with($uri, '/followers')) {
+            return false;
+        }
+
+        return Actor::query()->where('uri', $uri)->where('is_local', true)->exists();
     }
 
     /**

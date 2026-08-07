@@ -16,6 +16,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CommunityController;
+use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\HashtagController;
@@ -111,6 +112,14 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:60,1')
         ->name('notifications.feed');
     Route::post('/notifiche/segna-lette', [NotificationController::class, 'markAllRead'])->name('notifications.read');
+
+    Route::get('/messaggi', [ConversationController::class, 'index'])->name('messages.index');
+    Route::get('/messaggi/nuovo/{username}', [ConversationController::class, 'openLocal'])
+        ->where('username', '[a-zA-Z0-9_]+')
+        ->name('messages.open');
+    Route::get('/messaggi/con/{actor}', [ConversationController::class, 'openActor'])->name('messages.open_actor');
+    Route::get('/messaggi/{conversation}', [ConversationController::class, 'show'])->name('messages.show');
+    Route::post('/messaggi/{conversation}', [ConversationController::class, 'store'])->name('messages.store');
 
     Route::get('/impostazioni', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('/impostazioni/profilo', [SettingsController::class, 'updateProfile'])->name('settings.profile.update');

@@ -66,6 +66,9 @@
                             <button type="submit" class="ob-btn ob-btn--primary">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</button>
                         </form>
                     @endif
+                    @if (! $isGroup)
+                        <a href="{{ route('messages.open_actor', $profileActor) }}" class="ob-btn ob-btn--ghost">{{ __('openbook.messages.message_action') }}</a>
+                    @endif
                 @else
                     <a href="{{ route('login') }}" class="ob-btn ob-btn--primary">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</a>
                 @endauth

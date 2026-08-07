@@ -24,6 +24,7 @@ return [
         'world' => 'Mondo',
         'communities' => 'Community',
         'profile' => 'Profilo',
+        'messages' => 'Messaggi',
         'notifications' => 'Notifiche',
         'search' => 'Cerca',
         'settings' => 'Impostazioni',
@@ -258,6 +259,11 @@ return [
         'protected_account_help' => 'Se attivo, le nuove richieste di follow restano in attesa finche non le accetti manualmente.',
         'discoverable_label' => 'Includi il mio account nei suggerimenti e nelle ricerche',
         'discoverable_help' => 'Se disattivato, non comparirai tra "Persone da seguire" ne nei risultati di ricerca di questa istanza (resti comunque raggiungibile tramite il tuo indirizzo diretto).',
+        'direct_message_policy_label' => 'Chi puo scriverti in privato',
+        'direct_message_policy_everyone' => 'Chiunque',
+        'direct_message_policy_followers' => 'Solo i tuoi follower',
+        'direct_message_policy_nobody' => 'Nessuno',
+        'direct_message_policy_help' => 'Si applica ai messaggi privati federati (ActivityPub). I messaggi da altre istanze rispettano comunque le regole del server mittente.',
     ],
 
     'follows' => [
@@ -291,6 +297,25 @@ return [
             'share' => ':name ha condiviso il tuo post.',
             'quote' => ':name ha citato il tuo post.',
             'community_post' => ':name ha pubblicato un post in :community.',
+            'direct_message' => ':name ti ha inviato un messaggio privato.',
+        ],
+    ],
+
+    'messages' => [
+        'title' => 'Messaggi',
+        'empty' => 'Non hai ancora conversazioni.',
+        'you_prefix' => 'Tu: ',
+        'back' => 'Messaggi',
+        'view_profile' => 'Profilo',
+        'thread_empty' => 'Nessun messaggio in questa conversazione. Scrivi il primo!',
+        'compose_label' => 'Messaggio',
+        'compose_placeholder' => 'Scrivi a :name…',
+        'send' => 'Invia',
+        'cannot_send' => 'Non puoi inviare messaggi a questa persona.',
+        'message_action' => 'Messaggio',
+        'errors' => [
+            'empty_body' => 'Scrivi un messaggio prima di inviare.',
+            'cannot_message' => 'Non puoi inviare messaggi a questa persona.',
         ],
     ],
 

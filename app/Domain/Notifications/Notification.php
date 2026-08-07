@@ -51,6 +51,8 @@ class Notification extends Model
 
     public const TYPE_COMMUNITY_POST = 'community_post';
 
+    public const TYPE_DIRECT_MESSAGE = 'direct_message';
+
     /**
      * @var list<string>
      */
@@ -141,6 +143,10 @@ class Notification extends Model
         $target = $this->notifiable;
 
         if ($target instanceof Post) {
+            if ($target->conversation_id !== null && $this->type === self::TYPE_DIRECT_MESSAGE) {
+                return route('messages.show', $target->conversation_id);
+            }
+
             return route('posts.show', $target);
         }
 

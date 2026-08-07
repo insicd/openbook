@@ -4,6 +4,7 @@ namespace App\Domain\Posts;
 
 use App\Application\Queries\FeedQuery;
 use App\Domain\Communities\Community;
+use App\Domain\Messaging\Conversation;
 use App\Domain\Reactions\Announce;
 use App\Domain\Reactions\Like;
 use App\Federation\Actors\Actor;
@@ -25,7 +26,7 @@ use Illuminate\Support\Carbon;
  *
  * @property string $id
  * @property string $actor_id
- * @property string|null $community_id
+ * @property string|null $conversation_id
  * @property string|null $uri
  * @property string|null $quoted_post_id
  * @property string|null $title
@@ -83,6 +84,7 @@ class Post extends Model
     protected $fillable = [
         'actor_id',
         'community_id',
+        'conversation_id',
         'uri',
         'quoted_post_id',
         'title',
@@ -119,6 +121,16 @@ class Post extends Model
     public function community(): BelongsTo
     {
         return $this->belongsTo(Community::class);
+    }
+
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(Conversation::class);
+    }
+
+    public function isDirectMessage(): bool
+    {
+        return $this->visibility === self::VISIBILITY_DIRECT && $this->conversation_id !== null;
     }
 
     /**

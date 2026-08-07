@@ -2,6 +2,7 @@
 
 namespace App\Federation\Inbox;
 
+use App\Application\Services\DirectMessageLinker;
 use App\Application\Services\NotificationCreator;
 use App\Domain\Comments\Comment;
 use App\Domain\Notifications\Notification;
@@ -33,6 +34,7 @@ final class RemoteNoteUpserter
 {
     public function __construct(
         private readonly NotificationCreator $notificationCreator,
+        private readonly DirectMessageLinker $directMessageLinker,
         private readonly RemoteAttachmentIngester $attachments,
         private readonly RemoteNoteDocumentFetcher $noteDocumentFetcher,
         private readonly RemoteActorResolver $remoteActorResolver,
@@ -100,7 +102,15 @@ final class RemoteNoteUpserter
         $post->save();
 
         if ($wasNew) {
+            $this->attachAudienceRecipients($post, $note, $actor);
             $this->attachTags($post, $note, $notifyMentions);
+
+            if ($post->visibility === Post::VISIBILITY_DIRECT) {
+                $this->directMessageLinker->link($post, $actor, $note, true);
+            }
+        } elseif ($post->visibility === Post::VISIBILITY_DIRECT && $post->conversation_id === null) {
+            $this->attachAudienceRecipients($post, $note, $actor);
+            $this->directMessageLinker->link($post, $actor, $note, false);
         }
 
         $this->attachments->sync($post, $actor, $note);
@@ -261,11 +271,44 @@ final class RemoteNoteUpserter
             return Post::VISIBILITY_UNLISTED;
         }
 
+        if ($this->isDirectAudience($to, $cc)) {
+            return Post::VISIBILITY_DIRECT;
+        }
+
         if ($to === [] && $cc === []) {
             return Post::VISIBILITY_DIRECT;
         }
 
         return Post::VISIBILITY_FOLLOWERS;
+    }
+
+    /**
+     * Audience con soli destinatari specifici (stile DM Mastodon), senza Public
+     * ne' collection followers.
+     *
+     * @param  list<string>  $to
+     * @param  list<string>  $cc
+     */
+    private function isDirectAudience(array $to, array $cc): bool
+    {
+        $all = array_merge($to, $cc);
+
+        if ($all === []) {
+            return false;
+        }
+
+        foreach ($all as $address) {
+            if ($this->addressesPublic([$address]) || $this->isFollowersCollection($address)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function isFollowersCollection(string $address): bool
+    {
+        return str_ends_with($address, '/followers');
     }
 
     /**
@@ -357,9 +400,56 @@ final class RemoteNoteUpserter
                 );
 
                 if ($notifyMentions && $created->wasRecentlyCreated) {
+                    if ($target instanceof Post && $target->visibility === Post::VISIBILITY_DIRECT) {
+                        continue;
+                    }
+
                     $this->notificationCreator->notify($mentionedActor, Notification::TYPE_MENTION, $target->actor, $target);
                 }
             }
         }
+    }
+
+    /**
+     * Crea menzioni implicite dai campi to/cc (typical Mastodon DM addressing).
+     *
+     * @param  array<string, mixed>  $note
+     */
+    private function attachAudienceRecipients(Post $post, array $note, Actor $author): void
+    {
+        foreach ($this->audienceActorUris($note) as $uri) {
+            $actor = Actor::query()->where('uri', $uri)->first();
+
+            if ($actor === null || $actor->id === $author->id) {
+                continue;
+            }
+
+            Mention::query()->firstOrCreate([
+                'mentionable_type' => $post->getMorphClass(),
+                'mentionable_id' => $post->id,
+                'actor_id' => $actor->id,
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $note
+     * @return list<string>
+     */
+    private function audienceActorUris(array $note): array
+    {
+        $uris = [];
+
+        foreach (['to', 'cc'] as $field) {
+            foreach ($this->audienceList($note[$field] ?? null) as $address) {
+                if ($this->addressesPublic([$address]) || $this->isFollowersCollection($address)) {
+                    continue;
+                }
+
+                $uris[] = $address;
+            }
+        }
+
+        return array_values(array_unique($uris));
     }
 }

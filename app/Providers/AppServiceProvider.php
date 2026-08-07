@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Application\Services\ConversationReadTracker;
 use App\Application\Queries\PopularHashtagsQuery;
 use App\Application\Queries\SuggestedLocalActorsQuery;
 use App\Application\Services\InstanceSettings;
@@ -98,6 +99,7 @@ class AppServiceProvider extends ServiceProvider
             if (! auth()->check()) {
                 $view->with([
                     'unreadNotificationsCount' => 0,
+                    'unreadMessagesCount' => 0,
                     'headerNotifications' => collect(),
                     'modalComposerCommunities' => collect(),
                     'isHomeFeed' => false,
@@ -107,12 +109,16 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $actorId = auth()->user()->actor?->id;
+            $viewerActor = auth()->user()->actor;
 
             $view->with([
                 'unreadNotificationsCount' => Notification::query()
                     ->where('recipient_id', auth()->id())
                     ->whereNull('read_at')
                     ->count(),
+                'unreadMessagesCount' => $viewerActor !== null
+                    ? app(ConversationReadTracker::class)->unreadCountFor($viewerActor)
+                    : 0,
                 // Anteprima per il dropdown della navbar: la pagina completa
                 // resta raggiungibile dalla sidebar sinistra.
                 'headerNotifications' => Notification::query()

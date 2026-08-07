@@ -11,6 +11,24 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.9.0] — Messaggistica privata federata
+
+### Added
+- **Messaggi** (`/messaggi`): chat 1:1 con UX dedicata (lista conversazioni,
+  thread, composer). I messaggi restano Note ActivityPub `direct` verso
+  destinatari menzionati, compatibili con Mastodon e il resto del fediverso.
+- Conversazioni stabili per coppia di Actor (locale/remoto); badge non letti
+  in sidebar; notifica `direct_message` con link al thread.
+- Pulsante **Messaggio** sui profili locali e remoti; i post DM aprono il
+  thread anziche' la pagina post.
+- Impostazione **Chi puo scriverti in privato**: chiunque, solo follower,
+  nessuno (`user_settings.direct_message_policy`).
+
+### Changed
+- Ricezione DM federati: visibilita' corretta quando `to`/`cc` contengono
+  solo destinatari specifici; inbox accetta Note indirizzate a un actor
+  locale anche senza tag `Mention`.
+
 ## [0.8.12] — Composer rapido dalla navbar
 
 ### Added

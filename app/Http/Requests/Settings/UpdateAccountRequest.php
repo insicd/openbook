@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Settings;
 
+use App\Domain\Accounts\UserSetting;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -27,6 +28,11 @@ class UpdateAccountRequest extends FormRequest
             ])],
             'manually_approves_followers' => ['nullable', 'boolean'],
             'discoverable' => ['nullable', 'boolean'],
+            'direct_message_policy' => ['nullable', 'in:'.implode(',', [
+                UserSetting::DM_POLICY_EVERYONE,
+                UserSetting::DM_POLICY_FOLLOWERS,
+                UserSetting::DM_POLICY_NOBODY,
+            ])],
         ];
     }
 }
