@@ -77,6 +77,16 @@ final class RemotePostObject
     }
 
     /**
+     * Flag esplicito Mastodon/litepub ({@code directMessage: true}) su Note DM.
+     *
+     * @param  array<string, mixed>  $document
+     */
+    public static function isExplicitDirectMessage(array $document): bool
+    {
+        return ($document['directMessage'] ?? false) === true;
+    }
+
+    /**
      * True se la Note ha testo in content, contentMap o source.
      *
      * @param  array<string, mixed>  $document

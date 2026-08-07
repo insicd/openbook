@@ -381,4 +381,86 @@ class DirectMessageFederationTest extends TestCase
         $this->assertSame($conversation->id, $replyPost->conversation_id);
         $this->assertSame('Risposta al tuo messaggio', $replyPost->body);
     }
+
+    public function test_mastodon_direct_message_reply_with_direct_message_flag_stays_in_thread(): void
+    {
+        $local = $this->createFullAccount('local');
+        $remote = $this->createRemoteActor('nuke', 'poliversity.it');
+        $conversation = Conversation::query()->create([
+            'participant_low_id' => Conversation::orderParticipantIds($local->actor->id, $remote->id)[0],
+            'participant_high_id' => Conversation::orderParticipantIds($local->actor->id, $remote->id)[1],
+            'last_message_at' => now()->subHour(),
+        ]);
+
+        $outbound = Post::query()->create([
+            'actor_id' => $local->actor->id,
+            'body' => 'Messaggio iniziale OpenBook',
+            'visibility' => Post::VISIBILITY_DIRECT,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subHour(),
+            'conversation_id' => $conversation->id,
+        ]);
+        $outboundUri = url('/posts/'.$outbound->id);
+        $outbound->update(['uri' => $outboundUri]);
+
+        Mention::query()->create([
+            'mentionable_type' => $outbound->getMorphClass(),
+            'mentionable_id' => $outbound->id,
+            'actor_id' => $remote->id,
+        ]);
+
+        $replyUri = 'https://poliversity.it/users/nuke/statuses/117054655877146352';
+        $activity = [
+            'id' => $replyUri.'/activity',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'published' => now()->toAtomString(),
+            'to' => [$local->actor->uri],
+            'cc' => [],
+            'object' => [
+                'id' => $replyUri,
+                'type' => 'Note',
+                'summary' => null,
+                'inReplyTo' => $outboundUri,
+                'inReplyToAtomUri' => $outboundUri,
+                'published' => now()->toAtomString(),
+                'attributedTo' => $remote->uri,
+                'to' => [$local->actor->uri],
+                'cc' => [],
+                'sensitive' => false,
+                'directMessage' => true,
+                'content' => '<p><span class="h-card">@local</span> si si vedo tutto</p>',
+                'contentMap' => [
+                    'it' => '<p><span class="h-card">@local</span> si si vedo tutto</p>',
+                ],
+                'tag' => [[
+                    'type' => 'Mention',
+                    'href' => $local->actor->uri,
+                    'name' => '@local@'.config('openbook.domain'),
+                ]],
+            ],
+        ];
+
+        $item = InboxItem::query()->create([
+            'is_shared' => false,
+            'remote_activity_uri' => $activity['id'],
+            'activity_type' => 'Create',
+            'actor_uri' => $remote->uri,
+            'payload' => json_encode($activity, JSON_THROW_ON_ERROR),
+            'signature_valid' => true,
+            'status' => InboxItem::STATUS_PENDING,
+            'received_at' => now(),
+        ]);
+
+        $status = app(InboxActivityProcessor::class)->process($item);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseMissing('comments', ['uri' => $replyUri]);
+
+        $replyPost = Post::query()->where('uri', $replyUri)->first();
+        $this->assertNotNull($replyPost);
+        $this->assertSame(Post::VISIBILITY_DIRECT, $replyPost->visibility);
+        $this->assertSame($conversation->id, $replyPost->conversation_id);
+        $this->assertStringContainsString('si si vedo tutto', $replyPost->body);
+    }
 }

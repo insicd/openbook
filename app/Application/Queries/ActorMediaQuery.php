@@ -27,6 +27,7 @@ final class ActorMediaQuery
             ->whereHas('posts', function ($query) use ($actor, $viewer) {
                 $query->where('actor_id', $actor->id)
                     ->where('status', Post::STATUS_PUBLISHED)
+                    ->excludingPrivateMessages()
                     ->visibleTo($viewer);
             })
             ->orderByDesc(
@@ -36,6 +37,7 @@ final class ActorMediaQuery
                     ->whereColumn('post_attachments.media_id', 'media.id')
                     ->where('posts.actor_id', $actor->id)
                     ->where('posts.status', Post::STATUS_PUBLISHED)
+                    ->excludingPrivateMessages()
                     ->orderByDesc('posts.published_at')
                     ->limit(1)
             )

@@ -68,6 +68,27 @@ class FeedTest extends TestCase
         $this->assertTrue($feed->getCollection()->pluck('id')->contains($post->id));
     }
 
+    public function test_the_feed_excludes_private_conversation_messages(): void
+    {
+        $viewer = $this->createFullAccount('feedviewer_dm');
+        $recipient = $this->createFullAccount('feedrecipient_dm');
+
+        $publicPost = $this->publishPost($viewer, 'Post pubblico nel feed.');
+        $dm = app(\App\Application\Services\MessageComposer::class)->send(
+            $viewer->actor,
+            $recipient->actor,
+            'Messaggio privato fuori feed',
+        );
+
+        $feed = app(FeedQuery::class)->forActor($viewer->actor);
+        $profileFeed = app(FeedQuery::class)->forProfile($viewer->actor, $viewer->actor);
+        $ids = $feed->getCollection()->pluck('id');
+
+        $this->assertTrue($ids->contains($publicPost->id));
+        $this->assertFalse($ids->contains($dm->id));
+        $this->assertFalse($profileFeed->getCollection()->pluck('id')->contains($dm->id));
+    }
+
     public function test_the_feed_excludes_followers_only_posts_from_non_followers(): void
     {
         $viewer = $this->createFullAccount('feedviewer3');

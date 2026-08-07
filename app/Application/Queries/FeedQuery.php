@@ -59,6 +59,7 @@ final class FeedQuery
 
         $query = Post::query()
             ->with(Post::CARD_RELATIONS)
+            ->excludingPrivateMessages()
             ->where('status', Post::STATUS_PUBLISHED)
             ->where(function ($query) use ($relevantActorIds, $announcedPostIds, $memberCommunityIds) {
                 $query->whereIn('actor_id', $relevantActorIds)
@@ -92,6 +93,7 @@ final class FeedQuery
 
         return Post::query()
             ->with(Post::CARD_RELATIONS)
+            ->excludingPrivateMessages()
             ->where('status', Post::STATUS_PUBLISHED)
             ->where('visibility', Post::VISIBILITY_PUBLIC)
             ->where(function ($query) {
@@ -121,6 +123,7 @@ final class FeedQuery
 
         return Post::query()
             ->with(Post::CARD_RELATIONS)
+            ->excludingPrivateMessages()
             ->where('status', Post::STATUS_PUBLISHED)
             ->where('visibility', Post::VISIBILITY_PUBLIC)
             ->where(function ($query) {
@@ -142,6 +145,7 @@ final class FeedQuery
     {
         return Post::query()
             ->with(Post::CARD_RELATIONS)
+            ->excludingPrivateMessages()
             ->where('status', Post::STATUS_PUBLISHED)
             ->where('community_id', $community->id)
             ->visibleTo($viewer)
@@ -169,6 +173,7 @@ final class FeedQuery
 
         $query = Post::query()
             ->with(Post::CARD_RELATIONS)
+            ->excludingPrivateMessages()
             ->where('status', Post::STATUS_PUBLISHED)
             ->where(function ($query) use ($profileActor, $announcedPostIds) {
                 $query->where('actor_id', $profileActor->id)

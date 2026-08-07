@@ -117,6 +117,7 @@ final class LocalSearchQuery
         $posts = Post::query()
             ->select('posts.*')
             ->with(Post::CARD_RELATIONS)
+            ->excludingPrivateMessages()
             ->join('actors', 'actors.id', '=', 'posts.actor_id')
             ->where('actors.is_local', true)
             ->where('posts.status', Post::STATUS_PUBLISHED)

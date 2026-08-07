@@ -43,7 +43,13 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   il documento completo con fetch firmato come destinatario locale e unisce
   l'audience `to`/`cc` dell'attivita' Create.
 - Risposte DM federate (`inReplyTo` su un messaggio privato): restano nel
-  thread chat anziche' essere salvate come commenti fuori conversazione.
+  thread chat anziche' essere salvate come commenti fuori conversazione;
+  riconosciuto anche il flag Mastodon `directMessage: true`.
+
+### Changed
+- Feed, profili, ricerca locale e media: i post collegati a conversazioni
+  private (`conversation_id`) non compaiono piu' nelle timeline pubbliche,
+  solo in `/messaggi`.
 
 ## [0.8.12] — Composer rapido dalla navbar
 

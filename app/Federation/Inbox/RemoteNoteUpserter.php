@@ -267,6 +267,10 @@ final class RemoteNoteUpserter
      */
     public function visibilityFromAudience(array $note): string
     {
+        if (RemotePostObject::isExplicitDirectMessage($note)) {
+            return Post::VISIBILITY_DIRECT;
+        }
+
         $to = $this->audienceList($note['to'] ?? null);
         $cc = $this->audienceList($note['cc'] ?? null);
 

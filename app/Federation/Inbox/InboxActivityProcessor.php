@@ -670,7 +670,9 @@ final class InboxActivityProcessor
             $parentPost = $parentComment !== null ? null : $this->objects->resolvePost($inReplyTo);
 
             if ($parentComment === null && $parentPost === null) {
-                return InboxItem::STATUS_IGNORED;
+                if (! RemotePostObject::isExplicitDirectMessage($note)) {
+                    return InboxItem::STATUS_IGNORED;
+                }
             }
         }
 
@@ -719,7 +721,17 @@ final class InboxActivityProcessor
      */
     private function isDirectMessageReply(array $note, ?Post $parentPost, ?Comment $parentComment): bool
     {
-        if ($parentPost === null || $parentComment !== null) {
+        if ($parentComment !== null) {
+            return false;
+        }
+
+        $inReplyTo = is_string($note['inReplyTo'] ?? null) ? $note['inReplyTo'] : null;
+
+        if (RemotePostObject::isExplicitDirectMessage($note) && $inReplyTo !== null && $inReplyTo !== '') {
+            return true;
+        }
+
+        if ($parentPost === null) {
             return false;
         }
 

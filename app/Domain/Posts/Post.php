@@ -203,6 +203,17 @@ class Post extends Model
     }
 
     /**
+     * Esclude i messaggi privati collegati a una conversazione (/messaggi).
+     *
+     * @param  Builder<Post>  $query
+     * @return Builder<Post>
+     */
+    public function scopeExcludingPrivateMessages(Builder $query): Builder
+    {
+        return $query->whereNull('conversation_id');
+    }
+
+    /**
      * Applica le regole di visibilita': pubblica e non elencata sono sempre
      * visibili; solo-follower richiede un follow accettato; i post diretti
      * sono visibili solo all'autore e agli attori esplicitamente menzionati
