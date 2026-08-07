@@ -463,4 +463,65 @@ class DirectMessageFederationTest extends TestCase
         $this->assertSame($conversation->id, $replyPost->conversation_id);
         $this->assertStringContainsString('si si vedo tutto', $replyPost->body);
     }
+
+    public function test_reply_to_a_conversation_message_is_not_stored_as_comment_when_parent_visibility_is_wrong(): void
+    {
+        $local = $this->createFullAccount('local');
+        $remote = $this->createRemoteActor('sender', 'remoto.example');
+        $conversation = Conversation::query()->create([
+            'participant_low_id' => Conversation::orderParticipantIds($local->actor->id, $remote->id)[0],
+            'participant_high_id' => Conversation::orderParticipantIds($local->actor->id, $remote->id)[1],
+            'last_message_at' => now()->subMinutes(10),
+        ]);
+
+        $parentUri = 'https://remoto.example/users/sender/statuses/parent';
+        $parent = Post::query()->create([
+            'uri' => $parentUri,
+            'actor_id' => $remote->id,
+            'body' => 'Primo messaggio',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subMinutes(10),
+            'conversation_id' => $conversation->id,
+        ]);
+
+        $replyUri = 'https://remoto.example/users/sender/statuses/reply';
+        $activity = [
+            'id' => 'https://remoto.example/activities/reply-wrong-vis',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'to' => [$local->actor->uri],
+            'cc' => [],
+            'object' => [
+                'id' => $replyUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'inReplyTo' => $parentUri,
+                'directMessage' => true,
+                'content' => '<p>Risposta canalizzata</p>',
+                'published' => now()->toAtomString(),
+                'to' => [$local->actor->uri],
+                'cc' => [],
+            ],
+        ];
+
+        $item = InboxItem::query()->create([
+            'is_shared' => false,
+            'remote_activity_uri' => $activity['id'],
+            'activity_type' => 'Create',
+            'actor_uri' => $remote->uri,
+            'payload' => json_encode($activity, JSON_THROW_ON_ERROR),
+            'signature_valid' => true,
+            'status' => InboxItem::STATUS_PENDING,
+            'received_at' => now(),
+        ]);
+
+        app(InboxActivityProcessor::class)->process($item);
+
+        $this->assertDatabaseMissing('comments', ['uri' => $replyUri]);
+        $reply = Post::query()->where('uri', $replyUri)->first();
+        $this->assertNotNull($reply);
+        $this->assertSame($conversation->id, $reply->conversation_id);
+        $this->assertSame('Risposta canalizzata', $reply->body);
+    }
 }

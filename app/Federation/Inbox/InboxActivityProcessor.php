@@ -637,6 +637,7 @@ final class InboxActivityProcessor
 
         $note = $this->mergeActivityAudience($activity, $note);
         $note = $this->ensureNoteContent($activity, $note);
+        $note = $this->preserveDirectMessageMetadata($activity, $note);
 
         $noteUri = $note['id'] ?? null;
 
@@ -655,7 +656,7 @@ final class InboxActivityProcessor
             ? $actor
             : ($this->objects->resolveActor($authorUri) ?? $actor);
 
-        $inReplyTo = is_string($note['inReplyTo'] ?? null) ? $note['inReplyTo'] : null;
+        $inReplyTo = RemotePostObject::inReplyToTarget($note);
         $parentPost = null;
         $parentComment = null;
 
@@ -691,13 +692,31 @@ final class InboxActivityProcessor
         );
 
         $isDirectMessageReply = $this->isDirectMessageReply($note, $parentPost, $parentComment);
+
+        if ($parentPost !== null && $parentPost->conversation_id !== null) {
+            $isDirectMessageReply = true;
+        }
+
         $isReply = ($parentPost !== null || $parentComment !== null) && ! $isDirectMessageReply;
 
         return DB::transaction(function () use ($isReply, $isDirectMessageReply, $note, $noteUri, $author, $body, $publishedAt, $parentPost, $parentComment) {
             if ($isReply) {
                 $comment = $this->noteUpserter->upsertComment($note, $noteUri, $author, $body, $parentPost, $parentComment);
 
-                return $comment !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
+                if ($comment === null) {
+                    $this->noteUpserter->upsertPost(
+                        $note,
+                        $noteUri,
+                        $author,
+                        $body,
+                        $publishedAt,
+                        directMessageThreadParent: $parentPost,
+                    );
+
+                    return InboxItem::STATUS_PROCESSED;
+                }
+
+                return InboxItem::STATUS_PROCESSED;
             }
 
             $this->noteUpserter->upsertPost(
@@ -725,21 +744,56 @@ final class InboxActivityProcessor
             return false;
         }
 
-        $inReplyTo = is_string($note['inReplyTo'] ?? null) ? $note['inReplyTo'] : null;
+        $inReplyTo = RemotePostObject::inReplyToTarget($note);
 
-        if (RemotePostObject::isExplicitDirectMessage($note) && $inReplyTo !== null && $inReplyTo !== '') {
+        if (RemotePostObject::isExplicitDirectMessage($note) && $inReplyTo !== null) {
             return true;
         }
 
-        if ($parentPost === null) {
-            return false;
+        if ($parentPost !== null) {
+            if ($parentPost->conversation_id !== null) {
+                return true;
+            }
+
+            if ($parentPost->visibility === Post::VISIBILITY_DIRECT) {
+                return true;
+            }
         }
 
-        if ($parentPost->visibility === Post::VISIBILITY_DIRECT) {
-            return true;
+        return $inReplyTo !== null
+            && $this->noteUpserter->visibilityFromAudience($note) === Post::VISIBILITY_DIRECT;
+    }
+
+    /**
+     * Il fetch HTTP del documento Note puo' restituire JSON senza campi
+     * Mastodon-only ({@code directMessage}, {@code inReplyToAtomUri}): li
+     * recuperiamo dall'oggetto incorporato nell'attivita' Create.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $note
+     * @return array<string, mixed>
+     */
+    private function preserveDirectMessageMetadata(array $activity, array $note): array
+    {
+        $embedded = is_array($activity['object'] ?? null) ? $activity['object'] : [];
+
+        if (! RemotePostObject::isExplicitDirectMessage($note) && RemotePostObject::isExplicitDirectMessage($embedded)) {
+            $note['directMessage'] = $embedded['directMessage'];
         }
 
-        return $this->noteUpserter->visibilityFromAudience($note) === Post::VISIBILITY_DIRECT;
+        foreach (['inReplyTo', 'inReplyToAtomUri'] as $field) {
+            $current = $note[$field] ?? null;
+
+            if (is_string($current) && $current !== '') {
+                continue;
+            }
+
+            if (is_string($embedded[$field] ?? null) && $embedded[$field] !== '') {
+                $note[$field] = $embedded[$field];
+            }
+        }
+
+        return $note;
     }
 
     /**

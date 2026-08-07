@@ -73,6 +73,10 @@ final class RemoteNoteUpserter
 
         if ($directMessageThreadParent !== null && $directMessageThreadParent->visibility === Post::VISIBILITY_DIRECT) {
             $visibility = Post::VISIBILITY_DIRECT;
+        } elseif (RemotePostObject::isExplicitDirectMessage($note)) {
+            $visibility = Post::VISIBILITY_DIRECT;
+        } elseif ($directMessageThreadParent !== null && $directMessageThreadParent->conversation_id !== null) {
+            $visibility = Post::VISIBILITY_DIRECT;
         }
 
         /** @var Post $post */
@@ -209,6 +213,18 @@ final class RemoteNoteUpserter
      */
     public function upsertComment(array $note, string $noteUri, Actor $actor, string $body, ?Post $parentPost, ?Comment $parentComment, bool $notifyMentions = true): ?Comment
     {
+        if ($parentComment === null && $parentPost !== null && $parentPost->conversation_id !== null) {
+            return null;
+        }
+
+        if ($parentComment === null && $parentPost !== null && $parentPost->visibility === Post::VISIBILITY_DIRECT) {
+            return null;
+        }
+
+        if ($parentComment === null && RemotePostObject::isExplicitDirectMessage($note) && RemotePostObject::inReplyToTarget($note) !== null) {
+            return null;
+        }
+
         $postId = $parentComment?->post_id ?? $parentPost?->id;
 
         if ($postId === null) {

@@ -83,7 +83,36 @@ final class RemotePostObject
      */
     public static function isExplicitDirectMessage(array $document): bool
     {
-        return ($document['directMessage'] ?? false) === true;
+        $value = $document['directMessage'] ?? false;
+
+        if ($value === true || $value === 1) {
+            return true;
+        }
+
+        if (is_string($value) && strtolower(trim($value)) === 'true') {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * URI del messaggio a cui si risponde (Mastodon: {@code inReplyTo} /
+     * {@code inReplyToAtomUri} / ostatus).
+     *
+     * @param  array<string, mixed>  $document
+     */
+    public static function inReplyToTarget(array $document): ?string
+    {
+        foreach (['inReplyTo', 'inReplyToAtomUri'] as $field) {
+            $value = $document[$field] ?? null;
+
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     /**

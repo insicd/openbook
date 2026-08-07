@@ -44,7 +44,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   l'audience `to`/`cc` dell'attivita' Create.
 - Risposte DM federate (`inReplyTo` su un messaggio privato): restano nel
   thread chat anziche' essere salvate come commenti fuori conversazione;
-  riconosciuto anche il flag Mastodon `directMessage: true`.
+  riconosciuto anche il flag Mastodon `directMessage: true`, il campo
+  `inReplyToAtomUri` e il `conversation_id` del messaggio padre (rete di
+  sicurezza se il fetch HTTP del Note remoto perde i metadati Mastodon).
 
 ### Changed
 - Feed, profili, ricerca locale e media: i post collegati a conversazioni
