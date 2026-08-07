@@ -303,6 +303,12 @@ return [
 
     'messages' => [
         'title' => 'Messages',
+        'new_title' => 'New conversation',
+        'recipient_label' => 'Recipient',
+        'recipient_placeholder' => 'Search by name or @username…',
+        'recipient_suggest_label' => 'Recipient suggestions',
+        'recipient_suggest_empty' => 'No people found.',
+        'open_chat' => 'Open chat',
         'empty' => 'You have no conversations yet.',
         'you_prefix' => 'You: ',
         'back' => 'Messages',
@@ -311,12 +317,14 @@ return [
         'compose_label' => 'Message',
         'compose_placeholder' => 'Write to :name…',
         'send' => 'Send',
+        'send_error' => 'Could not send the message. Please try again.',
         'cannot_send' => 'You cannot message this person.',
         'message_action' => 'Message',
         'message_aria' => 'Send a private message',
         'errors' => [
             'empty_body' => 'Write a message before sending.',
             'cannot_message' => 'You cannot message this person.',
+            'recipient_not_found' => 'Recipient not found. Use a local username or @user@domain for remote accounts.',
         ],
     ],
 

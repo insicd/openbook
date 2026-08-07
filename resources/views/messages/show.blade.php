@@ -2,6 +2,7 @@
 
 @php
     $displayName = $other->displayName();
+    $lastMessage = $messages->last();
 @endphp
 
 @section('title', $displayName.' - '.__('openbook.messages.title').' - '.config('app.name'))
@@ -24,38 +25,30 @@
             </a>
         </header>
 
-        <div class="ob-message-thread__messages" id="ob-message-thread">
+        <div class="ob-message-thread__messages" id="ob-message-thread"
+            data-feed-url="{{ route('messages.feed', $conversation) }}"
+            data-last-message-id="{{ $lastMessage?->id }}"
+            data-poll-ms="5000"
+            data-empty-label="{{ __('openbook.messages.thread_empty') }}">
             @forelse ($messages as $message)
-                @php $isMine = $message->actor_id === $viewer->id; @endphp
-                <article class="ob-message-bubble {{ $isMine ? 'ob-message-bubble--mine' : 'ob-message-bubble--theirs' }}">
-                    <div class="ob-message-bubble__meta">
-                        <span>{{ $message->actor->displayName() }}</span>
-                        <time datetime="{{ $message->published_at->toIso8601String() }}">
-                            {{ $message->published_at->format('d/m/Y H:i') }}
-                        </time>
-                    </div>
-                    <div class="ob-message-bubble__body">
-                        {!! \App\Domain\Posts\PostBodyRenderer::render($message->body) !!}
-                    </div>
-                </article>
+                @include('messages._bubble', ['message' => $message, 'viewer' => $viewer])
             @empty
-                <div class="ob-empty-state">
+                <div class="ob-empty-state" data-message-empty>
                     <p>{{ __('openbook.messages.thread_empty') }}</p>
                 </div>
             @endforelse
         </div>
 
         @if ($canSend)
-            <form method="POST" action="{{ route('messages.store', $conversation) }}" class="ob-message-composer">
+            <form method="POST" action="{{ route('messages.store', $conversation) }}" class="ob-message-composer"
+                id="ob-message-composer" data-ajax="1">
                 @csrf
                 <label class="ob-sr-only" for="message-body">{{ __('openbook.messages.compose_label') }}</label>
                 <textarea id="message-body" name="body" rows="3" maxlength="5000" required
                     placeholder="{{ __('openbook.messages.compose_placeholder', ['name' => $displayName]) }}">{{ old('body') }}</textarea>
-                @error('body')
-                    <p class="ob-field__error">{{ $message }}</p>
-                @enderror
+                <p class="ob-field__error" id="ob-message-error" hidden></p>
                 <div class="ob-message-composer__actions">
-                    <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.messages.send') }}</button>
+                    <button type="submit" class="ob-btn ob-btn--primary" id="ob-message-submit">{{ __('openbook.messages.send') }}</button>
                 </div>
             </form>
         @else
@@ -63,12 +56,7 @@
         @endif
     </div>
 
-    <script>
-        (function () {
-            var thread = document.getElementById('ob-message-thread');
-            if (thread) {
-                thread.scrollTop = thread.scrollHeight;
-            }
-        })();
-    </script>
+    <div id="ob-message-i18n" hidden
+        data-send-error="{{ __('openbook.messages.send_error') }}"></div>
+    <script src="{{ \App\Support\Assets::url('assets/js/messages-live.js') }}" defer></script>
 @endsection

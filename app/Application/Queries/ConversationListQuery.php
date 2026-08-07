@@ -55,4 +55,50 @@ final class ConversationListQuery
             ->orderByDesc('published_at')
             ->first();
     }
+
+    /**
+     * Messaggi pubblicati dopo un certo cursore (per polling live del thread).
+     *
+     * @return Collection<int, Post>
+     */
+    public function messagesAfter(Conversation $conversation, ?string $afterMessageId = null, int $limit = 50): Collection
+    {
+        $query = Post::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('visibility', Post::VISIBILITY_DIRECT)
+            ->where('status', Post::STATUS_PUBLISHED)
+            ->with(['actor.user.profile'])
+            ->orderBy('published_at')
+            ->orderBy('id');
+
+        if ($afterMessageId !== null && $afterMessageId !== '') {
+            $cursor = Post::query()
+                ->where('conversation_id', $conversation->id)
+                ->whereKey($afterMessageId)
+                ->first(['id', 'published_at']);
+
+            if ($cursor !== null) {
+                $query->where(function ($builder) use ($cursor) {
+                    $builder->where('published_at', '>', $cursor->published_at)
+                        ->orWhere(function ($sameInstant) use ($cursor) {
+                            $sameInstant->where('published_at', $cursor->published_at)
+                                ->where('id', '>', $cursor->id);
+                        });
+                });
+            }
+        }
+
+        return $query->limit($limit)->get();
+    }
+
+    public function threadRevision(Conversation $conversation): string
+    {
+        $latest = $this->latestMessagePreview($conversation);
+
+        if ($latest === null) {
+            return 'empty';
+        }
+
+        return $latest->id.'@'.$latest->published_at->timestamp;
+    }
 }

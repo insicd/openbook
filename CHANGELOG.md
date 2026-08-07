@@ -30,6 +30,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   locale anche senza tag `Mention`.
 - Profili: azioni **Segui/Smetti di seguire** e messaggio (icona) sulla
   stessa riga dei contatori follower/seguiti.
+- Thread messaggi: invio Ajax e aggiornamento automatico (polling ogni 5s)
+  senza ricaricare la pagina.
+- **Nuova conversazione** in `/messaggi`: campo destinatario con
+  autocompletamento (persone locali e remoti in cache) senza passare dal profilo.
 
 ### Fixed
 - Invio messaggio: errore SQL su `conversation_reads` (chiave composta senza

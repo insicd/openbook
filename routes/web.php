@@ -114,10 +114,17 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifiche/segna-lette', [NotificationController::class, 'markAllRead'])->name('notifications.read');
 
     Route::get('/messaggi', [ConversationController::class, 'index'])->name('messages.index');
+    Route::get('/messaggi/suggerimenti', [ConversationController::class, 'suggestRecipients'])
+        ->middleware('throttle:60,1')
+        ->name('messages.suggest_recipients');
+    Route::post('/messaggi/nuovo', [ConversationController::class, 'start'])->name('messages.start');
     Route::get('/messaggi/nuovo/{username}', [ConversationController::class, 'openLocal'])
         ->where('username', '[a-zA-Z0-9_]+')
         ->name('messages.open');
     Route::get('/messaggi/con/{actor}', [ConversationController::class, 'openActor'])->name('messages.open_actor');
+    Route::get('/messaggi/{conversation}/feed', [ConversationController::class, 'feed'])
+        ->middleware('throttle:120,1')
+        ->name('messages.feed');
     Route::get('/messaggi/{conversation}', [ConversationController::class, 'show'])->name('messages.show');
     Route::post('/messaggi/{conversation}', [ConversationController::class, 'store'])->name('messages.store');
 

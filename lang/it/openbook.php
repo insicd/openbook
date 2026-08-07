@@ -303,6 +303,12 @@ return [
 
     'messages' => [
         'title' => 'Messaggi',
+        'new_title' => 'Nuova conversazione',
+        'recipient_label' => 'Destinatario',
+        'recipient_placeholder' => 'Cerca per nome o @utente…',
+        'recipient_suggest_label' => 'Suggerimenti destinatario',
+        'recipient_suggest_empty' => 'Nessuna persona trovata.',
+        'open_chat' => 'Apri chat',
         'empty' => 'Non hai ancora conversazioni.',
         'you_prefix' => 'Tu: ',
         'back' => 'Messaggi',
@@ -311,12 +317,14 @@ return [
         'compose_label' => 'Messaggio',
         'compose_placeholder' => 'Scrivi a :name…',
         'send' => 'Invia',
+        'send_error' => 'Impossibile inviare il messaggio. Riprova.',
         'cannot_send' => 'Non puoi inviare messaggi a questa persona.',
         'message_action' => 'Messaggio',
         'message_aria' => 'Invia un messaggio privato',
         'errors' => [
             'empty_body' => 'Scrivi un messaggio prima di inviare.',
             'cannot_message' => 'Non puoi inviare messaggi a questa persona.',
+            'recipient_not_found' => 'Destinatario non trovato. Usa il nome utente locale o @utente@dominio per account remoti.',
         ],
     ],
 
