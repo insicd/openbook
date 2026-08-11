@@ -85,6 +85,42 @@ class SearchTest extends TestCase
         $response->assertRedirect(route('actors.show', $actor));
     }
 
+    public function test_searching_a_wordpress_style_handle_with_domain_as_username_works(): void
+    {
+        $viewer = $this->createFullAccount('cercatore_wp');
+        $domain = 'thesnowmeltssomewhere.wordpress.com';
+        $actorUri = 'https://'.$domain.'/?author=0';
+
+        Http::fake([
+            'https://'.$domain.'/.well-known/webfinger*' => Http::response([
+                'subject' => 'acct:'.$domain.'@'.$domain,
+                'links' => [
+                    ['rel' => 'self', 'type' => 'application/activity+json', 'href' => $actorUri],
+                ],
+            ], 200, ['Content-Type' => 'application/jrd+json']),
+            $actorUri => Http::response([
+                'id' => $actorUri,
+                'type' => 'Person',
+                'preferredUsername' => $domain,
+                'name' => 'The Snow Melts Somewhere',
+                'inbox' => 'https://'.$domain.'/wp-json/activitypub/1.0/users/0/inbox',
+                'publicKey' => [
+                    'id' => $actorUri.'#main-key',
+                    'owner' => $actorUri,
+                    'publicKeyPem' => '-----BEGIN PUBLIC KEY-----test-----END PUBLIC KEY-----',
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('search.create', [
+            'q' => '@'.$domain.'@'.$domain,
+        ]));
+
+        $actor = Actor::query()->where('uri', $actorUri)->firstOrFail();
+        $this->assertSame($domain, $actor->preferred_username);
+        $response->assertRedirect(route('actors.show', $actor));
+    }
+
     public function test_searching_an_address_at_an_unreachable_domain_fails_validation(): void
     {
         $viewer = $this->createFullAccount('cercatore4');

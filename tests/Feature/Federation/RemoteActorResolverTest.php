@@ -221,4 +221,25 @@ class RemoteActorResolverTest extends TestCase
         $this->assertNull($actor);
         $this->assertDatabaseCount('actors', 0);
     }
+
+    public function test_it_stores_wordpress_style_preferred_username_with_dots(): void
+    {
+        $uri = 'https://thesnowmeltssomewhere.wordpress.com/?author=0';
+        $preferredUsername = 'thesnowmeltssomewhere.wordpress.com';
+
+        Http::fake([
+            $uri => Http::response($this->fakeActorDocument([
+                'id' => $uri,
+                'preferredUsername' => $preferredUsername,
+                'name' => 'The Snow Melts Somewhere',
+                'inbox' => 'https://thesnowmeltssomewhere.wordpress.com/wp-json/activitypub/1.0/users/0/inbox',
+            ]), 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByUri($uri);
+
+        $this->assertNotNull($actor);
+        $this->assertSame($preferredUsername, $actor->preferred_username);
+        $this->assertSame('thesnowmeltssomewhere.wordpress.com', $actor->domain);
+    }
 }

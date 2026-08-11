@@ -483,7 +483,10 @@ final class RemoteActorResolver
             $attributes = [
                 'type' => ($document['type'] ?? null) === 'Group' ? Actor::TYPE_GROUP : Actor::TYPE_PERSON,
                 'is_local' => false,
-                'preferred_username' => (string) ($document['preferredUsername'] ?? $host),
+                'preferred_username' => $this->normalizeRemotePreferredUsername(
+                    isset($document['preferredUsername']) ? (string) $document['preferredUsername'] : null,
+                    $host,
+                ),
                 'domain' => $host,
                 'uri' => $uri,
                 'name' => isset($document['name']) ? (string) $document['name'] : null,
@@ -539,6 +542,22 @@ final class RemoteActorResolver
         return isset($document['publicKey']['publicKeyPem'])
             && is_string($document['publicKey']['publicKeyPem'])
             && $document['publicKey']['publicKeyPem'] !== '';
+    }
+
+    /**
+     * ActivityPub non limita la lunghezza di preferredUsername; blog WordPress
+     * usano spesso l'host intero. Gli account locali restano vincolati a 32
+     * caratteri in fase di registrazione.
+     */
+    private function normalizeRemotePreferredUsername(?string $preferredUsername, string $host): string
+    {
+        $username = trim((string) ($preferredUsername ?? ''));
+
+        if ($username === '') {
+            $username = $host;
+        }
+
+        return mb_substr($username, 0, 255);
     }
 
     private function extractImageUrl(mixed $image): ?string

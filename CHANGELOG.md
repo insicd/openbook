@@ -20,6 +20,11 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   o Mastodon con URL `original` e `small`): si conserva la variante a
   risoluzione piu' alta. I post gia' in cache si correggono al refresh
   remoto del documento.
+- Actor remoti con **preferredUsername lungo** (tipico WordPress ActivityPub,
+  che usa il dominio del blog come username, es.
+  `@blog.example.com@blog.example.com`) non falliscono piu' in inserimento
+  per limite MySQL su `actors.preferred_username` (esteso a 255 caratteri;
+  resta 32 per gli account locali).
 
 ## [0.9.0] — Messaggistica privata federata
 
