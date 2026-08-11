@@ -11,6 +11,16 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.9.1] — Allegati remoti
+
+### Fixed
+- Post federati con **una sola immagine** non mostrano piu' duplicati in
+  galleria quando il server remoto invia piu' varianti dello stesso file
+  (es. WordPress ActivityPub con thumbnail `-150x150` e media `-1024x572`,
+  o Mastodon con URL `original` e `small`): si conserva la variante a
+  risoluzione piu' alta. I post gia' in cache si correggono al refresh
+  remoto del documento.
+
 ## [0.9.0] — Messaggistica privata federata
 
 ### Added

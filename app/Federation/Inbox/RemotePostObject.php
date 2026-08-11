@@ -308,7 +308,7 @@ final class RemotePostObject
             $found[$descriptor['url']] = $descriptor;
         }
 
-        return array_values($found);
+        return self::deduplicateMediaAttachments(array_values($found));
     }
 
     /**
@@ -695,5 +695,120 @@ final class RemotePostObject
         $path = strtolower((string) (parse_url($url, PHP_URL_PATH) ?? ''));
 
         return (bool) preg_match('/\.(mp4|webm|m4v|mov)(\?|$)/', $path);
+    }
+
+    /**
+     * Alcuni server (WordPress ActivityPub, Mastodon inline + attachment)
+     * inviano piu' URL per la stessa immagine (thumbnail + media/full).
+     * Raggruppa per identita' del file e conserva la variante piu' grande.
+     *
+     * @param  list<array{url: string, mime: string|null, alt: string|null}>  $attachments
+     * @return list<array{url: string, mime: string|null, alt: string|null}>
+     */
+    private static function deduplicateMediaAttachments(array $attachments): array
+    {
+        if (count($attachments) <= 1) {
+            return $attachments;
+        }
+
+        $images = [];
+        $others = [];
+
+        foreach ($attachments as $descriptor) {
+            $mime = (string) ($descriptor['mime'] ?? '');
+
+            if (str_starts_with($mime, 'video/')) {
+                $others[] = $descriptor;
+
+                continue;
+            }
+
+            $images[self::mediaAttachmentGroupKey($descriptor['url'])][] = $descriptor;
+        }
+
+        $deduped = [];
+
+        foreach ($images as $group) {
+            $deduped[] = self::preferBestImageDescriptor($group);
+        }
+
+        return array_values(array_merge($deduped, $others));
+    }
+
+    /**
+     * Chiave stabile per varianti della stessa immagine (WordPress -WxH,
+     * -scaled, Mastodon original/small, ecc.).
+     */
+    private static function mediaAttachmentGroupKey(string $url): string
+    {
+        $parts = parse_url($url);
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        $path = strtolower((string) ($parts['path'] ?? ''));
+
+        $path = preg_replace('#/(original|small|thumbnail|preview)/#', '/_/', $path) ?? $path;
+        $path = preg_replace('#-\d+x\d+(?=\.[a-z0-9]+$)#', '', $path) ?? $path;
+        $path = preg_replace('#-scaled(?=\.[a-z0-9]+$)#', '', $path) ?? $path;
+
+        return $host.'|'.$path;
+    }
+
+    /**
+     * @param  list<array{url: string, mime: string|null, alt: string|null}>  $group
+     * @return array{url: string, mime: string|null, alt: string|null}
+     */
+    private static function preferBestImageDescriptor(array $group): array
+    {
+        usort(
+            $group,
+            static fn (array $left, array $right): int => self::imageVariantScore($right['url']) <=> self::imageVariantScore($left['url']),
+        );
+
+        $best = $group[0];
+
+        if (($best['alt'] ?? null) === null || trim((string) $best['alt']) === '') {
+            foreach ($group as $candidate) {
+                $alt = $candidate['alt'] ?? null;
+
+                if (is_string($alt) && trim($alt) !== '') {
+                    $best['alt'] = $alt;
+
+                    break;
+                }
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * Punteggio piu' alto = variante preferita (originale o risoluzione maggiore).
+     */
+    private static function imageVariantScore(string $url): int
+    {
+        $path = strtolower((string) (parse_url($url, PHP_URL_PATH) ?? ''));
+        $filename = basename($path);
+
+        if (preg_match('#/(original)/#', $path)) {
+            return PHP_INT_MAX - 1;
+        }
+
+        if (preg_match('#/(small|thumbnail|preview)/#', $path)) {
+            return 100;
+        }
+
+        if (! preg_match('#-\d+x\d+(?=\.[a-z0-9]+$)#i', $filename)
+            && ! preg_match('#-scaled(?=\.[a-z0-9]+$)#i', $filename)) {
+            return PHP_INT_MAX;
+        }
+
+        if (preg_match('#-scaled(?=\.[a-z0-9]+$)#i', $filename)) {
+            return PHP_INT_MAX - 2;
+        }
+
+        if (preg_match('#-(\d+)x(\d+)(?=\.[a-z0-9]+$)#i', $filename, $matches)) {
+            return (int) $matches[1] * (int) $matches[2];
+        }
+
+        return 1000;
     }
 }

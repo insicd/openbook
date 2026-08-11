@@ -147,4 +147,69 @@ class RemotePostObjectTest extends TestCase
         $this->assertSame($mp4Url, $attachments[0]['url']);
         $this->assertSame('video/mp4', $attachments[0]['mime']);
     }
+
+    public function test_media_attachments_deduplicate_wordpress_preview_and_full_size(): void
+    {
+        $full = 'https://wp.example/wp-content/uploads/2026/08/cover-1024x572.jpg';
+        $thumb = 'https://wp.example/wp-content/uploads/2026/08/cover-150x150.jpg';
+
+        $attachments = RemotePostObject::mediaAttachments([
+            'type' => 'Note',
+            'attachment' => [
+                ['type' => 'Image', 'mediaType' => 'image/jpeg', 'url' => $full],
+                ['type' => 'Image', 'mediaType' => 'image/jpeg', 'url' => $thumb],
+            ],
+        ]);
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame($full, $attachments[0]['url']);
+    }
+
+    public function test_media_attachments_deduplicate_mastodon_original_and_small(): void
+    {
+        $original = 'https://mastodon.example/media_attachments/files/1/2/original/abc.png';
+        $small = 'https://mastodon.example/media_attachments/files/1/2/small/abc.png';
+
+        $attachments = RemotePostObject::mediaAttachments([
+            'type' => 'Note',
+            'attachment' => [
+                ['type' => 'Document', 'mediaType' => 'image/png', 'url' => $small],
+                ['type' => 'Document', 'mediaType' => 'image/png', 'url' => $original],
+            ],
+        ]);
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame($original, $attachments[0]['url']);
+    }
+
+    public function test_media_attachments_keep_distinct_images(): void
+    {
+        $attachments = RemotePostObject::mediaAttachments([
+            'type' => 'Note',
+            'attachment' => [
+                ['type' => 'Image', 'mediaType' => 'image/jpeg', 'url' => 'https://pixelfed.example/a.jpg'],
+                ['type' => 'Image', 'mediaType' => 'image/jpeg', 'url' => 'https://pixelfed.example/b.jpg'],
+            ],
+        ]);
+
+        $this->assertCount(2, $attachments);
+    }
+
+    public function test_media_attachments_deduplicate_attachment_and_inline_preview(): void
+    {
+        $full = 'https://wp.example/wp-content/uploads/photo-1024x768.jpg';
+        $inline = 'https://wp.example/wp-content/uploads/photo-300x200.jpg';
+
+        $attachments = RemotePostObject::mediaAttachments([
+            'type' => 'Note',
+            'attachment' => [
+                ['type' => 'Image', 'mediaType' => 'image/jpeg', 'url' => $full],
+            ],
+            'content' => '<p><img src="'.$inline.'" alt="Anteprima"></p>',
+        ]);
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame($full, $attachments[0]['url']);
+        $this->assertSame('Anteprima', $attachments[0]['alt']);
+    }
 }

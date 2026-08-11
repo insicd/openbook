@@ -842,6 +842,43 @@ class InboxActivityProcessorTest extends TestCase
         $this->assertSame('https://wp.example/wp-content/uploads/cover.jpg', $post->media->first()->url());
     }
 
+    public function test_a_wordpress_style_note_with_preview_and_full_image_attachments_keeps_one(): void
+    {
+        Queue::fake();
+        $follower = $this->createFullAccount('wpimgfollower');
+        $remote = $this->createRemoteActor('blogger', 'spcnet.it');
+        app(FollowManager::class)->follow($follower->actor, $remote)
+            ->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $noteUri = $remote->uri.'/posts/'.uniqid();
+        $full = 'https://spcnet.it/wp-content/uploads/2026/08/claude-code-cross-session-messaging-1024x572.jpg';
+        $thumb = 'https://spcnet.it/wp-content/uploads/2026/08/claude-code-cross-session-messaging-150x150.jpg';
+
+        $status = $this->process([
+            'id' => $noteUri.'/activity',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>Testo del post.</p>',
+                'attachment' => [
+                    ['type' => 'Image', 'mediaType' => 'image/jpeg', 'url' => $full],
+                    ['type' => 'Image', 'mediaType' => 'image/jpeg', 'url' => $thumb],
+                ],
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ], $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $post = Post::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($post);
+        $this->assertCount(1, $post->media);
+        $this->assertSame($full, $post->media->first()->url());
+    }
+
     public function test_a_peertube_style_video_create_with_array_attributed_to_is_stored(): void
     {
         Queue::fake();
