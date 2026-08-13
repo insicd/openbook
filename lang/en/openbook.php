@@ -221,6 +221,8 @@ return [
         'posts' => 'Posts',
         'comments' => 'Comments',
         'hashtags' => 'Hashtags',
+        'suggest_label' => 'Search suggestions',
+        'suggest_empty' => 'No suggestions. Press Enter to search anyway.',
         'empty' => 'No local results for ":query".',
         'view_in_post' => 'View in post',
         'errors' => [

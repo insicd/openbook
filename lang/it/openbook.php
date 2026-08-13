@@ -221,6 +221,8 @@ return [
         'posts' => 'Post',
         'comments' => 'Commenti',
         'hashtags' => 'Hashtag',
+        'suggest_label' => 'Suggerimenti di ricerca',
+        'suggest_empty' => 'Nessun suggerimento. Premi Invio per cercare comunque.',
         'empty' => 'Nessun risultato locale per ":query".',
         'view_in_post' => 'Vedi nel post',
         'errors' => [

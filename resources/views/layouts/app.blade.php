@@ -166,6 +166,18 @@
         ></div>
         <script src="{{ \App\Support\Assets::url('assets/js/mention-autocomplete.js') }}" defer></script>
 
+        <div
+            id="ob-search-suggest"
+            hidden
+            data-url="{{ route('search.suggest') }}"
+            data-label="{{ __('openbook.search.suggest_label') }}"
+            data-empty="{{ __('openbook.search.suggest_empty') }}"
+            data-people="{{ __('openbook.search.people') }}"
+            data-hashtags="{{ __('openbook.search.hashtags') }}"
+            data-min-length="{{ (int) config('openbook.search.suggest_min_length', 2) }}"
+        ></div>
+        <script src="{{ \App\Support\Assets::url('assets/js/search-suggest.js') }}" defer></script>
+
         <a
             href="{{ route('feed.index') }}#ob-composer"
             class="ob-compose-btn ob-compose-btn--fab{{ ($isHomeFeed ?? false) ? '' : ' is-visible' }}"

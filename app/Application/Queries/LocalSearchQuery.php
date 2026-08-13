@@ -61,6 +61,49 @@ final class LocalSearchQuery
     }
 
     /**
+     * Suggerimenti rapidi mentre si digita nella ricerca: solo persone e
+     * hashtag (niente post/commenti), per tenere la risposta leggera.
+     *
+     * @return array{
+     *     people: Collection<int, User>,
+     *     hashtags: Collection<int, Hashtag>
+     * }
+     */
+    public function suggest(string $term, int $peopleLimit = 0, int $hashtagLimit = 0): array
+    {
+        $term = trim($term);
+        $minLength = (int) config(
+            'openbook.search.suggest_min_length',
+            (int) config('openbook.search.min_length', 2),
+        );
+        $defaultLimit = (int) config('openbook.search.suggest_limit', 8);
+        $peopleLimit = $peopleLimit > 0 ? $peopleLimit : (int) ceil($defaultLimit * 0.6);
+        $hashtagLimit = $hashtagLimit > 0 ? $hashtagLimit : max(1, $defaultLimit - $peopleLimit);
+
+        if ($term === '' || mb_strlen(ltrim($term, '#')) < $minLength) {
+            return [
+                'people' => collect(),
+                'hashtags' => collect(),
+            ];
+        }
+
+        $hashOnly = str_starts_with($term, '#');
+        $normalizedHashtag = Hashtag::normalize($term);
+
+        if ($hashOnly) {
+            return [
+                'people' => collect(),
+                'hashtags' => $this->hashtags($normalizedHashtag, $peopleLimit + $hashtagLimit),
+            ];
+        }
+
+        return [
+            'people' => $this->people($term, $this->likePattern($term), $peopleLimit),
+            'hashtags' => $this->hashtags($normalizedHashtag, $hashtagLimit),
+        ];
+    }
+
+    /**
      * @return array{
      *     people: Collection<int, User>,
      *     posts: Collection<int, Post>,

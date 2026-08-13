@@ -13,6 +13,8 @@
                 <input type="search" id="search-q" name="q" value="{{ old('q', $query ?? '') }}"
                        placeholder="{{ __('openbook.search.placeholder') }}"
                        required autofocus
+                       autocomplete="off"
+                       data-search-suggest
                        minlength="{{ (int) config('openbook.search.min_length', 2) }}"
                        @if ($errors->has('q')) aria-invalid="true" @endif>
                 @error('q')

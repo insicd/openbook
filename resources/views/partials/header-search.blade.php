@@ -37,6 +37,7 @@
             required
             autocomplete="off"
             data-header-search-input
+            data-search-suggest
         >
         <button type="submit" class="ob-btn ob-btn--primary ob-btn--small">{{ __('openbook.search.submit') }}</button>
     </form>

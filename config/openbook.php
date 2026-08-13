@@ -184,6 +184,8 @@ return [
     'search' => [
         'min_length' => (int) env('OPENBOOK_SEARCH_MIN_LENGTH', 2),
         'per_section' => (int) env('OPENBOOK_SEARCH_PER_SECTION', 10),
+        'suggest_min_length' => (int) env('OPENBOOK_SEARCH_SUGGEST_MIN_LENGTH', 2),
+        'suggest_limit' => (int) env('OPENBOOK_SEARCH_SUGGEST_LIMIT', 8),
     ],
 
     /*

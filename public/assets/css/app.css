@@ -2789,6 +2789,24 @@ a.ob-post__menu-item {
   text-overflow: ellipsis;
 }
 
+.ob-search-suggest__heading {
+  list-style: none;
+  padding: 0.55rem 0.75rem 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ob-color-text-muted);
+}
+
+.ob-search-suggest__heading:first-child {
+  padding-top: 0.35rem;
+}
+
+.ob-search-suggest__hash {
+  font-weight: 700;
+}
+
 .ob-message-row {
   display: flex;
   align-items: flex-start;

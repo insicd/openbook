@@ -14,6 +14,12 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 ## [0.9.1] — Allegati remoti
 
 ### Changed
+- **Ricerca**: mentre si digita nella navbar o nella pagina `/cerca`
+  compaiono suggerimenti (persone locali discoverable, account remoti gia'
+  in cache, hashtag), sullo stesso schema delle menzioni. Frecce per
+  selezionare, Invio sul suggerimento apre profilo/tag; Invio senza
+  selezione avvia la ricerca completa. Nessuna chiamata WebFinger in
+  autocomplete (`GET /cerca/suggerimenti`).
 - **Condividi / repost** sui post: condivisione diretta e annullamento
   avvengono via AJAX (come i Mi piace), senza ricaricare la pagina.
 - Menu condividi: **Annulla condivisione** compare solo dopo un repost
