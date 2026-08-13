@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
+use App\Application\Queries\SuggestedRemoteCommunitiesQuery;
 use App\Application\Services\CommunityMembershipService;
 use App\Application\Services\CommunityModeratorManager;
 use App\Application\Services\CommunityRegistrar;
@@ -35,17 +36,32 @@ class CommunityController extends Controller
         private readonly FeedQuery $feedQuery,
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
+        private readonly SuggestedRemoteCommunitiesQuery $remoteSuggestions,
     ) {}
 
     public function index(Request $request): View
     {
         $scope = $request->query('scope') === 'remote' ? 'remote' : 'local';
+        $viewerActor = $request->user()?->actor;
+
+        $suggestedRemoteCommunities = collect();
+        $remoteStatusMap = [];
+
+        if ($scope === 'remote') {
+            $suggestedRemoteCommunities = $this->remoteSuggestions->forViewer($viewerActor);
+
+            if ($viewerActor !== null && $suggestedRemoteCommunities->isNotEmpty()) {
+                $remoteStatusMap = $this->followManager->statusMapFor($viewerActor, $suggestedRemoteCommunities);
+            }
+        }
 
         return view('communities.index', [
             'scope' => $scope,
             'communities' => $scope === 'remote'
                 ? $this->remoteFollowedCommunities($request)
                 : $this->localCommunities($request),
+            'suggestedRemoteCommunities' => $suggestedRemoteCommunities,
+            'remoteStatusMap' => $remoteStatusMap,
         ]);
     }
 

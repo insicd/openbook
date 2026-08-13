@@ -1839,6 +1839,20 @@ a.ob-post__menu-item {
   border-top: 1px solid var(--ob-color-border);
 }
 
+.ob-community-list__item .ob-mini-profile__link {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: flex-start;
+}
+
+.ob-community-list__item .ob-mini-profile__link > .ob-avatar {
+  flex-shrink: 0;
+}
+
+.ob-community-list__item .ob-mini-profile__link > div {
+  min-width: 0;
+}
+
 .ob-community-list__item:first-child {
   border-top: none;
   padding-top: 0;

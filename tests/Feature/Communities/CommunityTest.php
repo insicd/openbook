@@ -499,6 +499,74 @@ class CommunityTest extends TestCase
             ->assertDontSee('Solo con account');
     }
 
+    public function test_communities_index_remote_tab_suggests_groups_followed_by_local_users(): void
+    {
+        $member = $this->createFullAccount('localsubscriber');
+        $newcomer = $this->createFullAccount('newmember');
+        $popular = $this->createRemoteActor('linux', 'lemmy.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Linux remoto',
+            'summary' => 'Discussioni su GNU/Linux.',
+        ]);
+        $alreadyFollowed = $this->createRemoteActor('giaiscritto', 'lemmy.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Gia mia community',
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $member->actor->id,
+            'following_id' => $popular->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+        Follow::query()->create([
+            'follower_id' => $newcomer->actor->id,
+            'following_id' => $alreadyFollowed->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $response = $this->actingAs($newcomer)
+            ->get(route('communities.index', ['scope' => 'remote']));
+
+        $response->assertOk()
+            ->assertSee(__('openbook.communities.suggested_remote_title'), false)
+            ->assertSee('Linux remoto', false)
+            ->assertSee('!linux@lemmy.example', false)
+            ->assertSee(__('openbook.communities.your_remote_title'), false)
+            ->assertSee('Gia mia community', false);
+
+        $content = $response->getContent();
+        $this->assertSame(1, substr_count($content, '!linux@lemmy.example'));
+        $this->assertSame(1, substr_count($content, '!giaiscritto@lemmy.example'));
+    }
+
+    public function test_communities_index_remote_tab_suggestions_visible_to_guests(): void
+    {
+        $member = $this->createFullAccount('localsubscriber');
+        $popular = $this->createRemoteActor('linux', 'lemmy.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Linux remoto',
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $member->actor->id,
+            'following_id' => $popular->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $this->get(route('communities.index', ['scope' => 'remote']))
+            ->assertOk()
+            ->assertSee(__('openbook.communities.suggested_remote_title'), false)
+            ->assertSee('Linux remoto', false)
+            ->assertSee(__('openbook.communities.empty_remote_guest'))
+            ->assertDontSee(__('openbook.communities.your_remote_title'), false);
+    }
+
     public function test_a_non_member_can_visit_a_private_community_and_request_to_join(): void
     {
         $owner = $this->createFullAccount('privowner');

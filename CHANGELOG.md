@@ -26,6 +26,11 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   standard.
 - Box **Persone da seguire**: handle lunghi vanno a capo senza spingere
   fuori dal riquadro il pulsante Segui.
+- Tab **Community remote**: sezione **Community popolari su questa istanza**
+  con Group remoti gia' seguiti da altri utenti locali (classificati per
+  iscritti sull'istanza), con pulsante per richiedere l'iscrizione; visibile
+  anche agli ospiti. Le community gia' seguite o in attesa non compaiono
+  tra i suggerimenti.
 
 ### Fixed
 - Menu condivisi: «Annulla condivisione» non compare piu' insieme a

@@ -32,7 +32,23 @@
         </div>
     </div>
 
+    @if ($scope === 'remote' && ($suggestedRemoteCommunities ?? collect())->isNotEmpty())
+        <div class="ob-card">
+            <h2 class="ob-side-widget__title">{{ __('openbook.communities.suggested_remote_title') }}</h2>
+            <p class="ob-field__help">{{ __('openbook.communities.suggested_remote_help', ['domain' => config('openbook.domain')]) }}</p>
+            @include('communities._remote_group_list', [
+                'actors' => $suggestedRemoteCommunities,
+                'showActions' => true,
+                'statusMap' => $remoteStatusMap ?? [],
+            ])
+        </div>
+    @endif
+
     <div class="ob-card">
+        @if ($scope === 'remote' && auth()->check())
+            <h2 class="ob-side-widget__title">{{ __('openbook.communities.your_remote_title') }}</h2>
+        @endif
+
         @if ($communities->isEmpty())
             <div class="ob-empty-state">
                 @if ($scope === 'remote')
@@ -42,23 +58,7 @@
                 @endif
             </div>
         @elseif ($scope === 'remote')
-            <ul class="ob-community-list">
-                @foreach ($communities as $actor)
-                    <li class="ob-community-list__item">
-                        <a href="{{ $actor->profileUrl() }}" class="ob-mini-profile__link">
-                            <x-avatar :actor="$actor" style="width:48px;height:48px" />
-                            <div>
-                                <div class="ob-post__author">{{ $actor->displayName() }}</div>
-                                <div class="ob-post__handle">!{{ $actor->handle() }}</div>
-                                @if (filled($actor->summary))
-                                    <p class="ob-field__help">{{ \Illuminate\Support\Str::limit(strip_tags($actor->summary), 120) }}</p>
-                                @endif
-                            </div>
-                        </a>
-                        <span class="ob-badge">{{ __('openbook.communities.remote_badge') }}</span>
-                    </li>
-                @endforeach
-            </ul>
+            @include('communities._remote_group_list', ['actors' => $communities])
             {{ $communities->links() }}
         @else
             <ul class="ob-community-list">
