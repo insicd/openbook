@@ -21,6 +21,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   (il contatore resta aggiornato anche per le citazioni).
 
 ### Fixed
+- Menu condivisi: «Annulla condivisione» non compare piu' insieme a
+  «Condivisione diretta» sui post non ancora ripostati (il CSS del menu
+  annullava l'attributo `hidden` sui form).
 - Post federati con **una sola immagine** non mostrano piu' duplicati in
   galleria quando il server remoto invia piu' varianti dello stesso file
   (es. WordPress ActivityPub con thumbnail `-150x150` e media `-1024x572`,

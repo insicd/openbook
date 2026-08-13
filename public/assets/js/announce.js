@@ -42,11 +42,11 @@
         }
 
         if (announceForm) {
-            announceForm.hidden = announced;
+            announceForm.classList.toggle('ob-share-form--hidden', announced);
         }
 
         if (unannounceForm) {
-            unannounceForm.hidden = !announced;
+            unannounceForm.classList.toggle('ob-share-form--hidden', !announced);
         }
 
         menu.removeAttribute('open');

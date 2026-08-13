@@ -1648,6 +1648,10 @@ html.ob-compose-modal-open {
   margin: 0;
 }
 
+.ob-post__share-menu form.ob-share-form--hidden {
+  display: none !important;
+}
+
 .ob-post__share-menu {
   position: relative;
 }

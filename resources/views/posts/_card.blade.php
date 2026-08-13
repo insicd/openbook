@@ -207,7 +207,7 @@
                                 action="{{ route('posts.announce', $post) }}"
                                 data-announce-form
                                 data-announce-action="{{ route('posts.announce', $post) }}"
-                                @if ($post->direct_announced_by_viewer ?? false) hidden @endif
+                                @class(['ob-share-form--hidden' => ($post->direct_announced_by_viewer ?? false)])
                             >
                                 @csrf
                                 <button type="submit" class="ob-post__menu-item" role="menuitem">
@@ -220,7 +220,7 @@
                                 action="{{ route('posts.unannounce', $post) }}"
                                 data-announce-form
                                 data-unannounce-action="{{ route('posts.unannounce', $post) }}"
-                                @if (! ($post->direct_announced_by_viewer ?? false)) hidden @endif
+                                @class(['ob-share-form--hidden' => ! ($post->direct_announced_by_viewer ?? false)])
                             >
                                 @csrf
                                 @method('DELETE')
