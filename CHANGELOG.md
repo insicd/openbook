@@ -34,6 +34,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 - **Allegati audio** sui post: in ingresso federato (Mastodon e simili,
   `Document`/`Audio` con `audio/*`) e in uscita dal composer locale
   (MP3, OGG, WAV, M4A, FLAC, AAC); riproduzione inline con `<audio controls>`.
+- **Rifiuto richiesta di follow**: notifica locale a chi aveva richiesto
+  di seguire (accettazione o rifiuto da profilo protetto o da remoto via
+  `Reject`).
 
 ### Fixed
 - Menu condivisi: «Annulla condivisione» non compare piu' insieme a
@@ -52,6 +55,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   resta 32 per gli account locali).
 - Elenchi **follower / seguiti** (e box suggerimenti): gli avatar non vengono
   piu' allungati orizzontalmente dal layout flex del testo accanto.
+- **Create** consegnati all'inbox personale di un utente (es. messaggio
+  opzionale dopo un rifiuto da bridge ActivityPub) non vengono piu' ignorati:
+  vengono trattati come messaggio diretto in `/messaggi` quando non sono
+  post pubblici.
 
 ## [0.9.0] — Messaggistica privata federata
 

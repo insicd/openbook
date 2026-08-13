@@ -37,6 +37,8 @@ class Notification extends Model
 
     public const TYPE_FOLLOW_ACCEPTED = 'follow_accepted';
 
+    public const TYPE_FOLLOW_REJECTED = 'follow_rejected';
+
     public const TYPE_LIKE = 'like';
 
     public const TYPE_COMMENT = 'comment';
@@ -155,9 +157,15 @@ class Notification extends Model
         }
 
         if ($target instanceof Follow) {
-            $profileActor = $this->type === self::TYPE_FOLLOW_ACCEPTED ? $target->following : $target->follower;
+            $profileActor = in_array($this->type, [self::TYPE_FOLLOW_ACCEPTED, self::TYPE_FOLLOW_REJECTED], true)
+                ? $target->following
+                : $target->follower;
 
             return $profileActor?->profileUrl();
+        }
+
+        if ($target instanceof Actor && $this->type === self::TYPE_FOLLOW_REJECTED) {
+            return $target->profileUrl();
         }
 
         return null;

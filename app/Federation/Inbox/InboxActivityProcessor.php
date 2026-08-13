@@ -69,13 +69,16 @@ final class InboxActivityProcessor
             return InboxItem::STATUS_IGNORED;
         }
 
+        $item->loadMissing('targetActor');
+        $inboxTarget = $item->targetActor;
+
         return match ($item->activity_type) {
             'Follow' => $this->handleFollow($activity, $signer),
             'Accept' => $this->handleAccept($activity, $signer),
             'Reject' => $this->handleReject($activity, $signer),
             'Undo' => $this->handleUndo($activity, $signer),
-            'Create' => $this->handleCreateOrUpdate($activity, $signer),
-            'Update' => $this->handleUpdate($activity, $signer),
+            'Create' => $this->handleCreateOrUpdate($activity, $signer, $inboxTarget),
+            'Update' => $this->handleUpdate($activity, $signer, $inboxTarget),
             'Delete' => $this->handleDelete($activity, $signer),
             'Like' => $this->handleLike($activity, $signer),
             'Announce' => $this->handleAnnounce($activity, $signer),
@@ -586,13 +589,13 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $activity
      */
-    private function handleUpdate(array $activity, Actor $signer): string
+    private function handleUpdate(array $activity, Actor $signer, ?Actor $inboxTarget = null): string
     {
         $object = $activity['object'] ?? null;
         $type = is_array($object) ? ($object['type'] ?? null) : null;
 
         if (is_array($object) && RemotePostObject::isPostable($type)) {
-            return $this->handleCreateOrUpdate($activity, $signer);
+            return $this->handleCreateOrUpdate($activity, $signer, $inboxTarget);
         }
 
         return match ($type) {
@@ -627,7 +630,7 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $activity
      */
-    private function handleCreateOrUpdate(array $activity, Actor $actor): string
+    private function handleCreateOrUpdate(array $activity, Actor $actor, ?Actor $inboxTarget = null): string
     {
         $note = $this->resolveCreateObject($activity['object'] ?? null);
 
@@ -636,8 +639,9 @@ final class InboxActivityProcessor
         }
 
         $note = $this->mergeActivityAudience($activity, $note);
-        $note = $this->ensureNoteContent($activity, $note);
+        $note = $this->applyPersonalInboxTargetAudience($note, $inboxTarget);
         $note = $this->preserveDirectMessageMetadata($activity, $note);
+        $note = $this->ensureNoteContent($activity, $note);
 
         $noteUri = $note['id'] ?? null;
 
@@ -677,7 +681,7 @@ final class InboxActivityProcessor
             }
         }
 
-        if (! $this->isRelevant($author, $note, $parentPost, $parentComment)) {
+        if (! $this->isRelevant($author, $note, $parentPost, $parentComment, $inboxTarget)) {
             return InboxItem::STATUS_IGNORED;
         }
 
@@ -693,7 +697,7 @@ final class InboxActivityProcessor
 
         $conversationThreadParent = $this->resolveConversationThreadParent($note, $parentPost, $parentComment);
 
-        if ($this->shouldStoreAsConversationMessage($note, $parentPost, $parentComment)) {
+        if ($this->shouldStoreAsConversationMessage($note, $parentPost, $parentComment, $inboxTarget)) {
             return DB::transaction(function () use ($note, $noteUri, $author, $body, $publishedAt, $conversationThreadParent) {
                 $this->noteUpserter->upsertPost(
                     $note,
@@ -735,13 +739,17 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $note
      */
-    private function shouldStoreAsConversationMessage(array $note, ?Post $parentPost, ?Comment $parentComment): bool
+    private function shouldStoreAsConversationMessage(array $note, ?Post $parentPost, ?Comment $parentComment, ?Actor $inboxTarget = null): bool
     {
         if (RemotePostObject::isExplicitDirectMessage($note)) {
             return true;
         }
 
         if ($this->noteUpserter->visibilityFromAudience($note) === Post::VISIBILITY_DIRECT) {
+            return true;
+        }
+
+        if ($this->isPersonalInboxDirectDelivery($note, $inboxTarget)) {
             return true;
         }
 
@@ -1003,9 +1011,13 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $note
      */
-    private function isRelevant(Actor $author, array $note, ?Post $parentPost, ?Comment $parentComment): bool
+    private function isRelevant(Actor $author, array $note, ?Post $parentPost, ?Comment $parentComment, ?Actor $inboxTarget = null): bool
     {
         if ($parentPost !== null || $parentComment !== null) {
+            return true;
+        }
+
+        if ($this->isPersonalInboxDirectDelivery($note, $inboxTarget)) {
             return true;
         }
 
@@ -1022,6 +1034,118 @@ final class InboxActivityProcessor
         }
 
         return $this->mentionsLocalActor($note) || $this->addressesLocalActor($note);
+    }
+
+    /**
+     * Create consegnato all'inbox personale di un utente locale (es. messaggio
+     * opzionale dopo un Reject federato): non e' un post pubblico da ignorare
+     * solo perche' l'autore non e' ancora seguito in locale.
+     *
+     * @param  array<string, mixed>  $note
+     */
+    private function isPersonalInboxDirectDelivery(array $note, ?Actor $inboxTarget): bool
+    {
+        if ($inboxTarget === null || ! $inboxTarget->isLocal() || ! $inboxTarget->isPerson()) {
+            return false;
+        }
+
+        if ($this->addressesPublicAudience($note)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Aggiunge il destinatario dell'inbox personale all'audience quando manca,
+     * cosi' visibilita' DM e {@see DirectMessageLinker} trovano l'interlocutore.
+     *
+     * @param  array<string, mixed>  $note
+     * @return array<string, mixed>
+     */
+    private function applyPersonalInboxTargetAudience(array $note, ?Actor $inboxTarget): array
+    {
+        if (! $this->isPersonalInboxDirectDelivery($note, $inboxTarget)) {
+            return $note;
+        }
+
+        if ($this->noteAddressesActor($note, $inboxTarget)) {
+            return $note;
+        }
+
+        $to = $note['to'] ?? null;
+
+        if (is_string($to) && $to !== '') {
+            $to = [$to];
+        } elseif (! is_array($to)) {
+            $to = [];
+        }
+
+        $to[] = $inboxTarget->uri;
+        $note['to'] = array_values(array_unique($to));
+
+        return $note;
+    }
+
+    /**
+     * @param  array<string, mixed>  $note
+     */
+    private function noteAddressesActor(array $note, Actor $actor): bool
+    {
+        foreach (['to', 'cc'] as $field) {
+            $value = $note[$field] ?? null;
+
+            if (is_string($value) && $value === $actor->uri) {
+                return true;
+            }
+
+            if (! is_array($value)) {
+                continue;
+            }
+
+            foreach ($value as $item) {
+                if (is_string($item) && $item === $actor->uri) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $note
+     */
+    private function addressesPublicAudience(array $note): bool
+    {
+        foreach (['to', 'cc'] as $field) {
+            $value = $note[$field] ?? null;
+
+            if (is_string($value) && $this->isPublicAudienceUri($value)) {
+                return true;
+            }
+
+            if (! is_array($value)) {
+                continue;
+            }
+
+            foreach ($value as $item) {
+                if (is_string($item) && $this->isPublicAudienceUri($item)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function isPublicAudienceUri(string $uri): bool
+    {
+        return in_array($uri, [
+            NoteSerializer::PUBLIC_STREAM,
+            'as:Public',
+            'Public',
+        ], true);
     }
 
     /**

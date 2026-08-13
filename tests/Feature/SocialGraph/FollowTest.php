@@ -75,6 +75,11 @@ class FollowTest extends TestCase
         $followManager->reject($target->actor, $follower->actor);
 
         $this->assertDatabaseCount('follows', 0);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $follower->id,
+            'type' => Notification::TYPE_FOLLOW_REJECTED,
+            'actor_id' => $target->actor->id,
+        ]);
     }
 
     public function test_a_user_cannot_follow_themselves(): void

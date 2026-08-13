@@ -290,6 +290,7 @@ return [
             'new_follower' => ':name started following you.',
             'follow_request' => ':name requested to follow you.',
             'follow_accepted' => ':name accepted your follow request.',
+            'follow_rejected' => ':name declined your follow request.',
             'like' => ':name liked your content.',
             'comment' => ':name commented on your post.',
             'reply' => ':name replied to your comment.',

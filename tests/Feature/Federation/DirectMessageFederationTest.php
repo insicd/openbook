@@ -185,6 +185,56 @@ class DirectMessageFederationTest extends TestCase
         $this->assertSame('Audience dall attivita', $post->body);
     }
 
+    public function test_a_create_delivered_to_a_personal_inbox_without_local_audience_is_stored_as_a_direct_message(): void
+    {
+        $local = $this->createFullAccount('local');
+        $remote = $this->createRemoteActor('bridge', 'bsky.brid.gy');
+
+        $noteUri = 'https://bsky.brid.gy/users/bridge/statuses/'.uniqid();
+        $activity = [
+            'id' => 'https://bsky.brid.gy/activities/'.uniqid(),
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'to' => [$remote->uri],
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'to' => [$remote->uri],
+                'content' => '<p>La tua richiesta di follow e\' stata rifiutata.</p>',
+                'published' => now()->toAtomString(),
+            ],
+        ];
+
+        $item = InboxItem::query()->create([
+            'target_actor_id' => $local->actor->id,
+            'is_shared' => false,
+            'remote_activity_uri' => $activity['id'],
+            'activity_type' => 'Create',
+            'actor_uri' => $remote->uri,
+            'payload' => json_encode($activity, JSON_THROW_ON_ERROR),
+            'signature_valid' => true,
+            'status' => InboxItem::STATUS_PENDING,
+            'received_at' => now(),
+        ]);
+
+        $status = app(InboxActivityProcessor::class)->process($item);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+
+        $post = Post::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($post);
+        $this->assertSame(Post::VISIBILITY_DIRECT, $post->visibility);
+        $this->assertSame('La tua richiesta di follow e\' stata rifiutata.', $post->body);
+        $this->assertNotNull($post->conversation_id);
+
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $local->id,
+            'type' => Notification::TYPE_DIRECT_MESSAGE,
+            'notifiable_id' => $post->id,
+        ]);
+    }
+
     public function test_inbound_direct_message_stub_without_fetchable_content_does_not_store_note_uri_as_body(): void
     {
         $local = $this->createFullAccount('local');

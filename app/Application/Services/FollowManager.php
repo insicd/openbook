@@ -215,6 +215,16 @@ final class FollowManager
 
         $follow->setRelation('follower', $follower);
         $follow->setRelation('following', $target);
+
+        if ($follower->isLocal()) {
+            $this->notificationCreator->notify(
+                $follower,
+                Notification::TYPE_FOLLOW_REJECTED,
+                $target,
+                $target,
+            );
+        }
+
         $follow->delete();
 
         if (! $follower->isLocal()) {

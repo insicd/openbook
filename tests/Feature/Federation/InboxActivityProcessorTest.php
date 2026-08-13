@@ -300,6 +300,11 @@ class InboxActivityProcessorTest extends TestCase
 
         $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
         $this->assertDatabaseCount('follows', 0);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $localUser->id,
+            'type' => Notification::TYPE_FOLLOW_REJECTED,
+            'actor_id' => $remote->id,
+        ]);
     }
 
     public function test_an_undo_follow_removes_the_incoming_relationship(): void
