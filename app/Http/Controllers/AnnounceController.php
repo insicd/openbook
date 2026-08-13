@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Application\Services\AnnounceManager;
 use App\Domain\Posts\Post;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class AnnounceController extends Controller
 {
@@ -12,17 +14,34 @@ class AnnounceController extends Controller
         private readonly AnnounceManager $announces,
     ) {}
 
-    public function store(Post $post): RedirectResponse
+    public function store(Request $request, Post $post): RedirectResponse|JsonResponse
     {
         $this->announces->announce(auth()->user()->actor, $post);
 
-        return back()->with('status', 'Post condiviso.');
+        return $this->respond($request, $post->fresh(), announced: true);
     }
 
-    public function destroy(Post $post): RedirectResponse
+    public function destroy(Request $request, Post $post): RedirectResponse|JsonResponse
     {
         $this->announces->unannounce(auth()->user()->actor, $post);
 
-        return back();
+        return $this->respond($request, $post->fresh(), announced: false);
+    }
+
+    private function respond(Request $request, Post $post, bool $announced): RedirectResponse|JsonResponse
+    {
+        $count = (int) $post->announces_count;
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'announced' => $announced,
+                'announces_count' => $count,
+                'label' => __($announced ? 'openbook.actions.announced' : 'openbook.actions.announce', [
+                    'count' => $count,
+                ]),
+            ]);
+        }
+
+        return back()->withFragment('post-'.$post->id);
     }
 }

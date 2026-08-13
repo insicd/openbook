@@ -13,6 +13,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 
 ## [0.9.1] — Allegati remoti
 
+### Changed
+- **Condividi / repost** sui post: condivisione diretta e annullamento
+  avvengono via AJAX (come i Mi piace), senza ricaricare la pagina.
+
 ### Fixed
 - Post federati con **una sola immagine** non mostrano piu' duplicati in
   galleria quando il server remoto invia piu' varianti dello stesso file

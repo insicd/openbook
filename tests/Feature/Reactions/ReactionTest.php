@@ -201,4 +201,40 @@ class ReactionTest extends TestCase
             ->assertSee('data-like-form', false)
             ->assertSee('data-like-action="'.route('posts.like', $post).'"', false);
     }
+
+    public function test_announcing_a_post_via_json_returns_updated_state_without_redirect(): void
+    {
+        $author = $this->createFullAccount('jsonannounceauthor');
+        $sharer = $this->createFullAccount('jsonannouncer');
+        $post = $this->publishPost($author);
+
+        $response = $this->actingAs($sharer)->postJson(route('posts.announce', $post));
+
+        $response->assertOk();
+        $response->assertJson([
+            'announced' => true,
+            'announces_count' => 1,
+        ]);
+        $this->assertSame(1, $post->fresh()->announces_count);
+
+        $unannounce = $this->actingAs($sharer)->deleteJson(route('posts.unannounce', $post));
+        $unannounce->assertOk();
+        $unannounce->assertJson([
+            'announced' => false,
+            'announces_count' => 0,
+        ]);
+    }
+
+    public function test_post_cards_expose_ajax_announce_markup(): void
+    {
+        $author = $this->createFullAccount('anchorannounce');
+        $post = $this->publishPost($author);
+
+        $this->actingAs($author)
+            ->get(route('feed.index'))
+            ->assertOk()
+            ->assertSee('data-announce-menu', false)
+            ->assertSee('data-announce-action="'.route('posts.announce', $post).'"', false)
+            ->assertSee('data-unannounce-action="'.route('posts.unannounce', $post).'"', false);
+    }
 }

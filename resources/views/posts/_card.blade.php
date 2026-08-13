@@ -186,33 +186,49 @@
                         <span class="ob-post__action-count">{{ $post->comments_count }}</span>
                     </a>
 
-                    <details class="ob-post__share-menu">
+                    <details
+                        class="ob-post__share-menu"
+                        data-announce-menu
+                        data-announced="{{ $post->announced_by_viewer ? '1' : '0' }}"
+                        data-label-announce="{{ __('openbook.actions.announce', ['count' => '__COUNT__']) }}"
+                        data-label-announced="{{ __('openbook.actions.announced', ['count' => '__COUNT__']) }}"
+                    >
                         <summary
                             class="ob-post__action{{ $post->announced_by_viewer ? ' ob-post__action--active' : '' }}"
+                            data-announce-summary
                             aria-label="{{ $post->announced_by_viewer ? __('openbook.actions.announced', ['count' => $post->announces_count]) : __('openbook.actions.announce', ['count' => $post->announces_count]) }}"
                         >
                             <x-icon name="share" />
                             <span class="ob-post__action-count">{{ $post->announces_count }}</span>
                         </summary>
                         <div class="ob-post__menu-panel" role="menu">
-                            @if ($post->announced_by_viewer)
-                                <form method="POST" action="{{ route('posts.unannounce', $post) }}">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="ob-post__menu-item" role="menuitem">
-                                        <x-icon name="share" />
-                                        {{ __('openbook.actions.unannounce') }}
-                                    </button>
-                                </form>
-                            @else
-                                <form method="POST" action="{{ route('posts.announce', $post) }}">
-                                    @csrf
-                                    <button type="submit" class="ob-post__menu-item" role="menuitem">
-                                        <x-icon name="share" />
-                                        {{ __('openbook.actions.announce_direct') }}
-                                    </button>
-                                </form>
-                            @endif
+                            <form
+                                method="POST"
+                                action="{{ route('posts.announce', $post) }}"
+                                data-announce-form
+                                data-announce-action="{{ route('posts.announce', $post) }}"
+                                @if ($post->announced_by_viewer) hidden @endif
+                            >
+                                @csrf
+                                <button type="submit" class="ob-post__menu-item" role="menuitem">
+                                    <x-icon name="share" />
+                                    {{ __('openbook.actions.announce_direct') }}
+                                </button>
+                            </form>
+                            <form
+                                method="POST"
+                                action="{{ route('posts.unannounce', $post) }}"
+                                data-announce-form
+                                data-unannounce-action="{{ route('posts.unannounce', $post) }}"
+                                @if (! $post->announced_by_viewer) hidden @endif
+                            >
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="ob-post__menu-item" role="menuitem">
+                                    <x-icon name="share" />
+                                    {{ __('openbook.actions.unannounce') }}
+                                </button>
+                            </form>
                             <a href="{{ route('posts.quote', $post) }}" class="ob-post__menu-item" role="menuitem">
                                 <x-icon name="quote" />
                                 {{ __('openbook.actions.announce_quote') }}
