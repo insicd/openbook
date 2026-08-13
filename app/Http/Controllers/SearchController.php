@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\LocalSearchQuery;
-use App\Domain\Posts\Hashtag;
+use App\Http\Support\FederatedHandleParser;
 use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Actors\RemoteActorResolver;
 use Illuminate\Contracts\View\View;
@@ -123,38 +123,6 @@ class SearchController extends Controller
      */
     private function extractHandle(string $query): ?array
     {
-        $query = ltrim($query, '@');
-
-        if (str_starts_with($query, 'acct:')) {
-            $query = substr($query, 5);
-        }
-
-        if (preg_match('#^https?://#i', $query) === 1) {
-            $host = parse_url($query, PHP_URL_HOST);
-            $path = trim((string) parse_url($query, PHP_URL_PATH), '/');
-            $segments = explode('/', $path);
-            $lastSegment = ltrim((string) end($segments), '@');
-
-            if (! is_string($host) || $host === '' || $lastSegment === '') {
-                return null;
-            }
-
-            return [$lastSegment, $host];
-        }
-
-        // Un handle federato e' "utente@dominio" senza spazi: qualunque
-        // altra forma (parole libere, frasi, un solo username senza dominio)
-        // cade nella ricerca locale per parole chiave.
-        if (preg_match('/\s/', $query) === 1) {
-            return null;
-        }
-
-        $parts = explode('@', $query, 2);
-
-        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
-            return null;
-        }
-
-        return [$parts[0], $parts[1]];
+        return FederatedHandleParser::parse($query);
     }
 }

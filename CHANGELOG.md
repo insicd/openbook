@@ -19,6 +19,11 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 - Menu condividi: **Annulla condivisione** compare solo dopo un repost
   diretto; la sola citazione con commento lascia **Condivisione diretta**
   (il contatore resta aggiornato anche per le citazioni).
+- **Persone da seguire** (sidebar): su pagine hashtag e ricerca per keyword
+  propone profili (locali discoverable e remoti in cache) la cui bio
+  menziona il tag o la parola cercata; altrove resta il suggerimento
+  predefinito. Se non ci sono corrispondenze, si ripiega sul box
+  standard.
 
 ### Fixed
 - Menu condivisi: «Annulla condivisione» non compare piu' insieme a

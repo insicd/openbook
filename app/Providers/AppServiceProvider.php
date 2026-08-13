@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Application\Services\ConversationReadTracker;
 use App\Application\Queries\PopularHashtagsQuery;
+use App\Application\Queries\SidebarSuggestionContext;
+use App\Application\Queries\SuggestedActorsByBioQuery;
 use App\Application\Queries\SuggestedLocalActorsQuery;
 use App\Application\Services\InstanceSettings;
 use App\Domain\Accounts\User;
@@ -144,9 +146,19 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('partials.sidebar-right', function ($view): void {
             $viewerActor = auth()->user()?->actor;
-            $suggestions = $viewerActor !== null
-                ? app(SuggestedLocalActorsQuery::class)->forViewer($viewerActor)
-                : collect();
+            $contextTerm = SidebarSuggestionContext::bioSearchTerm();
+
+            if ($viewerActor !== null && $contextTerm !== null) {
+                $suggestions = app(SuggestedActorsByBioQuery::class)->forViewer($viewerActor, $contextTerm);
+
+                if ($suggestions->isEmpty()) {
+                    $suggestions = app(SuggestedLocalActorsQuery::class)->forViewer($viewerActor);
+                }
+            } elseif ($viewerActor !== null) {
+                $suggestions = app(SuggestedLocalActorsQuery::class)->forViewer($viewerActor);
+            } else {
+                $suggestions = collect();
+            }
 
             $trending = app(PopularHashtagsQuery::class)->top(PopularHashtagsQuery::SIDEBAR_LIMIT + 1);
 
