@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\InstanceStaffQuery;
 use App\Application\Queries\PopularRemoteActorsQuery;
@@ -28,7 +29,7 @@ class FeedController extends Controller
         $user = auth()->user();
         $user->loadMissing(['profile', 'actor']);
 
-        $posts = $this->feedQuery->forActor($user->actor);
+        $posts = $this->feedQuery->forActor($user->actor, FeedCursor::fromRequest($request));
         Post::annotateViewerState($posts->getCollection(), $user->actor);
 
         $quotedPost = $this->resolveQuotedPostForComposer($request, $user->actor);
@@ -44,7 +45,7 @@ class FeedController extends Controller
 
         $welcomeKit = null;
 
-        if ($posts->total() === 0) {
+        if ($posts->isEmpty() && FeedCursor::fromRequest($request) === null) {
             $welcomeKit = $this->buildWelcomeKit($user->actor, $user->id);
         }
 

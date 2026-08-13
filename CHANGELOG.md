@@ -55,6 +55,10 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   resta 32 per gli account locali).
 - Elenchi **follower / seguiti** (e box suggerimenti): gli avatar non vengono
   piu' allungati orizzontalmente dal layout flex del testo accanto.
+- **Scorrimento infinito** nei feed: la paginazione usa un cursore ancorato
+  all'ultimo post mostrato invece del numero di pagina, evitando duplicati
+  quando arrivano nuovi post mentre si scrolla; deduplica lato client come
+  rete di sicurezza.
 - **Create** consegnati all'inbox personale di un utente (es. messaggio
   opzionale dopo un rifiuto da bridge ActivityPub) non vengono piu' ignorati:
   vengono trattati come messaggio diretto in `/messaggi` quando non sono

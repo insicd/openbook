@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Queries\FeedCursor;
+use App\Application\Queries\FeedQuery;
 use App\Application\Queries\PopularHashtagsQuery;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
 
 class HashtagController extends Controller
 {
     public function __construct(
         private readonly PopularHashtagsQuery $popularHashtags,
+        private readonly FeedQuery $feedQuery,
     ) {}
 
     public function index(): View
@@ -22,7 +26,7 @@ class HashtagController extends Controller
         ]);
     }
 
-    public function show(string $name): View
+    public function show(Request $request, string $name): View
     {
         $normalized = Hashtag::normalize($name);
         $hashtag = Hashtag::query()->where('name', $normalized)->first();
@@ -30,17 +34,13 @@ class HashtagController extends Controller
         $viewer = auth()->user()?->actor;
 
         $posts = $hashtag !== null
-            ? $hashtag->posts()
-                ->with(Post::CARD_RELATIONS)
-                ->where('status', Post::STATUS_PUBLISHED)
-                ->visibleTo($viewer)
-                ->orderByDesc('published_at')
-                // Tiebreaker deterministico: senza di esso, con LIMIT/OFFSET,
-                // piu' post pubblicati nello stesso secondo potrebbero finire
-                // ordinati diversamente da una pagina all'altra (vedi
-                // FeedQuery::TIEBREAKER_COLUMN per lo stesso problema altrove).
-                ->orderByDesc('posts.id')
-                ->paginate((int) config('openbook.feed.per_page'))
+            ? $this->feedQuery->paginatePublishedQuery(
+                $hashtag->posts()
+                    ->with(Post::CARD_RELATIONS)
+                    ->where('status', Post::STATUS_PUBLISHED)
+                    ->visibleTo($viewer),
+                FeedCursor::fromRequest($request),
+            )
             : null;
 
         if ($posts !== null) {

@@ -8,7 +8,7 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxActivityProcessor;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -31,13 +31,14 @@ final class FeedQuery
      * stessa riga due volte, o saltarne una. L'id non ha alcun significato
      * cronologico (e' un UUID casuale, non un contatore), ma essendo unico
      * per riga rende l'ordinamento complessivo deterministico.
+     *
+     * Lo scorrimento infinito usa inoltre un cursore (sortAt + id) al posto
+     * del numero di pagina, cosi' i post nuovi in cima alla timeline non
+     * spostano l'OFFSET e non duplicano righe gia' mostrate.
      */
     private const TIEBREAKER_COLUMN = 'id';
 
-    /**
-     * @return LengthAwarePaginator<int, Post>
-     */
-    public function forActor(Actor $viewer, int $perPage = 0): LengthAwarePaginator
+    public function forActor(Actor $viewer, ?FeedCursor $cursor = null, int $perPage = 0): FeedPage
     {
         $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
 
@@ -52,7 +53,6 @@ final class FeedQuery
             ->whereIn('actor_id', $relevantActorIds)
             ->pluck('post_id');
 
-        // Community a cui il visitatore e' iscritto (Follow verso Actor Group).
         $memberCommunityIds = DB::table('communities')
             ->whereIn('actor_id', $followingIds)
             ->pluck('id');
@@ -71,27 +71,26 @@ final class FeedQuery
             })
             ->visibleTo($viewer);
 
-        $posts = $this->withShareMetadata($query, $relevantActorIds)
+        $query = $this->withShareMetadata($query, $relevantActorIds)
             ->orderByRaw('coalesce(shared_at, published_at) desc')
-            ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN)
-            ->paginate($perPage);
+            ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN);
 
-        Post::attachSharedBy($posts->getCollection());
+        $page = $this->paginateKeyset($query, $perPage, $cursor, useShareSortCursor: true);
 
-        return $posts;
+        Post::attachSharedBy($page->getCollection());
+
+        return $page;
     }
 
     /**
      * Feed pubblico locale: tutti i post pubblici dell'istanza, usato dalla
      * home per i visitatori non autenticati e dalla pagina "Locale".
-     *
-     * @return LengthAwarePaginator<int, Post>
      */
-    public function local(int $perPage = 0): LengthAwarePaginator
+    public function local(?FeedCursor $cursor = null, int $perPage = 0): FeedPage
     {
         $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
 
-        return Post::query()
+        $query = Post::query()
             ->with(Post::CARD_RELATIONS)
             ->excludingPrivateMessages()
             ->where('status', Post::STATUS_PUBLISHED)
@@ -102,8 +101,9 @@ final class FeedQuery
             })
             ->whereHas('actor', fn ($query) => $query->where('is_local', true))
             ->orderByDesc('published_at')
-            ->orderByDesc(self::TIEBREAKER_COLUMN)
-            ->paginate($perPage);
+            ->orderByDesc(self::TIEBREAKER_COLUMN);
+
+        return $this->paginateKeyset($query, $perPage, $cursor, useShareSortCursor: false);
     }
 
     /**
@@ -114,14 +114,12 @@ final class FeedQuery
      * (autore seguito da un Actor locale, risposta a qualcosa che gia'
      * conosciamo, o menzione di un Actor locale), quindi questa e' sempre e
      * solo una finestra parziale su cio' che e' arrivato fin qui.
-     *
-     * @return LengthAwarePaginator<int, Post>
      */
-    public function world(int $perPage = 0): LengthAwarePaginator
+    public function world(?FeedCursor $cursor = null, int $perPage = 0): FeedPage
     {
         $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
 
-        return Post::query()
+        $query = Post::query()
             ->with(Post::CARD_RELATIONS)
             ->excludingPrivateMessages()
             ->where('status', Post::STATUS_PUBLISHED)
@@ -132,26 +130,31 @@ final class FeedQuery
             })
             ->whereHas('actor', fn ($query) => $query->where('is_local', false))
             ->orderByDesc('published_at')
-            ->orderByDesc(self::TIEBREAKER_COLUMN)
-            ->paginate($perPage);
+            ->orderByDesc(self::TIEBREAKER_COLUMN);
+
+        return $this->paginateKeyset($query, $perPage, $cursor, useShareSortCursor: false);
     }
 
     /**
      * Wall di una community: post pubblicati verso di essa.
-     *
-     * @return LengthAwarePaginator<int, Post>
      */
-    public function forCommunity(Community $community, ?Actor $viewer): LengthAwarePaginator
+    public function forCommunity(Community $community, ?Actor $viewer, ?FeedCursor $cursor = null): FeedPage
     {
-        return Post::query()
+        $query = Post::query()
             ->with(Post::CARD_RELATIONS)
             ->excludingPrivateMessages()
             ->where('status', Post::STATUS_PUBLISHED)
             ->where('community_id', $community->id)
             ->visibleTo($viewer)
             ->orderByDesc('published_at')
-            ->orderByDesc(self::TIEBREAKER_COLUMN)
-            ->paginate((int) config('openbook.feed.per_page'));
+            ->orderByDesc(self::TIEBREAKER_COLUMN);
+
+        return $this->paginateKeyset(
+            $query,
+            (int) config('openbook.feed.per_page'),
+            $cursor,
+            useShareSortCursor: false,
+        );
     }
 
     /**
@@ -162,10 +165,8 @@ final class FeedQuery
      * si ordina sempre per data di pubblicazione del post: dopo un backfill
      * dall'outbox gli Announce locali avrebbero altrimenti un ordine
      * invertito rispetto al feed (piu' vecchi in alto).
-     *
-     * @return LengthAwarePaginator<int, Post>
      */
-    public function forProfile(Actor $profileActor, ?Actor $viewer): LengthAwarePaginator
+    public function forProfile(Actor $profileActor, ?Actor $viewer, ?FeedCursor $cursor = null): FeedPage
     {
         $announcedPostIds = DB::table('announces')
             ->where('actor_id', $profileActor->id)
@@ -184,20 +185,114 @@ final class FeedQuery
         $ordered = $this->withShareMetadata($query, collect([$profileActor->id]));
 
         if ($profileActor->isGroup()) {
-            $posts = $ordered
+            $query = $ordered
                 ->orderByDesc('posts.published_at')
-                ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN)
-                ->paginate((int) config('openbook.feed.per_page'));
+                ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN);
+
+            $page = $this->paginateKeyset($query, (int) config('openbook.feed.per_page'), $cursor, useShareSortCursor: false);
         } else {
-            $posts = $ordered
+            $query = $ordered
                 ->orderByRaw('coalesce(shared_at, published_at) desc')
-                ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN)
-                ->paginate((int) config('openbook.feed.per_page'));
+                ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN);
+
+            $page = $this->paginateKeyset($query, (int) config('openbook.feed.per_page'), $cursor, useShareSortCursor: true);
         }
 
-        Post::attachSharedBy($posts->getCollection());
+        Post::attachSharedBy($page->getCollection());
 
-        return $posts;
+        return $page;
+    }
+
+    /**
+     * Feed per hashtag: stesso cursore dei post ordinati per published_at.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function paginatePublishedQuery(Builder $query, ?FeedCursor $cursor = null, int $perPage = 0): FeedPage
+    {
+        $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
+
+        return $this->paginateKeyset(
+            $query->orderByDesc('published_at')->orderByDesc('posts.'.self::TIEBREAKER_COLUMN),
+            $perPage,
+            $cursor,
+            useShareSortCursor: false,
+        );
+    }
+
+    /**
+     * @param  Builder<Post>  $query
+     */
+    private function paginateKeyset(
+        Builder $query,
+        int $perPage,
+        ?FeedCursor $cursor,
+        bool $useShareSortCursor,
+        ?Request $request = null,
+    ): FeedPage {
+        if ($useShareSortCursor) {
+            $this->applySharedSortCursor($query, $cursor);
+        } else {
+            $this->applyPublishedAtCursor($query, $cursor);
+        }
+
+        /** @var Collection<int, Post> $items */
+        $items = $query->limit($perPage + 1)->get();
+
+        $hasMore = $items->count() > $perPage;
+
+        if ($hasMore) {
+            $items = $items->take($perPage)->values();
+        }
+
+        $nextPageUrl = null;
+
+        if ($hasMore && $items->isNotEmpty()) {
+            $request ??= request();
+            $nextCursor = FeedCursor::fromPost($items->last(), $useShareSortCursor);
+            $queryParams = array_merge($request->except(['cursor', 'page']), [
+                'cursor' => $nextCursor->encode(),
+            ]);
+            $nextPageUrl = $request->url().'?'.http_build_query($queryParams);
+        }
+
+        return new FeedPage($items, $nextPageUrl);
+    }
+
+    /**
+     * @param  Builder<Post>  $query
+     */
+    private function applyPublishedAtCursor(Builder $query, ?FeedCursor $cursor): void
+    {
+        if ($cursor === null) {
+            return;
+        }
+
+        $query->where(function (Builder $builder) use ($cursor): void {
+            $builder->where('posts.published_at', '<', $cursor->sortAt)
+                ->orWhere(function (Builder $sameInstant) use ($cursor): void {
+                    $sameInstant->where('posts.published_at', '=', $cursor->sortAt)
+                        ->where('posts.'.self::TIEBREAKER_COLUMN, '<', $cursor->postId);
+                });
+        });
+    }
+
+    /**
+     * @param  Builder<Post>  $query
+     */
+    private function applySharedSortCursor(Builder $query, ?FeedCursor $cursor): void
+    {
+        if ($cursor === null) {
+            return;
+        }
+
+        $query->where(function (Builder $builder) use ($cursor): void {
+            $builder->whereRaw('coalesce(shared_at, published_at) < ?', [$cursor->sortAt])
+                ->orWhere(function (Builder $sameInstant) use ($cursor): void {
+                    $sameInstant->whereRaw('coalesce(shared_at, published_at) = ?', [$cursor->sortAt])
+                        ->where('posts.'.self::TIEBREAKER_COLUMN, '<', $cursor->postId);
+                });
+        });
     }
 
     /**

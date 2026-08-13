@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\ActorMediaQuery;
+use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
 use App\Application\Services\FollowManager;
@@ -13,6 +14,7 @@ use App\Federation\Outbox\RemoteOutboxFetcher;
 use App\Http\Controllers\Concerns\RendersFollowLists;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 /**
  * Pagina profilo per un Actor *remoto* in cache locale: a differenza di
@@ -34,14 +36,14 @@ class ActorProfileController extends Controller
         private readonly RemoteOutboxFetcher $outboxFetcher,
     ) {}
 
-    public function show(Actor $actor): View|RedirectResponse
+    public function show(Actor $actor, Request $request): View|RedirectResponse
     {
-        return $this->renderRemoteProfile($actor, 'posts');
+        return $this->renderRemoteProfile($actor, 'posts', $request);
     }
 
-    public function photos(Actor $actor): View|RedirectResponse
+    public function photos(Actor $actor, Request $request): View|RedirectResponse
     {
-        return $this->renderRemoteProfile($actor, 'photos');
+        return $this->renderRemoteProfile($actor, 'photos', $request);
     }
 
     public function followers(Actor $actor): View|RedirectResponse
@@ -62,7 +64,7 @@ class ActorProfileController extends Controller
         return $this->renderFollowList($this->followListQuery, $this->followManager, $actor, 'following');
     }
 
-    private function renderRemoteProfile(Actor $actor, string $activeTab): View|RedirectResponse
+    private function renderRemoteProfile(Actor $actor, string $activeTab, Request $request): View|RedirectResponse
     {
         if ($actor->isLocal()) {
             return redirect()->route(
@@ -98,7 +100,7 @@ class ActorProfileController extends Controller
         if ($activeTab === 'photos') {
             $media = $this->mediaQuery->forActor($actor, $viewerActor);
         } else {
-            $posts = $this->feedQuery->forProfile($actor, $viewerActor);
+            $posts = $this->feedQuery->forProfile($actor, $viewerActor, FeedCursor::fromRequest($request));
             Post::annotateViewerState($posts->getCollection(), $viewerActor);
         }
 

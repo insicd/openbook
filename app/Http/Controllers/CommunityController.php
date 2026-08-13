@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Queries\FeedCursor;
+use App\Application\Queries\FeedPage;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
 use App\Application\Queries\SuggestedRemoteCommunitiesQuery;
@@ -172,16 +174,10 @@ class CommunityController extends Controller
         }
 
         if ($canViewWall) {
-            $posts = $this->feedQuery->forCommunity($community, $viewerActor);
+            $posts = $this->feedQuery->forCommunity($community, $viewerActor, FeedCursor::fromRequest($request));
             Post::annotateViewerState($posts->getCollection(), $viewerActor);
         } else {
-            $posts = new LengthAwarePaginator(
-                [],
-                0,
-                (int) config('openbook.feed.per_page'),
-                1,
-                ['path' => $request->url(), 'query' => $request->query()],
-            );
+            $posts = new FeedPage(collect(), null);
         }
 
         $community->loadMissing('moderators.profile');

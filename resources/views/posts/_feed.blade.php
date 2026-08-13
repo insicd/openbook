@@ -1,16 +1,15 @@
 @php
     /**
-     * Elenco di post con scorrimento infinito: sostituisce la paginazione a
-     * numeri di pagina (che restava comunque disponibile via "?page=N", ma
-     * senza JavaScript). Ogni pagina che include questo parziale ha, al
-     * massimo, un solo elenco di questo tipo: l'id fisso "ob-post-list" e'
-     * quindi sufficiente, non serve generarne uno univoco.
+     * Elenco di post con scorrimento infinito: la pagina successiva e'
+     * indicata da "data-next-url" con cursore (?cursor=...) ancorato
+     * all'ultimo post mostrato, cosi' i nuovi post in cima non duplicano
+     * voci gia' caricate. Senza JavaScript resta un link "Post successivi".
      *
-     * @var \Illuminate\Pagination\LengthAwarePaginator|null $posts
+     * @var \App\Application\Queries\FeedPage|null $posts
      * @var string $emptyMessage
      */
     $hasPosts = isset($posts) && $posts !== null;
-    $nextUrl = $hasPosts && $posts->hasPages() ? $posts->nextPageUrl() : null;
+    $nextUrl = $hasPosts && $posts->hasMorePages() ? $posts->nextPageUrl() : null;
 @endphp
 
 <div
@@ -32,10 +31,10 @@
     @endforelse
 </div>
 
-@if ($hasPosts && $posts->hasPages())
+@if ($hasPosts && $posts->hasMorePages())
     <noscript>
         <div class="ob-pagination">
-            {{ $posts->onEachSide(1)->links() }}
+            <a href="{{ $posts->nextPageUrl() }}">{{ __('openbook.infinite_scroll.next') }}</a>
         </div>
     </noscript>
 @endif

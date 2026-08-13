@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\PopularRemoteActorsQuery;
 use App\Domain\Posts\Post;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
 
 /**
  * Sezione "Mondo": una finestra su cio' che arriva dal resto del fediverso
@@ -20,11 +22,11 @@ class WorldController extends Controller
         private readonly PopularRemoteActorsQuery $popularRemoteActorsQuery,
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
         $viewer = auth()->user()->actor;
 
-        $posts = $this->feedQuery->world();
+        $posts = $this->feedQuery->world(FeedCursor::fromRequest($request));
         Post::annotateViewerState($posts->getCollection(), $viewer);
 
         $preview = $this->popularRemoteActorsQuery->forViewer(

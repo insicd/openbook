@@ -7,9 +7,8 @@
  *
  * Nessuna libreria esterna, nessuna route/API dedicata sul server: quando il
  * segnaposto in fondo alla pagina diventa visibile, viene semplicemente
- * scaricata la stessa pagina successiva che l'utente otterrebbe cliccando
- * "2" nella paginazione classica (l'URL e' in "data-next-url", calcolato lato
- * server da Laravel), se ne estrae il solo elenco di post
+ * scaricata la stessa pagina successiva indicata in "data-next-url" (cursore
+ * ?cursor=... calcolato lato server), se ne estrae il solo elenco di post
  * (`[data-infinite-scroll]`) e i suoi figli vengono spostati in coda
  * all'elenco corrente.
  */
@@ -71,7 +70,19 @@
                     .querySelector('[data-infinite-scroll]');
 
                 while (freshContainer && freshContainer.firstChild) {
-                    container.appendChild(freshContainer.firstChild);
+                    var node = freshContainer.firstChild;
+                    var postId = null;
+
+                    if (node.id && node.id.indexOf('post-') === 0) {
+                        postId = node.id.slice(5);
+                    }
+
+                    if (postId && container.querySelector('#post-' + CSS.escape(postId))) {
+                        freshContainer.removeChild(node);
+                        continue;
+                    }
+
+                    container.appendChild(node);
                 }
 
                 nextUrl = freshContainer ? freshContainer.getAttribute('data-next-url') : null;

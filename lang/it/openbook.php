@@ -17,6 +17,7 @@ return [
         'loading' => 'Caricamento altri post...',
         'end' => 'Non ci sono altri post da mostrare.',
         'error' => 'Impossibile caricare altri post. Riprova ricaricando la pagina.',
+        'next' => 'Post successivi',
     ],
 
     'nav' => [

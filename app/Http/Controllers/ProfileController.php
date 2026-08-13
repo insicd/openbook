@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\ActorMediaQuery;
+use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
 use App\Application\Services\FollowManager;
@@ -140,7 +141,11 @@ class ProfileController extends Controller
         if ($activeTab === 'photos') {
             $media = $profileSuspended ? null : $this->mediaQuery->forActor($user->actor, $viewerActor);
         } else {
-            $posts = $profileSuspended ? null : $this->feedQuery->forProfile($user->actor, $viewerActor);
+            $posts = $profileSuspended ? null : $this->feedQuery->forProfile(
+                $user->actor,
+                $viewerActor,
+                FeedCursor::fromRequest($request),
+            );
             if ($posts !== null) {
                 Post::annotateViewerState($posts->getCollection(), $viewerActor);
             }
