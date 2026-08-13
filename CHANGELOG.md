@@ -24,6 +24,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   menziona il tag o la parola cercata; altrove resta il suggerimento
   predefinito. Se non ci sono corrispondenze, si ripiega sul box
   standard.
+- Box **Persone da seguire**: handle lunghi vanno a capo senza spingere
+  fuori dal riquadro il pulsante Segui.
 
 ### Fixed
 - Menu condivisi: «Annulla condivisione» non compare piu' insieme a

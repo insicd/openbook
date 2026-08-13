@@ -779,11 +779,40 @@ html.ob-compose-modal-open {
 
 .ob-suggestion {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.65rem;
   padding: 0.6rem 0;
   border-top: 1px solid var(--ob-color-border);
+}
+
+.ob-suggestion .ob-mini-profile__link {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: flex-start;
+}
+
+.ob-suggestion .ob-mini-profile__link > .ob-avatar {
+  flex-shrink: 0;
+}
+
+.ob-suggestion .ob-mini-profile__link > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ob-suggestion .ob-post__author,
+.ob-suggestion .ob-post__handle {
+  overflow-wrap: anywhere;
+}
+
+.ob-suggestion form {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.ob-suggestion .ob-btn {
+  white-space: nowrap;
 }
 
 .ob-suggestion:first-of-type {
