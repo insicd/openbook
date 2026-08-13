@@ -54,7 +54,7 @@ final class PostComposer
         $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
 
         if (count($images) > $maxAttachments) {
-            throw new InvalidArgumentException("Puoi allegare al massimo {$maxAttachments} immagini per post.");
+            throw new InvalidArgumentException("Puoi allegare al massimo {$maxAttachments} file per post.");
         }
 
         $quotedPost = $this->resolveQuotedPost($author, $data['quoted_post_id'] ?? null);

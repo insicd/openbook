@@ -90,6 +90,11 @@ class Media extends Model
         return str_starts_with($this->mime_type, 'video/');
     }
 
+    public function isAudio(): bool
+    {
+        return str_starts_with($this->mime_type, 'audio/');
+    }
+
     public function url(): string
     {
         if ($this->isRemote()) {
@@ -119,7 +124,7 @@ class Media extends Model
      */
     public function displayUrl(): string
     {
-        if ($this->mime_type === 'image/gif' || $this->isVideo()) {
+        if ($this->mime_type === 'image/gif' || $this->isVideo() || $this->isAudio()) {
             return $this->url();
         }
 

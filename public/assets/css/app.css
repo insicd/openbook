@@ -2214,6 +2214,13 @@ a.ob-post__menu-item {
   background: var(--ob-color-bg);
 }
 
+.ob-post__media audio,
+.ob-post__media-audio {
+  display: block;
+  width: 100%;
+  border-radius: var(--ob-radius);
+}
+
 .ob-post__hashtags {
   margin-top: 0.5rem;
   font-size: 0.9rem;

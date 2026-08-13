@@ -11,21 +11,32 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
- * Gestisce il caricamento di un'immagine allegata a un post: valida il tipo
- * effettivo del file (mai la sola estensione), genera un nome casuale,
- * rimuove i metadati EXIF sensibili e produce una miniatura in modo
- * sincrono con GD, compatibile con shared hosting (nessuna coda richiesta
- * per un singolo ridimensionamento).
+ * Gestisce il caricamento di un allegato media (immagine o audio) legato a un
+ * post: valida il tipo effettivo del file (mai la sola estensione), genera
+ * un nome casuale e, per le immagini, rimuove i metadati EXIF sensibili e
+ * produce una miniatura in modo sincrono con GD.
  */
 final class MediaUploader
 {
     use ManipulatesImagesWithGd, NormalizesPublicDiskPermissions;
 
-    private const ALLOWED_EXTENSIONS = [
+    private const IMAGE_EXTENSIONS = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
         'image/webp' => 'webp',
         'image/gif' => 'gif',
+    ];
+
+    private const AUDIO_EXTENSIONS = [
+        'audio/mpeg' => 'mp3',
+        'audio/ogg' => 'ogg',
+        'audio/wav' => 'wav',
+        'audio/x-wav' => 'wav',
+        'audio/mp4' => 'm4a',
+        'audio/x-m4a' => 'm4a',
+        'audio/flac' => 'flac',
+        'audio/webm' => 'webm',
+        'audio/aac' => 'aac',
     ];
 
     private const THUMBNAIL_MAX_DIMENSION = 640;
@@ -33,9 +44,19 @@ final class MediaUploader
     public function store(UploadedFile $file, Actor $actor, ?string $altText = null): Media
     {
         $mimeType = (string) $file->getMimeType();
+
+        if (str_starts_with($mimeType, 'audio/')) {
+            return $this->storeAudio($file, $actor, $mimeType, $altText);
+        }
+
+        return $this->storeImage($file, $actor, $mimeType, $altText);
+    }
+
+    private function storeImage(UploadedFile $file, Actor $actor, string $mimeType, ?string $altText): Media
+    {
         $allowedMimeTypes = (array) config('openbook.media.allowed_mime_types');
 
-        if (! in_array($mimeType, $allowedMimeTypes, true) || ! isset(self::ALLOWED_EXTENSIONS[$mimeType])) {
+        if (! in_array($mimeType, $allowedMimeTypes, true) || ! isset(self::IMAGE_EXTENSIONS[$mimeType])) {
             throw new InvalidArgumentException("Tipo di file non consentito: {$mimeType}.");
         }
 
@@ -53,7 +74,7 @@ final class MediaUploader
 
         [$width, $height] = $dimensions;
 
-        $extension = self::ALLOWED_EXTENSIONS[$mimeType];
+        $extension = self::IMAGE_EXTENSIONS[$mimeType];
         $randomName = Str::uuid()->toString().'.'.$extension;
         $directory = 'media/'.date('Y/m');
         $path = $directory.'/'.$randomName;
@@ -79,6 +100,47 @@ final class MediaUploader
         $this->generateThumbnail($media, $mimeType, $width, $height);
 
         return $media;
+    }
+
+    private function storeAudio(UploadedFile $file, Actor $actor, string $mimeType, ?string $altText): Media
+    {
+        $allowedMimeTypes = (array) config('openbook.media.allowed_mime_types');
+
+        if (! in_array($mimeType, $allowedMimeTypes, true) || ! isset(self::AUDIO_EXTENSIONS[$mimeType])) {
+            throw new InvalidArgumentException("Tipo di file non consentito: {$mimeType}.");
+        }
+
+        $maxBytes = (int) config('openbook.media.max_size_kb') * 1024;
+
+        if ($file->getSize() === false || $file->getSize() > $maxBytes) {
+            throw new InvalidArgumentException('Il file supera la dimensione massima consentita.');
+        }
+
+        $extension = self::AUDIO_EXTENSIONS[$mimeType];
+        $randomName = Str::uuid()->toString().'.'.$extension;
+        $directory = 'media/'.date('Y/m');
+        $path = $directory.'/'.$randomName;
+        $contents = file_get_contents($file->getRealPath());
+
+        if ($contents === false) {
+            throw new InvalidArgumentException('Impossibile leggere il file audio.');
+        }
+
+        Storage::disk('public')->put($path, $contents);
+        $this->ensurePublicDirectoryIsTraversable($directory);
+        $this->ensurePublicFileIsReadable($path);
+
+        return Media::query()->create([
+            'actor_id' => $actor->id,
+            'disk' => 'public',
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $mimeType,
+            'byte_size' => strlen($contents),
+            'width' => null,
+            'height' => null,
+            'alt_text' => $altText,
+        ]);
     }
 
     /**

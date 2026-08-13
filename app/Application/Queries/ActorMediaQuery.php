@@ -30,6 +30,7 @@ final class ActorMediaQuery
                     ->excludingPrivateMessages()
                     ->visibleTo($viewer);
             })
+            ->where('mime_type', 'not like', 'audio/%')
             ->orderByDesc(
                 Post::query()
                     ->select('posts.published_at')

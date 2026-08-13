@@ -260,6 +260,7 @@ final class RemotePostObject
                 }
 
                 $descriptor = self::videoDescriptorFromObject($item)
+                    ?? self::audioDescriptorFromObject($item)
                     ?? self::imageDescriptorFromObject($item);
 
                 if ($descriptor !== null) {
@@ -278,6 +279,14 @@ final class RemotePostObject
 
         if (self::hasType($document['type'] ?? null, 'Video')) {
             $descriptor = self::videoDescriptorFromObject($document);
+
+            if ($descriptor !== null) {
+                $found[$descriptor['url']] = $descriptor;
+            }
+        }
+
+        if (self::hasType($document['type'] ?? null, 'Audio')) {
+            $descriptor = self::audioDescriptorFromObject($document);
 
             if ($descriptor !== null) {
                 $found[$descriptor['url']] = $descriptor;
@@ -319,7 +328,8 @@ final class RemotePostObject
     {
         return array_values(array_filter(
             self::mediaAttachments($document),
-            static fn (array $descriptor): bool => ! str_starts_with((string) ($descriptor['mime'] ?? ''), 'video/'),
+            static fn (array $descriptor): bool => ! str_starts_with((string) ($descriptor['mime'] ?? ''), 'video/')
+                && ! str_starts_with((string) ($descriptor['mime'] ?? ''), 'audio/'),
         ));
     }
 
@@ -629,6 +639,56 @@ final class RemotePostObject
      * @param  array<string, mixed>  $object
      * @return array{url: string, mime: string|null, alt: string|null}|null
      */
+    private static function audioDescriptorFromObject(array $object): ?array
+    {
+        $type = $object['type'] ?? null;
+        $mime = is_string($object['mediaType'] ?? null) ? strtolower($object['mediaType']) : null;
+        $alt = null;
+
+        if (is_string($object['name'] ?? null)) {
+            $alt = mb_substr(trim($object['name']), 0, 1000) ?: null;
+        }
+
+        $url = self::extractUrl($object['url'] ?? null, preferHtml: false)
+            ?? (is_string($object['href'] ?? null) ? $object['href'] : null);
+
+        if ($url === null && is_string($object['id'] ?? null) && self::looksLikeAudioUrl($object['id'])) {
+            $url = $object['id'];
+        }
+
+        if ($url === null || ! self::isSafeHttpUrl($url)) {
+            return null;
+        }
+
+        $isAudioType = self::hasType($type, 'Audio')
+            || ($mime !== null && str_starts_with($mime, 'audio/'))
+            || (self::hasType($type, 'Document') && $mime !== null && str_starts_with($mime, 'audio/'))
+            || self::looksLikeAudioUrl($url);
+
+        if (! $isAudioType) {
+            return null;
+        }
+
+        if ($mime === null) {
+            $mime = match (strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION))) {
+                'mp3' => 'audio/mpeg',
+                'ogg' => 'audio/ogg',
+                'wav' => 'audio/wav',
+                'm4a' => 'audio/mp4',
+                'flac' => 'audio/flac',
+                'aac' => 'audio/aac',
+                'webm' => 'audio/webm',
+                default => 'audio/mpeg',
+            };
+        }
+
+        return ['url' => $url, 'mime' => $mime, 'alt' => $alt];
+    }
+
+    /**
+     * @param  array<string, mixed>  $object
+     * @return array{url: string, mime: string|null, alt: string|null}|null
+     */
     private static function imageDescriptorFromObject(array $object): ?array
     {
         $type = $object['type'] ?? null;
@@ -697,6 +757,13 @@ final class RemotePostObject
         return (bool) preg_match('/\.(mp4|webm|m4v|mov)(\?|$)/', $path);
     }
 
+    private static function looksLikeAudioUrl(string $url): bool
+    {
+        $path = strtolower((string) (parse_url($url, PHP_URL_PATH) ?? ''));
+
+        return (bool) preg_match('/\.(mp3|ogg|wav|m4a|flac|aac)(\?|$)/', $path);
+    }
+
     /**
      * Alcuni server (WordPress ActivityPub, Mastodon inline + attachment)
      * inviano piu' URL per la stessa immagine (thumbnail + media/full).
@@ -717,7 +784,7 @@ final class RemotePostObject
         foreach ($attachments as $descriptor) {
             $mime = (string) ($descriptor['mime'] ?? '');
 
-            if (str_starts_with($mime, 'video/')) {
+            if (str_starts_with($mime, 'video/') || str_starts_with($mime, 'audio/')) {
                 $others[] = $descriptor;
 
                 continue;

@@ -158,7 +158,7 @@
             <div class="ob-composer__panel" id="{{ $prefix }}-panel-media" data-composer-panel @unless($mediaOpen) hidden @endunless>
                 <div class="ob-field">
                     <label for="{{ $prefix }}-images">{{ __('openbook.composer.images_label') }}</label>
-                    <input type="file" id="{{ $prefix }}-images" name="images[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple data-composer-fill="media">
+                    <input type="file" id="{{ $prefix }}-images" name="images[]" accept="image/jpeg,image/png,image/webp,image/gif,audio/mpeg,audio/ogg,audio/wav,audio/mp4,audio/x-m4a,audio/flac,audio/webm,audio/aac" multiple data-composer-fill="media">
                     <p class="ob-field__help">{{ __('openbook.composer.images_help', ['count' => $maxAttachments]) }}</p>
                 </div>
                 <div class="ob-field">

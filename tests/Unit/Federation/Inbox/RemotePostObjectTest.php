@@ -134,6 +134,67 @@ class RemotePostObjectTest extends TestCase
         $this->assertSame('GIF animata', $attachments[0]['alt']);
     }
 
+    public function test_media_attachments_include_mastodon_audio_document(): void
+    {
+        $mp3Url = 'https://mastodon.example/media_attachments/files/1/2/original/abc.mp3';
+
+        $attachments = RemotePostObject::mediaAttachments([
+            'type' => 'Note',
+            'content' => '<p>Clip audio</p>',
+            'attachment' => [
+                [
+                    'type' => 'Document',
+                    'mediaType' => 'audio/mpeg',
+                    'url' => $mp3Url,
+                    'name' => 'Antistamina',
+                ],
+            ],
+        ]);
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame($mp3Url, $attachments[0]['url']);
+        $this->assertSame('audio/mpeg', $attachments[0]['mime']);
+        $this->assertSame('Antistamina', $attachments[0]['alt']);
+    }
+
+    public function test_media_attachments_include_activitystreams_audio_object(): void
+    {
+        $oggUrl = 'https://mastodon.example/media/clip.ogg';
+
+        $attachments = RemotePostObject::mediaAttachments([
+            'type' => 'Audio',
+            'url' => $oggUrl,
+            'mediaType' => 'audio/ogg',
+            'name' => 'Registrazione',
+        ]);
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame($oggUrl, $attachments[0]['url']);
+        $this->assertSame('audio/ogg', $attachments[0]['mime']);
+    }
+
+    public function test_image_attachments_exclude_audio_documents(): void
+    {
+        $attachments = RemotePostObject::imageAttachments([
+            'type' => 'Note',
+            'attachment' => [
+                [
+                    'type' => 'Document',
+                    'mediaType' => 'audio/mpeg',
+                    'url' => 'https://mastodon.example/media/clip.mp3',
+                ],
+                [
+                    'type' => 'Document',
+                    'mediaType' => 'image/jpeg',
+                    'url' => 'https://mastodon.example/media/photo.jpg',
+                ],
+            ],
+        ]);
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame('https://mastodon.example/media/photo.jpg', $attachments[0]['url']);
+    }
+
     public function test_media_attachments_include_inline_video_from_html_content(): void
     {
         $mp4Url = 'https://mastodon.example/media/loop.mp4';

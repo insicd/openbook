@@ -92,6 +92,24 @@ class MediaUploaderTest extends TestCase
         $this->assertSame($media->url(), $media->displayUrl());
     }
 
+    public function test_it_stores_a_valid_audio_file_with_a_random_name(): void
+    {
+        Storage::fake('public');
+        $author = $this->createFullAccount('audiouploader');
+
+        $file = UploadedFile::fake()->create('clip.mp3', 100, 'audio/mpeg');
+
+        $media = app(MediaUploader::class)->store($file, $author->actor, 'Brano demo');
+
+        $this->assertNotSame('clip.mp3', basename($media->path));
+        $this->assertSame('clip.mp3', $media->original_name);
+        $this->assertSame('audio/mpeg', $media->mime_type);
+        $this->assertTrue($media->isAudio());
+        $this->assertSame('Brano demo', $media->alt_text);
+        $this->assertNull($media->width);
+        Storage::disk('public')->assertExists($media->path);
+    }
+
     public function test_it_makes_the_uploaded_directory_traversable_even_with_a_restrictive_umask(): void
     {
         Storage::fake('public');

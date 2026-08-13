@@ -191,6 +191,32 @@ class CommentTest extends TestCase
         $this->assertSame('Foto in risposta', $note['attachment'][0]['name']);
     }
 
+    public function test_a_comment_can_include_audio_attachments(): void
+    {
+        Storage::fake('public');
+
+        $author = $this->createFullAccount('autoreaudio');
+        $commenter = $this->createFullAccount('commentoaudio');
+        $post = $this->publishPost($author);
+
+        $comment = app(CommentComposer::class)->compose(
+            $commenter->actor,
+            $post,
+            'Ascolta.',
+            null,
+            [UploadedFile::fake()->create('reply.mp3', 50, 'audio/mpeg')],
+            ['Clip audio'],
+        );
+
+        $this->assertCount(1, $comment->media);
+        $this->assertTrue($comment->media()->first()->isAudio());
+
+        $note = NoteSerializer::forComment($comment->fresh(['media', 'actor.endpoints', 'post', 'mentions']));
+        $this->assertSame('Document', $note['attachment'][0]['type']);
+        $this->assertSame('audio/mpeg', $note['attachment'][0]['mediaType']);
+        $this->assertSame('Clip audio', $note['attachment'][0]['name']);
+    }
+
     public function test_a_comment_with_image_can_be_posted_through_http(): void
     {
         Storage::fake('public');

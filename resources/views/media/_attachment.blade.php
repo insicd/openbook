@@ -9,6 +9,14 @@
         preload="metadata"
         @if ($media->alt_text) aria-label="{{ $media->alt_text }}" @endif
     ></video>
+@elseif ($media->isAudio())
+    <audio
+        class="ob-post__media-audio"
+        src="{{ $media->url() }}"
+        controls
+        preload="metadata"
+        @if ($media->alt_text) aria-label="{{ $media->alt_text }}" @endif
+    ></audio>
 @else
     <img
         src="{{ $media->displayUrl() }}"

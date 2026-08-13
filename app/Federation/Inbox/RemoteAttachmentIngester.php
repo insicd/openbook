@@ -57,7 +57,7 @@ final class RemoteAttachmentIngester
                         'disk' => 'remote',
                         'path' => 'remote/'.sha1($descriptor['url']),
                         'mime_type' => $descriptor['mime']
-                            ?? (str_contains($descriptor['url'], '.mp4') ? 'video/mp4' : 'image/jpeg'),
+                            ?? self::guessRemoteMime($descriptor['url']),
                         'byte_size' => 0,
                         'alt_text' => $descriptor['alt'],
                     ],
@@ -93,5 +93,22 @@ final class RemoteAttachmentIngester
                 }
             }
         });
+    }
+
+    private static function guessRemoteMime(string $url): string
+    {
+        $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
+
+        return match ($extension) {
+            'webm' => 'video/webm',
+            'mp4', 'm4v', 'mov' => 'video/mp4',
+            'mp3' => 'audio/mpeg',
+            'ogg' => 'audio/ogg',
+            'wav' => 'audio/wav',
+            'm4a' => 'audio/mp4',
+            'flac' => 'audio/flac',
+            'aac' => 'audio/aac',
+            default => 'image/jpeg',
+        };
     }
 }

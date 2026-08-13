@@ -105,6 +105,30 @@ class PostComposerTest extends TestCase
         Storage::disk('public')->assertExists($media->path);
     }
 
+    public function test_it_stores_audio_attachments(): void
+    {
+        Storage::fake('public');
+
+        $author = $this->createFullAccount('podcaster');
+
+        $audio = UploadedFile::fake()->create('clip.mp3', 100, 'audio/mpeg');
+
+        $post = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Ascoltate questo brano.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'images' => [$audio],
+            'alt_texts' => ['Brano demo'],
+        ]);
+
+        $this->assertCount(1, $post->attachments);
+
+        $media = $post->media()->first();
+        $this->assertNotNull($media);
+        $this->assertTrue($media->isAudio());
+        $this->assertSame('Brano demo', $media->alt_text);
+        Storage::disk('public')->assertExists($media->path);
+    }
+
     public function test_it_rejects_more_images_than_the_configured_maximum(): void
     {
         Storage::fake('public');

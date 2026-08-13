@@ -54,7 +54,7 @@ final class CommentComposer
         $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
 
         if (count($images) > $maxAttachments) {
-            throw new InvalidArgumentException("Puoi allegare al massimo {$maxAttachments} immagini per commento.");
+            throw new InvalidArgumentException("Puoi allegare al massimo {$maxAttachments} file per commento.");
         }
 
         $comment = DB::transaction(function () use ($author, $post, $body, $parent, $images, $altTexts) {

@@ -31,6 +31,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   iscritti sull'istanza), con pulsante per richiedere l'iscrizione; visibile
   anche agli ospiti. Le community gia' seguite o in attesa non compaiono
   tra i suggerimenti.
+- **Allegati audio** sui post: in ingresso federato (Mastodon e simili,
+  `Document`/`Audio` con `audio/*`) e in uscita dal composer locale
+  (MP3, OGG, WAV, M4A, FLAC, AAC); riproduzione inline con `<audio controls>`.
 
 ### Fixed
 - Menu condivisi: «Annulla condivisione» non compare piu' insieme a

@@ -20,6 +20,7 @@ class StorePostRequest extends FormRequest
     {
         $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
         $maxKb = (int) config('openbook.media.max_size_kb');
+        $allowedMimes = implode(',', (array) config('openbook.media.allowed_mime_types'));
 
         return [
             'title' => ['nullable', 'string', 'max:255'],
@@ -33,7 +34,7 @@ class StorePostRequest extends FormRequest
             ])],
             'language' => ['nullable', 'string', 'max:8'],
             'images' => ['nullable', 'array', 'max:'.$maxAttachments],
-            'images.*' => ['image', 'mimes:jpeg,jpg,png,webp,gif', 'max:'.$maxKb],
+            'images.*' => ['file', 'mimetypes:'.$allowedMimes, 'max:'.$maxKb],
             'alt_texts' => ['nullable', 'array'],
             'alt_texts.*' => ['nullable', 'string', 'max:1000'],
             'quoted_post_id' => ['nullable', 'uuid', 'exists:posts,id'],
@@ -83,8 +84,8 @@ class StorePostRequest extends FormRequest
             'body' => 'testo del post',
             'title' => 'titolo',
             'content_warning' => 'avviso sul contenuto',
-            'images' => 'immagini',
-            'images.*' => 'immagine',
+            'images' => 'allegati',
+            'images.*' => 'allegato',
             'quoted_post_id' => 'post citato',
         ];
     }

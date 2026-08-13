@@ -315,12 +315,20 @@ final class NoteSerializer
     {
         $content->loadMissing('media');
 
-        return $content->media->map(fn ($media) => [
-            'type' => str_starts_with($media->mime_type, 'video/') ? 'Document' : 'Image',
-            'mediaType' => $media->mime_type,
-            'url' => $media->url(),
-            'name' => $media->alt_text ?: '',
-        ])->values()->all();
+        return $content->media->map(function ($media) {
+            $type = 'Image';
+
+            if (str_starts_with($media->mime_type, 'video/') || str_starts_with($media->mime_type, 'audio/')) {
+                $type = 'Document';
+            }
+
+            return [
+                'type' => $type,
+                'mediaType' => $media->mime_type,
+                'url' => $media->url(),
+                'name' => $media->alt_text ?: '',
+            ];
+        })->values()->all();
     }
 
     /**

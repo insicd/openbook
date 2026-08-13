@@ -18,12 +18,13 @@ class StoreCommentRequest extends FormRequest
     {
         $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
         $maxKb = (int) config('openbook.media.max_size_kb');
+        $allowedMimes = implode(',', (array) config('openbook.media.allowed_mime_types'));
 
         return [
             'body' => ['required', 'string', 'max:'.(int) config('openbook.comments.max_length', 2000)],
             'parent_comment_id' => ['nullable', 'uuid', 'exists:comments,id'],
             'images' => ['nullable', 'array', 'max:'.$maxAttachments],
-            'images.*' => ['image', 'mimes:jpeg,jpg,png,webp,gif', 'max:'.$maxKb],
+            'images.*' => ['file', 'mimetypes:'.$allowedMimes, 'max:'.$maxKb],
             'alt_texts' => ['nullable', 'array'],
             'alt_texts.*' => ['nullable', 'string', 'max:1000'],
         ];
@@ -36,8 +37,8 @@ class StoreCommentRequest extends FormRequest
     {
         return [
             'body' => 'commento',
-            'images' => 'immagini',
-            'images.*' => 'immagine',
+            'images' => 'allegati',
+            'images.*' => 'allegato',
         ];
     }
 }

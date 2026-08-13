@@ -1049,6 +1049,48 @@ class InboxActivityProcessorTest extends TestCase
         $this->assertTrue($post->media->first()->isVideo());
     }
 
+    public function test_a_mastodon_style_audio_attachment_is_stored(): void
+    {
+        Queue::fake();
+        $follower = $this->createFullAccount('audiofollower');
+        $remote = $this->createRemoteActor('audioposter', 'mastodon.example');
+        app(FollowManager::class)->follow($follower->actor, $remote)
+            ->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $noteUri = $remote->uri.'/p/'.uniqid();
+        $mp3Url = 'https://mastodon.example/media/'.uniqid().'.mp3';
+        $status = $this->process([
+            'id' => $noteUri.'/activity',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>#Antistamina clip</p>',
+                'url' => $noteUri,
+                'attachment' => [
+                    [
+                        'type' => 'Document',
+                        'mediaType' => 'audio/mpeg',
+                        'url' => $mp3Url,
+                        'name' => 'Antistamina',
+                    ],
+                ],
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ], $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $post = Post::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($post);
+        $this->assertCount(1, $post->media);
+        $this->assertSame($mp3Url, $post->media->first()->url());
+        $this->assertSame('audio/mpeg', $post->media->first()->mime_type);
+        $this->assertTrue($post->media->first()->isAudio());
+    }
+
     public function test_a_create_note_replying_to_a_local_post_is_stored_as_a_comment(): void
     {
         Queue::fake();
