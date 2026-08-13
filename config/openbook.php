@@ -190,6 +190,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Feed RSS/Atom come contatti
+    |--------------------------------------------------------------------------
+    |
+    | Scoperta e aggiornamento periodico di feed syndication trattati come
+    | Actor di tipo "feed" (follow one-way, senza ActivityPub).
+    */
+    'feeds' => [
+        'import_limit' => (int) env('OPENBOOK_FEED_IMPORT_LIMIT', 40),
+        'min_fetch_interval_minutes' => (int) env('OPENBOOK_FEED_MIN_INTERVAL', 30),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Autocomplete menzioni (@) nel composer
     |--------------------------------------------------------------------------
     |

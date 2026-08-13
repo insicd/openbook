@@ -7,6 +7,7 @@ use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
 use App\Application\Services\FollowManager;
+use App\Domain\Feeds\FeedImporter;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -34,6 +35,7 @@ class ActorProfileController extends Controller
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
         private readonly RemoteOutboxFetcher $outboxFetcher,
+        private readonly FeedImporter $feedImporter,
     ) {}
 
     public function show(Actor $actor, Request $request): View|RedirectResponse
@@ -73,9 +75,15 @@ class ActorProfileController extends Controller
             );
         }
 
+        $actor->loadMissing('feedSource');
+
         if ($activeTab === 'posts') {
             try {
-                $this->outboxFetcher->fetchRecentPosts($actor);
+                if ($actor->isFeed()) {
+                    $this->feedImporter->import($actor);
+                } else {
+                    $this->outboxFetcher->fetchRecentPosts($actor);
+                }
             } catch (\Throwable $exception) {
                 report($exception);
             }
@@ -119,6 +127,10 @@ class ActorProfileController extends Controller
 
     private function emptyPostsMessage(Actor $actor, bool $isFollowing, bool $hasPendingRequest): string
     {
+        if ($actor->isFeed()) {
+            return __('openbook.actors.feed_empty');
+        }
+
         if ($actor->isGroup()) {
             return __('openbook.communities.wall_empty');
         }

@@ -214,8 +214,8 @@ return [
 
     'search' => [
         'title' => 'Cerca',
-        'placeholder' => 'Parola chiave, oppure utente@dominio',
-        'help' => 'Cerca tra i contenuti di questa istanza (persone, post, commenti, hashtag), oppure inserisci un indirizzo federato (es. persona@altraistanza.social) per trovare qualcuno sul Fediverso.',
+        'placeholder' => 'Parola chiave, utente@dominio, oppure URL di un sito/feed',
+        'help' => 'Cerca tra i contenuti di questa istanza (persone, post, commenti, hashtag), inserisci un indirizzo federato (es. persona@altraistanza.social), oppure l\'URL di un sito o di un feed RSS/Atom per seguirlo come contatto.',
         'submit' => 'Cerca',
         'people' => 'Persone',
         'posts' => 'Post',
@@ -229,12 +229,18 @@ return [
             'too_short' => 'Inserisci almeno :min caratteri.',
             'local_not_found' => 'Nessun account locale trovato con questo indirizzo.',
             'remote_not_found' => 'Nessun account trovato a questo indirizzo, o il server remoto non risponde.',
+            'feed_not_found' => 'Nessun feed RSS/Atom trovato a questo URL.',
         ],
     ],
 
     'actors' => [
         'remote_notice' => 'Profilo remoto: i dati mostrati sono quelli ricevuti dal server di origine e potrebbero non essere aggiornati in tempo reale.',
         'remote_group_notice' => 'Community remota: i dati e i post mostrati arrivano dal server di origine (ritrasmissioni Announce del Group) e potrebbero non essere aggiornati in tempo reale.',
+        'feed_notice' => 'Questo e\' un feed RSS/Atom seguito in sola lettura: puoi seguirlo nella timeline, ma non puoi rispondere ne\' interagire sul sito di origine da qui.',
+        'feed_badge' => 'Feed',
+        'feed_website' => 'Sito',
+        'feed_source' => 'Sorgente feed',
+        'feed_empty' => 'Nessuna voce importata da questo feed per ora.',
         'threads_outbox_unavailable' => 'Threads non espone l\'elenco dei post via ActivityPub (l\'outbox e\' vuoto o assente). Segui l\'account: i nuovi post pubblici compariranno qui e nella timeline quando Threads li consegna a questa istanza. Serve anche che l\'account abbia abilitato la condivisione sul Fediverso.',
         'threads_pending_follow' => 'Richiesta di follow inviata. Quando verra\' accettata, i post pubblici di Threads potranno arrivare in push (Threads non permette di scaricare la cronologia dall\'outbox).',
         'threads_waiting_for_posts' => 'Stai gia\' seguendo questo account. Threads consegna i post solo in push e non pubblica la cronologia sull\'outbox: compariranno qui quando arriveranno (e solo se l\'account condivide sul Fediverso).',

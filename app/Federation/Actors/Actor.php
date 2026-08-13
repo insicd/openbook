@@ -4,6 +4,7 @@ namespace App\Federation\Actors;
 
 use App\Domain\Accounts\User;
 use App\Domain\Communities\Community;
+use App\Domain\Feeds\FeedSource;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -46,6 +47,8 @@ class Actor extends Model
     public const TYPE_PERSON = 'person';
 
     public const TYPE_GROUP = 'group';
+
+    public const TYPE_FEED = 'feed';
 
     public const STATUS_ACTIVE = 'active';
 
@@ -96,6 +99,11 @@ class Actor extends Model
         return $this->hasOne(Community::class);
     }
 
+    public function feedSource(): HasOne
+    {
+        return $this->hasOne(FeedSource::class);
+    }
+
     public function key(): HasOne
     {
         return $this->hasOne(ActorKey::class);
@@ -140,6 +148,11 @@ class Actor extends Model
     public function isGroup(): bool
     {
         return $this->type === self::TYPE_GROUP;
+    }
+
+    public function isFeed(): bool
+    {
+        return $this->type === self::TYPE_FEED;
     }
 
     public function isActive(): bool

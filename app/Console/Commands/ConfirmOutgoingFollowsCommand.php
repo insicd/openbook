@@ -26,7 +26,9 @@ class ConfirmOutgoingFollowsCommand extends Command
             ->where('status', Follow::STATUS_PENDING)
             ->where('requested_at', '<=', now()->subSeconds(20))
             ->whereHas('follower', static fn ($query) => $query->where('is_local', true))
-            ->whereHas('following', static fn ($query) => $query->where('is_local', false))
+            ->whereHas('following', static fn ($query) => $query
+                ->where('is_local', false)
+                ->where('type', '!=', \App\Federation\Actors\Actor::TYPE_FEED))
             ->orderBy('requested_at')
             ->limit($limit)
             ->get();

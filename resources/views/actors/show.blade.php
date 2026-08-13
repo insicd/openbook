@@ -4,13 +4,21 @@
     $displayName = $profileActor->displayName();
     $handle = '@'.$profileActor->handle();
     $isGroup = $profileActor->isGroup();
+    $isFeed = $profileActor->isFeed();
+    $feedSource = $isFeed ? $profileActor->feedSource : null;
 @endphp
 
 @section('title', $displayName.' ('.$handle.') - '.config('app.name'))
 
 @section('content')
     <div class="ob-alert ob-alert--info" role="note">
-        {{ $isGroup ? __('openbook.actors.remote_group_notice') : __('openbook.actors.remote_notice') }}
+        @if ($isFeed)
+            {{ __('openbook.actors.feed_notice') }}
+        @elseif ($isGroup)
+            {{ __('openbook.actors.remote_group_notice') }}
+        @else
+            {{ __('openbook.actors.remote_notice') }}
+        @endif
     </div>
 
     <article class="ob-card" style="padding:0;overflow:hidden">
@@ -27,7 +35,9 @@
             <h1 class="ob-profile-name">{{ $displayName }}</h1>
             <p class="ob-profile-handle">{{ $isGroup ? '!'.$profileActor->handle() : $handle }}</p>
 
-            @if ($isGroup)
+            @if ($isFeed)
+                <span class="ob-badge">{{ __('openbook.actors.feed_badge') }}</span>
+            @elseif ($isGroup)
                 <span class="ob-badge">{{ __('openbook.communities.remote_badge') }}</span>
             @endif
 
@@ -39,10 +49,20 @@
                 <div class="ob-profile-bio">{{ \App\Domain\Posts\PostBodyRenderer::render(\App\Federation\Inbox\RemoteContentSanitizer::toPlainText($profileActor->summary)) }}</div>
             @endif
 
+            @if ($feedSource)
+                <p class="ob-field__help">
+                    @if ($feedSource->site_url)
+                        <a href="{{ $feedSource->site_url }}" rel="noopener noreferrer" target="_blank">{{ __('openbook.actors.feed_website') }}</a>
+                        ·
+                    @endif
+                    <a href="{{ $feedSource->feed_url }}" rel="noopener noreferrer" target="_blank">{{ __('openbook.actors.feed_source') }}</a>
+                </p>
+            @endif
+
             <div class="ob-profile-toolbar">
                 <div class="ob-profile-stats">
                     <a href="{{ route('actors.followers', $profileActor) }}"><strong>{{ $followersCount }}</strong><span>{{ $isGroup ? __('openbook.communities.members') : __('openbook.profile.followers') }}</span></a>
-                    @unless ($isGroup)
+                    @unless ($isGroup || $isFeed)
                         <a href="{{ route('actors.following', $profileActor) }}"><strong>{{ $followingCount }}</strong><span>{{ __('openbook.profile.following') }}</span></a>
                     @endunless
                 </div>
@@ -67,7 +87,7 @@
                                 <button type="submit" class="ob-btn ob-btn--primary ob-btn--small">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</button>
                             </form>
                         @endif
-                        @if (! $isGroup)
+                        @if (! $isGroup && ! $isFeed)
                             <a href="{{ route('messages.open_actor', $profileActor) }}" class="ob-icon-btn ob-profile-toolbar__message"
                                 aria-label="{{ __('openbook.messages.message_aria') }}"
                                 title="{{ __('openbook.messages.message_aria') }}">

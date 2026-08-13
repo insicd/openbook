@@ -79,7 +79,9 @@ final class FollowManager
                 return $existing;
             }
 
-            $requiresApproval = $target->isLocal() ? $target->manually_approves_followers : true;
+            $requiresApproval = $target->isFeed()
+                ? false
+                : ($target->isLocal() ? $target->manually_approves_followers : true);
 
             $follow = Follow::query()->create([
                 'follower_id' => $follower->id,
@@ -103,7 +105,9 @@ final class FollowManager
 
         // Nuova richiesta, oppure ancora in attesa (es. consegna precedente
         // fallita / Accept perso): ritenta il Follow verso il server remoto.
+        // I feed RSS/Atom sono contatti locali one-way: niente ActivityPub.
         if (! $target->isLocal()
+            && ! $target->isFeed()
             && ($follow->wasRecentlyCreated || $follow->status === Follow::STATUS_PENDING)) {
             $this->delivery->deliverTo($follower, $target, ActivitySerializer::follow($follow));
         }
@@ -132,7 +136,7 @@ final class FollowManager
             $this->decrementLocalGroupMembers($target);
         }
 
-        if (! $target->isLocal()) {
+        if (! $target->isLocal() && ! $target->isFeed()) {
             $this->delivery->deliverTo($follower, $target, ActivitySerializer::undoFollow($follow));
         }
     }
@@ -287,6 +291,10 @@ final class FollowManager
 
     private function notifyFollowTarget(Actor $target, Actor $follower, Follow $follow, bool $requiresApproval): void
     {
+        if ($target->isFeed()) {
+            return;
+        }
+
         $type = $requiresApproval ? Notification::TYPE_FOLLOW_REQUEST : Notification::TYPE_NEW_FOLLOWER;
 
         if ($target->isLocal() && $target->isGroup()) {

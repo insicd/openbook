@@ -214,8 +214,8 @@ return [
 
     'search' => [
         'title' => 'Search',
-        'placeholder' => 'Keyword, or user@domain',
-        'help' => 'Search this instance (people, posts, comments, hashtags), or enter a federated address (e.g. person@otherinstance.social) to find someone on the Fediverse.',
+        'placeholder' => 'Keyword, user@domain, or site/feed URL',
+        'help' => 'Search this instance (people, posts, comments, hashtags), enter a federated address (e.g. person@otherinstance.social), or a site/RSS/Atom feed URL to follow it as a contact.',
         'submit' => 'Search',
         'people' => 'People',
         'posts' => 'Posts',
@@ -229,12 +229,18 @@ return [
             'too_short' => 'Enter at least :min characters.',
             'local_not_found' => 'No local account found with this address.',
             'remote_not_found' => 'No account found at this address, or the remote server is not responding.',
+            'feed_not_found' => 'No RSS/Atom feed found at this URL.',
         ],
     ],
 
     'actors' => [
         'remote_notice' => 'Remote profile: the data shown here comes from the origin server and may not be up to date in real time.',
         'remote_group_notice' => 'Remote community: profile data and posts come from the origin server (Group Announce relays) and may not be up to date in real time.',
+        'feed_notice' => 'This is a read-only RSS/Atom feed contact: you can follow it in your timeline, but you cannot reply or interact with the origin site from here.',
+        'feed_badge' => 'Feed',
+        'feed_website' => 'Website',
+        'feed_source' => 'Feed source',
+        'feed_empty' => 'No entries imported from this feed yet.',
         'threads_outbox_unavailable' => 'Threads does not expose a post list over ActivityPub (the outbox is empty or missing). Follow the account: new public posts will appear here and in your timeline when Threads delivers them to this instance. The account must also have fediverse sharing enabled.',
         'threads_pending_follow' => 'Follow request sent. Once accepted, public Threads posts may arrive via push (Threads does not allow downloading history from the outbox).',
         'threads_waiting_for_posts' => 'You already follow this account. Threads only delivers posts via push and does not publish history on the outbox: they will appear here when they arrive (and only if the account shares to the fediverse).',

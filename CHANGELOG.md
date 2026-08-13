@@ -13,6 +13,14 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 
 ## [0.9.1] — Allegati remoti
 
+### Added
+- **Feed RSS/Atom come contatti** (stile Friendica): dalla ricerca puoi
+  incollare l'URL di un feed o di un sito con feed rintracciabile; Openbook
+  crea un Actor di tipo `feed`, importa le voci come post pubblici e ti
+  permette di seguirlo nella home (relazione one-way, senza ActivityPub).
+  Aggiornamento periodico via `openbook:fetch-feeds` incluso in
+  `openbook:cron`.
+
 ### Changed
 - **Ricerca**: mentre si digita nella navbar o nella pagina `/cerca`
   compaiono suggerimenti (persone locali discoverable, account remoti gia'
