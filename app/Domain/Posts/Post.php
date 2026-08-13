@@ -291,8 +291,9 @@ class Post extends Model
      * Annota una collezione di post con lo stato "mi piace/condiviso da chi
      * sta guardando", con due sole query aggiuntive indipendentemente dal
      * numero di post (evita l'N+1 nel rendering del feed). Gli attributi
-     * "liked_by_viewer" e "announced_by_viewer" non corrispondono a colonne
-     * reali: vivono solo in memoria per la durata della richiesta.
+     * "liked_by_viewer" e "announced_by_viewer" / "direct_announced_by_viewer"
+     * non corrispondono a colonne reali: vivono solo in memoria per la
+     * durata della richiesta.
      *
      * @param  iterable<int, Post>  $posts
      */
@@ -304,6 +305,7 @@ class Post extends Model
             foreach ($posts as $post) {
                 $post->setAttribute('liked_by_viewer', false);
                 $post->setAttribute('announced_by_viewer', false);
+                $post->setAttribute('direct_announced_by_viewer', false);
             }
 
             return;
@@ -324,9 +326,17 @@ class Post extends Model
             ->pluck('post_id')
             ->all();
 
+        $directAnnouncedIds = Announce::query()
+            ->where('actor_id', $viewer->id)
+            ->where('is_direct', true)
+            ->whereIn('post_id', $postIds)
+            ->pluck('post_id')
+            ->all();
+
         foreach ($posts as $post) {
             $post->setAttribute('liked_by_viewer', in_array($post->id, $likedIds, true));
             $post->setAttribute('announced_by_viewer', in_array($post->id, $announcedIds, true));
+            $post->setAttribute('direct_announced_by_viewer', in_array($post->id, $directAnnouncedIds, true));
         }
     }
 

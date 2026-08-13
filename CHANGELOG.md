@@ -16,6 +16,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 ### Changed
 - **Condividi / repost** sui post: condivisione diretta e annullamento
   avvengono via AJAX (come i Mi piace), senza ricaricare la pagina.
+- Menu condividi: **Annulla condivisione** compare solo dopo un repost
+  diretto; la sola citazione con commento lascia **Condivisione diretta**
+  (il contatore resta aggiornato anche per le citazioni).
 
 ### Fixed
 - Post federati con **una sola immagine** non mostrano piu' duplicati in

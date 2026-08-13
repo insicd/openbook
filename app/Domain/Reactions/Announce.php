@@ -27,7 +27,18 @@ class Announce extends Model
     protected $fillable = [
         'actor_id',
         'post_id',
+        'is_direct',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'is_direct' => 'boolean',
+        ];
+    }
 
     public function actor(): BelongsTo
     {

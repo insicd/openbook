@@ -118,12 +118,12 @@ final class PostComposer
         });
 
         if ($quotedPost !== null) {
-            $this->announceManager->announce($author, $quotedPost, notify: false);
+            $this->announceManager->announce($author, $quotedPost, notify: false, direct: false);
         }
 
         if ($community !== null) {
             $community->loadMissing('actor');
-            $this->announceManager->announce($community->actor, $post, notify: false);
+            $this->announceManager->announce($community->actor, $post, notify: false, direct: false);
             $this->notifyCommunityMembers($community, $author, $post);
         }
 

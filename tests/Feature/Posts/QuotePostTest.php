@@ -99,6 +99,7 @@ class QuotePostTest extends TestCase
         $this->assertDatabaseHas('announces', [
             'actor_id' => $quoter->actor->id,
             'post_id' => $original->id,
+            'is_direct' => false,
         ]);
         $this->assertDatabaseMissing('notifications', [
             'recipient_id' => $author->id,
@@ -129,6 +130,79 @@ class QuotePostTest extends TestCase
         $original->refresh();
         $this->assertSame(1, $original->announces_count);
         $this->assertSame(1, Announce::query()->where('post_id', $original->id)->count());
+    }
+
+    public function test_after_a_quote_the_share_menu_still_offers_direct_share_not_unannounce(): void
+    {
+        $author = $this->createFullAccount('autorequoteui');
+        $quoter = $this->createFullAccount('quotatoreui');
+        $original = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Post citato nel menu.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        app(PostComposer::class)->compose($quoter->actor, [
+            'body' => 'La mia citazione.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'quoted_post_id' => $original->id,
+        ]);
+
+        $response = $this->actingAs($quoter)->get(route('posts.show', $original));
+
+        $response->assertOk();
+        $response->assertSee('data-announced="0"', false);
+    }
+
+    public function test_direct_share_after_a_quote_shows_unannounce(): void
+    {
+        $author = $this->createFullAccount('autorequotedirect');
+        $quoter = $this->createFullAccount('quotatoredirect');
+        $original = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Prima cito poi riposto.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        app(PostComposer::class)->compose($quoter->actor, [
+            'body' => 'Citazione.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'quoted_post_id' => $original->id,
+        ]);
+
+        app(AnnounceManager::class)->announce($quoter->actor, $original);
+
+        $response = $this->actingAs($quoter)->get(route('posts.show', $original));
+
+        $response->assertOk();
+        $response->assertSee('data-announced="1"', false);
+    }
+
+    public function test_unannouncing_a_direct_share_keeps_the_quote_announce_when_a_quote_exists(): void
+    {
+        $author = $this->createFullAccount('autoreunannouncequote');
+        $quoter = $this->createFullAccount('quotatoreunannounce');
+        $original = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Citato e ripostato.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        app(PostComposer::class)->compose($quoter->actor, [
+            'body' => 'Citazione.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'quoted_post_id' => $original->id,
+        ]);
+
+        app(AnnounceManager::class)->announce($quoter->actor, $original);
+        app(AnnounceManager::class)->unannounce($quoter->actor, $original);
+
+        $original->refresh();
+        $announce = Announce::query()
+            ->where('actor_id', $quoter->actor->id)
+            ->where('post_id', $original->id)
+            ->first();
+
+        $this->assertNotNull($announce);
+        $this->assertFalse($announce->is_direct);
+        $this->assertSame(1, $original->announces_count);
     }
 
     public function test_a_remote_post_can_be_quoted(): void

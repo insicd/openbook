@@ -189,14 +189,14 @@
                     <details
                         class="ob-post__share-menu"
                         data-announce-menu
-                        data-announced="{{ $post->announced_by_viewer ? '1' : '0' }}"
+                        data-announced="{{ ($post->direct_announced_by_viewer ?? false) ? '1' : '0' }}"
                         data-label-announce="{{ __('openbook.actions.announce', ['count' => '__COUNT__']) }}"
                         data-label-announced="{{ __('openbook.actions.announced', ['count' => '__COUNT__']) }}"
                     >
                         <summary
-                            class="ob-post__action{{ $post->announced_by_viewer ? ' ob-post__action--active' : '' }}"
+                            class="ob-post__action{{ ($post->direct_announced_by_viewer ?? false) ? ' ob-post__action--active' : '' }}"
                             data-announce-summary
-                            aria-label="{{ $post->announced_by_viewer ? __('openbook.actions.announced', ['count' => $post->announces_count]) : __('openbook.actions.announce', ['count' => $post->announces_count]) }}"
+                            aria-label="{{ ($post->direct_announced_by_viewer ?? false) ? __('openbook.actions.announced', ['count' => $post->announces_count]) : __('openbook.actions.announce', ['count' => $post->announces_count]) }}"
                         >
                             <x-icon name="share" />
                             <span class="ob-post__action-count">{{ $post->announces_count }}</span>
@@ -207,7 +207,7 @@
                                 action="{{ route('posts.announce', $post) }}"
                                 data-announce-form
                                 data-announce-action="{{ route('posts.announce', $post) }}"
-                                @if ($post->announced_by_viewer) hidden @endif
+                                @if ($post->direct_announced_by_viewer ?? false) hidden @endif
                             >
                                 @csrf
                                 <button type="submit" class="ob-post__menu-item" role="menuitem">
@@ -220,7 +220,7 @@
                                 action="{{ route('posts.unannounce', $post) }}"
                                 data-announce-form
                                 data-unannounce-action="{{ route('posts.unannounce', $post) }}"
-                                @if (! $post->announced_by_viewer) hidden @endif
+                                @if (! ($post->direct_announced_by_viewer ?? false)) hidden @endif
                             >
                                 @csrf
                                 @method('DELETE')
