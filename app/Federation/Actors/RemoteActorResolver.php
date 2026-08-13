@@ -370,6 +370,13 @@ final class RemoteActorResolver
             ]);
 
             return null;
+        } catch (\Throwable $exception) {
+            Log::channel('single')->info('federation.webfinger_lookup_failed', [
+                'handle' => $username.'@'.$domain,
+                'reason' => $exception->getMessage(),
+            ]);
+
+            return null;
         }
 
         if (! $response->successful()) {
@@ -438,6 +445,13 @@ final class RemoteActorResolver
             ], $this->fetchSigner->resolve());
         } catch (SsrfViolationException $exception) {
             Log::channel('single')->warning('federation.actor_fetch_blocked', [
+                'uri' => $actorUri,
+                'reason' => $exception->getMessage(),
+            ]);
+
+            return null;
+        } catch (\Throwable $exception) {
+            Log::channel('single')->info('federation.actor_fetch_failed', [
                 'uri' => $actorUri,
                 'reason' => $exception->getMessage(),
             ]);

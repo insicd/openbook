@@ -3,7 +3,9 @@
 namespace Tests\Feature\Federation;
 
 use App\Application\Services\FollowManager;
+use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\CreatesAccounts;
@@ -41,6 +43,29 @@ class ActorProfileTest extends TestCase
         $response->assertOk();
         $response->assertSee('Peter');
         $response->assertSee('@peter@remoto.example');
+    }
+
+    public function test_it_renders_when_the_remote_outbox_is_unreachable(): void
+    {
+        Http::fake(function (): void {
+            throw new ConnectionException(
+                new \GuzzleHttp\Exception\ConnectException(
+                    'cURL error 28: Connection timed out after 10001 milliseconds',
+                    new \GuzzleHttp\Psr7\Request('GET', 'https://offline.example/outbox'),
+                ),
+            );
+        });
+
+        $viewer = $this->createFullAccount('visitoffline');
+        $remote = $this->createRemoteActor('offlinegroup', 'offline.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Community offline',
+        ]);
+
+        $this->actingAs($viewer)
+            ->get(route('actors.show', $remote))
+            ->assertOk()
+            ->assertSee('Community offline');
     }
 
     public function test_hashtags_in_a_remote_actor_summary_are_rendered_as_links(): void

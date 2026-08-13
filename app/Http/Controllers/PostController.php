@@ -109,7 +109,11 @@ class PostController extends Controller
         // di origine, cosi' i commenti di terzi che non sono mai arrivati
         // in inbox compaiono comunque sul thread.
         if ($post->isRemote()) {
-            $this->remoteRepliesFetcher->fetchReplies($post);
+            try {
+                $this->remoteRepliesFetcher->fetchReplies($post);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
         $post->load(Post::CARD_RELATIONS);

@@ -72,7 +72,11 @@ class ActorProfileController extends Controller
         }
 
         if ($activeTab === 'posts') {
-            $this->outboxFetcher->fetchRecentPosts($actor);
+            try {
+                $this->outboxFetcher->fetchRecentPosts($actor);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
         $viewerActor = auth()->user()?->actor;

@@ -59,6 +59,11 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   opzionale dopo un rifiuto da bridge ActivityPub) non vengono piu' ignorati:
   vengono trattati come messaggio diretto in `/messaggi` quando non sono
   post pubblici.
+- Pagine che interrogano server remoti (profili/community federate, post
+  remoti, ricerca `@utente@dominio`) non mostrano piu' l'error page di
+  Laravel quando l'host esterno e' irraggiungibile o va in timeout cURL:
+  la richiesta fallisce in silenzio e resta visibile il contenuto gia'
+  in cache locale.
 
 ## [0.9.0] — Messaggistica privata federata
 

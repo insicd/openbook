@@ -181,6 +181,13 @@ final class OutgoingFollowConfirmer
             ]);
 
             return null;
+        } catch (\Throwable $exception) {
+            Log::channel('single')->info('federation.follow_confirm_fetch_failed', [
+                'url' => $url,
+                'reason' => $exception->getMessage(),
+            ]);
+
+            return null;
         }
 
         if (! $response->successful()) {

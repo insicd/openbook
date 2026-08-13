@@ -4,8 +4,11 @@ namespace App\Infrastructure\Security\Http;
 
 use App\Federation\Actors\Actor;
 use App\Infrastructure\Security\HttpSignatureSigner;
+use GuzzleHttp\Psr7\Response as Psr7Response;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Client HTTP per il recupero di risorse remote non affidabili (documenti
@@ -147,21 +150,60 @@ final class SafeHttpClient
         $timeout = (int) config('openbook.federation.fetch.timeout_seconds', 10);
         $connectTimeout = (int) config('openbook.federation.fetch.connect_timeout_seconds', 5);
 
-        $request = Http::withHeaders(array_merge([
-            'User-Agent' => (string) config('openbook.federation.user_agent'),
-        ], $headers))
-            ->withOptions([
-                'timeout' => $timeout,
-                'connect_timeout' => $connectTimeout,
-                'allow_redirects' => false,
-                'curl' => [
-                    CURLOPT_RESOLVE => ["{$target->host}:{$target->port}:{$target->ip}"],
-                ],
+        try {
+            $request = Http::withHeaders(array_merge([
+                'User-Agent' => (string) config('openbook.federation.user_agent'),
+            ], $headers))
+                ->withOptions([
+                    'timeout' => $timeout,
+                    'connect_timeout' => $connectTimeout,
+                    'allow_redirects' => false,
+                    'curl' => [
+                        CURLOPT_RESOLVE => ["{$target->host}:{$target->port}:{$target->ip}"],
+                    ],
+                ]);
+
+            return $method === 'POST'
+                ? $request->withBody((string) $body, 'application/activity+json')->post($url)
+                : $request->get($url);
+        } catch (ConnectionException $exception) {
+            Log::channel('single')->info('federation.http.connection_failed', [
+                'method' => $method,
+                'url' => $this->urlForLog($url),
+                'reason' => $exception->getMessage(),
             ]);
 
-        return $method === 'POST'
-            ? $request->withBody((string) $body, 'application/activity+json')->post($url)
-            : $request->get($url);
+            return $this->failedNetworkResponse();
+        } catch (\Throwable $exception) {
+            Log::channel('single')->info('federation.http.request_failed', [
+                'method' => $method,
+                'url' => $this->urlForLog($url),
+                'reason' => $exception->getMessage(),
+            ]);
+
+            return $this->failedNetworkResponse();
+        }
+    }
+
+    private function failedNetworkResponse(): Response
+    {
+        return new Response(new Psr7Response(503, [], ''));
+    }
+
+    private function urlForLog(string $url): string
+    {
+        $parts = parse_url($url);
+
+        if (! is_array($parts)) {
+            return $url;
+        }
+
+        $scheme = $parts['scheme'] ?? 'https';
+        $host = $parts['host'] ?? '';
+        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+        $path = $parts['path'] ?? '';
+
+        return "{$scheme}://{$host}{$port}{$path}";
     }
 
     private function urlHasQuery(string $url): bool
