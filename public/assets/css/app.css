@@ -793,10 +793,14 @@ html.ob-compose-modal-open {
 }
 
 .ob-suggestion .ob-mini-profile__link > .ob-avatar {
-  flex-shrink: 0;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
 }
 
-.ob-suggestion .ob-mini-profile__link > div {
+.ob-suggestion .ob-mini-profile__link > div:not(.ob-avatar) {
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -1846,10 +1850,11 @@ a.ob-post__menu-item {
 }
 
 .ob-community-list__item .ob-mini-profile__link > .ob-avatar {
+  flex: 0 0 auto;
   flex-shrink: 0;
 }
 
-.ob-community-list__item .ob-mini-profile__link > div {
+.ob-community-list__item .ob-mini-profile__link > div:not(.ob-avatar) {
   min-width: 0;
 }
 

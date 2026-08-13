@@ -50,6 +50,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   `@blog.example.com@blog.example.com`) non falliscono piu' in inserimento
   per limite MySQL su `actors.preferred_username` (esteso a 255 caratteri;
   resta 32 per gli account locali).
+- Elenchi **follower / seguiti** (e box suggerimenti): gli avatar non vengono
+  piu' allungati orizzontalmente dal layout flex del testo accanto.
 
 ## [0.9.0] — Messaggistica privata federata
 
