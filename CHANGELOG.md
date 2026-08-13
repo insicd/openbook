@@ -58,7 +58,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 - **Scorrimento infinito** nei feed: la paginazione usa un cursore ancorato
   all'ultimo post mostrato invece del numero di pagina, evitando duplicati
   quando arrivano nuovi post mentre si scrolla; deduplica lato client come
-  rete di sicurezza.
+  rete di sicurezza. Il cursore del feed home/profilo ripete la subquery di
+  `shared_at` nel WHERE (l'alias SELECT non e' usabile su MySQL/MariaDB).
 - **Create** consegnati all'inbox personale di un utente (es. messaggio
   opzionale dopo un rifiuto da bridge ActivityPub) non vengono piu' ignorati:
   vengono trattati come messaggio diretto in `/messaggi` quando non sono

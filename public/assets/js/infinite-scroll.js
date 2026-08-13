@@ -77,7 +77,7 @@
                         postId = node.id.slice(5);
                     }
 
-                    if (postId && container.querySelector('#post-' + CSS.escape(postId))) {
+                    if (postId && container.querySelector('[id="post-' + postId + '"]')) {
                         freshContainer.removeChild(node);
                         continue;
                     }

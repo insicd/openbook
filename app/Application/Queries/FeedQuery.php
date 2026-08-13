@@ -75,7 +75,13 @@ final class FeedQuery
             ->orderByRaw('coalesce(shared_at, published_at) desc')
             ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN);
 
-        $page = $this->paginateKeyset($query, $perPage, $cursor, useShareSortCursor: true);
+        $page = $this->paginateKeyset(
+            $query,
+            $perPage,
+            $cursor,
+            useShareSortCursor: true,
+            shareSortActorIds: $relevantActorIds,
+        );
 
         Post::attachSharedBy($page->getCollection());
 
@@ -191,11 +197,18 @@ final class FeedQuery
 
             $page = $this->paginateKeyset($query, (int) config('openbook.feed.per_page'), $cursor, useShareSortCursor: false);
         } else {
+            $shareSortActorIds = collect([$profileActor->id]);
             $query = $ordered
                 ->orderByRaw('coalesce(shared_at, published_at) desc')
                 ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN);
 
-            $page = $this->paginateKeyset($query, (int) config('openbook.feed.per_page'), $cursor, useShareSortCursor: true);
+            $page = $this->paginateKeyset(
+                $query,
+                (int) config('openbook.feed.per_page'),
+                $cursor,
+                useShareSortCursor: true,
+                shareSortActorIds: $shareSortActorIds,
+            );
         }
 
         Post::attachSharedBy($page->getCollection());
@@ -222,6 +235,7 @@ final class FeedQuery
 
     /**
      * @param  Builder<Post>  $query
+     * @param  Collection<int, string>|null  $shareSortActorIds
      */
     private function paginateKeyset(
         Builder $query,
@@ -229,9 +243,10 @@ final class FeedQuery
         ?FeedCursor $cursor,
         bool $useShareSortCursor,
         ?Request $request = null,
+        ?Collection $shareSortActorIds = null,
     ): FeedPage {
         if ($useShareSortCursor) {
-            $this->applySharedSortCursor($query, $cursor);
+            $this->applySharedSortCursor($query, $cursor, $shareSortActorIds ?? collect());
         } else {
             $this->applyPublishedAtCursor($query, $cursor);
         }
@@ -279,17 +294,25 @@ final class FeedQuery
 
     /**
      * @param  Builder<Post>  $query
+     * @param  Collection<int, string>  $sharerIds
      */
-    private function applySharedSortCursor(Builder $query, ?FeedCursor $cursor): void
+    private function applySharedSortCursor(Builder $query, ?FeedCursor $cursor, Collection $sharerIds): void
     {
         if ($cursor === null) {
             return;
         }
 
-        $query->where(function (Builder $builder) use ($cursor): void {
-            $builder->whereRaw('coalesce(shared_at, published_at) < ?', [$cursor->sortAt])
-                ->orWhere(function (Builder $sameInstant) use ($cursor): void {
-                    $sameInstant->whereRaw('coalesce(shared_at, published_at) = ?', [$cursor->sortAt])
+        // Non usare l'alias SELECT "shared_at" in WHERE: MySQL/MariaDB lo
+        // rifiutano ("Unknown column"). Ripetiamo la stessa subquery correlata
+        // usata in {@see withShareMetadata()} dentro coalesce(...).
+        $sharedAt = $this->sharedAtSubquery($sharerIds);
+        $sortExpr = 'coalesce(('.$sharedAt->toSql().'), posts.published_at)';
+        $sortBindings = $sharedAt->getBindings();
+
+        $query->where(function (Builder $builder) use ($cursor, $sortExpr, $sortBindings): void {
+            $builder->whereRaw($sortExpr.' < ?', [...$sortBindings, $cursor->sortAt])
+                ->orWhere(function (Builder $sameInstant) use ($cursor, $sortExpr, $sortBindings): void {
+                    $sameInstant->whereRaw($sortExpr.' = ?', [...$sortBindings, $cursor->sortAt])
                         ->where('posts.'.self::TIEBREAKER_COLUMN, '<', $cursor->postId);
                 });
         });
@@ -318,15 +341,22 @@ final class FeedQuery
             ->orderByDesc('created_at')
             ->limit(1);
 
-        $announcedAt = DB::table('announces')
+        return $query
+            ->addSelect(['shared_by_actor_id' => $announcerId])
+            ->addSelect(['shared_at' => $this->sharedAtSubquery($sharerIds)]);
+    }
+
+    /**
+     * @param  Collection<int, string>  $sharerIds
+     * @return \Illuminate\Database\Query\Builder
+     */
+    private function sharedAtSubquery(Collection $sharerIds): \Illuminate\Database\Query\Builder
+    {
+        return DB::table('announces')
             ->select('created_at')
             ->whereColumn('post_id', 'posts.id')
             ->whereIn('actor_id', $sharerIds)
             ->orderByDesc('created_at')
             ->limit(1);
-
-        return $query
-            ->addSelect(['shared_by_actor_id' => $announcerId])
-            ->addSelect(['shared_at' => $announcedAt]);
     }
 }

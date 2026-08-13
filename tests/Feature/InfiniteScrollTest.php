@@ -120,6 +120,38 @@ class InfiniteScrollTest extends TestCase
         $this->assertNotContains($newest->id, $secondIds);
     }
 
+    public function test_the_home_feed_cursor_query_does_not_put_shared_at_alias_in_where(): void
+    {
+        config(['openbook.feed.per_page' => 2]);
+
+        $user = $this->createFullAccount('infinitescrollsql');
+        $this->publishPost($user, 'Uno.');
+        $this->publishPost($user, 'Due.');
+        $this->publishPost($user, 'Tre.');
+
+        $feedQuery = app(FeedQuery::class);
+        $firstPage = $feedQuery->forActor($user->actor);
+        $cursor = FeedCursor::fromPost($firstPage->getCollection()->last(), useShareSort: true);
+
+        $sql = null;
+        \Illuminate\Support\Facades\DB::listen(function ($query) use (&$sql): void {
+            if (str_contains($query->sql, 'coalesce(shared_at')) {
+                $sql = $query->sql;
+            }
+        });
+
+        $feedQuery->forActor($user->actor, $cursor);
+
+        $this->assertNotNull($sql);
+        // ORDER BY puo' usare l'alias; il filtro cursore no (MySQL).
+        $this->assertStringNotContainsString('coalesce(shared_at, published_at) <', $sql);
+        $this->assertStringNotContainsString('coalesce(shared_at, published_at) =', $sql);
+        $this->assertMatchesRegularExpression(
+            '/coalesce\(\(select ["`]?created_at["`]? from ["`]?announces["`]?.*\) < \?/is',
+            $sql,
+        );
+    }
+
     public function test_a_hashtag_page_for_an_unknown_tag_still_renders_the_infinite_scroll_container_without_errors(): void
     {
         $response = $this->get(route('hashtags.show', 'inesistente'));
