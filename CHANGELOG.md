@@ -60,6 +60,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   quando arrivano nuovi post mentre si scrolla; deduplica lato client come
   rete di sicurezza. Il cursore del feed home/profilo ripete la subquery di
   `shared_at` nel WHERE (l'alias SELECT non e' usabile su MySQL/MariaDB).
+  La pagina hashtag accetta correttamente la relation `BelongsToMany` dei
+  post (non solo un `Builder`).
 - **Create** consegnati all'inbox personale di un utente (es. messaggio
   opzionale dopo un rifiuto da bridge ActivityPub) non vengono piu' ignorati:
   vengono trattati come messaggio diretto in `/messaggi` quando non sono

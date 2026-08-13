@@ -160,4 +160,26 @@ class InfiniteScrollTest extends TestCase
         $response->assertSee('id="ob-post-list"', false);
         $response->assertDontSee('data-next-url', false);
     }
+
+    public function test_a_hashtag_page_lists_matching_posts_via_the_belongs_to_many_relation(): void
+    {
+        config(['openbook.feed.per_page' => 2]);
+
+        $user = $this->createFullAccount('hashtagpage');
+        $this->publishPost($user, 'Primo #openbook');
+        $this->publishPost($user, 'Secondo #openbook');
+        $this->publishPost($user, 'Terzo #openbook');
+        $this->publishPost($user, 'Senza tag.');
+
+        $response = $this->get(route('hashtags.show', 'openbook'));
+
+        $response->assertOk();
+        // per_page=2, ordine dal piu' recente: Terzo e Secondo in prima pagina.
+        $response->assertSee('Terzo', false);
+        $response->assertSee('Secondo', false);
+        $response->assertDontSee('Primo', false);
+        $response->assertDontSee('Senza tag.', false);
+        $response->assertSee('data-next-url="', false);
+        $response->assertSee('cursor=', false);
+    }
 }

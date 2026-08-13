@@ -8,6 +8,7 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxActivityProcessor;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -218,15 +219,18 @@ final class FeedQuery
 
     /**
      * Feed per hashtag: stesso cursore dei post ordinati per published_at.
+     * Accetta anche una Relation (es. BelongsToMany da Hashtag::posts()).
      *
-     * @param  Builder<Post>  $query
+     * @param  Builder<Post>|Relation<*, Post, *>  $query
      */
-    public function paginatePublishedQuery(Builder $query, ?FeedCursor $cursor = null, int $perPage = 0): FeedPage
+    public function paginatePublishedQuery(Builder|Relation $query, ?FeedCursor $cursor = null, int $perPage = 0): FeedPage
     {
         $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
 
+        $builder = $query instanceof Relation ? $query->getQuery() : $query;
+
         return $this->paginateKeyset(
-            $query->orderByDesc('published_at')->orderByDesc('posts.'.self::TIEBREAKER_COLUMN),
+            $builder->orderByDesc('published_at')->orderByDesc('posts.'.self::TIEBREAKER_COLUMN),
             $perPage,
             $cursor,
             useShareSortCursor: false,
