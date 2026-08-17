@@ -53,6 +53,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   `Reject`).
 
 ### Fixed
+- **Avviso sul contenuto**: il soffietto copre anche immagini, audio, video
+  e citazioni allegate, non solo il testo del post.
 - Menu condivisi: «Annulla condivisione» non compare piu' insieme a
   «Condivisione diretta» sui post non ancora ripostati (il CSS del menu
   annullava l'attributo `hidden` sui form).

@@ -147,4 +147,38 @@ class PostCardActionsTest extends TestCase
         $response->assertDontSee(__('openbook.actions.delete'), false);
         $response->assertSee('class="ob-post__share-menu"', false);
     }
+
+    public function test_content_warning_hides_attachments_until_the_spoiler_is_opened(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $author = $this->createFullAccount('cwmedia');
+        $image = \Illuminate\Http\UploadedFile::fake()->image('sensibile.jpg', 800, 600);
+
+        $post = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Testo coperto dall avviso.',
+            'content_warning' => 'spoiler',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'images' => [$image],
+            'alt_texts' => ['Immagine coperta'],
+        ]);
+
+        $html = $this->actingAs($author)->get(route('feed.index'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('class="ob-post__cw"', $html);
+        $this->assertStringContainsString('Immagine coperta', $html);
+
+        $cwStart = strpos($html, 'class="ob-post__cw"');
+        $cwEnd = strpos($html, '</details>', $cwStart);
+        $mediaPos = strpos($html, 'class="ob-post__media"', $cwStart);
+        $actionsPos = strpos($html, 'class="ob-post__actions"', $cwStart);
+
+        $this->assertNotFalse($cwStart);
+        $this->assertNotFalse($cwEnd);
+        $this->assertNotFalse($mediaPos);
+        $this->assertGreaterThan($cwStart, $mediaPos);
+        $this->assertLessThan($cwEnd, $mediaPos);
+        $this->assertGreaterThan($cwEnd, $actionsPos);
+        $this->assertStringContainsString('id="post-'.$post->id.'"', $html);
+    }
 }

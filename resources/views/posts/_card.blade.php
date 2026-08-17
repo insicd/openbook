@@ -118,40 +118,18 @@
         @if ($post->hasContentWarning())
             <details class="ob-post__cw">
                 <summary>{{ __('openbook.posts.content_warning_label') }}: {{ $post->content_warning }}</summary>
-                @include('posts._body', ['body' => $post->body, 'truncateBody' => $truncateBody ?? false])
-                @include('posts._video_embed_if_any', ['body' => $post->body])
-            </details>
-        @else
-            @include('posts._body', ['body' => $post->body, 'truncateBody' => $truncateBody ?? false])
-            @include('posts._video_embed_if_any', ['body' => $post->body])
-        @endif
-
-        @if ($post->media->isNotEmpty())
-            <div class="ob-post__media" data-lightbox-group>
-                @foreach ($post->media as $media)
-                    @include('media._attachment', ['media' => $media])
-                @endforeach
-            </div>
-        @endif
-
-        @if ($post->hashtags->isNotEmpty())
-            <p class="ob-post__hashtags">
-                @foreach ($post->hashtags as $hashtag)
-                    <a href="{{ route('hashtags.show', $hashtag->name) }}">#{{ $hashtag->name }}</a>
-                @endforeach
-            </p>
-        @endif
-
-        @if ($post->quotedPost && $embedDepth < 1)
-            <div class="ob-post__quote">
-                @include('posts._card', [
-                    'post' => $post->quotedPost,
-                    'embed' => true,
-                    'embedDepth' => $embedDepth + 1,
-                    'linkToPost' => true,
+                @include('posts._revealed', [
+                    'post' => $post,
+                    'embedDepth' => $embedDepth,
                     'truncateBody' => $truncateBody ?? false,
                 ])
-            </div>
+            </details>
+        @else
+            @include('posts._revealed', [
+                'post' => $post,
+                'embedDepth' => $embedDepth,
+                'truncateBody' => $truncateBody ?? false,
+            ])
         @endif
 
         @unless ($embed)

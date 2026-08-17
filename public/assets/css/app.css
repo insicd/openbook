@@ -2098,6 +2098,12 @@ a.ob-post__menu-item {
   margin-bottom: 0.6rem;
 }
 
+.ob-post__cw .ob-post__media:last-child,
+.ob-post__cw .ob-post__hashtags:last-child,
+.ob-post__cw .ob-post__quote:last-child {
+  margin-bottom: 0;
+}
+
 .ob-profile-tabs {
   display: flex;
   justify-content: center;
