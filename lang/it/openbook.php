@@ -24,6 +24,7 @@ return [
         'home' => 'Home',
         'world' => 'Mondo',
         'communities' => 'Community',
+        'trending' => 'Tendenze',
         'profile' => 'Profilo',
         'messages' => 'Messaggi',
         'notifications' => 'Notifiche',

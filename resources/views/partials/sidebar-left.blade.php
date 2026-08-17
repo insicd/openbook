@@ -24,6 +24,9 @@
     <a href="{{ route('communities.index') }}" class="ob-side-nav__link {{ request()->routeIs('communities.*') ? 'is-active' : '' }}">
         <x-icon name="people" /> {{ __('openbook.nav.communities') }}
     </a>
+    <a href="{{ route('hashtags.index') }}" class="ob-side-nav__link {{ request()->routeIs('hashtags.*') ? 'is-active' : '' }}">
+        <x-icon name="hash" /> {{ __('openbook.nav.trending') }}
+    </a>
     <a href="{{ route('messages.index') }}" class="ob-side-nav__link {{ request()->routeIs('messages.*') ? 'is-active' : '' }}">
         <x-icon name="message" /> {{ __('openbook.nav.messages') }}
         @if (($unreadMessagesCount ?? 0) > 0)

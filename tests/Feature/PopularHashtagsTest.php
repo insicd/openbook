@@ -107,6 +107,8 @@ class PopularHashtagsTest extends TestCase
         $response->assertOk();
         $response->assertSee(__('openbook.sidebar.trending_title'), false);
         $response->assertSee(__('openbook.sidebar.no_popular_hashtags'));
+        $response->assertSee(__('openbook.nav.trending'), false);
+        $response->assertSee(route('hashtags.index'), false);
     }
 
     public function test_the_trending_index_lists_hashtags(): void

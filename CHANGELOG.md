@@ -20,6 +20,8 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   permette di seguirlo nella home (relazione one-way, senza ActivityPub).
   Aggiornamento periodico via `openbook:fetch-feeds` incluso in
   `openbook:cron`.
+- Menu laterale: voce **Tendenze** sotto Community, con la stessa
+  destinazione della pagina hashtag popolari (`/tag`).
 
 ### Changed
 - **Ricerca**: mentre si digita nella navbar o nella pagina `/cerca`

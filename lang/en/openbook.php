@@ -24,6 +24,7 @@ return [
         'home' => 'Home',
         'world' => 'World',
         'communities' => 'Communities',
+        'trending' => 'Trending',
         'profile' => 'Profile',
         'messages' => 'Messages',
         'notifications' => 'Notifications',
