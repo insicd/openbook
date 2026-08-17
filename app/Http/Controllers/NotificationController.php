@@ -75,9 +75,11 @@ class NotificationController extends Controller
                     'id' => $notification->id,
                     'unread' => ! $notification->isRead(),
                     'message' => $notification->message(),
+                    'message_html' => $notification->messageHtml(),
                     'url' => $notification->targetUrl() ?: route('notifications.index'),
                     'time' => $notification->created_at->diffForHumans(),
                     'actor_name' => $name,
+                    'actor_url' => $notification->actorProfileUrl(),
                     'actor_avatar' => $actor?->avatarUrl(),
                     'actor_initial' => mb_strtoupper(mb_substr($name, 0, 1)),
                 ];

@@ -76,20 +76,34 @@
     }
 
     function renderAvatar(item) {
+        var inner;
+
         if (item.actor_avatar) {
-            return (
+            inner =
                 '<div class="ob-avatar" style="width:36px;height:36px;font-size:0.95rem" aria-hidden="true">' +
                 '<img src="' +
                 escapeHtml(item.actor_avatar) +
                 '" alt="">' +
-                '</div>'
-            );
+                '</div>';
+        } else {
+            inner =
+                '<div class="ob-avatar" style="width:36px;height:36px;font-size:0.95rem" aria-hidden="true">' +
+                escapeHtml(item.actor_initial || '?') +
+                '</div>';
+        }
+
+        if (!item.actor_url) {
+            return inner;
         }
 
         return (
-            '<div class="ob-avatar" style="width:36px;height:36px;font-size:0.95rem" aria-hidden="true">' +
-            escapeHtml(item.actor_initial || '?') +
-            '</div>'
+            '<a href="' +
+            escapeHtml(item.actor_url) +
+            '" class="ob-notification__actor" aria-label="' +
+            escapeHtml(item.actor_name || '') +
+            '">' +
+            inner +
+            '</a>'
         );
     }
 
@@ -107,25 +121,28 @@
         list.innerHTML = notifications
             .map(function (item) {
                 var classes = 'ob-header-notification' + (item.unread ? ' ob-header-notification--unread' : '');
+                var targetUrl = item.url || indexUrl;
+                var message = item.message_html || escapeHtml(item.message || '');
 
                 return (
-                    '<a href="' +
-                    escapeHtml(item.url || indexUrl) +
-                    '" class="' +
+                    '<div class="' +
                     classes +
                     '" data-notification-id="' +
                     escapeHtml(item.id) +
                     '">' +
+                    '<a href="' +
+                    escapeHtml(targetUrl) +
+                    '" class="ob-notification__stretch" tabindex="-1" aria-hidden="true"></a>' +
                     renderAvatar(item) +
                     '<div class="ob-header-notification__body">' +
                     '<div>' +
-                    escapeHtml(item.message) +
+                    message +
                     '</div>' +
                     '<div class="ob-notification__time">' +
                     escapeHtml(item.time) +
                     '</div>' +
                     '</div>' +
-                    '</a>'
+                    '</div>'
                 );
             })
             .join('');

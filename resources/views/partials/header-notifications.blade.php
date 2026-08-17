@@ -33,21 +33,7 @@
 
         <div data-notifications-list>
             @forelse ($headerNotifications ?? [] as $notification)
-                @php
-                    $causedByActor = $notification->actor;
-                    $url = $notification->targetUrl();
-                @endphp
-                <a
-                    href="{{ $url ?: route('notifications.index') }}"
-                    class="ob-header-notification {{ $notification->isRead() ? '' : 'ob-header-notification--unread' }}"
-                    data-notification-id="{{ $notification->id }}"
-                >
-                    <x-avatar :actor="$causedByActor" style="width:36px;height:36px;font-size:0.95rem" />
-                    <div class="ob-header-notification__body">
-                        <div>{{ $notification->message() }}</div>
-                        <div class="ob-notification__time">{{ $notification->created_at->diffForHumans() }}</div>
-                    </div>
-                </a>
+                @include('notifications._item', ['notification' => $notification, 'compact' => true])
             @empty
                 <p class="ob-header-dropdown__empty">{{ __('openbook.notifications.empty') }}</p>
             @endforelse

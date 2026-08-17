@@ -22,6 +22,9 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
   `openbook:cron`.
 - Menu laterale: voce **Tendenze** sotto Community, con la stessa
   destinazione della pagina hashtag popolari (`/tag`).
+- **Notifiche** di like e condivisione: nome e avatar di chi ha agito
+  portano al suo profilo Openbook; il resto della riga (e «Vedi») resta
+  sul contenuto coinvolto.
 
 ### Changed
 - **Ricerca**: mentre si digita nella navbar o nella pagina `/cerca`

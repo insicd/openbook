@@ -118,6 +118,49 @@ class Notification extends Model
         return $replacements;
     }
 
+    /**
+     * Come {@see message()}, con il nome di chi ha causato la notifica come
+     * link al suo profilo Openbook (Person locale o Actor remoto in cache).
+     */
+    public function messageHtml(): string
+    {
+        $replacements = $this->messageReplacements();
+        $nameToken = '%%NAME%%';
+        $communityToken = '%%COMMUNITY%%';
+
+        $params = ['name' => $nameToken];
+
+        if (isset($replacements['community'])) {
+            $params['community'] = $communityToken;
+        }
+
+        $html = e(__('openbook.notifications.messages.'.$this->type, $params));
+        $html = str_replace(e($nameToken), $this->actorNameHtml($replacements['name']), $html);
+
+        if (isset($replacements['community'])) {
+            $html = str_replace(e($communityToken), e($replacements['community']), $html);
+        }
+
+        return $html;
+    }
+
+    public function actorProfileUrl(): ?string
+    {
+        return $this->actor?->profileUrl();
+    }
+
+    private function actorNameHtml(string $name): string
+    {
+        $escaped = e($name);
+        $url = $this->actorProfileUrl();
+
+        if ($url === null) {
+            return $escaped;
+        }
+
+        return '<a href="'.e($url).'" class="ob-notification__actor-name">'.$escaped.'</a>';
+    }
+
     private function communityDisplayName(): string
     {
         $target = $this->notifiable;

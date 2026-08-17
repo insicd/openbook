@@ -2,8 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Application\Services\AnnounceManager;
 use App\Application\Services\FollowManager;
+use App\Application\Services\PostComposer;
+use App\Application\Services\ReactionManager;
 use App\Domain\Notifications\Notification;
+use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
@@ -116,6 +120,48 @@ class NotificationTest extends TestCase
         $response->assertJsonPath('notifications.0.unread', true);
         $this->assertStringContainsString('notiffollower5', $response->json('notifications.0.message'));
         $response->assertHeader('ETag');
+    }
+
+    public function test_like_and_share_notifications_link_the_actor_profile_separately_from_the_post(): void
+    {
+        $author = $this->createFullAccount('notifauthor');
+        $liker = $this->createFullAccount('notifliker');
+        $sharer = $this->createFullAccount('notifsharer');
+
+        $post = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Un post da notificare.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        app(ReactionManager::class)->like($liker->actor, $post);
+        app(AnnounceManager::class)->announce($sharer->actor, $post);
+
+        $likerProfile = route('profile.show', $liker->username);
+        $sharerProfile = route('profile.show', $sharer->username);
+        $postUrl = route('posts.show', $post);
+
+        $page = $this->actingAs($author)->get(route('notifications.index'));
+        $page->assertOk();
+        $page->assertSee('href="'.$likerProfile.'"', false);
+        $page->assertSee('href="'.$sharerProfile.'"', false);
+        $page->assertSee('href="'.$postUrl.'"', false);
+        $page->assertSee('class="ob-notification__actor-name"', false);
+        $page->assertSee('class="ob-notification__actor"', false);
+
+        $dropdown = $this->actingAs($author)->get(route('feed.index'));
+        $dropdown->assertOk();
+        $dropdown->assertSee('href="'.$likerProfile.'"', false);
+        $dropdown->assertSee('class="ob-notification__actor-name"', false);
+        $dropdown->assertSee('class="ob-notification__stretch"', false);
+
+        $feed = $this->actingAs($author)->getJson(route('notifications.feed'));
+        $feed->assertOk();
+        $feed->assertJsonFragment(['actor_url' => $likerProfile, 'url' => $postUrl]);
+        $feed->assertJsonFragment(['actor_url' => $sharerProfile, 'url' => $postUrl]);
+        $html = collect($feed->json('notifications'))->pluck('message_html')->implode(' ');
+        $this->assertStringContainsString($likerProfile, $html);
+        $this->assertStringContainsString($sharerProfile, $html);
+        $this->assertStringContainsString('ob-notification__actor-name', $html);
     }
 
     public function test_the_notifications_feed_returns_not_modified_when_revision_is_unchanged(): void
