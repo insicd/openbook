@@ -45,7 +45,10 @@ final class FollowManager
             throw new InvalidArgumentException('Non puoi seguire questo account.');
         }
 
-        if ($target->isLocal() && ($target->user === null || ! $target->user->isActive())) {
+        // Solo i Person locali hanno un User: Group (community) e Feed
+        // RSS/Atom sono Actor senza account, ma restano seguibili.
+        if ($target->isLocal() && $target->isPerson()
+            && ($target->user === null || ! $target->user->isActive())) {
             throw new InvalidArgumentException('Non puoi seguire questo account.');
         }
 

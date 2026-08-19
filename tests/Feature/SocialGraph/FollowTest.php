@@ -3,6 +3,7 @@
 namespace Tests\Feature\SocialGraph;
 
 use App\Application\Services\FollowManager;
+use App\Domain\Accounts\User;
 use App\Domain\Notifications\Notification;
 use App\Domain\SocialGraph\Follow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -88,6 +89,17 @@ class FollowTest extends TestCase
 
         $this->expectException(\InvalidArgumentException::class);
         app(FollowManager::class)->follow($user->actor, $user->actor);
+    }
+
+    public function test_an_inactive_local_person_cannot_be_followed(): void
+    {
+        $follower = $this->createFullAccount('seguace6');
+        $target = $this->createFullAccount('sospeso');
+        $target->update(['status' => User::STATUS_SUSPENDED]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Non puoi seguire questo account.');
+        app(FollowManager::class)->follow($follower->actor, $target->actor);
     }
 
     public function test_unfollowing_removes_the_relation(): void

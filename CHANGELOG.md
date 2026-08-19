@@ -11,6 +11,14 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
+## [0.9.2] — Iscrizione alle community pubbliche
+
+### Fixed
+- Iscrizione a una **community pubblica** locale: un utente Openbook non
+  riceve piu' l'errore «Non puoi seguire questo account». Il Group della
+  community non ha un User collegato; il controllo sull'account attivo
+  vale solo per gli Actor Person (`FollowManager`, `POST` join community).
+
 ## [0.9.1] — Allegati remoti
 
 ### Added

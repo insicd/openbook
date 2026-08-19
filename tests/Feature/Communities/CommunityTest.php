@@ -49,6 +49,27 @@ class CommunityTest extends TestCase
         $this->assertTrue($community->isMember($owner->actor));
     }
 
+    public function test_a_local_user_can_join_a_public_community(): void
+    {
+        $owner = $this->createFullAccount('joinowner');
+        $member = $this->createFullAccount('joinmember');
+
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'piazza',
+            'name' => 'Piazza pubblica',
+        ]);
+
+        $this->actingAs($member)
+            ->from(route('communities.show', $community))
+            ->post(route('communities.join', $community))
+            ->assertRedirect(route('communities.show', $community))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', __('openbook.communities.joined'));
+
+        $this->assertTrue($community->fresh()->isMember($member->actor));
+        $this->assertSame(2, $community->fresh()->members_count);
+    }
+
     public function test_members_can_post_to_a_community_and_it_is_announced_by_the_group(): void
     {
         $owner = $this->createFullAccount('owner2');
