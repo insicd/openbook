@@ -133,4 +133,100 @@ class SearchTest extends TestCase
 
         $response->assertSessionHasErrors('q');
     }
+
+    public function test_searching_a_mastodon_profile_url_resolves_the_actor_not_the_rss_feed(): void
+    {
+        $viewer = $this->createFullAccount('cercatore5');
+        $profileUrl = 'https://social.example/@nora';
+        $rssUrl = 'https://social.example/@nora.rss';
+
+        Http::fake([
+            $profileUrl => Http::response(
+                '<!DOCTYPE html><html><head>'
+                .'<link rel="alternate" type="application/rss+xml" href="'.htmlspecialchars($rssUrl).'">'
+                .'<link rel="alternate" type="application/activity+json" href="'.self::REMOTE_ACTOR_URI.'">'
+                .'</head><body>Nora</body></html>',
+                200,
+                ['Content-Type' => 'text/html'],
+            ),
+            'https://social.example/.well-known/webfinger*' => Http::response([
+                'subject' => 'acct:nora@social.example',
+                'links' => [
+                    ['rel' => 'self', 'type' => 'application/activity+json', 'href' => self::REMOTE_ACTOR_URI],
+                ],
+            ], 200, ['Content-Type' => 'application/jrd+json']),
+            self::REMOTE_ACTOR_URI => Http::response([
+                'id' => self::REMOTE_ACTOR_URI,
+                'type' => 'Person',
+                'preferredUsername' => 'nora',
+                'name' => 'Nora',
+                'inbox' => self::REMOTE_ACTOR_URI.'/inbox',
+                'publicKey' => [
+                    'id' => self::REMOTE_ACTOR_URI.'#main-key',
+                    'owner' => self::REMOTE_ACTOR_URI,
+                    'publicKeyPem' => '-----BEGIN PUBLIC KEY-----test-----END PUBLIC KEY-----',
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $rssUrl => Http::response(
+                '<?xml version="1.0"?><rss version="2.0"><channel><title>Nora RSS</title></channel></rss>',
+                200,
+                ['Content-Type' => 'application/rss+xml'],
+            ),
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('search.create', [
+            'q' => $profileUrl,
+        ]));
+
+        $actor = Actor::query()->where('uri', self::REMOTE_ACTOR_URI)->firstOrFail();
+        $this->assertTrue($actor->isPerson());
+        $this->assertFalse($actor->isFeed());
+        $this->assertSame(0, Actor::query()->where('type', Actor::TYPE_FEED)->count());
+        $response->assertRedirect(route('actors.show', $actor));
+    }
+
+    public function test_searching_a_profile_url_uses_activitypub_html_alternate_when_webfinger_fails(): void
+    {
+        $viewer = $this->createFullAccount('cercatore6');
+        $profileUrl = 'https://social.example/@nora';
+        $rssUrl = 'https://social.example/@nora.rss';
+
+        Http::fake([
+            $profileUrl => Http::response(
+                '<!DOCTYPE html><html><head>'
+                .'<link rel="alternate" type="application/rss+xml" href="'.htmlspecialchars($rssUrl).'">'
+                .'<link rel="alternate" type="application/activity+json" href="'.self::REMOTE_ACTOR_URI.'">'
+                .'</head><body>Nora</body></html>',
+                200,
+                ['Content-Type' => 'text/html'],
+            ),
+            'https://social.example/.well-known/webfinger*' => Http::response('', 404),
+            self::REMOTE_ACTOR_URI => Http::response([
+                'id' => self::REMOTE_ACTOR_URI,
+                'type' => 'Person',
+                'preferredUsername' => 'nora',
+                'name' => 'Nora',
+                'inbox' => self::REMOTE_ACTOR_URI.'/inbox',
+                'publicKey' => [
+                    'id' => self::REMOTE_ACTOR_URI.'#main-key',
+                    'owner' => self::REMOTE_ACTOR_URI,
+                    'publicKeyPem' => '-----BEGIN PUBLIC KEY-----test-----END PUBLIC KEY-----',
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $rssUrl => Http::response(
+                '<?xml version="1.0"?><rss version="2.0"><channel><title>Nora RSS</title></channel></rss>',
+                200,
+                ['Content-Type' => 'application/rss+xml'],
+            ),
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('search.create', [
+            'q' => $profileUrl,
+        ]));
+
+        $actor = Actor::query()->where('uri', self::REMOTE_ACTOR_URI)->firstOrFail();
+        $this->assertTrue($actor->isPerson());
+        $this->assertSame(0, Actor::query()->where('type', Actor::TYPE_FEED)->count());
+        $response->assertRedirect(route('actors.show', $actor));
+    }
 }

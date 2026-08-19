@@ -6,9 +6,10 @@ use App\Application\Queries\LocalSearchQuery;
 use App\Domain\Feeds\FeedActorRegistrar;
 use App\Domain\Feeds\FeedDiscoverer;
 use App\Domain\Feeds\FeedImporter;
-use App\Http\Support\FederatedHandleParser;
+use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Actors\RemoteActorResolver;
+use App\Http\Support\FederatedHandleParser;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,10 +20,11 @@ use Throwable;
 /**
  * Motore di ricerca interno, con percorsi distinti:
  *
- * 1. URL http(s): prova Actor ActivityPub per URI, altrimenti discovery
- *    di un feed RSS/Atom (stile Friendica) e redirect al profilo "feed".
- * 2. Indirizzo federato (`utente@dominio`, `acct:...`, URL profilo AP):
- *    risoluzione locale o via WebFinger + {@see RemoteActorResolver}.
+ * 1. URL http(s): prima il Fediverso (documento Actor, poi WebFinger dal
+ *    path tipo `/@utente`, poi link HTML `application/activity+json`);
+ *    solo se non e' un profilo AP si passa al feed RSS/Atom (Friendica).
+ * 2. Indirizzo federato (`utente@dominio`, `acct:...`): risoluzione locale
+ *    o via WebFinger + {@see RemoteActorResolver}.
  * 3. Parola chiave: ricerca locale ({@see LocalSearchQuery}).
  *
  * Se la query inizia con "#" e gli hashtag trovati sono esattamente uno,
@@ -88,14 +90,10 @@ class SearchController extends Controller
 
     private function resolveHttpUrl(string $url): RedirectResponse
     {
-        try {
-            $actor = $this->resolver->resolveByUri($url);
+        $actor = $this->resolveActivityPubFromUrl($url);
 
-            if ($actor !== null) {
-                return redirect()->to($actor->profileUrl());
-            }
-        } catch (Throwable $exception) {
-            report($exception);
+        if ($actor !== null) {
+            return redirect()->to($actor->profileUrl());
         }
 
         try {
@@ -109,12 +107,6 @@ class SearchController extends Controller
 
             return redirect()->to($feedActor->profileUrl());
         } catch (RuntimeException $feedException) {
-            $handle = FederatedHandleParser::parse($url);
-
-            if ($handle !== null) {
-                return $this->resolveHandle($handle);
-            }
-
             throw ValidationException::withMessages([
                 'q' => $feedException->getMessage() !== ''
                     ? $feedException->getMessage()
@@ -123,16 +115,80 @@ class SearchController extends Controller
         } catch (Throwable $exception) {
             report($exception);
 
-            $handle = FederatedHandleParser::parse($url);
-
-            if ($handle !== null) {
-                return $this->resolveHandle($handle);
-            }
-
             throw ValidationException::withMessages([
                 'q' => __('openbook.search.errors.feed_not_found'),
             ]);
         }
+    }
+
+    /**
+     * Un URL di profilo Mastodon/Lemmy/ecc. espone spesso anche un RSS:
+     * va risolto come Actor ActivityPub, non come feed.
+     */
+    private function resolveActivityPubFromUrl(string $url): ?Actor
+    {
+        try {
+            $actor = $this->resolver->resolveByUri($url);
+
+            if ($actor !== null) {
+                return $actor;
+            }
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        $handle = FederatedHandleParser::parse($url);
+
+        if ($handle !== null && $this->shouldResolveHandleFromUrl($url, $handle)) {
+            $actor = $this->lookupHandle($handle);
+
+            if ($actor !== null) {
+                return $actor;
+            }
+
+            try {
+                $alternate = $this->feedDiscoverer->activityPubAlternateUrl($url);
+
+                if ($alternate !== null && strcasecmp($alternate, $url) !== 0) {
+                    return $this->resolver->resolveByUri($alternate);
+                }
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Evita WebFinger su path da file (`/feed.xml`): non e' un username.
+     * I profili `/@utente` restano validi anche con un punto nel nome.
+     *
+     * @param  array{0: string, 1: string}  $handle
+     */
+    private function shouldResolveHandleFromUrl(string $url, array $handle): bool
+    {
+        $path = (string) parse_url($url, PHP_URL_PATH);
+
+        if (str_contains($path, '/@')) {
+            return true;
+        }
+
+        return ! str_contains($handle[0], '.');
+    }
+
+    /**
+     * @param  array{0: string, 1: string}  $handle
+     */
+    private function lookupHandle(array $handle): ?Actor
+    {
+        [$username, $domain] = $handle;
+
+        if (strcasecmp($domain, (string) config('openbook.domain')) === 0) {
+            return $this->localActors->findByUsername($username);
+        }
+
+        return $this->resolver->resolveByHandle($username.'@'.$domain);
     }
 
     /**
@@ -154,29 +210,21 @@ class SearchController extends Controller
      */
     private function resolveHandle(array $handle): RedirectResponse
     {
-        [$username, $domain] = $handle;
+        $domain = $handle[1];
 
-        if (strcasecmp($domain, (string) config('openbook.domain')) === 0) {
-            $actor = $this->localActors->findByUsername($username);
-
-            if ($actor === null) {
-                throw ValidationException::withMessages([
-                    'q' => __('openbook.search.errors.local_not_found'),
-                ]);
-            }
-
-            return redirect()->to($actor->profileUrl());
-        }
-
-        $actor = $this->resolver->resolveByHandle($username.'@'.$domain);
+        $actor = $this->lookupHandle($handle);
 
         if ($actor === null) {
+            $isLocal = strcasecmp($domain, (string) config('openbook.domain')) === 0;
+
             throw ValidationException::withMessages([
-                'q' => __('openbook.search.errors.remote_not_found'),
+                'q' => $isLocal
+                    ? __('openbook.search.errors.local_not_found')
+                    : __('openbook.search.errors.remote_not_found'),
             ]);
         }
 
-        return redirect()->route('actors.show', $actor);
+        return redirect()->to($actor->profileUrl());
     }
 
     /**

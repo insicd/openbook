@@ -85,6 +85,21 @@ class RemoteActorResolverTest extends TestCase
         $this->assertDatabaseCount('actors', 0);
     }
 
+    public function test_it_accepts_a_same_host_profile_alias_with_canonical_actor_id(): void
+    {
+        $profileUrl = 'https://remoto.example/@walt';
+
+        Http::fake([
+            $profileUrl => Http::response($this->fakeActorDocument(), 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByUri($profileUrl);
+
+        $this->assertNotNull($actor);
+        $this->assertSame(self::ACTOR_URI, $actor->uri);
+        $this->assertSame('walt', $actor->preferred_username);
+    }
+
     public function test_it_refuses_to_treat_a_local_uri_as_a_remote_actor(): void
     {
         $local = $this->createFullAccount('localenonremoto');

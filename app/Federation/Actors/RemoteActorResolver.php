@@ -463,7 +463,44 @@ final class RemoteActorResolver
             return null;
         }
 
-        return $this->applyRemoteDocument($response->json(), $actorUri);
+        $document = $response->json();
+
+        if (! is_array($document)) {
+            return null;
+        }
+
+        return $this->applyFetchedActorDocument($document, $actorUri);
+    }
+
+    /**
+     * Alias sullo stesso host (es. Mastodon `/@utente` → `/users/utente`):
+     * il documento e' valido, l'id canonico differisce dall'URL richiesto.
+     *
+     * @param  array<string, mixed>  $document
+     */
+    private function applyFetchedActorDocument(array $document, string $requestedUri): ?Actor
+    {
+        $documentId = $document['id'] ?? null;
+
+        if (is_string($documentId)
+            && $documentId !== $requestedUri
+            && $this->sameHttpHost($documentId, $requestedUri)
+            && $this->isValidActorDocument($document, $documentId)
+        ) {
+            return $this->applyRemoteDocument($document, $documentId);
+        }
+
+        return $this->applyRemoteDocument($document, $requestedUri);
+    }
+
+    private function sameHttpHost(string $left, string $right): bool
+    {
+        $leftHost = parse_url($left, PHP_URL_HOST);
+        $rightHost = parse_url($right, PHP_URL_HOST);
+
+        return is_string($leftHost)
+            && is_string($rightHost)
+            && strcasecmp($leftHost, $rightHost) === 0;
     }
 
     /**

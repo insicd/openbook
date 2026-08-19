@@ -16,6 +16,10 @@ use RuntimeException;
  */
 final class FeedDiscoverer
 {
+    private const ALTERNATE_FEED = 'feed';
+
+    private const ALTERNATE_ACTIVITYPUB = 'activitypub';
+
     public function __construct(
         private readonly SafeHttpClient $http,
         private readonly DomainBlockManager $domainBlocks,
@@ -39,7 +43,7 @@ final class FeedDiscoverer
         }
 
         if ($this->looksLikeHtml($contentType, $body)) {
-            $alternate = $this->alternateFeedUrlFromHtml($body, $url);
+            $alternate = $this->alternateUrlFromHtml($body, $url, self::ALTERNATE_FEED);
 
             if ($alternate === null) {
                 throw new RuntimeException('Nessun feed RSS/Atom trovato in questa pagina.');
@@ -60,6 +64,35 @@ final class FeedDiscoverer
         }
 
         throw new RuntimeException('L\'URL non punta a un feed RSS/Atom riconoscibile.');
+    }
+
+    /**
+     * Link HTML rel=alternate verso un documento Actor ActivityPub
+     * (tipico dei profili Mastodon: /@utente con href /users/utente).
+     */
+    public function activityPubAlternateUrl(string $url): ?string
+    {
+        $url = $this->normalizeUrl($url);
+
+        if ($this->domainBlocks->isBlockedUrl($url)) {
+            return null;
+        }
+
+        $response = $this->fetch($url);
+        $contentType = mb_strtolower((string) $response->header('Content-Type'));
+        $body = $response->body;
+
+        if (! $this->looksLikeHtml($contentType, $body)) {
+            return null;
+        }
+
+        $alternate = $this->alternateUrlFromHtml($body, $url, self::ALTERNATE_ACTIVITYPUB);
+
+        if ($alternate === null || $this->domainBlocks->isBlockedUrl($alternate)) {
+            return null;
+        }
+
+        return $alternate;
     }
 
     /**
@@ -123,7 +156,7 @@ final class FeedDiscoverer
         return (bool) preg_match('/<html\b/i', $body);
     }
 
-    private function alternateFeedUrlFromHtml(string $html, string $baseUrl): ?string
+    private function alternateUrlFromHtml(string $html, string $baseUrl, string $kind): ?string
     {
         $document = new DOMDocument();
         $previous = libxml_use_internal_errors(true);
@@ -153,10 +186,9 @@ final class FeedDiscoverer
                 continue;
             }
 
-            $isAtom = str_contains($type, 'atom');
-            $isRss = str_contains($type, 'rss') || $type === 'application/xml' || $type === 'text/xml';
+            $priority = $this->alternatePriority($type, $kind);
 
-            if (! $isAtom && ! $isRss) {
+            if ($priority === null) {
                 continue;
             }
 
@@ -168,7 +200,7 @@ final class FeedDiscoverer
 
             $candidates[] = [
                 'url' => $absolute,
-                'priority' => $isAtom ? 0 : 1,
+                'priority' => $priority,
             ];
         }
 
@@ -179,6 +211,30 @@ final class FeedDiscoverer
         usort($candidates, static fn (array $a, array $b): int => $a['priority'] <=> $b['priority']);
 
         return $candidates[0]['url'];
+    }
+
+    private function alternatePriority(string $type, string $kind): ?int
+    {
+        if ($kind === self::ALTERNATE_ACTIVITYPUB) {
+            if (str_contains($type, 'activity+json')) {
+                return 0;
+            }
+
+            if (str_contains($type, 'ld+json') && str_contains($type, 'activitystreams')) {
+                return 1;
+            }
+
+            return null;
+        }
+
+        $isAtom = str_contains($type, 'atom');
+        $isRss = str_contains($type, 'rss') || $type === 'application/xml' || $type === 'text/xml';
+
+        if (! $isAtom && ! $isRss) {
+            return null;
+        }
+
+        return $isAtom ? 0 : 1;
     }
 
     private function absolutize(string $href, string $baseUrl): ?string

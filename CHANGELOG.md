@@ -11,7 +11,13 @@ User-Agent in uscita.
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-e-stato-del-progetto).
 
-## [0.9.2] — Iscrizione alle community pubbliche
+## [0.9.2] — Community pubbliche e ricerca URL
+
+### Changed
+- Ricerca di un **URL**: si prova prima il Fediverso (documento Actor,
+  WebFinger da path tipo `/@utente`, link HTML `application/activity+json`)
+  e solo dopo un eventuale feed RSS/Atom. I profili Mastodon non vengono
+  piu' importati come feed solo perche' espongono anche un RSS.
 
 ### Fixed
 - Iscrizione a una **community pubblica** locale: un utente Openbook non
