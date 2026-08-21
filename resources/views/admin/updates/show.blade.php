@@ -7,7 +7,7 @@
     <p class="ob-field__help">{{ __('openbook.admin.updates.intro') }}</p>
 
     <div class="ob-card" style="margin-top:1rem">
-        <p><strong>{{ __('openbook.admin.updates.current') }}:</strong> {{ $currentVersion }}</p>
+        <p><strong>{{ __('openbook.admin.updates.current') }}:</strong> {{ config('openbook.release_label') }}</p>
         <p class="ob-field__help">{{ __('openbook.admin.updates.manifest_source') }}: <code>{{ $manifestUrl }}</code></p>
 
         @unless ($zipAvailable)

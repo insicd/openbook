@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "version": "0.8.11",
+  "version": "26.34",
   "min_php": "8.2.0",
-  "released_at": "2026-08-04T00:00:00Z",
-  "download_url": "https://about.openb.app/releases/openbook-0.8.11.zip",
+  "released_at": "2026-08-21T00:00:00Z",
+  "download_url": "https://about.openb.app/releases/openbook-26.34.zip",
   "sha256": "REPLACE_WITH_SHA256_OF_ZIP",
-  "changelog_url": "https://about.openb.app/releases/openbook-0.8.11-changelog.md",
+  "changelog_url": "https://about.openb.app/releases/openbook-26.34-changelog.md",
   "requires_migration": true,
-  "notes": "Release per shared hosting: include vendor/ e asset compilati."
+  "notes": "Shared-hosting release: includes vendor/ and compiled assets. Lovable Pancake."
 }

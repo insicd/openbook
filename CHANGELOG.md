@@ -1,17 +1,22 @@
 # Changelog
 
 Tutte le modifiche rilevanti a Openbook sono documentate in questo file.
-Il formato e' ispirato a [Keep a Changelog](https://keepachangelog.com/),
-le versioni seguono [Semantic Versioning](https://semver.org/).
+Il formato e' ispirato a [Keep a Changelog](https://keepachangelog.com/).
 
-La versione corrente del software e' `config('openbook.version')`
-(vedi `config/openbook.php`); e' la stessa esposta in footer, NodeInfo e
-User-Agent in uscita.
+Da **26.34** in poi le versioni usano il calendario `YY.settimana` e un nome
+in codice (aggettivo emozionale + cibo, in inglese). Esempio: `26.34` e'
+la prima stable (**Lovable Pancake**); le patch candidate successive della
+stessa settimana sono `26.34.rc1`, `26.34.rc2`, … Le sezioni `0.x` restano
+lo storico pre-stable.
+
+La versione tecnica del software e' `config('openbook.version')`
+(vedi `config/openbook.php`); e' la stessa esposta in NodeInfo e User-Agent.
+Il footer mostra anche il nome in codice (`config('openbook.release_label')`).
 
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
-il [`README`](README.md#roadmap-e-stato-del-progetto).
+il [`README`](README.md#roadmap-and-project-status).
 
-## [0.9.2] — Community pubbliche e ricerca URL
+## [26.34] — Lovable Pancake
 
 ### Added
 - Documento Actor ActivityPub: proprieta' Mastodon **`discoverable`** e

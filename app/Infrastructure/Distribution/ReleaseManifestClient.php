@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\Distribution;
 
+use App\Support\OpenbookVersion;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -72,7 +73,7 @@ final class ReleaseManifestClient
         $sha = strtolower((string) $data['sha256']);
         $downloadUrl = (string) $data['download_url'];
 
-        if (! preg_match('/^\d+\.\d+\.\d+/', $version)) {
+        if (! OpenbookVersion::isValid($version)) {
             throw new RuntimeException('Versione release non valida.');
         }
 
@@ -101,11 +102,6 @@ final class ReleaseManifestClient
     {
         $current = $currentVersion ?? (string) config('openbook.version');
 
-        return version_compare($this->normalize($remoteVersion), $this->normalize($current), '>');
-    }
-
-    private function normalize(string $version): string
-    {
-        return preg_replace('/[^0-9.].*$/', '', $version) ?: '0.0.0';
+        return OpenbookVersion::isNewer($remoteVersion, $current);
     }
 }

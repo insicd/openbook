@@ -6,7 +6,8 @@
 // sia nel documento NodeInfo sia nello User-Agent delle richieste in uscita:
 // due software del Fediverso che si scambiano segnali di versione diversi
 // per la stessa istanza sono un sintomo classico di misconfigurazione.
-$version = '0.9.2';
+$version = '26.34';
+$codename = 'Lovable Pancake';
 
 return [
 
@@ -16,10 +17,15 @@ return [
     |--------------------------------------------------------------------------
     |
     | Riportata nel documento NodeInfo pubblico, nel footer e nello
-    | User-Agent delle richieste in uscita. Aggiornata manualmente a ogni
-    | fase della roadmap.
+    | User-Agent delle richieste in uscita. Da 26.34 in poi: YY.settimana
+    | (stable) oppure YY.settimana.rcN (patch candidate). Il nome in
+    | codice ($codename) e' solo etichetta umana, non entra in NodeInfo.
     */
     'version' => $version,
+
+    'codename' => $codename,
+
+    'release_label' => $codename !== '' ? $version.' - '.$codename : $version,
 
     /*
     |--------------------------------------------------------------------------

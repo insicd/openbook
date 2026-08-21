@@ -32,7 +32,7 @@
     </main>
 
     <footer class="ob-footer">
-        <p><a href="{{ config('openbook.homepage') }}">Openbook</a> v{{ config('openbook.version') }} &middot; software libero sotto licenza AGPL-3.0-or-later</p>
+        <p><a href="{{ config('openbook.homepage') }}">Openbook</a> v{{ config('openbook.release_label') }} &middot; software libero sotto licenza AGPL-3.0-or-later</p>
     </footer>
 </body>
 </html>

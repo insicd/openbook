@@ -5,7 +5,7 @@
 #
 # Uso:
 #   ./bin/build-release.sh
-#   ./bin/build-release.sh 0.8.11
+#   ./bin/build-release.sh 26.34
 #
 set -euo pipefail
 
@@ -25,7 +25,7 @@ if [[ -z "$VERSION" ]]; then
   ')"
 fi
 
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+(\.rc[0-9]+)?$ ]] && [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
   echo "Versione non valida: $VERSION" >&2
   exit 1
 fi

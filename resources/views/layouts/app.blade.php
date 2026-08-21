@@ -121,7 +121,7 @@
             {{ config('app.name') }} &middot;
             <a href="{{ route('instance.rules') }}">{{ __('openbook.footer.rules') }}</a> &middot;
             <a href="{{ route('instance.privacy') }}">{{ __('openbook.footer.privacy') }}</a> &middot;
-            <a href="{{ config('openbook.homepage') }}" target="_blank">Openbook</a> v{{ config('openbook.version') }} &middot;
+            <a href="{{ config('openbook.homepage') }}" target="_blank">Openbook</a> v{{ config('openbook.release_label') }} &middot;
             {{ __('openbook.footer.license') }}
         </p>
     </footer>
