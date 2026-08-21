@@ -46,6 +46,22 @@ class RemoteActorResolverTest extends TestCase
         $this->assertSame('remoto.example', $actor->domain);
         $this->assertSame(self::ACTOR_URI.'/inbox', $actor->endpoints->inbox);
         $this->assertSame('https://remoto.example/inbox', $actor->endpoints->shared_inbox);
+        $this->assertTrue($actor->discoverable);
+        $this->assertFalse($actor->indexable);
+    }
+
+    public function test_it_stores_mastodon_discoverable_and_indexable_flags(): void
+    {
+        Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument([
+            'discoverable' => false,
+            'indexable' => true,
+        ]), 200, ['Content-Type' => 'application/activity+json'])]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByUri(self::ACTOR_URI);
+
+        $this->assertNotNull($actor);
+        $this->assertFalse($actor->discoverable);
+        $this->assertTrue($actor->indexable);
     }
 
     public function test_it_reuses_the_cache_within_the_ttl_without_a_second_http_call(): void

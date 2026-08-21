@@ -71,6 +71,19 @@ class ContextualSidebarSuggestionsTest extends TestCase
         $this->assertTrue($suggestions->doesntContain(fn ($actor) => $actor->user_id === $hidden->id));
     }
 
+    public function test_undiscoverable_remotes_are_excluded_from_contextual_suggestions(): void
+    {
+        $viewer = $this->createFullAccount('remotepreview');
+        $hidden = $this->createRemoteActor('hiddenremote', 'fed.example', [
+            'summary' => '<p>Parlo sempre di privacy</p>',
+            'discoverable' => false,
+        ]);
+
+        $suggestions = app(SuggestedActorsByBioQuery::class)->forViewer($viewer->actor, 'privacy');
+
+        $this->assertTrue($suggestions->doesntContain(fn ($actor) => $actor->id === $hidden->id));
+    }
+
     public function test_feed_route_does_not_activate_bio_context(): void
     {
         $this->assertNull(SidebarSuggestionContext::bioSearchTerm());

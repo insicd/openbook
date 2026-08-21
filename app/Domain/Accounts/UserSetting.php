@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $manually_approves_followers
  * @property string $default_post_visibility
  * @property bool $discoverable
+ * @property bool $indexable
  * @property string $direct_message_policy
  */
 class UserSetting extends Model
@@ -46,6 +47,7 @@ class UserSetting extends Model
         'manually_approves_followers',
         'default_post_visibility',
         'discoverable',
+        'indexable',
         'direct_message_policy',
     ];
 
@@ -57,6 +59,7 @@ class UserSetting extends Model
         return [
             'manually_approves_followers' => 'boolean',
             'discoverable' => 'boolean',
+            'indexable' => 'boolean',
         ];
     }
 

@@ -13,6 +13,16 @@ il [`README`](README.md#roadmap-e-stato-del-progetto).
 
 ## [0.9.2] — Community pubbliche e ricerca URL
 
+### Added
+- Documento Actor ActivityPub: proprieta' Mastodon **`discoverable`** e
+  **`indexable`** (FEP-5feb, namespace `http://joinmastodon.org/ns#`).
+  Nelle Impostazioni, accanto alla presenza nei suggerimenti, c'e' il
+  consenso all'indicizzazione dei post pubblici. Un `Update` federato
+  parte quando cambiano questi flag. In ricerca locale i post/commenti
+  pubblici altrui compaiono solo se l'autore ha dato il consenso
+  (`indexable`); l'autore trova comunque i propri. In ingresso i flag
+  remoti vengono messi in cache (`actors.discoverable` / `actors.indexable`).
+
 ### Changed
 - Ricerca di un **URL**: si prova prima il Fediverso (documento Actor,
   WebFinger da path tipo `/@utente`, link HTML `application/activity+json`)

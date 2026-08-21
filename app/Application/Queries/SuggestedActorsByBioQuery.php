@@ -98,6 +98,7 @@ final class SuggestedActorsByBioQuery
             ->where('actors.is_local', false)
             ->where('actors.type', Actor::TYPE_PERSON)
             ->where('actors.status', Actor::STATUS_ACTIVE)
+            ->where('actors.discoverable', true)
             ->whereNotIn('actors.id', $excludedIds)
             ->where(function (Builder $query) use ($pattern, $normalizedPattern): void {
                 $this->whereContains($query, 'actors.summary', $pattern);

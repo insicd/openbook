@@ -13,7 +13,7 @@ use Illuminate\Http\RedirectResponse;
  * Pagina "Impostazioni" dell'account autenticato: personalizzazione del
  * profilo pubblico (nome, biografia, link, avatar, copertina) e preferenze
  * personali (lingua dell'interfaccia, visibilita' predefinita dei nuovi
- * post, approvazione manuale dei follower, presenza nei suggerimenti).
+ * post, approvazione manuale dei follower, discoverable/indexable).
  */
 class SettingsController extends Controller
 {

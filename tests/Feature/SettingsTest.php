@@ -194,6 +194,28 @@ class SettingsTest extends TestCase
             && $job->activity['object']['manuallyApprovesFollowers'] === true);
     }
 
+    public function test_changing_discoverable_or_indexable_notifies_remote_followers_with_an_update_activity(): void
+    {
+        Queue::fake();
+        $alice = $this->createFullAccount('alice');
+        $remoteFollower = $this->createRemoteActor('marco');
+        app(FollowManager::class)->follow($remoteFollower, $alice->actor);
+
+        $this->actingAs($alice)->put(route('settings.account.update'), [
+            'locale' => 'it',
+            'default_post_visibility' => 'public',
+            'discoverable' => '1',
+            'indexable' => '1',
+        ]);
+
+        $this->assertTrue($alice->settings->fresh()->indexable);
+        $this->assertTrue($alice->actor->fresh()->indexable);
+
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Update'
+            && $job->activity['object']['discoverable'] === true
+            && $job->activity['object']['indexable'] === true);
+    }
+
     public function test_changing_only_local_preferences_does_not_notify_remote_followers(): void
     {
         Queue::fake();
@@ -204,6 +226,7 @@ class SettingsTest extends TestCase
         $this->actingAs($alice)->put(route('settings.account.update'), [
             'locale' => 'en',
             'default_post_visibility' => 'followers',
+            'discoverable' => '1',
         ]);
 
         Queue::assertNotPushed(DeliverActivityJob::class);
@@ -224,5 +247,14 @@ class SettingsTest extends TestCase
 
         $response = $this->actingAs($alice)->get(route('feed.index'));
         $response->assertDontSee($bob->actor->fresh()->displayName());
+    }
+
+    public function test_settings_page_exposes_indexable_consent(): void
+    {
+        $user = $this->createFullAccount('alice');
+
+        $this->actingAs($user)->get('/impostazioni')
+            ->assertOk()
+            ->assertSee(__('openbook.settings.indexable_label'));
     }
 }

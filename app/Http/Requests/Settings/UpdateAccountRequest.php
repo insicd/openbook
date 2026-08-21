@@ -28,6 +28,7 @@ class UpdateAccountRequest extends FormRequest
             ])],
             'manually_approves_followers' => ['nullable', 'boolean'],
             'discoverable' => ['nullable', 'boolean'],
+            'indexable' => ['nullable', 'boolean'],
             'direct_message_policy' => ['nullable', 'in:'.implode(',', [
                 UserSetting::DM_POLICY_EVERYONE,
                 UserSetting::DM_POLICY_FOLLOWERS,

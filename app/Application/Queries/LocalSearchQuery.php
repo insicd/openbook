@@ -29,7 +29,9 @@ use Illuminate\Support\Collection;
  * vengono poi ripresentate come `SQLSTATE 2002 Operation not permitted`.
  *
  * La ricerca federata per indirizzo `utente@dominio` resta fuori da questa
- * classe: la gestisce direttamente {@see SearchController}.
+ * classe: la gestisce direttamente {@see SearchController}. I post e i
+ * commenti pubblici di un autore locale comparono solo se l'Actor ha
+ * `indexable` (FEP-5feb); l'autore trova comunque i propri contenuti.
  */
 final class LocalSearchQuery
 {
@@ -175,6 +177,16 @@ final class LocalSearchQuery
                 });
             })
             ->visibleTo($viewer)
+            ->where(function ($query) use ($viewer) {
+                $query->where(function ($query) {
+                    $query->where('actors.indexable', true)
+                        ->where('posts.visibility', Post::VISIBILITY_PUBLIC);
+                });
+
+                if ($viewer !== null) {
+                    $query->orWhere('posts.actor_id', $viewer->id);
+                }
+            })
             ->orderByDesc('posts.published_at')
             ->orderByDesc('posts.id')
             ->limit($limit)
@@ -201,6 +213,16 @@ final class LocalSearchQuery
             ->where('posts.status', Post::STATUS_PUBLISHED)
             ->where(function ($query) use ($pattern) {
                 $this->whereContains($query, 'comments.body', $pattern);
+            })
+            ->where(function ($query) use ($viewer) {
+                $query->where(function ($query) {
+                    $query->where('actors.indexable', true)
+                        ->where('posts.visibility', Post::VISIBILITY_PUBLIC);
+                });
+
+                if ($viewer !== null) {
+                    $query->orWhere('comments.actor_id', $viewer->id);
+                }
             })
             ->where(function ($query) use ($viewer) {
                 // Stesse regole di Post::visibleTo, ma con colonne

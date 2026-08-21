@@ -47,6 +47,10 @@ class ActorContentNegotiationTest extends TestCase
 
         $response->assertJsonPath('publicKey.owner', url('/users/apuser'));
         $response->assertJsonPath('publicKey.id', url('/users/apuser').'#main-key');
+        $response->assertJsonPath('discoverable', true);
+        $response->assertJsonPath('indexable', false);
+        $this->assertSame('toot:discoverable', $response->json('@context.2.discoverable'));
+        $this->assertSame('toot:indexable', $response->json('@context.2.indexable'));
         $this->assertStringContainsString('BEGIN PUBLIC KEY', $response->json('publicKey.publicKeyPem'));
         $this->assertSame(url('/users/apuser'), $user->actor->fresh()->uri);
     }

@@ -545,6 +545,8 @@ final class RemoteActorResolver
                 'icon_url' => $this->extractImageUrl($document['icon'] ?? null),
                 'image_url' => $this->extractImageUrl($document['image'] ?? null),
                 'manually_approves_followers' => (bool) ($document['manuallyApprovesFollowers'] ?? false),
+                'discoverable' => self::documentBoolean($document, 'discoverable', true),
+                'indexable' => self::documentBoolean($document, 'indexable', false),
                 'status' => Actor::STATUS_ACTIVE,
                 'last_fetched_at' => now(),
             ];
@@ -609,6 +611,65 @@ final class RemoteActorResolver
         }
 
         return mb_substr($username, 0, 255);
+    }
+
+    /**
+     * Flag booleani Mastodon / FEP-5feb: forma compatta (`indexable`) o IRI
+     * espanso. Assenza di `indexable` = false (FEP-5feb); assenza di
+     * `discoverable` = true (opt-out, come la directory Mastodon).
+     *
+     * @param  array<string, mixed>  $document
+     */
+    private function documentBoolean(array $document, string $name, bool $default): bool
+    {
+        $iri = 'http://joinmastodon.org/ns#'.$name;
+
+        if (array_key_exists($name, $document)) {
+            return $this->coerceBoolean($document[$name], $default);
+        }
+
+        if (array_key_exists($iri, $document)) {
+            return $this->coerceBoolean($document[$iri], $default);
+        }
+
+        return $default;
+    }
+
+    private function coerceBoolean(mixed $value, bool $default): bool
+    {
+        if (is_array($value)) {
+            if (array_key_exists('@value', $value)) {
+                return $this->coerceBoolean($value['@value'], $default);
+            }
+
+            if ($value !== [] && array_is_list($value)) {
+                return $this->coerceBoolean($value[0], $default);
+            }
+
+            return $default;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (int) $value === 1;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+
+            if (in_array($normalized, ['true', '1', 'yes'], true)) {
+                return true;
+            }
+
+            if (in_array($normalized, ['false', '0', 'no'], true)) {
+                return false;
+            }
+        }
+
+        return $default;
     }
 
     private function extractImageUrl(mixed $image): ?string

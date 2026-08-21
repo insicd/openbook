@@ -36,6 +36,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $icon_url
  * @property string|null $image_url
  * @property bool $manually_approves_followers
+ * @property bool $discoverable
+ * @property bool $indexable
  * @property string $status
  * @property Carbon|null $last_fetched_at
  * @property Carbon|null $posts_fetched_at
@@ -71,6 +73,8 @@ class Actor extends Model
         'icon_url',
         'image_url',
         'manually_approves_followers',
+        'discoverable',
+        'indexable',
         'status',
         'last_fetched_at',
         'posts_fetched_at',
@@ -84,6 +88,8 @@ class Actor extends Model
         return [
             'is_local' => 'boolean',
             'manually_approves_followers' => 'boolean',
+            'discoverable' => 'boolean',
+            'indexable' => 'boolean',
             'last_fetched_at' => 'datetime',
             'posts_fetched_at' => 'datetime',
         ];

@@ -16,12 +16,14 @@ use App\Federation\Actors\LocalActorUrls;
  */
 final class ActorSerializer
 {
+    public const MASTODON_NS = 'http://joinmastodon.org/ns#';
+
     /**
      * @return array<string, mixed>
      */
     public static function serialize(Actor $actor): array
     {
-        $actor->loadMissing(['key', 'endpoints', 'user.profile']);
+        $actor->loadMissing(['key', 'endpoints', 'user.profile', 'user.settings']);
 
         $profile = $actor->user?->profile;
 
@@ -39,6 +41,12 @@ final class ActorSerializer
             '@context' => [
                 'https://www.w3.org/ns/activitystreams',
                 'https://w3id.org/security/v1',
+                [
+                    'toot' => self::MASTODON_NS,
+                    'discoverable' => 'toot:discoverable',
+                    'indexable' => 'toot:indexable',
+                    'manuallyApprovesFollowers' => 'as:manuallyApprovesFollowers',
+                ],
             ],
             'id' => $id,
             'type' => $actor->type === Actor::TYPE_GROUP ? 'Group' : 'Person',
@@ -47,6 +55,8 @@ final class ActorSerializer
             'summary' => self::renderSummary($profile?->bio ?? $actor->summary),
             'url' => $pageUrl,
             'manuallyApprovesFollowers' => $actor->manually_approves_followers,
+            'discoverable' => self::discoverableFlag($actor),
+            'indexable' => self::indexableFlag($actor),
             'published' => optional($actor->created_at)->toAtomString() ?? now()->toAtomString(),
         ];
 
@@ -92,6 +102,28 @@ final class ActorSerializer
         }
 
         return $document;
+    }
+
+    /**
+     * Per i Person locali la fonte e' user_settings (il form Impostazioni);
+     * sugli Actor remoti e sui Group si usa la colonna in cache.
+     */
+    private static function discoverableFlag(Actor $actor): bool
+    {
+        if ($actor->isLocal() && $actor->isPerson() && $actor->user?->settings !== null) {
+            return (bool) $actor->user->settings->discoverable;
+        }
+
+        return (bool) $actor->discoverable;
+    }
+
+    private static function indexableFlag(Actor $actor): bool
+    {
+        if ($actor->isLocal() && $actor->isPerson() && $actor->user?->settings !== null) {
+            return (bool) $actor->user->settings->indexable;
+        }
+
+        return (bool) $actor->indexable;
     }
 
     private static function renderSummary(?string $bio): string

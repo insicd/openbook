@@ -1240,6 +1240,8 @@ class InboxActivityProcessorTest extends TestCase
                 'summary' => '<p>Nuova biografia.</p>',
                 'icon' => ['type' => 'Image', 'url' => 'https://remoto.example/avatars/nadia.png'],
                 'manuallyApprovesFollowers' => true,
+                'discoverable' => false,
+                'indexable' => true,
                 'inbox' => $remote->uri.'/inbox',
                 'outbox' => $remote->uri.'/outbox',
                 'followers' => $remote->uri.'/followers',
@@ -1260,6 +1262,8 @@ class InboxActivityProcessorTest extends TestCase
         $this->assertSame('<p>Nuova biografia.</p>', $remote->summary);
         $this->assertSame('https://remoto.example/avatars/nadia.png', $remote->icon_url);
         $this->assertTrue($remote->manually_approves_followers);
+        $this->assertFalse($remote->discoverable);
+        $this->assertTrue($remote->indexable);
     }
 
     public function test_an_update_person_impersonating_another_actor_is_ignored(): void

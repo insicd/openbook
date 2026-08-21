@@ -562,7 +562,8 @@ finalmente bidirezionale.
   reindirizza al profilo. Se invece la query ha una forma diversa (parola
   chiave, frase, username senza dominio), esegue una ricerca *solo locale*
   (`LocalSearchQuery`) su persone (username, nome visualizzato, bio; rispetta
-  `discoverable`), post e commenti di Actor locali (visibilita' rispettata), e
+  `discoverable`), post e commenti di Actor locali (visibilita' e `indexable`
+  FEP-5feb rispettati), e
   hashtag. Nessun Elasticsearch: LIKE case-insensitive con jolly escapati,
   limiti configurabili (`OPENBOOK_SEARCH_MIN_LENGTH`,
   `OPENBOOK_SEARCH_PER_SECTION`). Un Actor remoto risolto ha una pagina profilo
@@ -679,9 +680,16 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   `FollowManager`) `actors.manually_approves_followers`, cosi' che le due restino
   sempre coerenti fra loro.
 - **Presenza nei suggerimenti**: disattivando "Includi il mio account nei suggerimenti
-  e nelle ricerche" (`user_settings.discoverable`), l'account smette di comparire nel
-  riquadro "Persone da seguire" della sidebar (resta comunque raggiungibile in modo
-  diretto, ad esempio tramite ricerca federata dell'indirizzo esatto).
+  e nelle ricerche" (`user_settings.discoverable` e `actors.discoverable`), l'account
+  smette di comparire nel riquadro "Persone da seguire" della sidebar e il documento
+  Actor federato dichiara `discoverable: false` (directory Mastodon e simili). Resta
+  raggiungibile in modo diretto, ad esempio tramite ricerca federata dell'indirizzo
+  esatto.
+- **Indicizzazione ricerca (FEP-5feb)**: la casella "Consenti l'indicizzazione dei
+  miei post pubblici" (`user_settings.indexable` / `actors.indexable`, disattivata
+  di default) e' il consenso `indexable` del profilo ActivityPub. I post e i commenti
+  pubblici altrui comparono nella ricerca locale solo se l'autore ha attivato
+  l'opzione; l'autore trova comunque i propri contenuti.
 - **Riquadro "Questa istanza"**: non mostra piu' il numero di iscritti (un dato che
   espone inutilmente le dimensioni reali dell'istanza), ma i tag piu' usati di
   recente dalla community locale (`App\Application\Queries\PopularHashtagsQuery`):
@@ -885,8 +893,9 @@ API blog Wafrn, Accept Lemmy, Mondo/scopri, rullino profilo). In particolare:
   middleware, propagazione della visibilita' predefinita al composer, sincronizzazione
   di "account protetto" fra `user_settings` e l'Actor, esclusione dai suggerimenti
   quando l'account non e' piu' "discoverable", invio di un `Update` federato ai
-  follower remoti quando cambia il profilo pubblico o l'opzione "Account protetto" (e
-  la sua assenza quando cambiano solo preferenze puramente locali); il servizio di
+  follower remoti quando cambia il profilo pubblico, l'opzione "Account protetto"
+  o i flag `discoverable`/`indexable` (e la sua assenza quando cambiano solo
+  preferenze puramente locali); il servizio di
   caricamento immagini di
   profilo (`ProfileImageUploaderTest`): percorsi separati per avatar/copertina,
   rimozione del file precedente, validazione di tipo e dimensione, ridimensionamento

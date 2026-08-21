@@ -129,6 +129,15 @@
             </div>
 
             <div class="ob-field">
+                <label class="ob-checkbox">
+                    <input type="checkbox" name="indexable" value="1"
+                        @checked(old('indexable', $viewer->settings?->indexable))>
+                    {{ __('openbook.settings.indexable_label') }}
+                </label>
+                <p class="ob-field__help">{{ __('openbook.settings.indexable_help') }}</p>
+            </div>
+
+            <div class="ob-field">
                 <label for="settings-dm-policy">{{ __('openbook.settings.direct_message_policy_label') }}</label>
                 @php $dmPolicy = old('direct_message_policy', $viewer->settings?->direct_message_policy ?: 'everyone'); @endphp
                 <select id="settings-dm-policy" name="direct_message_policy">

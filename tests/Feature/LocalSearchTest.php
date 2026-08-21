@@ -44,6 +44,8 @@ class LocalSearchTest extends TestCase
     {
         $viewer = $this->createFullAccount('cercacontenuti');
         $author = $this->createFullAccount('autorelocale');
+        $author->settings->forceFill(['indexable' => true])->save();
+        $author->actor->update(['indexable' => true]);
 
         app(PostComposer::class)->compose($author->actor, [
             'body' => 'Oggi parliamo di astronomia amatoriale.',
@@ -126,6 +128,38 @@ class LocalSearchTest extends TestCase
         $response->assertDontSee('@nascosto@', false);
     }
 
+    public function test_non_indexable_public_posts_are_hidden_from_other_users_in_search(): void
+    {
+        $viewer = $this->createFullAccount('cercaindex');
+        $author = $this->createFullAccount('autorechiuso');
+
+        app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Un trattato di entomologia urbana.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('search.create', ['q' => 'entomologia']));
+
+        $response->assertOk();
+        $response->assertDontSee('Un trattato di entomologia urbana.', false);
+        $response->assertSeeText('Nessun risultato locale per "entomologia".');
+    }
+
+    public function test_an_author_can_still_search_their_own_non_indexable_posts(): void
+    {
+        $author = $this->createFullAccount('autoreproprio');
+
+        app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Appunti privati di entomologia.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        $response = $this->actingAs($author)->get(route('search.create', ['q' => 'entomologia']));
+
+        $response->assertOk();
+        $response->assertSee('Appunti privati di entomologia.', false);
+    }
+
     public function test_followers_only_posts_are_hidden_from_non_followers_in_search(): void
     {
         $viewer = $this->createFullAccount('cercaprivato');
@@ -159,6 +193,8 @@ class LocalSearchTest extends TestCase
     {
         $viewer = $this->createFullAccount('cercajolly');
         $author = $this->createFullAccount('autorejolly');
+        $author->settings->forceFill(['indexable' => true])->save();
+        $author->actor->update(['indexable' => true]);
 
         app(PostComposer::class)->compose($author->actor, [
             'body' => 'Sconto del 100% solo oggi.',
