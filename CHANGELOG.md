@@ -36,6 +36,9 @@ il [`README`](README.md#roadmap-and-project-status).
   piu' appiattiti in un unico paragrafo. Si usa lo stesso HTML dei post
   (`<br>` per i singoli a-capo, `<p>` distinti per i paragrafi), cosi'
   Mastodon e gli altri client remoti mostrano la formattazione.
+- Iscrizione a una community locale: la notifica al proprietario non dice
+  piu' che l'utente «ha iniziato a seguirti». Distingue iscrizione
+  (`:name si e' iscritto a :community`) e richiesta su community privata.
 
 ## [26.34] — Lovable Pancake
 

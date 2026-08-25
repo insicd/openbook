@@ -2,12 +2,12 @@
 
 namespace Tests\Feature\Communities;
 
+use App\Application\Services\AnnounceManager;
+use App\Application\Services\CommentComposer;
 use App\Application\Services\CommunityMembershipService;
 use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\FollowManager;
 use App\Application\Services\PostComposer;
-use App\Application\Services\AnnounceManager;
-use App\Application\Services\CommentComposer;
 use App\Domain\Communities\Community;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Mention;
@@ -68,6 +68,110 @@ class CommunityTest extends TestCase
 
         $this->assertTrue($community->fresh()->isMember($member->actor));
         $this->assertSame(2, $community->fresh()->members_count);
+    }
+
+    public function test_joining_a_community_notifies_the_owner_about_the_community_not_themselves(): void
+    {
+        $owner = $this->createFullAccount('joinnotifowner');
+        $member = $this->createFullAccount('joinnotifmember');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'piazza-notifiche',
+            'name' => 'Piazza notifiche',
+        ]);
+
+        app(CommunityMembershipService::class)->join($member->actor, $community);
+
+        $notification = Notification::query()
+            ->where('recipient_id', $owner->id)
+            ->where('type', Notification::TYPE_NEW_FOLLOWER)
+            ->with(['actor', 'notifiable'])
+            ->firstOrFail();
+
+        $this->assertSame(
+            __('openbook.notifications.messages.community_join', [
+                'name' => $member->actor->displayName(),
+                'community' => 'Piazza notifiche',
+            ]),
+            $notification->message()
+        );
+        $this->assertNotSame(
+            __('openbook.notifications.messages.new_follower', [
+                'name' => $member->actor->displayName(),
+            ]),
+            $notification->message()
+        );
+
+        $html = $notification->messageHtml();
+        $this->assertStringContainsString('ob-notification__community-name', $html);
+        $this->assertStringContainsString(e($community->actor->profileUrl()), $html);
+
+        $this->actingAs($owner)
+            ->get(route('notifications.index'))
+            ->assertOk()
+            ->assertSee('Piazza notifiche', false)
+            ->assertSee('class="ob-notification__community-name"', false)
+            ->assertDontSee(__('openbook.notifications.messages.new_follower', [
+                'name' => $member->actor->displayName(),
+            ]), false);
+    }
+
+    public function test_a_remote_user_joining_a_local_community_notifies_the_owner_about_the_community(): void
+    {
+        $owner = $this->createFullAccount('remotejoinown');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'forum-aperto',
+            'name' => 'Forum aperto',
+        ]);
+        $remote = $this->createRemoteActor('ospiteesterno', 'fuori.example');
+
+        app(FollowManager::class)->follow($remote, $community->actor);
+
+        $notification = Notification::query()
+            ->where('recipient_id', $owner->id)
+            ->where('type', Notification::TYPE_NEW_FOLLOWER)
+            ->with(['actor', 'notifiable'])
+            ->firstOrFail();
+
+        $this->assertSame(
+            __('openbook.notifications.messages.community_join', [
+                'name' => $remote->displayName(),
+                'community' => 'Forum aperto',
+            ]),
+            $notification->message()
+        );
+    }
+
+    public function test_a_private_community_join_request_notifies_the_owner_about_the_community(): void
+    {
+        $owner = $this->createFullAccount('privjoinown');
+        $applicant = $this->createFullAccount('privjoinapp');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'cerchia-notifiche',
+            'name' => 'Cerchia notifiche',
+            'is_private' => true,
+        ]);
+
+        app(CommunityMembershipService::class)->join($applicant->actor, $community);
+
+        $notification = Notification::query()
+            ->where('recipient_id', $owner->id)
+            ->where('type', Notification::TYPE_FOLLOW_REQUEST)
+            ->with(['actor', 'notifiable'])
+            ->firstOrFail();
+
+        $this->assertSame(
+            __('openbook.notifications.messages.community_join_request', [
+                'name' => $applicant->actor->displayName(),
+                'community' => 'Cerchia notifiche',
+            ]),
+            $notification->message()
+        );
+        $this->assertNotSame(
+            __('openbook.notifications.messages.follow_request', [
+                'name' => $applicant->actor->displayName(),
+            ]),
+            $notification->message()
+        );
     }
 
     public function test_members_can_post_to_a_community_and_it_is_announced_by_the_group(): void

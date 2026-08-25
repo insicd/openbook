@@ -27,6 +27,18 @@ class FollowTest extends TestCase
             'recipient_id' => $target->id,
             'type' => Notification::TYPE_NEW_FOLLOWER,
         ]);
+
+        $notification = Notification::query()
+            ->where('recipient_id', $target->id)
+            ->with(['actor', 'notifiable'])
+            ->firstOrFail();
+
+        $this->assertSame(
+            __('openbook.notifications.messages.new_follower', [
+                'name' => $follower->actor->displayName(),
+            ]),
+            $notification->message()
+        );
     }
 
     public function test_following_a_protected_account_requires_approval(): void

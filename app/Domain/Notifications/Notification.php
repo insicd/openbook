@@ -94,12 +94,12 @@ class Notification extends Model
     }
 
     /**
-     * Testo localizzato della notifica, con i placeholder tipici (:name e,
-     * per i post in community, :community).
+     * Testo localizzato della notifica. I follow verso un Group locale usano
+     * chiavi dedicate (iscrizione / richiesta di iscrizione), non "ti segue".
      */
     public function message(): string
     {
-        return __('openbook.notifications.messages.'.$this->type, $this->messageReplacements());
+        return __('openbook.notifications.messages.'.$this->messageKey(), $this->messageReplacements());
     }
 
     /**
@@ -111,7 +111,7 @@ class Notification extends Model
             'name' => $this->actor?->displayName() ?: __('openbook.notifications.someone'),
         ];
 
-        if ($this->type === self::TYPE_COMMUNITY_POST) {
+        if ($this->messageNeedsCommunity()) {
             $replacements['community'] = $this->communityDisplayName();
         }
 
@@ -120,7 +120,8 @@ class Notification extends Model
 
     /**
      * Come {@see message()}, con il nome di chi ha causato la notifica come
-     * link al suo profilo Openbook (Person locale o Actor remoto in cache).
+     * link al suo profilo Openbook (Person locale o Actor remoto in cache)
+     * e, se c'e', il nome della community come link alla sua pagina.
      */
     public function messageHtml(): string
     {
@@ -134,11 +135,11 @@ class Notification extends Model
             $params['community'] = $communityToken;
         }
 
-        $html = e(__('openbook.notifications.messages.'.$this->type, $params));
+        $html = e(__('openbook.notifications.messages.'.$this->messageKey(), $params));
         $html = str_replace(e($nameToken), $this->actorNameHtml($replacements['name']), $html);
 
         if (isset($replacements['community'])) {
-            $html = str_replace(e($communityToken), e($replacements['community']), $html);
+            $html = str_replace(e($communityToken), $this->communityNameHtml($replacements['community']), $html);
         }
 
         return $html;
@@ -161,21 +162,86 @@ class Notification extends Model
         return '<a href="'.e($url).'" class="ob-notification__actor-name">'.$escaped.'</a>';
     }
 
+    private function communityNameHtml(string $name): string
+    {
+        $escaped = e($name);
+        $url = $this->communityActor()?->profileUrl();
+
+        if ($url === null) {
+            return $escaped;
+        }
+
+        return '<a href="'.e($url).'" class="ob-notification__community-name">'.$escaped.'</a>';
+    }
+
+    private function messageKey(): string
+    {
+        if ($this->followedGroupActor() !== null) {
+            return match ($this->type) {
+                self::TYPE_NEW_FOLLOWER => 'community_join',
+                self::TYPE_FOLLOW_REQUEST => 'community_join_request',
+                default => $this->type,
+            };
+        }
+
+        return $this->type;
+    }
+
+    private function messageNeedsCommunity(): bool
+    {
+        return in_array($this->messageKey(), [
+            self::TYPE_COMMUNITY_POST,
+            'community_join',
+            'community_join_request',
+        ], true);
+    }
+
     private function communityDisplayName(): string
     {
-        $target = $this->notifiable;
+        $actor = $this->communityActor();
+        $name = $actor?->displayName() ?: $actor?->preferred_username;
 
-        if ($target instanceof Post) {
-            $target->loadMissing('community.actor');
-            $name = $target->community?->actor?->displayName()
-                ?: $target->community?->slug;
-
-            if (filled($name)) {
-                return (string) $name;
-            }
+        if (filled($name)) {
+            return (string) $name;
         }
 
         return __('openbook.notifications.a_community');
+    }
+
+    private function communityActor(): ?Actor
+    {
+        return $this->followedGroupActor() ?? $this->postCommunityActor();
+    }
+
+    private function followedGroupActor(): ?Actor
+    {
+        $target = $this->notifiable;
+
+        if (! $target instanceof Follow) {
+            return null;
+        }
+
+        $target->loadMissing('following');
+        $following = $target->following;
+
+        if ($following === null || ! $following->isGroup()) {
+            return null;
+        }
+
+        return $following;
+    }
+
+    private function postCommunityActor(): ?Actor
+    {
+        $target = $this->notifiable;
+
+        if (! $target instanceof Post) {
+            return null;
+        }
+
+        $target->loadMissing('community.actor');
+
+        return $target->community?->actor;
     }
 
     /**

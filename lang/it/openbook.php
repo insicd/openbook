@@ -311,6 +311,8 @@ return [
             'share' => ':name ha condiviso il tuo post.',
             'quote' => ':name ha citato il tuo post.',
             'community_post' => ':name ha pubblicato un post in :community.',
+            'community_join' => ':name si e\' iscritto a :community.',
+            'community_join_request' => ':name ha richiesto di iscriversi a :community.',
             'direct_message' => ':name ti ha inviato un messaggio privato.',
         ],
     ],

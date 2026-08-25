@@ -311,6 +311,8 @@ return [
             'share' => ':name shared your post.',
             'quote' => ':name quoted your post.',
             'community_post' => ':name published a post in :community.',
+            'community_join' => ':name joined :community.',
+            'community_join_request' => ':name requested to join :community.',
             'direct_message' => ':name sent you a private message.',
         ],
     ],

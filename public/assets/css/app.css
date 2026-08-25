@@ -2382,6 +2382,7 @@ a.ob-post__menu-item {
 
 .ob-notification__actor,
 .ob-notification__actor-name,
+.ob-notification__community-name,
 .ob-notification__view {
   position: relative;
   z-index: 1;
@@ -2394,14 +2395,16 @@ a.ob-post__menu-item {
   color: inherit;
 }
 
-.ob-notification__actor-name {
+.ob-notification__actor-name,
+.ob-notification__community-name {
   font-weight: 600;
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.ob-notification__actor-name:hover {
+.ob-notification__actor-name:hover,
+.ob-notification__community-name:hover {
   color: var(--ob-color-accent);
 }
 
