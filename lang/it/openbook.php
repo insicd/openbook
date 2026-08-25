@@ -185,6 +185,7 @@ return [
         'announced' => 'Condiviso (:count)',
         'announce_direct' => 'Condivisione diretta',
         'announce_quote' => 'Condivisione con citazione',
+        'announce_share_user' => 'Condividi a utente',
         'unannounce' => 'Annulla condivisione',
         'shared_this' => 'ha condiviso questo post',
         'reply' => 'Rispondi',
@@ -317,6 +318,10 @@ return [
     'messages' => [
         'title' => 'Messaggi',
         'new_title' => 'Nuova conversazione',
+        'share_title' => 'Condividi a utente',
+        'share_intro' => 'Invia questo post in un messaggio privato.',
+        'quote_placeholder' => 'Aggiungi un commento, oppure invia solo il post…',
+        'shared_post_preview' => 'Post condiviso',
         'recipient_label' => 'Destinatario',
         'recipient_placeholder' => 'Cerca per nome o @utente…',
         'recipient_suggest_label' => 'Suggerimenti destinatario',

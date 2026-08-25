@@ -86,6 +86,41 @@
         return ids;
     }
 
+    function quotedInput() {
+        return form ? form.querySelector('[name="quoted_post_id"]') : null;
+    }
+
+    function hasQuotedPost() {
+        var input = quotedInput();
+
+        return !!(input && input.value);
+    }
+
+    function clearQuotedPost() {
+        if (!form) {
+            return;
+        }
+
+        form.querySelectorAll('[data-message-quote], [data-message-quote-embed], [data-message-quoted-id]').forEach(function (el) {
+            el.remove();
+        });
+
+        if (textarea) {
+            textarea.setAttribute('required', 'required');
+            textarea.setAttribute(
+                'placeholder',
+                textarea.getAttribute('data-default-placeholder') || textarea.getAttribute('placeholder') || ''
+            );
+        }
+
+        if (window.history && window.history.replaceState) {
+            var url = new URL(window.location.href);
+
+            url.searchParams.delete('quote');
+            window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+        }
+    }
+
     function renderBubble(item) {
         var mineClass = item.mine ? 'ob-message-bubble--mine' : 'ob-message-bubble--theirs';
 
@@ -105,9 +140,10 @@
             escapeHtml(item.published_label) +
             '</time>' +
             '</div>' +
-            '<div class="ob-message-bubble__body">' +
-            item.body_html +
-            '</div>' +
+            (item.body_html
+                ? '<div class="ob-message-bubble__body">' + item.body_html + '</div>'
+                : '') +
+            (item.quote_html || '') +
             '</article>'
         );
     }
@@ -218,7 +254,7 @@
 
         var body = textarea.value.trim();
 
-        if (body === '' || sendInFlight) {
+        if ((body === '' && !hasQuotedPost()) || sendInFlight) {
             return;
         }
 
@@ -257,6 +293,7 @@
                 if (payload && payload.message) {
                     appendMessages([payload.message]);
                     textarea.value = '';
+                    clearQuotedPost();
                     textarea.focus();
                     etag = null;
                     poll();

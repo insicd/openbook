@@ -3,6 +3,7 @@
 @php
     $displayName = $other->displayName();
     $lastMessage = $messages->last();
+    $quotedPost = $quotedPost ?? null;
 @endphp
 
 @section('title', $displayName.' - '.__('openbook.messages.title').' - '.config('app.name'))
@@ -43,10 +44,28 @@
             <form method="POST" action="{{ route('messages.store', $conversation) }}" class="ob-message-composer"
                 id="ob-message-composer" data-ajax="1">
                 @csrf
+                @if ($quotedPost)
+                    <input type="hidden" name="quoted_post_id" value="{{ $quotedPost->id }}" data-message-quoted-id>
+                    <div class="ob-composer__quote-banner" data-message-quote>
+                        <x-icon name="quote" />
+                        <span>{{ __('openbook.composer.quoting', ['name' => $quotedPost->actor?->displayName() ?: $quotedPost->actor?->handle()]) }}</span>
+                        <a href="{{ route('messages.show', $conversation) }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
+                    </div>
+                    <div data-message-quote-embed>
+                        @include('messages._quote', ['quotedPost' => $quotedPost])
+                    </div>
+                @endif
                 <label class="ob-sr-only" for="message-body">{{ __('openbook.messages.compose_label') }}</label>
-                <textarea id="message-body" name="body" rows="3" maxlength="5000" required
-                    placeholder="{{ __('openbook.messages.compose_placeholder', ['name' => $displayName]) }}">{{ old('body') }}</textarea>
+                <textarea id="message-body" name="body" rows="3" maxlength="5000"
+                    @if (! $quotedPost) required @endif
+                    data-default-placeholder="{{ __('openbook.messages.compose_placeholder', ['name' => $displayName]) }}"
+                    placeholder="{{ $quotedPost
+                        ? __('openbook.messages.quote_placeholder')
+                        : __('openbook.messages.compose_placeholder', ['name' => $displayName]) }}">{{ old('body') }}</textarea>
                 <p class="ob-field__error" id="ob-message-error" hidden></p>
+                @error('quoted_post_id')
+                    <p class="ob-field__error">{{ $message }}</p>
+                @enderror
                 <div class="ob-message-composer__actions">
                     <button type="submit" class="ob-btn ob-btn--primary" id="ob-message-submit">{{ __('openbook.messages.send') }}</button>
                 </div>

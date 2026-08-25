@@ -16,6 +16,15 @@ Il footer mostra anche il nome in codice (`config('openbook.release_label')`).
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-and-project-status).
 
+## [26.36.rc1]
+
+### Added
+- Menu condividi del post: voce **Condividi a utente**
+  (`GET /posts/{post}/condividi-a-utente`). Apre i messaggi privati con il
+  post gia' citato: scegli il destinatario e invia (commento opzionale).
+  La citazione riusa `posts.quoted_post_id` come le quote pubbliche, senza
+  incrementare il contatore di condivisione ne' notificare l'autore originale.
+
 ## [26.34] — Lovable Pancake
 
 ### Added

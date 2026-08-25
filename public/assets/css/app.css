@@ -2963,6 +2963,34 @@ a.ob-post__menu-item {
   word-break: break-word;
 }
 
+.ob-message-quote {
+  margin-top: 0.55rem;
+}
+
+.ob-message-quote > .ob-post--embed,
+.ob-message-new .ob-message-quote > .ob-post--embed,
+.ob-message-composer .ob-message-quote > .ob-post--embed {
+  margin: 0;
+  box-shadow: none;
+  border: 1px solid var(--ob-color-border);
+  background: var(--ob-color-bg);
+  padding: 0.75rem 0.85rem;
+}
+
+.ob-message-new .ob-message-quote {
+  margin: 0 0 1rem;
+}
+
+.ob-message-new__intro {
+  margin: 0 0 0.75rem;
+  color: var(--ob-color-text-muted);
+  font-size: 0.9rem;
+}
+
+.ob-message-new--quoting .ob-message-new__form {
+  margin-top: 0.25rem;
+}
+
 .ob-message-composer {
   border-top: 1px solid var(--ob-color-border);
   padding-top: 1rem;

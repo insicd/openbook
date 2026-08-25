@@ -9,7 +9,12 @@
             {{ $message->published_at->format('d/m/Y H:i') }}
         </time>
     </div>
-    <div class="ob-message-bubble__body">
-        {!! \App\Domain\Posts\PostBodyRenderer::render($message->body) !!}
-    </div>
+    @if (filled($message->body))
+        <div class="ob-message-bubble__body">
+            {!! \App\Domain\Posts\PostBodyRenderer::render($message->body) !!}
+        </div>
+    @endif
+    @if ($message->quotedPost)
+        @include('messages._quote', ['quotedPost' => $message->quotedPost])
+    @endif
 </article>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Services\PostComposer;
+use App\Application\Services\QuotedPostResolver;
 use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use App\Federation\Delivery\ActivityDelivery;
@@ -26,6 +27,7 @@ class PostController extends Controller
         private readonly ActivityDelivery $delivery,
         private readonly RemoteRepliesFetcher $remoteRepliesFetcher,
         private readonly RemotePostRefresher $remotePostRefresher,
+        private readonly QuotedPostResolver $quotedPostResolver,
     ) {}
 
     public function store(StorePostRequest $request): RedirectResponse
@@ -74,6 +76,20 @@ class PostController extends Controller
         );
 
         return redirect()->route('feed.index', ['quote' => $post->id]);
+    }
+
+    /**
+     * Condividi il post in un messaggio privato: apre /messaggi con la
+     * citazione gia' predisposta. Stessi vincoli di visibilita' della quote
+     * pubblica; i messaggi diretti non si inoltrano.
+     */
+    public function shareToUser(Post $post): RedirectResponse
+    {
+        $viewer = auth()->user()->actor;
+
+        abort_unless($this->quotedPostResolver->resolveForShare($viewer, $post->id) !== null, 404);
+
+        return redirect()->route('messages.index', ['quote' => $post->id]);
     }
 
     /**

@@ -13,6 +13,17 @@ use Illuminate\Support\Collection;
  */
 final class ConversationListQuery
 {
+    /**
+     * @var list<string>
+     */
+    private const MESSAGE_RELATIONS = [
+        'actor.user.profile',
+        'quotedPost.actor.user.profile',
+        'quotedPost.community.actor',
+        'quotedPost.media.thumbnail',
+        'quotedPost.hashtags',
+    ];
+
     public function forActor(Actor $viewer, int $perPage = 30): LengthAwarePaginator
     {
         return Conversation::query()
@@ -39,7 +50,7 @@ final class ConversationListQuery
             ->where('conversation_id', $conversation->id)
             ->where('visibility', Post::VISIBILITY_DIRECT)
             ->where('status', Post::STATUS_PUBLISHED)
-            ->with(['actor.user.profile'])
+            ->with(self::MESSAGE_RELATIONS)
             ->orderBy('published_at')
             ->limit($limit)
             ->get();
@@ -67,7 +78,7 @@ final class ConversationListQuery
             ->where('conversation_id', $conversation->id)
             ->where('visibility', Post::VISIBILITY_DIRECT)
             ->where('status', Post::STATUS_PUBLISHED)
-            ->with(['actor.user.profile'])
+            ->with(self::MESSAGE_RELATIONS)
             ->orderBy('published_at')
             ->orderBy('id');
 

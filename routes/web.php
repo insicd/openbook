@@ -83,6 +83,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/posts/{post}/condividi', [AnnounceController::class, 'store'])->name('posts.announce');
     Route::delete('/posts/{post}/condividi', [AnnounceController::class, 'destroy'])->name('posts.unannounce');
     Route::get('/posts/{post}/cita', [PostController::class, 'quote'])->name('posts.quote');
+    Route::get('/posts/{post}/condividi-a-utente', [PostController::class, 'shareToUser'])
+        ->name('posts.share_to_user');
     Route::get('/posts/{post}/segnala', [ReportController::class, 'create'])->name('posts.report.create');
     Route::post('/posts/{post}/segnala', [ReportController::class, 'store'])
         ->middleware('throttle:10,1')

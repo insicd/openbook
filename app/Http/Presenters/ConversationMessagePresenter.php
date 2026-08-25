@@ -12,11 +12,23 @@ use App\Federation\Actors\Actor;
 final class ConversationMessagePresenter
 {
     /**
-     * @return array{id: string, mine: bool, author_name: string, published_at: string, published_label: string, body_html: string}
+     * @return array{id: string, mine: bool, author_name: string, published_at: string, published_label: string, body_html: string, quote_html: string}
      */
     public function toArray(Post $message, Actor $viewer): array
     {
-        $message->loadMissing('actor.user.profile');
+        $message->loadMissing([
+            'actor.user.profile',
+            'quotedPost.actor.user.profile',
+            'quotedPost.community.actor',
+            'quotedPost.media.thumbnail',
+            'quotedPost.hashtags',
+        ]);
+
+        $quoteHtml = '';
+
+        if ($message->quotedPost !== null) {
+            $quoteHtml = view('messages._quote', ['quotedPost' => $message->quotedPost])->render();
+        }
 
         return [
             'id' => $message->id,
@@ -25,6 +37,7 @@ final class ConversationMessagePresenter
             'published_at' => $message->published_at->toIso8601String(),
             'published_label' => $message->published_at->format('d/m/Y H:i'),
             'body_html' => (string) PostBodyRenderer::render($message->body),
+            'quote_html' => $quoteHtml,
         ];
     }
 

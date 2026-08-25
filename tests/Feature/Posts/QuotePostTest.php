@@ -31,7 +31,9 @@ class QuotePostTest extends TestCase
         $response->assertSee('class="ob-post__share-menu"', false);
         $response->assertSee(__('openbook.actions.announce_direct'), false);
         $response->assertSee(__('openbook.actions.announce_quote'), false);
+        $response->assertSee(__('openbook.actions.announce_share_user'), false);
         $response->assertSee(route('posts.quote', $post), false);
+        $response->assertSee(route('posts.share_to_user', $post), false);
     }
 
     public function test_quote_route_prepares_the_composer_with_the_original_post(): void

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Domain\Accounts\User;
 use App\Application\Queries\ConversationListQuery;
 use App\Application\Queries\MentionSuggestQuery;
 use App\Application\Services\ConversationReadTracker;
@@ -10,7 +9,10 @@ use App\Application\Services\ConversationResolver;
 use App\Application\Services\DirectMessagePolicy;
 use App\Application\Services\MessageComposer;
 use App\Application\Services\MessageRecipientResolver;
+use App\Application\Services\QuotedPostResolver;
+use App\Domain\Accounts\User;
 use App\Domain\Messaging\Conversation;
+use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Http\Presenters\ConversationMessagePresenter;
 use App\Http\Requests\Messages\StartMessageRequest;
@@ -32,6 +34,7 @@ class ConversationController extends Controller
         private readonly ConversationMessagePresenter $messagePresenter,
         private readonly MentionSuggestQuery $mentionSuggest,
         private readonly MessageRecipientResolver $recipientResolver,
+        private readonly QuotedPostResolver $quotedPostResolver,
     ) {}
 
     public function index(Request $request): View
@@ -52,6 +55,7 @@ class ConversationController extends Controller
             'previews' => $previews,
             'unreadFlags' => $unreadFlags,
             'viewer' => $viewer,
+            'quotedPost' => $this->quotedPostFromRequest($request),
         ]);
     }
 
@@ -75,6 +79,7 @@ class ConversationController extends Controller
             'messages' => $messages,
             'viewer' => $viewer,
             'canSend' => $canSend,
+            'quotedPost' => $this->quotedPostFromRequest($request),
         ]);
     }
 
@@ -116,9 +121,7 @@ class ConversationController extends Controller
                 'display_name' => $actor->displayName(),
                 'avatar_url' => $actor->avatarUrl(),
                 'is_local' => $actor->isLocal(),
-                'open_url' => $actor->isLocal()
-                    ? route('messages.open', $actor->preferred_username)
-                    : route('messages.open_actor', $actor),
+                'open_url' => $this->openUrlFor($actor, $this->quotedPostFromRequest($request)),
             ])->values(),
         ]);
     }
@@ -139,8 +142,38 @@ class ConversationController extends Controller
         }
 
         $conversation = $this->conversationResolver->findOrCreate($viewer, $recipient);
+        $quoted = $this->quotedPostFromRequest($request);
+        $parameters = ['conversation' => $conversation];
 
-        return redirect()->route('messages.show', $conversation);
+        if ($quoted !== null) {
+            $parameters['quote'] = $quoted->id;
+        }
+
+        return redirect()->route('messages.show', $parameters);
+    }
+
+    /**
+     * Parametro ?quote= (o campo hidden) per citare un post nel prossimo messaggio.
+     */
+    private function quotedPostFromRequest(Request $request): ?Post
+    {
+        $id = $request->query('quote') ?? $request->input('quote') ?? $request->input('quoted_post_id');
+
+        return $this->quotedPostResolver->resolveForShare(
+            $request->user()?->actor,
+            is_string($id) ? $id : null,
+        );
+    }
+
+    private function openUrlFor(Actor $actor, ?Post $quotedPost): string
+    {
+        $parameters = $quotedPost !== null ? ['quote' => $quotedPost->id] : [];
+
+        if ($actor->isLocal()) {
+            return route('messages.open', ['username' => $actor->preferred_username] + $parameters);
+        }
+
+        return route('messages.open_actor', ['actor' => $actor] + $parameters);
     }
 
     public function store(StoreMessageRequest $request, Conversation $conversation): RedirectResponse|JsonResponse
@@ -152,14 +185,27 @@ class ConversationController extends Controller
         $conversation->load(['participantLow', 'participantHigh']);
         $recipient = $conversation->otherParticipant($viewer);
 
+        $quotedId = $request->validated('quoted_post_id') ?? null;
+        $quoted = $this->quotedPostResolver->resolveForShare(
+            $viewer,
+            is_string($quotedId) ? $quotedId : null,
+        );
+
         $post = $this->messageComposer->send(
             $viewer,
             $recipient,
-            $request->validated('body'),
+            (string) ($request->validated('body') ?? ''),
             $conversation,
+            $quoted,
         );
 
-        $post->load(['actor.user.profile']);
+        $post->load([
+            'actor.user.profile',
+            'quotedPost.actor.user.profile',
+            'quotedPost.community.actor',
+            'quotedPost.media.thumbnail',
+            'quotedPost.hashtags',
+        ]);
 
         if ($request->expectsJson()) {
             return response()->json([

@@ -24,11 +24,20 @@ final class MessageComposer
         private readonly ActivityDelivery $delivery,
     ) {}
 
-    public function send(Actor $sender, Actor $recipient, string $body, ?Conversation $conversation = null): Post
-    {
+    public function send(
+        Actor $sender,
+        Actor $recipient,
+        string $body,
+        ?Conversation $conversation = null,
+        ?Post $quotedPost = null,
+    ): Post {
         $body = trim($body);
 
-        if ($body === '') {
+        if ($quotedPost !== null && $quotedPost->isDirectMessage()) {
+            $quotedPost = null;
+        }
+
+        if ($body === '' && $quotedPost === null) {
             throw ValidationException::withMessages([
                 'body' => [__('openbook.messages.errors.empty_body')],
             ]);
@@ -44,7 +53,7 @@ final class MessageComposer
 
         abort_unless($conversation->involves($sender) && $conversation->involves($recipient), 403);
 
-        $post = DB::transaction(function () use ($sender, $recipient, $body, $conversation) {
+        $post = DB::transaction(function () use ($sender, $recipient, $body, $conversation, $quotedPost) {
             $post = Post::query()->create([
                 'actor_id' => $sender->id,
                 'body' => $body,
@@ -52,6 +61,7 @@ final class MessageComposer
                 'status' => Post::STATUS_PUBLISHED,
                 'published_at' => now(),
                 'conversation_id' => $conversation->id,
+                'quoted_post_id' => $quotedPost?->id,
             ]);
 
             Mention::query()->firstOrCreate([
@@ -75,7 +85,7 @@ final class MessageComposer
         });
 
         if ($sender->isLocal()) {
-            $post->load(['mentions.actor']);
+            $post->load(['mentions.actor', 'quotedPost']);
             $this->delivery->deliverContent($post, ActivitySerializer::create($post));
         }
 

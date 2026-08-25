@@ -185,6 +185,7 @@ return [
         'announced' => 'Shared (:count)',
         'announce_direct' => 'Share directly',
         'announce_quote' => 'Share with quote',
+        'announce_share_user' => 'Share with user',
         'unannounce' => 'Undo share',
         'shared_this' => 'shared this post',
         'reply' => 'Reply',
@@ -317,6 +318,10 @@ return [
     'messages' => [
         'title' => 'Messages',
         'new_title' => 'New conversation',
+        'share_title' => 'Share with user',
+        'share_intro' => 'Send this post as a private message.',
+        'quote_placeholder' => 'Add a comment, or send just the post…',
+        'shared_post_preview' => 'Shared post',
         'recipient_label' => 'Recipient',
         'recipient_placeholder' => 'Search by name or @username…',
         'recipient_suggest_label' => 'Recipient suggestions',
