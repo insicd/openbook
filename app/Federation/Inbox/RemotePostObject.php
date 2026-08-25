@@ -67,13 +67,18 @@ final class RemotePostObject
     {
         $name = $document['name'] ?? null;
 
-        if (! is_string($name)) {
-            return null;
+        if (is_string($name)) {
+            $name = trim($name);
+
+            if ($name !== '') {
+                return mb_substr($name, 0, 255);
+            }
         }
 
-        $name = trim($name);
-
-        return $name === '' ? null : mb_substr($name, 0, 255);
+        // Fallback per Note Openbook precedenti a name: titolo solo nel
+        // content come <p><b>…</b></p> (il markdown **grassetto** usa
+        // <strong>, quindi non viene scambiato per un titolo).
+        return self::titleFromBoldContentPrefix($document);
     }
 
     /**
@@ -137,6 +142,12 @@ final class RemotePostObject
         $body = RemoteContentSanitizer::toPlainText(self::rawContent($document));
 
         if ($body !== '') {
+            $title = self::title($document);
+
+            if ($title !== null) {
+                $body = self::stripTitlePrefixFromBody($body, $title);
+            }
+
             return $body;
         }
 
@@ -445,9 +456,6 @@ final class RemotePostObject
         return null;
     }
 
-    /**
-     * @param  mixed  $type
-     */
     public static function hasType(mixed $type, string $expected): bool
     {
         if (self::typeName($type) === $expected) {
@@ -488,6 +496,46 @@ final class RemotePostObject
         }
 
         return $type;
+    }
+
+    /**
+     * Titolo federato da Openbook nel content HTML: primo paragrafo che e'
+     * interamente &lt;b&gt;…&lt;/b&gt; (non &lt;strong&gt;: quello e' markdown).
+     *
+     * @param  array<string, mixed>  $document
+     */
+    private static function titleFromBoldContentPrefix(array $document): ?string
+    {
+        $html = self::rawContent($document);
+
+        if ($html === '') {
+            return null;
+        }
+
+        if (preg_match('/^\s*<p>\s*<b>(.*?)<\/b>\s*<\/p>/is', $html, $match) !== 1) {
+            return null;
+        }
+
+        $title = trim(html_entity_decode(strip_tags($match[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+        return $title === '' ? null : mb_substr($title, 0, 255);
+    }
+
+    private static function stripTitlePrefixFromBody(string $body, string $title): string
+    {
+        $title = trim($title);
+
+        if ($title === '' || ! str_starts_with($body, $title)) {
+            return $body;
+        }
+
+        $rest = mb_substr($body, mb_strlen($title));
+
+        if ($rest !== '' && preg_match('/^\s/u', $rest) !== 1) {
+            return $body;
+        }
+
+        return ltrim($rest);
     }
 
     /**

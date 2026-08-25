@@ -41,6 +41,38 @@ class RemotePostObjectTest extends TestCase
         );
     }
 
+    public function test_title_comes_from_name_and_is_stripped_from_openbook_content(): void
+    {
+        $document = [
+            'name' => 'Il titolo',
+            'content' => '<p><b>Il titolo</b></p><p>Il corpo.</p>',
+        ];
+
+        $this->assertSame('Il titolo', RemotePostObject::title($document));
+        $this->assertSame('Il corpo.', RemotePostObject::body($document));
+    }
+
+    public function test_title_is_recovered_from_a_leading_b_paragraph_without_name(): void
+    {
+        $document = [
+            'content' => '<p><b>Vecchio titolo</b></p><p>Solo content.</p>',
+        ];
+
+        $this->assertSame('Vecchio titolo', RemotePostObject::title($document));
+        $this->assertSame('Solo content.', RemotePostObject::body($document));
+    }
+
+    public function test_a_leading_strong_paragraph_is_not_treated_as_a_title(): void
+    {
+        $document = [
+            'content' => '<p><strong>Non e\' un titolo</strong></p><p>Corpo.</p>',
+        ];
+
+        $this->assertNull(RemotePostObject::title($document));
+        $this->assertStringContainsString("Non e' un titolo", RemotePostObject::body($document));
+        $this->assertStringContainsString('Corpo.', RemotePostObject::body($document));
+    }
+
     public function test_author_matches_accepts_signer_among_attributed_actors(): void
     {
         $person = 'https://peertube.example/accounts/alice';

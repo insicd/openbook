@@ -46,6 +46,24 @@ class NoteContentNegotiationTest extends TestCase
         $this->assertTrue($tags->contains(fn ($tag) => $tag['type'] === 'Hashtag' && $tag['name'] === '#hashtag'));
     }
 
+    public function test_a_titled_post_exposes_name_and_a_bold_content_fallback(): void
+    {
+        $author = $this->createFullAccount('titolista');
+        $post = app(PostComposer::class)->compose($author->actor, [
+            'title' => 'Un titolo',
+            'body' => 'Il corpo del post.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        $response = $this->get(route('posts.show', $post), ['Accept' => 'application/activity+json']);
+
+        $response->assertOk();
+        $response->assertJsonPath('name', 'Un titolo');
+        $content = $response->json('content');
+        $this->assertStringContainsString('<p><b>Un titolo</b></p>', $content);
+        $this->assertStringContainsString('Il corpo del post.', $content);
+    }
+
     public function test_a_deleted_post_is_represented_as_a_tombstone(): void
     {
         $author = $this->createFullAccount('cancellatore');

@@ -91,6 +91,39 @@ class RemoteOutboxFetcherTest extends TestCase
         $this->assertNotNull($remote->fresh()->posts_fetched_at);
     }
 
+    public function test_openbook_style_titles_are_shown_as_titles_on_the_remote_profile(): void
+    {
+        $viewer = $this->createFullAccount('lettoretitoli');
+        $remote = $this->createRemoteActor('titolato');
+
+        $this->fakeOutbox($remote, [
+            $this->noteActivity($remote, [
+                'name' => 'Il titolo',
+                'content' => '<p><b>Il titolo</b></p><p>Il corpo del post.</p>',
+            ]),
+            $this->noteActivity($remote, [
+                'content' => '<p><b>Vecchio titolo</b></p><p>Corpo senza name.</p>',
+            ]),
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('actors.show', $remote));
+
+        $response->assertOk();
+        $response->assertSee('class="ob-post__title"', false);
+        $response->assertSee('Il titolo');
+        $response->assertSee('Vecchio titolo');
+        $response->assertSee('Il corpo del post.');
+        $response->assertSee('Corpo senza name.');
+
+        $withName = Post::query()->where('actor_id', $remote->id)->where('title', 'Il titolo')->first();
+        $this->assertNotNull($withName);
+        $this->assertSame('Il corpo del post.', $withName->body);
+
+        $legacy = Post::query()->where('actor_id', $remote->id)->where('title', 'Vecchio titolo')->first();
+        $this->assertNotNull($legacy);
+        $this->assertSame('Corpo senza name.', $legacy->body);
+    }
+
     public function test_it_skips_replies_non_public_notes_and_impersonation_attempts(): void
     {
         $viewer = $this->createFullAccount('esploratore2');

@@ -15,8 +15,8 @@ use Illuminate\Support\Collection as SupportCollection;
  * Traduce post e commenti locali nell'oggetto ActivityStreams "Note" previsto
  * dal design (sezioni 9 e 10): stesso identificatore canonico usato per la
  * pagina HTML, "inReplyTo" per i commenti, allegati "Image" per le immagini,
- * "tag" per hashtag e menzioni. Un post eliminato viene invece rappresentato
- * come "Tombstone" (sezione 33).
+ * "tag" per hashtag e menzioni, "name" per il titolo del post. Un post
+ * eliminato viene invece rappresentato come "Tombstone" (sezione 33).
  */
 final class NoteSerializer
 {
@@ -57,6 +57,12 @@ final class NoteSerializer
             'published' => $post->published_at->toAtomString(),
             'sensitive' => $post->hasContentWarning(),
         ];
+
+        if (filled($post->title)) {
+            // Campo AS2: le altre istanze Openbook (e Lemmy/WordPress/Wafrn)
+            // lo mappano su posts.title. Il <b> nel content resta per Mastodon.
+            $note['name'] = $post->title;
+        }
 
         if ($post->quotedPost !== null) {
             $note['quoteUrl'] = self::postUri($post->quotedPost);

@@ -31,6 +31,11 @@ il [`README`](README.md#roadmap-and-project-status).
   (`/@username` o `/attori/{id}`), non all'URI ActivityPub originale, cosi'
   il destinatario puo' seguire da questa istanza.
 
+### Changed
+- Titoli dei post (campo titolo, `.ob-post__title`): stessa dimensione del
+  testo del corpo, solo in grassetto. Prima ereditavano l'h2 del browser
+  e risultavano sproporzionati.
+
 ### Fixed
 - Bio nel documento Actor ActivityPub (`summary`): gli a-capo non vengono
   piu' appiattiti in un unico paragrafo. Si usa lo stesso HTML dei post
@@ -43,6 +48,11 @@ il [`README`](README.md#roadmap-and-project-status).
   `rel="tag"` e `class="mention hashtag"`, come Mastodon. Senza, Mastodon
   trattava il primo hashtag come URL normale e mostrava la preview della
   pagina tag di questa istanza (`/tag/…`).
+- Titolo dei post federati: la Note include `name` (oltre al fallback
+  `<p><b>…</b></p>` nel content per Mastodon). Un'altra istanza Openbook
+  che apre il profilo remoto mostra il titolo come titolo, senza
+  duplicarlo nel corpo. Le Note vecchie, con solo il `<b>` iniziale,
+  vengono riconosciute allo stesso modo.
 
 ## [26.34] — Lovable Pancake
 

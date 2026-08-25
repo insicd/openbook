@@ -1813,7 +1813,10 @@ a.ob-post__menu-item {
 }
 
 .ob-post__title {
-  margin-bottom: 0.4rem;
+  margin: 0 0 0.4rem;
+  font-size: inherit;
+  font-weight: 700;
+  line-height: inherit;
 }
 
 .ob-post__community {
