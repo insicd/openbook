@@ -34,6 +34,9 @@ use League\CommonMark\MarkdownConverter;
  * invece l'identificatore ActivityPub canonico dell'attore (URI remoto o
  * `/users/…` locale), cosi' Mastodon e altri client aprono il profilo
  * sull'istanza di destinazione e non sulla cache `/attori/…` di Openbook.
+ * Gli hashtag in federazione usano `rel="tag"` e `class="mention hashtag"`
+ * (convenzione Mastodon): senza, il primo hashtag diventa una preview
+ * della pagina tag di questa istanza.
  */
 final class PostBodyRenderer
 {
@@ -180,7 +183,7 @@ final class PostBodyRenderer
             }
 
             if (preg_match('/^#[\p{L}\p{N}_]{1,100}$/u', $label) === 1) {
-                self::replaceNode($anchor, self::createHashtagElement($root->ownerDocument, $label));
+                self::replaceNode($anchor, self::createHashtagElement($root->ownerDocument, $label, $forFederation));
 
                 continue;
             }
@@ -257,7 +260,7 @@ final class PostBodyRenderer
             $mention = $match['mention'][0] ?? '';
 
             if ($hashtag !== '') {
-                $parent->insertBefore(self::createHashtagElement($document, $hashtag), $textNode);
+                $parent->insertBefore(self::createHashtagElement($document, $hashtag, $forFederation), $textNode);
             } elseif ($mention !== '') {
                 $parent->insertBefore(self::createMentionElement($document, $mention, null, $forFederation), $textNode);
             }
@@ -288,7 +291,7 @@ final class PostBodyRenderer
         return preg_match('/^(https?:\/\/|mailto:)/i', $href) === 1;
     }
 
-    private static function createHashtagElement(DOMDocument $document, string $hashtag): DOMElement
+    private static function createHashtagElement(DOMDocument $document, string $hashtag, bool $forFederation = false): DOMElement
     {
         $name = substr($hashtag, 1);
         $tag = Hashtag::normalize($name);
@@ -302,8 +305,20 @@ final class PostBodyRenderer
 
         $anchor = $document->createElement('a');
         $anchor->setAttribute('href', route('hashtags.show', $tag));
-        $anchor->setAttribute('class', 'hashtag');
-        $anchor->appendChild($document->createTextNode('#'.$name));
+        // rel="tag": Mastodon (e altri) saltano la preview card sul primo
+        // URL del content. Senza, la pagina /tag/… di Openbook finisce
+        // come "link in piu'" sotto il post remoto.
+        $anchor->setAttribute('rel', 'tag');
+        $anchor->setAttribute('class', $forFederation ? 'mention hashtag' : 'hashtag');
+
+        if ($forFederation) {
+            $anchor->appendChild($document->createTextNode('#'));
+            $span = $document->createElement('span');
+            $span->appendChild($document->createTextNode($name));
+            $anchor->appendChild($span);
+        } else {
+            $anchor->appendChild($document->createTextNode('#'.$name));
+        }
 
         return $anchor;
     }

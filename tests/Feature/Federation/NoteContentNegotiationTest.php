@@ -39,6 +39,9 @@ class NoteContentNegotiationTest extends TestCase
             'to' => ['https://www.w3.org/ns/activitystreams#Public'],
         ]);
         $this->assertStringContainsString('hashtag', $response->json('content'));
+        $this->assertStringContainsString('rel="tag"', $response->json('content'));
+        $this->assertStringContainsString('class="mention hashtag"', $response->json('content'));
+        $this->assertStringNotContainsString('class="post-link"', $response->json('content'));
         $tags = collect($response->json('tag'));
         $this->assertTrue($tags->contains(fn ($tag) => $tag['type'] === 'Hashtag' && $tag['name'] === '#hashtag'));
     }

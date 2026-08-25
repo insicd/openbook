@@ -179,6 +179,7 @@ class PostBodyRendererTest extends TestCase
             $html
         );
         $this->assertStringContainsString('class="hashtag"', $html);
+        $this->assertStringContainsString('rel="tag"', $html);
         $this->assertStringContainsString('>#openbook</a>', $html);
         $this->assertStringNotContainsString('mastodon.example', $html);
         $this->assertStringNotContainsString('class="post-link"', $html);
@@ -239,6 +240,20 @@ class PostBodyRendererTest extends TestCase
         $this->assertStringContainsString('href="https://mastodon.example/@nova"', $html);
         $this->assertStringNotContainsString('search.create', $html);
         $this->assertStringNotContainsString('/cerca', $html);
+    }
+
+    public function test_federation_html_hashtags_use_rel_tag_so_remotes_do_not_preview_the_tag_page(): void
+    {
+        $html = (string) PostBodyRenderer::renderForFederation('Oggi #openbook e #fediverso.');
+
+        $tagUrl = e(route('hashtags.show', 'openbook'));
+
+        $this->assertStringContainsString('href="'.$tagUrl.'"', $html);
+        $this->assertStringContainsString('class="mention hashtag"', $html);
+        $this->assertStringContainsString('rel="tag"', $html);
+        $this->assertStringContainsString('>#<span>openbook</span></a>', $html);
+        $this->assertStringContainsString('>#<span>fediverso</span></a>', $html);
+        $this->assertStringNotContainsString('class="post-link"', $html);
     }
 
     public function test_unknown_remote_mentions_fall_back_to_search(): void

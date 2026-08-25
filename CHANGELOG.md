@@ -39,6 +39,10 @@ il [`README`](README.md#roadmap-and-project-status).
 - Iscrizione a una community locale: la notifica al proprietario non dice
   piu' che l'utente «ha iniziato a seguirti». Distingue iscrizione
   (`:name si e' iscritto a :community`) e richiesta su community privata.
+- HTML federato dei post (e della bio): i link agli hashtag hanno
+  `rel="tag"` e `class="mention hashtag"`, come Mastodon. Senza, Mastodon
+  trattava il primo hashtag come URL normale e mostrava la preview della
+  pagina tag di questa istanza (`/tag/…`).
 
 ## [26.34] — Lovable Pancake
 
