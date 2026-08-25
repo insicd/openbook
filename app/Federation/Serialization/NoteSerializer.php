@@ -47,6 +47,9 @@ final class NoteSerializer
             $content .= '<p><a href="'.e($profileUrl).'">'.e($profileUrl).'</a></p>';
         }
 
+        $groupActors = self::groupActorsForPost($post);
+        $content = self::appendGroupAttribution($content, $groupActors);
+
         $note = [
             '@context' => 'https://www.w3.org/ns/activitystreams',
             'id' => $uri,
@@ -79,8 +82,6 @@ final class NoteSerializer
         if (filled($post->language)) {
             $note['contentMap'] = [$post->language => $content];
         }
-
-        $groupActors = self::groupActorsForPost($post);
 
         if ($post->community?->is_private) {
             [$note['to'], $note['cc']] = self::privateCommunityAudience($post->community->actor);
@@ -260,6 +261,30 @@ final class NoteSerializer
             ->concat($fromMentions)
             ->unique('id')
             ->values();
+    }
+
+    /**
+     * Riga visibile per Mastodon & co., che non mostrano audience/tag Group:
+     * menzione HTML del Group (stesso href del tag Mention, class u-url per
+     * non generare la preview della community). Non viene scritta in
+     * posts.body: solo nel documento federato.
+     *
+     * @param  SupportCollection<int, Actor>  $groups
+     */
+    private static function appendGroupAttribution(string $html, SupportCollection $groups): string
+    {
+        foreach ($groups as $group) {
+            $href = $group->activityPubId();
+            $handle = '@'.$group->handle();
+
+            if ($href === '' || str_contains($html, $href) || str_contains($html, e($handle))) {
+                continue;
+            }
+
+            $html .= '<p>in <a href="'.e($href).'" class="u-url mention" rel="mention">'.e($handle).'</a></p>';
+        }
+
+        return $html;
     }
 
     /**

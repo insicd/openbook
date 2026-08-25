@@ -53,6 +53,11 @@ il [`README`](README.md#roadmap-and-project-status).
   che apre il profilo remoto mostra il titolo come titolo, senza
   duplicarlo nel corpo. Le Note vecchie, con solo il `<b>` iniziale,
   vengono riconosciute allo stesso modo.
+- Post in una community locale (e verso un Group remoto): l'HTML federato
+  aggiunge in coda una menzione visibile `in @community@dominio` (stesso
+  href del tag Mention, `class="u-url mention"`). Mastodon mostra cosi'
+  l'appartenenza nel testo; audience e tag da soli non bastano. In locale
+  il corpo del post resta pulito: la community resta il badge della card.
 
 ## [26.34] — Lovable Pancake
 

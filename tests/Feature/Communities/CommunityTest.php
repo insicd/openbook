@@ -209,6 +209,78 @@ class CommunityTest extends TestCase
             ->assertSee('Il mio libro del mese.');
     }
 
+    public function test_federated_community_posts_include_a_visible_group_mention(): void
+    {
+        $owner = $this->createFullAccount('fedcommowner');
+        $member = $this->createFullAccount('fedcommember');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'ciclisti',
+            'name' => 'Club ciclisti',
+        ]);
+        app(CommunityMembershipService::class)->join($member->actor, $community);
+
+        $post = app(PostComposer::class)->compose($member->actor, [
+            'body' => 'Pedalata di gruppo domenica.',
+            'visibility' => 'public',
+            'community_id' => $community->id,
+        ]);
+
+        $group = $community->actor;
+        $handle = '@'.$group->handle();
+        $groupId = $group->activityPubId();
+
+        $note = NoteSerializer::forPost($post->fresh([
+            'mentions.actor',
+            'community.actor',
+            'actor.endpoints',
+            'hashtags',
+            'media',
+            'quotedPost',
+        ]));
+
+        $this->assertStringContainsString('Pedalata di gruppo domenica.', $note['content']);
+        $this->assertStringContainsString('in <a href="'.e($groupId).'" class="u-url mention" rel="mention">'.e($handle).'</a>', $note['content']);
+        $this->assertTrue(collect($note['tag'] ?? [])->contains(
+            fn (array $tag): bool => ($tag['type'] ?? null) === 'Mention' && ($tag['href'] ?? null) === $groupId
+        ));
+
+        $this->actingAs($owner)
+            ->get(route('communities.show', $community))
+            ->assertOk()
+            ->assertSee('Pedalata di gruppo domenica.')
+            ->assertDontSee('in '.$handle, false);
+    }
+
+    public function test_federated_community_posts_do_not_repeat_a_group_already_in_the_body(): void
+    {
+        $owner = $this->createFullAccount('dupcommowner');
+        $member = $this->createFullAccount('dupcommember');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'cucina',
+            'name' => 'Club cucina',
+        ]);
+        app(CommunityMembershipService::class)->join($member->actor, $community);
+
+        $handle = '@'.$community->actor->handle();
+        $post = app(PostComposer::class)->compose($member->actor, [
+            'body' => 'Oggi si cucina '.$handle,
+            'visibility' => 'public',
+            'community_id' => $community->id,
+        ]);
+
+        $note = NoteSerializer::forPost($post->fresh([
+            'mentions.actor',
+            'community.actor',
+            'actor.endpoints',
+            'hashtags',
+            'media',
+            'quotedPost',
+        ]));
+
+        $this->assertSame(1, substr_count($note['content'], e($handle)));
+        $this->assertStringNotContainsString('in <a href="'.e($community->actor->activityPubId()).'"', $note['content']);
+    }
+
     public function test_community_members_are_notified_about_new_posts(): void
     {
         $owner = $this->createFullAccount('notifyowner');
@@ -427,6 +499,10 @@ class CommunityTest extends TestCase
         $this->assertTrue(collect($note['tag'] ?? [])->contains(
             fn (array $tag): bool => ($tag['type'] ?? null) === 'Mention' && ($tag['href'] ?? null) === $group->uri
         ));
+        $this->assertStringContainsString(
+            'in <a href="'.e($group->uri).'" class="u-url mention" rel="mention">@'.$group->handle().'</a>',
+            $note['content']
+        );
 
         Queue::assertPushed(
             DeliverActivityJob::class,
