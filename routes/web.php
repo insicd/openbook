@@ -96,11 +96,15 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/@{user:username}/segui', [FollowController::class, 'store'])->name('follow.store');
     Route::delete('/@{user:username}/segui', [FollowController::class, 'destroy'])->name('follow.destroy');
+    Route::get('/@{user:username}/condividi-a-utente', [ProfileController::class, 'shareToUser'])
+        ->name('profiles.share_to_user');
     Route::post('/richieste-di-follow/{follow}/accetta', [FollowController::class, 'accept'])->name('follow.accept');
     Route::post('/richieste-di-follow/{follow}/rifiuta', [FollowController::class, 'reject'])->name('follow.reject');
 
     Route::post('/attori/{actor}/segui', [FollowController::class, 'storeForActor'])->name('actors.follow');
     Route::delete('/attori/{actor}/segui', [FollowController::class, 'destroyForActor'])->name('actors.unfollow');
+    Route::get('/attori/{actor}/condividi-a-utente', [ActorProfileController::class, 'shareToUser'])
+        ->name('actors.share_to_user');
 
     Route::get('/cerca', [SearchController::class, 'create'])
         ->middleware('throttle:30,1')

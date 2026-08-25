@@ -24,6 +24,12 @@ il [`README`](README.md#roadmap-and-project-status).
   post gia' citato: scegli il destinatario e invia (commento opzionale).
   La citazione riusa `posts.quoted_post_id` come le quote pubbliche, senza
   incrementare il contatore di condivisione ne' notificare l'autore originale.
+- **Condividi a utente** anche sui profili (icona accanto al messaggio
+  privato): `GET /@{user}/condividi-a-utente` e
+  `GET /attori/{actor}/condividi-a-utente`. Il messaggio cita il profilo
+  (`posts.quoted_actor_id`) con link alla pagina Openbook locale
+  (`/@username` o `/attori/{id}`), non all'URI ActivityPub originale, cosi'
+  il destinatario puo' seguire da questa istanza.
 
 ## [26.34] — Lovable Pancake
 

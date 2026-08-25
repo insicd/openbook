@@ -22,6 +22,7 @@ final class ConversationListQuery
         'quotedPost.community.actor',
         'quotedPost.media.thumbnail',
         'quotedPost.hashtags',
+        'quotedActor.user.profile',
     ];
 
     public function forActor(Actor $viewer, int $perPage = 30): LengthAwarePaginator

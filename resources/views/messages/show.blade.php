@@ -4,6 +4,8 @@
     $displayName = $other->displayName();
     $lastMessage = $messages->last();
     $quotedPost = $quotedPost ?? null;
+    $quotedActor = $quotedActor ?? null;
+    $isSharing = $quotedPost !== null || $quotedActor !== null;
 @endphp
 
 @section('title', $displayName.' - '.__('openbook.messages.title').' - '.config('app.name'))
@@ -54,16 +56,31 @@
                     <div data-message-quote-embed>
                         @include('messages._quote', ['quotedPost' => $quotedPost])
                     </div>
+                @elseif ($quotedActor)
+                    <input type="hidden" name="quoted_actor_id" value="{{ $quotedActor->id }}" data-message-quoted-id>
+                    <div class="ob-composer__quote-banner" data-message-quote>
+                        <x-icon name="share" />
+                        <span>{{ __('openbook.messages.sharing_profile', ['name' => $quotedActor->displayName()]) }}</span>
+                        <a href="{{ route('messages.show', $conversation) }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
+                    </div>
+                    <div data-message-quote-embed>
+                        @include('messages._profile', ['quotedActor' => $quotedActor, 'showFollow' => false])
+                    </div>
                 @endif
                 <label class="ob-sr-only" for="message-body">{{ __('openbook.messages.compose_label') }}</label>
                 <textarea id="message-body" name="body" rows="3" maxlength="5000"
-                    @if (! $quotedPost) required @endif
+                    @if (! $isSharing) required @endif
                     data-default-placeholder="{{ __('openbook.messages.compose_placeholder', ['name' => $displayName]) }}"
-                    placeholder="{{ $quotedPost
-                        ? __('openbook.messages.quote_placeholder')
-                        : __('openbook.messages.compose_placeholder', ['name' => $displayName]) }}">{{ old('body') }}</textarea>
+                    placeholder="{{ $quotedActor
+                        ? __('openbook.messages.share_placeholder')
+                        : ($quotedPost
+                            ? __('openbook.messages.quote_placeholder')
+                            : __('openbook.messages.compose_placeholder', ['name' => $displayName])) }}">{{ old('body') }}</textarea>
                 <p class="ob-field__error" id="ob-message-error" hidden></p>
                 @error('quoted_post_id')
+                    <p class="ob-field__error">{{ $message }}</p>
+                @enderror
+                @error('quoted_actor_id')
                     <p class="ob-field__error">{{ $message }}</p>
                 @enderror
                 <div class="ob-message-composer__actions">

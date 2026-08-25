@@ -77,10 +77,17 @@
                                 title="{{ __('openbook.messages.message_aria') }}">
                                 <x-icon name="message" />
                             </a>
+                            @include('profile._share_to_user', ['actor' => $profileUser->actor])
                         @else
                             <a href="{{ route('login') }}" class="ob-btn ob-btn--primary ob-btn--small">{{ __('openbook.follow.follow') }}</a>
                         @endauth
                     </div>
+                @else
+                    @auth
+                        <div class="ob-profile-toolbar__actions">
+                            @include('profile._share_to_user', ['actor' => $profileUser->actor])
+                        </div>
+                    @endauth
                 @endunless
             </div>
 

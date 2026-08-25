@@ -1206,7 +1206,8 @@ html.ob-compose-modal-open {
   margin: 0;
 }
 
-.ob-profile-toolbar__message {
+.ob-profile-toolbar__message,
+.ob-profile-toolbar__share {
   flex-shrink: 0;
 }
 
@@ -2979,6 +2980,32 @@ a.ob-post__menu-item {
 
 .ob-message-new .ob-message-quote {
   margin: 0 0 1rem;
+}
+
+.ob-message-profile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: 0.75rem;
+  background: var(--ob-color-bg);
+}
+
+.ob-message-new .ob-message-profile,
+.ob-message-composer .ob-message-profile {
+  margin: 0 0 1rem;
+}
+
+.ob-message-profile .ob-mini-profile__link {
+  min-width: 0;
+}
+
+.ob-message-profile form {
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .ob-message-new__intro {

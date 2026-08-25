@@ -7,6 +7,7 @@ use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
 use App\Application\Services\FollowManager;
+use App\Application\Services\QuotedActorResolver;
 use App\Domain\Feeds\FeedImporter;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
@@ -36,6 +37,7 @@ class ActorProfileController extends Controller
         private readonly FollowListQuery $followListQuery,
         private readonly RemoteOutboxFetcher $outboxFetcher,
         private readonly FeedImporter $feedImporter,
+        private readonly QuotedActorResolver $quotedActorResolver,
     ) {}
 
     public function show(Actor $actor, Request $request): View|RedirectResponse
@@ -64,6 +66,26 @@ class ActorProfileController extends Controller
         }
 
         return $this->renderFollowList($this->followListQuery, $this->followManager, $actor, 'following');
+    }
+
+    /**
+     * Condividi un Actor remoto in un messaggio privato. Il destinatario
+     * riceve la pagina locale /attori/{id} (con pulsante Segui), non l'URI
+     * ActivityPub del server di origine.
+     */
+    public function shareToUser(Actor $actor): RedirectResponse
+    {
+        if ($actor->isLocal()) {
+            abort_unless($actor->user !== null, 404);
+
+            return redirect()->route('profiles.share_to_user', $actor->user);
+        }
+
+        $viewer = auth()->user()->actor;
+
+        abort_unless($this->quotedActorResolver->resolveForShare($viewer, $actor->id) !== null, 404);
+
+        return redirect()->route('messages.index', ['share' => $actor->id]);
     }
 
     private function renderRemoteProfile(Actor $actor, string $activeTab, Request $request): View|RedirectResponse

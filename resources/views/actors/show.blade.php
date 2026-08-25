@@ -93,6 +93,7 @@
                                 title="{{ __('openbook.messages.message_aria') }}">
                                 <x-icon name="message" />
                             </a>
+                            @include('profile._share_to_user', ['actor' => $profileActor])
                         @endif
                     @else
                         <a href="{{ route('login') }}" class="ob-btn ob-btn--primary ob-btn--small">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</a>

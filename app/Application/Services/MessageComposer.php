@@ -30,6 +30,7 @@ final class MessageComposer
         string $body,
         ?Conversation $conversation = null,
         ?Post $quotedPost = null,
+        ?Actor $quotedActor = null,
     ): Post {
         $body = trim($body);
 
@@ -37,7 +38,11 @@ final class MessageComposer
             $quotedPost = null;
         }
 
-        if ($body === '' && $quotedPost === null) {
+        if ($quotedActor !== null && (! $quotedActor->isPerson() || ! $quotedActor->isActive())) {
+            $quotedActor = null;
+        }
+
+        if ($body === '' && $quotedPost === null && $quotedActor === null) {
             throw ValidationException::withMessages([
                 'body' => [__('openbook.messages.errors.empty_body')],
             ]);
@@ -53,7 +58,7 @@ final class MessageComposer
 
         abort_unless($conversation->involves($sender) && $conversation->involves($recipient), 403);
 
-        $post = DB::transaction(function () use ($sender, $recipient, $body, $conversation, $quotedPost) {
+        $post = DB::transaction(function () use ($sender, $recipient, $body, $conversation, $quotedPost, $quotedActor) {
             $post = Post::query()->create([
                 'actor_id' => $sender->id,
                 'body' => $body,
@@ -62,6 +67,7 @@ final class MessageComposer
                 'published_at' => now(),
                 'conversation_id' => $conversation->id,
                 'quoted_post_id' => $quotedPost?->id,
+                'quoted_actor_id' => $quotedActor?->id,
             ]);
 
             Mention::query()->firstOrCreate([
@@ -85,7 +91,7 @@ final class MessageComposer
         });
 
         if ($sender->isLocal()) {
-            $post->load(['mentions.actor', 'quotedPost']);
+            $post->load(['mentions.actor', 'quotedPost', 'quotedActor']);
             $this->delivery->deliverContent($post, ActivitySerializer::create($post));
         }
 

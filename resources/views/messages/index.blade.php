@@ -2,14 +2,18 @@
 
 @php
     $quotedPost = $quotedPost ?? null;
-    $quoteQuery = $quotedPost !== null ? ['quote' => $quotedPost->id] : [];
+    $quotedActor = $quotedActor ?? null;
+    $isSharing = $quotedPost !== null || $quotedActor !== null;
+    $shareQuery = $quotedPost !== null
+        ? ['quote' => $quotedPost->id]
+        : ($quotedActor !== null ? ['share' => $quotedActor->id] : []);
 @endphp
 
 @section('title', __('openbook.messages.title').' - '.config('app.name'))
 
 @section('content')
-    <div class="ob-card ob-message-new{{ $quotedPost ? ' ob-message-new--quoting' : '' }}">
-        <h2 class="ob-message-new__title">{{ $quotedPost ? __('openbook.messages.share_title') : __('openbook.messages.new_title') }}</h2>
+    <div class="ob-card ob-message-new{{ $isSharing ? ' ob-message-new--quoting' : '' }}">
+        <h2 class="ob-message-new__title">{{ $isSharing ? __('openbook.messages.share_title') : __('openbook.messages.new_title') }}</h2>
         @if ($quotedPost)
             <p class="ob-message-new__intro">{{ __('openbook.messages.share_intro') }}</p>
             <div class="ob-composer__quote-banner">
@@ -18,11 +22,21 @@
                 <a href="{{ route('messages.index') }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
             </div>
             @include('messages._quote', ['quotedPost' => $quotedPost])
+        @elseif ($quotedActor)
+            <p class="ob-message-new__intro">{{ __('openbook.messages.share_profile_intro') }}</p>
+            <div class="ob-composer__quote-banner">
+                <x-icon name="share" />
+                <span>{{ __('openbook.messages.sharing_profile', ['name' => $quotedActor->displayName()]) }}</span>
+                <a href="{{ route('messages.index') }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
+            </div>
+            @include('messages._profile', ['quotedActor' => $quotedActor, 'showFollow' => false])
         @endif
         <form method="POST" action="{{ route('messages.start') }}" class="ob-message-new__form" id="ob-message-new-form">
             @csrf
             @if ($quotedPost)
                 <input type="hidden" name="quote" value="{{ $quotedPost->id }}">
+            @elseif ($quotedActor)
+                <input type="hidden" name="share" value="{{ $quotedActor->id }}">
             @endif
             <div class="ob-field ob-message-new__field">
                 <label for="ob-message-recipient">{{ __('openbook.messages.recipient_label') }}</label>
@@ -30,7 +44,7 @@
                     autocomplete="off"
                     value="{{ old('recipient') }}"
                     placeholder="{{ __('openbook.messages.recipient_placeholder') }}"
-                    data-suggest-url="{{ route('messages.suggest_recipients', $quoteQuery) }}"
+                    data-suggest-url="{{ route('messages.suggest_recipients', $shareQuery) }}"
                     data-suggest-label="{{ __('openbook.messages.recipient_suggest_label') }}"
                     data-suggest-empty="{{ __('openbook.messages.recipient_suggest_empty') }}">
                 @error('recipient')
@@ -50,7 +64,7 @@
                 $preview = $previews[$conversation->id] ?? null;
                 $isUnread = $unreadFlags[$conversation->id] ?? false;
             @endphp
-            <a href="{{ route('messages.show', ['conversation' => $conversation] + $quoteQuery) }}"
+            <a href="{{ route('messages.show', ['conversation' => $conversation] + $shareQuery) }}"
                 class="ob-message-row {{ $isUnread ? 'ob-message-row--unread' : '' }}">
                 <x-avatar :actor="$other" style="width:48px;height:48px" />
                 <div class="ob-message-row__body">
@@ -69,6 +83,8 @@
                                 {{ Str::limit(strip_tags((string) \App\Domain\Posts\PostBodyRenderer::render($preview->body)), 120) }}
                             @elseif ($preview->quoted_post_id)
                                 {{ __('openbook.messages.shared_post_preview') }}
+                            @elseif ($preview->quoted_actor_id)
+                                {{ __('openbook.messages.shared_profile_preview') }}
                             @endif
                         </div>
                     @endif

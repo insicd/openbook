@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $conversation_id
  * @property string|null $uri
  * @property string|null $quoted_post_id
+ * @property string|null $quoted_actor_id
  * @property string|null $title
  * @property string|null $content_warning
  * @property string $body
@@ -45,6 +46,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $shared_at vedi $shared_by_actor_id
  * @property-read Actor|null $sharedBy vedi {@see self::attachSharedBy()}
  * @property-read Post|null $quotedPost
+ * @property-read Actor|null $quotedActor
  */
 class Post extends Model
 {
@@ -87,6 +89,7 @@ class Post extends Model
         'conversation_id',
         'uri',
         'quoted_post_id',
+        'quoted_actor_id',
         'title',
         'content_warning',
         'body',
@@ -146,6 +149,15 @@ class Post extends Model
     public function isQuote(): bool
     {
         return $this->quoted_post_id !== null;
+    }
+
+    /**
+     * Profilo citato in un messaggio diretto: pagina locale Openbook
+     * ({@see Actor::profileUrl()}), non l'URI ActivityPub remoto.
+     */
+    public function quotedActor(): BelongsTo
+    {
+        return $this->belongsTo(Actor::class, 'quoted_actor_id');
     }
 
     public function attachments(): HasMany

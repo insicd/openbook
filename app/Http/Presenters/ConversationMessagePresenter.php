@@ -22,12 +22,18 @@ final class ConversationMessagePresenter
             'quotedPost.community.actor',
             'quotedPost.media.thumbnail',
             'quotedPost.hashtags',
+            'quotedActor.user.profile',
         ]);
 
         $quoteHtml = '';
 
         if ($message->quotedPost !== null) {
             $quoteHtml = view('messages._quote', ['quotedPost' => $message->quotedPost])->render();
+        } elseif ($message->quotedActor !== null) {
+            $quoteHtml = view('messages._profile', [
+                'quotedActor' => $message->quotedActor,
+                'showFollow' => true,
+            ])->render();
         }
 
         return [

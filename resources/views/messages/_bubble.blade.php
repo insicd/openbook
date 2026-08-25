@@ -16,5 +16,7 @@
     @endif
     @if ($message->quotedPost)
         @include('messages._quote', ['quotedPost' => $message->quotedPost])
+    @elseif ($message->quotedActor)
+        @include('messages._profile', ['quotedActor' => $message->quotedActor, 'showFollow' => true])
     @endif
 </article>

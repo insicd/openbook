@@ -7,6 +7,7 @@ use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
 use App\Application\Services\FollowManager;
+use App\Application\Services\QuotedActorResolver;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
@@ -31,6 +32,7 @@ class ProfileController extends Controller
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
         private readonly LocalActorResolver $localActors,
+        private readonly QuotedActorResolver $quotedActorResolver,
     ) {}
 
     /**
@@ -59,6 +61,23 @@ class ProfileController extends Controller
     public function following(User $user): View
     {
         return $this->renderFollowList($this->followListQuery, $this->followManager, $user->actor, 'following');
+    }
+
+    /**
+     * Condividi il profilo locale in un messaggio privato: apre /messaggi
+     * con la card gia' predisposta (link alla pagina /@{username}).
+     */
+    public function shareToUser(User $user): RedirectResponse
+    {
+        $viewer = auth()->user()->actor;
+        $actor = $user->actor;
+
+        abort_unless(
+            $actor !== null && $this->quotedActorResolver->resolveForShare($viewer, $actor->id) !== null,
+            404,
+        );
+
+        return redirect()->route('messages.index', ['share' => $actor->id]);
     }
 
     /**

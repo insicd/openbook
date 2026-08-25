@@ -87,7 +87,11 @@
     }
 
     function quotedInput() {
-        return form ? form.querySelector('[name="quoted_post_id"]') : null;
+        if (!form) {
+            return null;
+        }
+
+        return form.querySelector('[name="quoted_post_id"], [name="quoted_actor_id"]');
     }
 
     function hasQuotedPost() {
@@ -117,6 +121,7 @@
             var url = new URL(window.location.href);
 
             url.searchParams.delete('quote');
+            url.searchParams.delete('share');
             window.history.replaceState({}, '', url.pathname + url.search + url.hash);
         }
     }

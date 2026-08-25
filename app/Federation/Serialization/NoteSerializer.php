@@ -27,7 +27,7 @@ final class NoteSerializer
      */
     public static function forPost(Post $post): array
     {
-        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor', 'quotedPost', 'community.actor']);
+        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor', 'quotedPost', 'quotedActor', 'community.actor']);
 
         $actor = $post->actor;
         $uri = self::postUri($post);
@@ -38,6 +38,13 @@ final class NoteSerializer
             // Fallback testuale per client che non conoscono quoteUrl: il link
             // all'originale resta leggibile anche senza supporto nativo alle citazioni.
             $content .= '<p><a href="'.e($quotedUri).'">'.e($quotedUri).'</a></p>';
+        }
+
+        if ($post->quotedActor !== null) {
+            // Pagina profilo su questa istanza (non l'URI ActivityPub remoto),
+            // cosi' il destinatario puo' seguire da Openbook.
+            $profileUrl = $post->quotedActor->profileUrl();
+            $content .= '<p><a href="'.e($profileUrl).'">'.e($profileUrl).'</a></p>';
         }
 
         $note = [
