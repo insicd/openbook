@@ -31,6 +31,12 @@ il [`README`](README.md#roadmap-and-project-status).
   (`/@username` o `/attori/{id}`), non all'URI ActivityPub originale, cosi'
   il destinatario puo' seguire da questa istanza.
 
+### Fixed
+- Bio nel documento Actor ActivityPub (`summary`): gli a-capo non vengono
+  piu' appiattiti in un unico paragrafo. Si usa lo stesso HTML dei post
+  (`<br>` per i singoli a-capo, `<p>` distinti per i paragrafi), cosi'
+  Mastodon e gli altri client remoti mostrano la formattazione.
+
 ## [26.34] — Lovable Pancake
 
 ### Added

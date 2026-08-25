@@ -55,6 +55,22 @@ class ActorContentNegotiationTest extends TestCase
         $this->assertSame(url('/users/apuser'), $user->actor->fresh()->uri);
     }
 
+    public function test_the_person_summary_preserves_line_breaks_as_html(): void
+    {
+        $user = $this->createFullAccount('biobreaks');
+        $user->profile->forceFill([
+            'bio' => "Prima riga\nSeconda riga\n\nSecondo paragrafo",
+        ])->save();
+
+        $response = $this->get('/users/biobreaks', ['Accept' => 'application/activity+json']);
+
+        $response->assertOk();
+        $summary = (string) $response->json('summary');
+        $this->assertStringContainsString('<p>Prima riga<br>Seconda riga</p>', $summary);
+        $this->assertStringContainsString('<p>Secondo paragrafo</p>', $summary);
+        $this->assertStringNotContainsString("Prima riga\nSeconda riga", $summary);
+    }
+
     public function test_an_activity_json_request_to_at_path_redirects_to_users_path(): void
     {
         $this->createFullAccount('redirectap');

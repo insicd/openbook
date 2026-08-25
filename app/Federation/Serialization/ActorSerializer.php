@@ -2,6 +2,7 @@
 
 namespace App\Federation\Serialization;
 
+use App\Domain\Posts\PostBodyRenderer;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorUrls;
 
@@ -126,8 +127,18 @@ final class ActorSerializer
         return (bool) $actor->indexable;
     }
 
+    /**
+     * HTML del campo ActivityPub "summary" (bio). Stesso renderer dei post,
+     * con a-capo singoli come <br> e paragrafi vuoti come <p> distinti: i
+     * client remoti (Mastodon, ecc.) interpretano summary come HTML e
+     * ignorano i newline nel testo.
+     */
     private static function renderSummary(?string $bio): string
     {
-        return filled($bio) ? '<p>'.e($bio).'</p>' : '';
+        if (! filled($bio)) {
+            return '';
+        }
+
+        return (string) PostBodyRenderer::renderForFederation($bio);
     }
 }
