@@ -13,8 +13,10 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
  */
 final class ActorMediaQuery
 {
-    public function forActor(Actor $actor, ?Actor $viewer, int $perPage = 36): LengthAwarePaginator
+    public function forActor(Actor $actor, ?Actor $viewer, int $perPage = 0): LengthAwarePaginator
     {
+        $perPage = $perPage > 0 ? $perPage : max(1, (int) config('openbook.profile.photos_per_page', 36));
+
         return Media::query()
             ->with([
                 'thumbnail',

@@ -90,6 +90,12 @@ return [
         'no_photos_yet' => 'No photos to show yet.',
         'photo_alt' => 'Profile photo',
         'open_photo_post' => 'Open post',
+        'infinite_scroll' => [
+            'loading' => 'Loading more photos...',
+            'end' => 'There are no more photos to show.',
+            'error' => 'Could not load more photos. Try reloading the page.',
+            'next' => 'More photos',
+        ],
     ],
 
     'feed' => [

@@ -44,6 +44,10 @@ il [`README`](README.md#roadmap-and-project-status).
   in forma compatta (`19,6k` in italiano, `19.6k` in inglese).
 
 ### Changed
+- Tab Foto del profilo (`GET /@{username}/foto` e
+  `GET /attori/{actor}/foto`): scorrimento infinito come gli altri feed,
+  al posto della paginazione a numeri di pagina. Senza JavaScript resta
+  un link "Foto successive".
 - Titoli dei post (campo titolo, `.ob-post__title`): stessa dimensione del
   testo del corpo, solo in grassetto. Prima ereditavano l'h2 del browser
   e risultavano sproporzionati.

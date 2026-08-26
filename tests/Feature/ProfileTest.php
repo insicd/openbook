@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Application\Services\AccountRegistrar;
 use App\Application\Services\PostComposer;
 use App\Domain\Accounts\User;
+use App\Domain\Posts\Post;
 use App\Domain\Posts\PostAttachment;
 use App\Infrastructure\Media\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -115,5 +117,81 @@ class ProfileTest extends TestCase
         $this->get(route('profile.photos', 'senzfoto'))
             ->assertOk()
             ->assertSee(__('openbook.profile.no_photos_yet'));
+    }
+
+    public function test_the_photos_tab_exposes_infinite_scroll_markup_when_there_are_more_pages(): void
+    {
+        config(['openbook.profile.photos_per_page' => 2]);
+
+        $user = $this->createFullAccount('fotopages');
+        $this->attachPhoto($user, 'https://cdn.example/oldest.jpg', 'Piu vecchia', now()->subMinutes(3));
+        $this->attachPhoto($user, 'https://cdn.example/middle.jpg', 'Di mezzo', now()->subMinutes(2));
+        $this->attachPhoto($user, 'https://cdn.example/newest.jpg', 'Piu recente', now()->subMinutes(1));
+
+        $response = $this->get(route('profile.photos', 'fotopages'));
+
+        $response->assertOk();
+        $response->assertSee('id="ob-photo-grid"', false);
+        $response->assertSee('data-infinite-scroll', false);
+        $response->assertSee('data-lightbox-group', false);
+        $response->assertSee('data-next-url="'.url('/@fotopages/foto?page=2').'"', false);
+        $response->assertSee('<noscript>', false);
+        $response->assertSee('ob-pagination', false);
+        $response->assertSee(__('openbook.profile.infinite_scroll.next'));
+        $response->assertSee('https://cdn.example/newest.jpg', false);
+        $response->assertSee('https://cdn.example/middle.jpg', false);
+        $response->assertDontSee('https://cdn.example/oldest.jpg', false);
+        $response->assertDontSee('Pagination Navigation', false);
+
+        $pageTwo = $this->get(route('profile.photos', 'fotopages').'?page=2');
+        $pageTwo->assertOk();
+        $pageTwo->assertSee('id="ob-photo-grid"', false);
+        $pageTwo->assertSee('data-infinite-scroll', false);
+        $pageTwo->assertDontSee('data-next-url', false);
+        $pageTwo->assertSee('https://cdn.example/oldest.jpg', false);
+        $pageTwo->assertDontSee('https://cdn.example/newest.jpg', false);
+    }
+
+    public function test_the_photos_tab_has_no_next_page_url_when_every_photo_fits_on_one_page(): void
+    {
+        $user = $this->createFullAccount('fotouna');
+        $this->attachPhoto($user, 'https://cdn.example/unica.jpg', 'Unica');
+
+        $response = $this->get(route('profile.photos', 'fotouna'));
+
+        $response->assertOk();
+        $response->assertSee('data-infinite-scroll', false);
+        $response->assertDontSee('data-next-url', false);
+        $response->assertDontSee('<noscript>', false);
+    }
+
+    private function attachPhoto(User $user, string $url, string $alt, ?Carbon $publishedAt = null): Post
+    {
+        $post = app(PostComposer::class)->compose($user->actor, [
+            'body' => $alt,
+            'visibility' => 'public',
+        ]);
+
+        if ($publishedAt !== null) {
+            $post->forceFill(['published_at' => $publishedAt])->save();
+        }
+
+        $media = Media::query()->create([
+            'actor_id' => $user->actor->id,
+            'disk' => 'remote',
+            'path' => 'remote/'.md5($url),
+            'remote_url' => $url,
+            'mime_type' => 'image/jpeg',
+            'byte_size' => 0,
+            'alt_text' => $alt,
+        ]);
+
+        PostAttachment::query()->create([
+            'post_id' => $post->id,
+            'media_id' => $media->id,
+            'position' => 0,
+        ]);
+
+        return $post;
     }
 }

@@ -90,6 +90,12 @@ return [
         'no_photos_yet' => 'Non ci sono ancora foto da mostrare.',
         'photo_alt' => 'Foto del profilo',
         'open_photo_post' => 'Apri il post',
+        'infinite_scroll' => [
+            'loading' => 'Caricamento altre foto...',
+            'end' => 'Non ci sono altre foto da mostrare.',
+            'error' => 'Impossibile caricare altre foto. Riprova ricaricando la pagina.',
+            'next' => 'Foto successive',
+        ],
     ],
 
     'feed' => [
