@@ -25,6 +25,7 @@ final class SettingsController extends Controller
             'commentMaxLength' => $settings->commentMaxLength(),
             'mediaMaxSizeKb' => $settings->mediaMaxSizeKb(),
             'mediaMaxAttachments' => $settings->mediaMaxAttachments(),
+            'trendingDays' => $settings->trendingDays(),
             'faviconUrl' => $settings->faviconUrl(),
         ]);
     }
@@ -46,6 +47,7 @@ final class SettingsController extends Controller
             'comment_max_length' => ['required', 'integer', 'min:100', 'max:10000'],
             'media_max_size_kb' => ['required', 'integer', 'min:100', 'max:51200'],
             'media_max_attachments' => ['required', 'integer', 'min:1', 'max:20'],
+            'trending_days' => ['required', 'integer', 'min:1', 'max:365'],
             'favicon' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp,gif', 'max:'.$maxKb],
             'remove_favicon' => ['sometimes', 'boolean'],
         ], [], [
@@ -77,6 +79,7 @@ final class SettingsController extends Controller
             'comment_max_length' => (int) $data['comment_max_length'],
             'media_max_size_kb' => (int) $data['media_max_size_kb'],
             'media_max_attachments' => (int) $data['media_max_attachments'],
+            'trending_days' => (int) $data['trending_days'],
             'instance_icon_dir' => $iconDirectory,
         ], $request->user());
 

@@ -39,6 +39,9 @@ il [`README`](README.md#roadmap-and-project-status).
   personalizzato che sovrascrive il template sul sito pubblico (non sul
   pannello). Anteprima live in iframe su una pagina di esempio
   (`GET /admin/aspetto/anteprima`); il sito reale cambia solo al salvataggio.
+- Impostazioni istanza: **finestra in giorni** per gli hashtag in tendenza
+  (sidebar e `GET /tendenze`, default 7). I conteggi oltre 999 si mostrano
+  in forma compatta (`19,6k` in italiano, `19.6k` in inglese).
 
 ### Changed
 - Titoli dei post (campo titolo, `.ob-post__title`): stessa dimensione del

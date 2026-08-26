@@ -31,6 +31,7 @@ class AdminSettingsTest extends TestCase
             'comment_max_length' => 1500,
             'media_max_size_kb' => 4096,
             'media_max_attachments' => 3,
+            'trending_days' => 7,
         ], $overrides);
     }
 
@@ -48,9 +49,26 @@ class AdminSettingsTest extends TestCase
         $this->assertTrue(app(InstanceSettings::class)->showHomeStaff());
         $this->assertSame(4000, app(InstanceSettings::class)->postMaxLength());
         $this->assertSame(1500, app(InstanceSettings::class)->commentMaxLength());
+        $this->assertSame(7, app(InstanceSettings::class)->trendingDays());
+        $this->assertSame(7, (int) config('openbook.hashtags.trending_days'));
         $this->assertStringContainsString('Sii gentile', app(InstanceSettings::class)->instanceRules());
         $this->assertStringContainsString('Non vendiamo', app(InstanceSettings::class)->privacyPolicy());
         $this->assertSame('Openbook Test', config('app.name'));
+    }
+
+    public function test_admin_can_change_the_trending_hashtag_window(): void
+    {
+        $admin = $this->createFullAccount('admintrending');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'trending_days' => 14,
+            ]))
+            ->assertRedirect(route('admin.settings.edit'));
+
+        $this->assertSame(14, app(InstanceSettings::class)->trendingDays());
+        $this->assertSame(14, (int) config('openbook.hashtags.trending_days'));
     }
 
     public function test_admin_settings_save_does_not_modify_env_file(): void
@@ -157,6 +175,7 @@ class AdminSettingsTest extends TestCase
             ->get(route('admin.settings.edit'))
             ->assertOk()
             ->assertSee('name="favicon"', false)
+            ->assertSee('name="trending_days"', false)
             ->assertSee('enctype="multipart/form-data"', false);
     }
 

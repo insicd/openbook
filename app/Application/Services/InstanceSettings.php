@@ -33,6 +33,8 @@ final class InstanceSettings
 
     public const KEY_MEDIA_MAX_ATTACHMENTS = 'media_max_attachments';
 
+    public const KEY_TRENDING_DAYS = 'trending_days';
+
     public const KEY_SHOW_HOME_STAFF = 'show_home_staff';
 
     public const KEY_INSTANCE_ICON_DIR = 'instance_icon_dir';
@@ -75,6 +77,7 @@ final class InstanceSettings
         $this->applyIntSetting(self::KEY_COMMENT_MAX_LENGTH, 'openbook.comments.max_length');
         $this->applyIntSetting(self::KEY_MEDIA_MAX_SIZE_KB, 'openbook.media.max_size_kb');
         $this->applyIntSetting(self::KEY_MEDIA_MAX_ATTACHMENTS, 'openbook.media.max_attachments_per_post');
+        $this->applyIntSetting(self::KEY_TRENDING_DAYS, 'openbook.hashtags.trending_days');
     }
 
     public function siteName(): string
@@ -121,6 +124,18 @@ final class InstanceSettings
     public function mediaMaxAttachments(): int
     {
         return $this->intSetting(self::KEY_MEDIA_MAX_ATTACHMENTS, (int) config('openbook.media.max_attachments_per_post'));
+    }
+
+    /**
+     * Giorni considerati per gli hashtag in tendenza (sidebar e pagina).
+     * Default 7 se la chiave non e' ancora in DB.
+     */
+    public function trendingDays(): int
+    {
+        return max(1, $this->intSetting(
+            self::KEY_TRENDING_DAYS,
+            (int) config('openbook.hashtags.trending_days', 7),
+        ));
     }
 
     /**
@@ -203,6 +218,7 @@ final class InstanceSettings
      *     comment_max_length: int,
      *     media_max_size_kb: int,
      *     media_max_attachments: int,
+     *     trending_days: int,
      *     instance_icon_dir?: string|null
      * }  $data
      */
@@ -217,6 +233,7 @@ final class InstanceSettings
         $commentMax = (int) $data['comment_max_length'];
         $mediaKb = (int) $data['media_max_size_kb'];
         $mediaAttachments = (int) $data['media_max_attachments'];
+        $trendingDays = max(1, (int) ($data['trending_days'] ?? $this->trendingDays()));
 
         SystemSetting::put(self::KEY_SITE_NAME, $siteName);
         SystemSetting::putBool(self::KEY_REGISTRATION_OPEN, $registrationOpen);
@@ -227,6 +244,7 @@ final class InstanceSettings
         SystemSetting::put(self::KEY_COMMENT_MAX_LENGTH, (string) $commentMax);
         SystemSetting::put(self::KEY_MEDIA_MAX_SIZE_KB, (string) $mediaKb);
         SystemSetting::put(self::KEY_MEDIA_MAX_ATTACHMENTS, (string) $mediaAttachments);
+        SystemSetting::put(self::KEY_TRENDING_DAYS, (string) $trendingDays);
 
         if (array_key_exists('instance_icon_dir', $data)) {
             SystemSetting::put(self::KEY_INSTANCE_ICON_DIR, $data['instance_icon_dir']);
@@ -238,12 +256,14 @@ final class InstanceSettings
         Config::set('openbook.comments.max_length', $commentMax);
         Config::set('openbook.media.max_size_kb', $mediaKb);
         Config::set('openbook.media.max_attachments_per_post', $mediaAttachments);
+        Config::set('openbook.hashtags.trending_days', $trendingDays);
 
         if ($actor !== null) {
             $this->auditLogger->log($actor, 'settings.update', null, [
                 'site_name' => $siteName,
                 'registration_open' => $registrationOpen,
                 'show_home_staff' => $showHomeStaff,
+                'trending_days' => $trendingDays,
                 'has_custom_icons' => $this->hasCustomIcons(),
             ]);
         }

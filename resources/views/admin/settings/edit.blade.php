@@ -90,6 +90,14 @@
             <input type="number" id="media_max_attachments" name="media_max_attachments" value="{{ old('media_max_attachments', $mediaMaxAttachments) }}" required min="1" max="20">
         </div>
 
+        <h2 style="margin-top:1.5rem;font-size:1.1rem">{{ __('openbook.admin.settings.trending_title') }}</h2>
+
+        <div class="ob-field" style="margin-top:1rem">
+            <label for="trending_days">{{ __('openbook.admin.settings.trending_days') }}</label>
+            <input type="number" id="trending_days" name="trending_days" value="{{ old('trending_days', $trendingDays) }}" required min="1" max="365">
+            <p class="ob-field__help">{{ __('openbook.admin.settings.trending_days_help') }}</p>
+        </div>
+
         <button type="submit" class="ob-btn ob-btn--primary" style="margin-top:1.25rem">{{ __('openbook.admin.settings.save') }}</button>
     </form>
 

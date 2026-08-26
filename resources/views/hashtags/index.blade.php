@@ -5,7 +5,7 @@
 @section('content')
     <div class="ob-card">
         <h1>{{ __('openbook.hashtags.index_title') }}</h1>
-        <p class="ob-field__help">{{ __('openbook.hashtags.index_subtitle') }}</p>
+        <p class="ob-field__help">{{ __('openbook.hashtags.index_subtitle', ['days' => $trendingDays]) }}</p>
     </div>
 
     <div class="ob-card">
@@ -18,7 +18,7 @@
                 @foreach ($hashtags as $hashtag)
                     <li>
                         <a href="{{ route('hashtags.show', $hashtag->name) }}">#{{ $hashtag->name }}</a>
-                        <span class="ob-field__help">{{ trans_choice('openbook.sidebar.hashtag_uses', $hashtag->usage_count, ['count' => $hashtag->usage_count]) }}</span>
+                        <span class="ob-field__help">{{ trans_choice('openbook.sidebar.hashtag_uses', (int) $hashtag->usage_count, ['count' => \App\Support\CompactNumber::format((int) $hashtag->usage_count)]) }}</span>
                     </li>
                 @endforeach
             </ul>

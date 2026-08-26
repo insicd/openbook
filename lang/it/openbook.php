@@ -3,7 +3,7 @@
 return [
 
     'app' => [
-        'tagline' => 'Il social network federato, semplice e libero.',
+        'tagline' => 'Istanza di Openbook - Il social network federato, semplice e libero.',
     ],
 
     'lightbox' => [
@@ -357,7 +357,7 @@ return [
     'hashtags' => [
         'empty' => 'Nessun post pubblico con questo hashtag, per ora.',
         'index_title' => 'In tendenza',
-        'index_subtitle' => 'Hashtag piu\' usati sui post pubblici e non elencati arrivati su questa istanza, locali e remoti.',
+        'index_subtitle' => 'Hashtag piu\' usati nei post pubblici e non elencati degli ultimi :days giorni, locali e remoti.',
     ],
 
     'communities' => [
@@ -546,6 +546,9 @@ return [
             'comment_max_length' => 'Lunghezza massima commento (caratteri)',
             'media_max_size_kb' => 'Dimensione massima media (KB)',
             'media_max_attachments' => 'Allegati massimi per post',
+            'trending_title' => 'In tendenza',
+            'trending_days' => 'Finestra hashtag in tendenza (giorni)',
+            'trending_days_help' => 'Sidebar e pagina «In tendenza» contano solo i post pubblici o non elencati pubblicati in questo arco di tempo. Default 7.',
             'save' => 'Salva impostazioni',
             'saved' => 'Impostazioni salvate.',
         ],

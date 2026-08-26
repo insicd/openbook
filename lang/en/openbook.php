@@ -3,7 +3,7 @@
 return [
 
     'app' => [
-        'tagline' => 'The federated, simple, no-masters social network.',
+        'tagline' => 'Openbook instance - The federated, simple, no-masters social network.',
     ],
 
     'lightbox' => [
@@ -357,7 +357,7 @@ return [
     'hashtags' => [
         'empty' => 'No public posts with this hashtag yet.',
         'index_title' => 'Trending',
-        'index_subtitle' => 'Most used hashtags on public and unlisted posts cached on this instance, local and remote.',
+        'index_subtitle' => 'Most used hashtags on public and unlisted posts from the last :days days, local and remote.',
     ],
 
     'communities' => [
@@ -546,6 +546,9 @@ return [
             'comment_max_length' => 'Max comment length (characters)',
             'media_max_size_kb' => 'Max media size (KB)',
             'media_max_attachments' => 'Max attachments per post',
+            'trending_title' => 'Trending',
+            'trending_days' => 'Trending hashtag window (days)',
+            'trending_days_help' => 'The sidebar and the Trending page only count public or unlisted posts published in this time span. Default 7.',
             'save' => 'Save settings',
             'saved' => 'Settings saved.',
         ],

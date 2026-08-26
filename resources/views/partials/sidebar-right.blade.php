@@ -14,7 +14,7 @@
             @foreach ($popularHashtags as $hashtag)
                 <li>
                     <a href="{{ route('hashtags.show', $hashtag->name) }}">#{{ $hashtag->name }}</a>
-                    <span class="ob-field__help">{{ trans_choice('openbook.sidebar.hashtag_uses', $hashtag->usage_count, ['count' => $hashtag->usage_count]) }}</span>
+                    <span class="ob-field__help">{{ trans_choice('openbook.sidebar.hashtag_uses', (int) $hashtag->usage_count, ['count' => \App\Support\CompactNumber::format((int) $hashtag->usage_count)]) }}</span>
                 </li>
             @endforeach
         </ul>

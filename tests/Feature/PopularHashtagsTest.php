@@ -136,6 +136,43 @@ class PopularHashtagsTest extends TestCase
         $this->assertSame(['valido'], $names->all());
     }
 
+    public function test_it_ignores_hashtags_outside_the_default_seven_day_window(): void
+    {
+        $alice = $this->createFullAccount('alice');
+        $old = $this->publishPost($alice, 'Vecchio #antico');
+        $old->forceFill(['published_at' => now()->subDays(8)])->save();
+        $this->publishPost($alice, 'Recente #nuovo');
+
+        $names = app(PopularHashtagsQuery::class)->top()->pluck('name');
+
+        $this->assertTrue($names->contains('nuovo'));
+        $this->assertFalse($names->contains('antico'));
+    }
+
+    public function test_a_longer_window_includes_older_hashtags(): void
+    {
+        $alice = $this->createFullAccount('alice');
+        $old = $this->publishPost($alice, 'Vecchio #antico');
+        $old->forceFill(['published_at' => now()->subDays(8)])->save();
+
+        config(['openbook.hashtags.trending_days' => 14]);
+
+        $names = app(PopularHashtagsQuery::class)->top()->pluck('name');
+
+        $this->assertTrue($names->contains('antico'));
+    }
+
+    public function test_the_trending_index_mentions_the_configured_window(): void
+    {
+        $alice = $this->createFullAccount('alicewindow');
+        $this->publishPost($alice, 'Un post su #laravel');
+
+        $this->actingAs($alice)
+            ->get(route('hashtags.index'))
+            ->assertOk()
+            ->assertSee(__('openbook.hashtags.index_subtitle', ['days' => 7]));
+    }
+
     public function test_the_home_feed_renders_when_an_empty_hashtag_is_attached_to_a_post(): void
     {
         $alice = $this->createFullAccount('alice');

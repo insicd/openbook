@@ -165,6 +165,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Hashtag in tendenza
+    |--------------------------------------------------------------------------
+    |
+    | Finestra (giorni) usata da sidebar e pagina "In tendenza" per contare
+    | gli usi sui post pubblici/unlisted. Sovrascrivibile dal pannello admin.
+    */
+    'hashtags' => [
+        'trending_days' => (int) env('OPENBOOK_TRENDING_DAYS', 7),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Feed
     |--------------------------------------------------------------------------
     */
