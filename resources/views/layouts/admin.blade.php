@@ -38,6 +38,9 @@
                 <a href="{{ route('admin.settings.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.settings.*') ? 'is-active' : '' }}">
                     <x-icon name="settings" /> {{ __('openbook.admin.nav.settings') }}
                 </a>
+                <a href="{{ route('admin.appearance.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.appearance.*') ? 'is-active' : '' }}">
+                    <x-icon name="image" /> {{ __('openbook.admin.nav.appearance') }}
+                </a>
                 <a href="{{ route('admin.updates.show') }}" class="ob-side-nav__link {{ request()->routeIs('admin.updates.*') ? 'is-active' : '' }}">
                     <x-icon name="warning" /> {{ __('openbook.admin.nav.updates') }}
                 </a>

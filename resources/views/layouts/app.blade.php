@@ -7,9 +7,10 @@
     @include('partials.site-icons')
     <title>@yield('title', config('app.name'))</title>
     <link rel="stylesheet" href="{{ \App\Support\Assets::url('assets/css/app.css') }}">
+    @include('partials.custom-css')
     @stack('head')
 </head>
-<body>
+<body @class(['ob-css-preview' => $isCssPreview ?? false])>
     <a href="#ob-content" class="ob-skip-link">Vai al contenuto principale</a>
 
     <header class="ob-header">

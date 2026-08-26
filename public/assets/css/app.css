@@ -1113,6 +1113,92 @@ html.ob-compose-modal-open {
   flex-shrink: 0;
 }
 
+.ob-css-workbench {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 1100px) {
+  .ob-css-workbench {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.ob-css-workbench__editor {
+  margin: 0;
+}
+
+.ob-css-editor {
+  width: 100%;
+  min-height: 22rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  tab-size: 2;
+  resize: vertical;
+}
+
+.ob-css-example-wrap {
+  margin: 0.75rem 0 0;
+}
+
+.ob-css-example-wrap summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ob-css-example {
+  margin: 0.6rem 0 0;
+  padding: 0.75rem;
+  background: var(--ob-color-bg);
+  border: 1px solid var(--ob-color-border);
+  border-radius: var(--ob-radius);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  overflow: auto;
+}
+
+.ob-css-workbench__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.ob-css-workbench__preview-label {
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.ob-css-preview-frame {
+  width: 100%;
+  min-height: 36rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: var(--ob-radius);
+  background: var(--ob-color-bg);
+}
+
+.ob-css-preview-banner {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  background: #fff6e0;
+  border: 1px solid #f0dfa6;
+  color: #8a6d1c;
+  border-radius: var(--ob-radius);
+  font-size: 0.9rem;
+}
+
+body.ob-css-preview .ob-compose-btn,
+body.ob-css-preview #ob-compose-modal {
+  display: none !important;
+}
+
 /* Alerts */
 
 .ob-alert {

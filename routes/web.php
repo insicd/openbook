@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActorProfileController;
+use App\Http\Controllers\Admin\AppearanceController as AdminAppearanceController;
 use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DatabaseMaintenanceController as AdminDatabaseMaintenanceController;
@@ -181,6 +182,10 @@ Route::middleware('auth')->group(function () {
 
             Route::get('/impostazioni', [AdminSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/impostazioni', [AdminSettingsController::class, 'update'])->name('settings.update');
+
+            Route::get('/aspetto', [AdminAppearanceController::class, 'edit'])->name('appearance.edit');
+            Route::put('/aspetto', [AdminAppearanceController::class, 'update'])->name('appearance.update');
+            Route::get('/aspetto/anteprima', [AdminAppearanceController::class, 'preview'])->name('appearance.preview');
 
             Route::get('/aggiornamenti', [AdminUpdateController::class, 'show'])->name('updates.show');
             Route::post('/aggiornamenti', [AdminUpdateController::class, 'apply'])->name('updates.apply');

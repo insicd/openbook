@@ -3,6 +3,7 @@
 namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
+use App\Infrastructure\Appearance\CustomCssSanitizer;
 use App\Infrastructure\Database\SystemSetting;
 use App\Infrastructure\Media\InstanceIconUploader;
 use Illuminate\Support\Facades\Config;
@@ -36,6 +37,10 @@ final class InstanceSettings
 
     public const KEY_INSTANCE_ICON_DIR = 'instance_icon_dir';
 
+    public const KEY_CUSTOM_CSS = 'custom_css';
+
+    public const CUSTOM_CSS_MAX_LENGTH = 50000;
+
     /**
      * Favicon di default (SVG inline) usata finche' l'amministratore non
      * carica un'icona personalizzata.
@@ -44,6 +49,7 @@ final class InstanceSettings
 
     public function __construct(
         private readonly AuditLogger $auditLogger,
+        private readonly CustomCssSanitizer $cssSanitizer,
     ) {}
 
     /**
@@ -162,6 +168,28 @@ final class InstanceSettings
     public function maskableIconUrl(int $size): ?string
     {
         return $this->iconPublicUrl('icon-'.$size.'-maskable.png');
+    }
+
+    public function customCss(): string
+    {
+        return $this->cssSanitizer->sanitize((string) (SystemSetting::get(self::KEY_CUSTOM_CSS) ?? ''));
+    }
+
+    public function updateCustomCss(string $css, ?User $actor = null): void
+    {
+        $css = $this->cssSanitizer->sanitize($css);
+
+        if (mb_strlen($css) > self::CUSTOM_CSS_MAX_LENGTH) {
+            $css = mb_substr($css, 0, self::CUSTOM_CSS_MAX_LENGTH);
+        }
+
+        SystemSetting::put(self::KEY_CUSTOM_CSS, $css);
+
+        if ($actor !== null) {
+            $this->auditLogger->log($actor, 'appearance.update', null, [
+                'css_length' => mb_strlen($css),
+            ]);
+        }
     }
 
     /**

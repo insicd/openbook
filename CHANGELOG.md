@@ -35,6 +35,10 @@ il [`README`](README.md#roadmap-and-project-status).
   generate la favicon 32×32, l'Apple Touch Icon 180×180 (iOS) e le icone
   Android 192/512 (anche maskable) per «Aggiungi alla schermata Home»,
   piu' un web app manifest in `GET /manifest.webmanifest`.
+- Pannello di controllo, sezione **Aspetto** (`GET /admin/aspetto`): CSS
+  personalizzato che sovrascrive il template sul sito pubblico (non sul
+  pannello). Anteprima live in iframe su una pagina di esempio
+  (`GET /admin/aspetto/anteprima`); il sito reale cambia solo al salvataggio.
 
 ### Changed
 - Titoli dei post (campo titolo, `.ob-post__title`): stessa dimensione del

@@ -23,6 +23,7 @@ class AdminAccessTest extends TestCase
         $this->actingAs($user)->get(route('admin.reports.index'))->assertForbidden();
         $this->actingAs($user)->get(route('admin.users.index'))->assertForbidden();
         $this->actingAs($user)->get(route('admin.settings.edit'))->assertForbidden();
+        $this->actingAs($user)->get(route('admin.appearance.edit'))->assertForbidden();
     }
 
     public function test_moderators_can_access_moderation_but_not_settings(): void
@@ -34,6 +35,7 @@ class AdminAccessTest extends TestCase
         $this->actingAs($mod)->get(route('admin.reports.index'))->assertOk();
         $this->actingAs($mod)->get(route('admin.users.index'))->assertOk();
         $this->actingAs($mod)->get(route('admin.settings.edit'))->assertForbidden();
+        $this->actingAs($mod)->get(route('admin.appearance.edit'))->assertForbidden();
     }
 
     public function test_admins_can_access_the_full_panel(): void
@@ -43,6 +45,7 @@ class AdminAccessTest extends TestCase
 
         $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk();
         $this->actingAs($admin)->get(route('admin.settings.edit'))->assertOk();
+        $this->actingAs($admin)->get(route('admin.appearance.edit'))->assertOk();
         $this->actingAs($admin)
             ->get(route('feed.index'))
             ->assertOk()
