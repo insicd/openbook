@@ -6,13 +6,38 @@
     <h1>{{ __('openbook.admin.settings.title') }}</h1>
     <p class="ob-field__help">{{ __('openbook.admin.settings.intro') }}</p>
 
-    <form method="POST" action="{{ route('admin.settings.update') }}" class="ob-card" style="margin-top:1rem">
+    <form method="POST" action="{{ route('admin.settings.update') }}" class="ob-card" style="margin-top:1rem" enctype="multipart/form-data">
         @csrf
         @method('PUT')
 
         <div class="ob-field">
             <label for="site_name">{{ __('openbook.admin.settings.site_name') }}</label>
             <input type="text" id="site_name" name="site_name" value="{{ old('site_name', $siteName) }}" required maxlength="100">
+        </div>
+
+        <div class="ob-field" style="margin-top:1rem">
+            <label for="favicon">{{ __('openbook.admin.settings.favicon') }}</label>
+            <div class="ob-settings-avatar-picker">
+                <img
+                    id="admin-favicon-preview"
+                    class="ob-admin-favicon-preview"
+                    src="{!! $faviconUrl ? e($faviconUrl) : \App\Application\Services\InstanceSettings::DEFAULT_FAVICON_HREF !!}"
+                    alt=""
+                    width="48"
+                    height="48"
+                >
+                <input type="file" name="favicon" id="favicon" accept="image/jpeg,image/png,image/webp,image/gif">
+            </div>
+            <p class="ob-field__help">{{ __('openbook.admin.settings.favicon_help') }}</p>
+            @if ($faviconUrl)
+                <label class="ob-checkbox" style="margin-top:0.5rem">
+                    <input type="checkbox" name="remove_favicon" value="1">
+                    {{ __('openbook.admin.settings.favicon_remove') }}
+                </label>
+            @endif
+            @error('favicon')
+                <p class="ob-field__error">{{ $message }}</p>
+            @enderror
         </div>
 
         <div class="ob-field" style="margin-top:1rem">
@@ -67,4 +92,29 @@
 
         <button type="submit" class="ob-btn ob-btn--primary" style="margin-top:1.25rem">{{ __('openbook.admin.settings.save') }}</button>
     </form>
+
+    <script>
+        (function () {
+            var input = document.getElementById('favicon');
+            var preview = document.getElementById('admin-favicon-preview');
+
+            if (!input || !preview || !window.FileReader) {
+                return;
+            }
+
+            input.addEventListener('change', function () {
+                var file = input.files && input.files[0];
+
+                if (!file || file.type.indexOf('image/') !== 0) {
+                    return;
+                }
+
+                var reader = new FileReader();
+                reader.onload = function (event) {
+                    preview.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        })();
+    </script>
 @endsection

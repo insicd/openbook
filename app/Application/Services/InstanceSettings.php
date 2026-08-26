@@ -4,7 +4,9 @@ namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
 use App\Infrastructure\Database\SystemSetting;
+use App\Infrastructure\Media\InstanceIconUploader;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Impostazioni istanza gestibili dal pannello admin: source of truth in
@@ -31,6 +33,14 @@ final class InstanceSettings
     public const KEY_MEDIA_MAX_ATTACHMENTS = 'media_max_attachments';
 
     public const KEY_SHOW_HOME_STAFF = 'show_home_staff';
+
+    public const KEY_INSTANCE_ICON_DIR = 'instance_icon_dir';
+
+    /**
+     * Favicon di default (SVG inline) usata finche' l'amministratore non
+     * carica un'icona personalizzata.
+     */
+    public const DEFAULT_FAVICON_HREF = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231877f2'/><text x='50' y='68' font-size='56' text-anchor='middle' fill='white' font-family='system-ui,sans-serif' font-weight='700'>O</text></svg>";
 
     public function __construct(
         private readonly AuditLogger $auditLogger,
@@ -122,6 +132,38 @@ final class InstanceSettings
         return filter_var($stored, FILTER_VALIDATE_BOOLEAN);
     }
 
+    public function iconDirectory(): ?string
+    {
+        $directory = SystemSetting::get(self::KEY_INSTANCE_ICON_DIR);
+
+        return InstanceIconUploader::isValidDirectory($directory) ? $directory : null;
+    }
+
+    public function hasCustomIcons(): bool
+    {
+        return $this->iconDirectory() !== null;
+    }
+
+    public function faviconUrl(): ?string
+    {
+        return $this->iconPublicUrl('favicon-32.png');
+    }
+
+    public function appleTouchIconUrl(): ?string
+    {
+        return $this->iconPublicUrl('apple-touch-icon.png');
+    }
+
+    public function androidIconUrl(int $size): ?string
+    {
+        return $this->iconPublicUrl('icon-'.$size.'.png');
+    }
+
+    public function maskableIconUrl(int $size): ?string
+    {
+        return $this->iconPublicUrl('icon-'.$size.'-maskable.png');
+    }
+
     /**
      * @param  array{
      *     site_name: string,
@@ -132,7 +174,8 @@ final class InstanceSettings
      *     post_max_length: int,
      *     comment_max_length: int,
      *     media_max_size_kb: int,
-     *     media_max_attachments: int
+     *     media_max_attachments: int,
+     *     instance_icon_dir?: string|null
      * }  $data
      */
     public function update(array $data, ?User $actor = null): void
@@ -157,6 +200,10 @@ final class InstanceSettings
         SystemSetting::put(self::KEY_MEDIA_MAX_SIZE_KB, (string) $mediaKb);
         SystemSetting::put(self::KEY_MEDIA_MAX_ATTACHMENTS, (string) $mediaAttachments);
 
+        if (array_key_exists('instance_icon_dir', $data)) {
+            SystemSetting::put(self::KEY_INSTANCE_ICON_DIR, $data['instance_icon_dir']);
+        }
+
         Config::set('app.name', $siteName);
         Config::set('openbook.registration.open', $registrationOpen);
         Config::set('openbook.posts.max_length', $postMax);
@@ -169,8 +216,20 @@ final class InstanceSettings
                 'site_name' => $siteName,
                 'registration_open' => $registrationOpen,
                 'show_home_staff' => $showHomeStaff,
+                'has_custom_icons' => $this->hasCustomIcons(),
             ]);
         }
+    }
+
+    private function iconPublicUrl(string $filename): ?string
+    {
+        $directory = $this->iconDirectory();
+
+        if ($directory === null) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($directory.'/'.$filename);
     }
 
     private function applyIntSetting(string $key, string $configKey): void

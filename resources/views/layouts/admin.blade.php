@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231877f2'/><text x='50' y='68' font-size='56' text-anchor='middle' fill='white' font-family='system-ui,sans-serif' font-weight='700'>O</text></svg>">
+    @include('partials.site-icons')
     <title>@yield('title', __('openbook.admin.title').' - '.config('app.name'))</title>
     <link rel="stylesheet" href="{{ \App\Support\Assets::url('assets/css/app.css') }}">
 </head>

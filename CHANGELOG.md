@@ -30,6 +30,11 @@ il [`README`](README.md#roadmap-and-project-status).
   (`posts.quoted_actor_id`) con link alla pagina Openbook locale
   (`/@username` o `/attori/{id}`), non all'URI ActivityPub originale, cosi'
   il destinatario puo' seguire da questa istanza.
+- Pannello di controllo, impostazioni istanza: upload della **favicon**
+  del sito. Da un'unica immagine (consigliato quadrato 512×512) vengono
+  generate la favicon 32×32, l'Apple Touch Icon 180×180 (iOS) e le icone
+  Android 192/512 (anche maskable) per «Aggiungi alla schermata Home»,
+  piu' un web app manifest in `GET /manifest.webmanifest`.
 
 ### Changed
 - Titoli dei post (campo titolo, `.ob-post__title`): stessa dimensione del

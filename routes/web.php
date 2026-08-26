@@ -32,12 +32,14 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SearchSuggestController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SiteManifestController;
 use App\Http\Controllers\WorldController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/regole', [InstanceRulesController::class, 'show'])->name('instance.rules');
 Route::get('/privacy', [PrivacyPolicyController::class, 'show'])->name('instance.privacy');
+Route::get('/manifest.webmanifest', [SiteManifestController::class, 'show'])->name('site.manifest');
 
 Route::middleware('guest')->group(function () {
     Route::get('/registrati', [RegisterController::class, 'create'])->name('register');

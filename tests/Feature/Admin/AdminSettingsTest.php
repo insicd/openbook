@@ -4,8 +4,11 @@ namespace Tests\Feature\Admin;
 
 use App\Application\Services\InstanceSettings;
 use App\Infrastructure\Database\SystemSetting;
+use App\Infrastructure\Media\InstanceIconUploader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
@@ -143,5 +146,123 @@ class AdminSettingsTest extends TestCase
             ->assertOk()
             ->assertSee('<h2>Privacy</h2>', false)
             ->assertSee('We care.', false);
+    }
+
+    public function test_admin_settings_form_includes_favicon_upload(): void
+    {
+        $admin = $this->createFullAccount('adminfaviconform');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings.edit'))
+            ->assertOk()
+            ->assertSee('name="favicon"', false)
+            ->assertSee('enctype="multipart/form-data"', false);
+    }
+
+    public function test_admin_can_upload_favicon_and_home_screen_icons(): void
+    {
+        Storage::fake('public');
+
+        $admin = $this->createFullAccount('adminfavicon');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'favicon' => UploadedFile::fake()->image('logo.png', 512, 512),
+            ]))
+            ->assertRedirect(route('admin.settings.edit'));
+
+        $directory = app(InstanceSettings::class)->iconDirectory();
+        $this->assertNotNull($directory);
+        Storage::disk('public')->assertExists($directory.'/favicon-32.png');
+        Storage::disk('public')->assertExists($directory.'/apple-touch-icon.png');
+        Storage::disk('public')->assertExists($directory.'/icon-192.png');
+        Storage::disk('public')->assertExists($directory.'/icon-512.png');
+        Storage::disk('public')->assertExists($directory.'/icon-192-maskable.png');
+        Storage::disk('public')->assertExists($directory.'/icon-512-maskable.png');
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings.edit'))
+            ->assertOk()
+            ->assertSee('rel="apple-touch-icon"', false);
+
+        $this->actingAs($admin)
+            ->get(route('feed.index'))
+            ->assertOk()
+            ->assertSee('rel="apple-touch-icon"', false)
+            ->assertSee(route('site.manifest'), false)
+            ->assertDontSee(InstanceSettings::DEFAULT_FAVICON_HREF, false);
+
+        $this->get(route('site.manifest'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/manifest+json')
+            ->assertJsonPath('display', 'standalone')
+            ->assertJsonPath('icons.0.sizes', '192x192')
+            ->assertJsonPath('icons.2.sizes', '512x512');
+    }
+
+    public function test_admin_can_remove_custom_favicon(): void
+    {
+        Storage::fake('public');
+
+        $admin = $this->createFullAccount('adminfaviconrm');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'favicon' => UploadedFile::fake()->image('logo.png', 512, 512),
+            ]))
+            ->assertRedirect(route('admin.settings.edit'));
+
+        $directory = app(InstanceSettings::class)->iconDirectory();
+        $this->assertNotNull($directory);
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'remove_favicon' => '1',
+            ]))
+            ->assertRedirect(route('admin.settings.edit'));
+
+        $this->assertNull(app(InstanceSettings::class)->iconDirectory());
+        Storage::disk('public')->assertMissing($directory.'/favicon-32.png');
+
+        $this->actingAs($admin)
+            ->get(route('feed.index'))
+            ->assertOk()
+            ->assertSee(InstanceSettings::DEFAULT_FAVICON_HREF, false)
+            ->assertDontSee('rel="apple-touch-icon"', false);
+    }
+
+    public function test_favicon_upload_rejects_invalid_files(): void
+    {
+        Storage::fake('public');
+
+        $admin = $this->createFullAccount('adminfaviconbad');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->from(route('admin.settings.edit'))
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'favicon' => UploadedFile::fake()->create('script.php', 5, 'application/x-httpd-php'),
+            ]))
+            ->assertRedirect(route('admin.settings.edit'))
+            ->assertSessionHasErrors('favicon');
+    }
+
+    public function test_guest_home_includes_pwa_icon_tags_when_configured(): void
+    {
+        Storage::fake('public');
+
+        $directory = app(InstanceIconUploader::class)->store(
+            UploadedFile::fake()->image('logo.png', 512, 512),
+            null,
+        );
+        SystemSetting::put(InstanceSettings::KEY_INSTANCE_ICON_DIR, $directory);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('rel="apple-touch-icon"', false)
+            ->assertSee(route('site.manifest'), false);
     }
 }
