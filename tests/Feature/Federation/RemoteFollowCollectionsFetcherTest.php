@@ -45,6 +45,9 @@ class RemoteFollowCollectionsFetcherTest extends TestCase
                 'partOf' => $followingUrl,
                 'orderedItems' => [$viewer->actor->uri],
             ], 200, ['Content-Type' => 'application/activity+json']),
+            $remote->uri => Http::response($this->actorDocument($remote, [
+                'published' => '2018-04-01T00:00:00Z',
+            ]), 200, ['Content-Type' => 'application/activity+json']),
         ]);
 
         app(RemoteFollowCollectionsFetcher::class)->refreshIfStale($remote);
@@ -85,6 +88,9 @@ class RemoteFollowCollectionsFetcherTest extends TestCase
                 'totalItems' => 1,
                 'orderedItems' => [],
             ], 200, ['Content-Type' => 'application/activity+json']),
+            $remote->uri => Http::response($this->actorDocument($remote, [
+                'published' => '2018-04-01T00:00:00Z',
+            ]), 200, ['Content-Type' => 'application/activity+json']),
         ]);
 
         $fetcher = app(RemoteFollowCollectionsFetcher::class);
@@ -131,5 +137,50 @@ class RemoteFollowCollectionsFetcherTest extends TestCase
 
         Http::assertNothingSent();
         $this->assertNull($local->actor->fresh()->collections_fetched_at);
+    }
+
+    public function test_it_refetches_the_actor_document_when_the_join_date_is_missing_from_cache(): void
+    {
+        $remote = $this->createRemoteActor('joindate', overrides: [
+            'published_at' => null,
+            'last_fetched_at' => now()->subDay(),
+            'collections_fetched_at' => now(),
+        ]);
+
+        Http::fake([
+            $remote->uri => Http::response($this->actorDocument($remote, [
+                'published' => '2016-03-16T00:00:00Z',
+            ]), 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        app(RemoteFollowCollectionsFetcher::class)->refreshIfStale($remote);
+
+        $this->assertSame('2016-03-16 00:00:00', $remote->fresh()->published_at?->utc()->format('Y-m-d H:i:s'));
+        Http::assertSentCount(1);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function actorDocument(Actor $remote, array $overrides = []): array
+    {
+        $remote->loadMissing(['key', 'endpoints']);
+
+        return array_merge([
+            'id' => $remote->uri,
+            'type' => 'Person',
+            'preferredUsername' => $remote->preferred_username,
+            'name' => $remote->name,
+            'inbox' => $remote->endpoints?->inbox,
+            'outbox' => $remote->endpoints?->outbox,
+            'followers' => $remote->endpoints?->followers,
+            'following' => $remote->endpoints?->following,
+            'publicKey' => [
+                'id' => $remote->uri.'#main-key',
+                'owner' => $remote->uri,
+                'publicKeyPem' => $remote->key?->public_key ?? '-----BEGIN PUBLIC KEY-----test-----END PUBLIC KEY-----',
+            ],
+        ], $overrides);
     }
 }

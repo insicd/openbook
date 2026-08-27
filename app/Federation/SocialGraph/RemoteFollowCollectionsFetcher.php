@@ -43,29 +43,61 @@ final class RemoteFollowCollectionsFetcher
         $withinTtl = $actor->collections_fetched_at !== null
             && $actor->collections_fetched_at->gt(Carbon::now()->subHours($ttlHours));
 
-        if ($withinTtl) {
+        if (! $withinTtl) {
+            // Come l'outbox: si marca subito, cosi' un timeout remoto non
+            // ripete la richiesta a ogni caricamento di pagina.
+            $actor->forceFill(['collections_fetched_at' => now()])->saveQuietly();
+
+            $actor->loadMissing('endpoints');
+            $signingActor = $this->fetchSigner->resolve();
+
+            $this->syncCollection(
+                $actor,
+                RemoteCollectionMember::COLLECTION_FOLLOWERS,
+                $actor->endpoints?->followers,
+                $signingActor,
+            );
+            $this->syncCollection(
+                $actor,
+                RemoteCollectionMember::COLLECTION_FOLLOWING,
+                $actor->endpoints?->following,
+                $signingActor,
+            );
+
+            $actor = $actor->fresh() ?? $actor;
+        }
+
+        $this->refreshJoinDateIfMissing($actor);
+    }
+
+    /**
+     * Il documento Actor (dove sta {@code published}) non viene riletto
+     * visitando il profilo: resta la cache di {@see RemoteActorResolver}.
+     * Se la data manca, si forza un GET dell'Actor al massimo una volta
+     * per finestra della cache collezioni.
+     */
+    private function refreshJoinDateIfMissing(Actor $actor): void
+    {
+        if ($actor->published_at !== null) {
             return;
         }
 
-        // Come l'outbox: si marca subito, cosi' un timeout remoto non
-        // ripete la richiesta a ogni caricamento di pagina.
-        $actor->forceFill(['collections_fetched_at' => now()])->saveQuietly();
+        $lastFetched = $actor->last_fetched_at;
+        $collectionsFetched = $actor->collections_fetched_at;
 
-        $actor->loadMissing('endpoints');
-        $signingActor = $this->fetchSigner->resolve();
+        $alreadyTriedThisWindow = $lastFetched !== null
+            && $collectionsFetched !== null
+            && $lastFetched->gte($collectionsFetched);
 
-        $this->syncCollection(
-            $actor,
-            RemoteCollectionMember::COLLECTION_FOLLOWERS,
-            $actor->endpoints?->followers,
-            $signingActor,
-        );
-        $this->syncCollection(
-            $actor,
-            RemoteCollectionMember::COLLECTION_FOLLOWING,
-            $actor->endpoints?->following,
-            $signingActor,
-        );
+        if ($alreadyTriedThisWindow) {
+            return;
+        }
+
+        $refreshed = $this->remoteActorResolver->refresh($actor);
+
+        if ($refreshed === null) {
+            $actor->forceFill(['last_fetched_at' => now()])->saveQuietly();
+        }
     }
 
     /**

@@ -38,9 +38,10 @@ il [`README`](README.md#roadmap-and-project-status).
 - Profili remoti (`GET /attori/{actor}`): follower e seguiti usano i
   conteggi `totalItems` delle collection ActivityPub del server di origine,
   con cache di 24 ore (`OPENBOOK_COLLECTIONS_CACHE_TTL_HOURS`). La data di
-  iscrizione arriva dal campo `published` del documento Person. Si conserva
-  anche un campione della prima pagina della lista (non l'intero grafo,
-  e non nel grafo locale `follows`).
+  iscrizione arriva dal campo `published` del documento Person (o equivalenti
+  JSON-LD / `createdAt`). Visitando il profilo si rilegge l'Actor se la data
+  non e' ancora in cache. Si conserva anche un campione della prima pagina
+  della lista (non l'intero grafo, e non nel grafo locale `follows`).
 - Pannello di controllo, sezione **Aspetto** (`GET /admin/aspetto`): CSS
   personalizzato che sovrascrive il template sul sito pubblico (non sul
   pannello). Anteprima live in iframe su una pagina di esempio
@@ -61,6 +62,9 @@ il [`README`](README.md#roadmap-and-project-status).
   e risultavano sproporzionati.
 
 ### Fixed
+- Profili remoti: la data di iscrizione non restava vuota sugli Actor gia'
+  in cache. Visitando il profilo si rilegge il documento Person e si
+  accettano anche `published` in JSON-LD e `createdAt`.
 - Bio nel documento Actor ActivityPub (`summary`): gli a-capo non vengono
   piu' appiattiti in un unico paragrafo. Si usa lo stesso HTML dei post
   (`<br>` per i singoli a-capo, `<p>` distinti per i paragrafi), cosi'

@@ -654,15 +654,49 @@ final class RemoteActorResolver
     }
 
     /**
-     * Data di iscrizione dichiarata dall'istanza remota (campo ActivityPub
-     * "published" sul Person/Group). Assente su alcuni server: in quel caso
-     * resta null e il profilo non mostra la riga.
+     * Data di iscrizione dichiarata dall'istanza remota. Mastodon, Pixelfed,
+     * Lemmy e Openbook stesso usano ActivityPub {@code published}; alcuni
+     * server la serializzano in JSON-LD espanso ({@code @value} o IRI
+     * activitystreams#published) o come {@code createdAt}.
      *
      * @param  array<string, mixed>  $document
      */
     private function documentPublishedAt(array $document): ?Carbon
     {
-        $value = $document['published'] ?? null;
+        foreach ([
+            'published',
+            'https://www.w3.org/ns/activitystreams#published',
+            'http://www.w3.org/ns/activitystreams#published',
+            'createdAt',
+            'created',
+        ] as $key) {
+            if (! array_key_exists($key, $document)) {
+                continue;
+            }
+
+            $parsed = $this->coerceTimestamp($document[$key]);
+
+            if ($parsed !== null) {
+                return $parsed;
+            }
+        }
+
+        return null;
+    }
+
+    private function coerceTimestamp(mixed $value): ?Carbon
+    {
+        if (is_array($value)) {
+            if (array_key_exists('@value', $value)) {
+                return $this->coerceTimestamp($value['@value']);
+            }
+
+            if ($value !== [] && array_is_list($value)) {
+                return $this->coerceTimestamp($value[0]);
+            }
+
+            return null;
+        }
 
         if (! is_string($value) || trim($value) === '') {
             return null;

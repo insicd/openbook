@@ -32,6 +32,7 @@ trait CreatesRemoteActors
             'manually_approves_followers' => false,
             'status' => Actor::STATUS_ACTIVE,
             'last_fetched_at' => now(),
+            'published_at' => now()->subYears(2),
         ], $overrides));
 
         $keyPair = (new RsaKeyPairGenerator)->generate(2048);

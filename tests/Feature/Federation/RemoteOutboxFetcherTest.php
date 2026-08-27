@@ -58,7 +58,33 @@ class RemoteOutboxFetcherTest extends TestCase
                 'totalItems' => 0,
                 'orderedItems' => [],
             ], 200, ['Content-Type' => 'application/activity+json']),
+            $remote->uri => Http::response($this->cachedActorDocument($remote), 200, ['Content-Type' => 'application/activity+json']),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function cachedActorDocument(Actor $remote): array
+    {
+        $remote->loadMissing(['key', 'endpoints']);
+
+        return [
+            'id' => $remote->uri,
+            'type' => $remote->isGroup() ? 'Group' : 'Person',
+            'preferredUsername' => $remote->preferred_username,
+            'name' => $remote->name,
+            'inbox' => $remote->endpoints?->inbox,
+            'outbox' => $remote->endpoints?->outbox,
+            'followers' => $remote->endpoints?->followers,
+            'following' => $remote->endpoints?->following,
+            'published' => '2018-04-01T00:00:00Z',
+            'publicKey' => [
+                'id' => $remote->uri.'#main-key',
+                'owner' => $remote->uri,
+                'publicKeyPem' => $remote->key?->public_key ?? '-----BEGIN PUBLIC KEY-----test-----END PUBLIC KEY-----',
+            ],
+        ];
     }
 
     /**

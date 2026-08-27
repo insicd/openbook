@@ -80,6 +80,30 @@ class RemoteActorResolverTest extends TestCase
         $this->assertSame(56, $actor->following_count);
     }
 
+    public function test_it_stores_json_ld_and_created_at_join_dates(): void
+    {
+        Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument([
+            'published' => ['@value' => '2019-02-03T00:00:00Z'],
+        ]), 200, ['Content-Type' => 'application/activity+json'])]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByUri(self::ACTOR_URI);
+
+        $this->assertNotNull($actor);
+        $this->assertSame('2019-02-03 00:00:00', $actor->published_at?->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_it_stores_created_at_when_published_is_absent(): void
+    {
+        Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument([
+            'createdAt' => '2020-07-15T08:01:02.388375Z',
+        ]), 200, ['Content-Type' => 'application/activity+json'])]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByUri(self::ACTOR_URI);
+
+        $this->assertNotNull($actor);
+        $this->assertSame('2020-07-15 08:01:02', $actor->published_at?->utc()->format('Y-m-d H:i:s'));
+    }
+
     public function test_it_reuses_the_cache_within_the_ttl_without_a_second_http_call(): void
     {
         Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument(), 200, ['Content-Type' => 'application/activity+json'])]);
