@@ -126,17 +126,20 @@ class NoteContentNegotiationTest extends TestCase
         $response->assertJsonPath('inReplyTo', url("/comments/{$parent->id}"));
     }
 
-    public function test_a_browser_request_for_a_comment_redirects_to_the_post_permalink(): void
+    public function test_a_browser_request_for_a_comment_shows_the_focused_thread(): void
     {
         $author = $this->createFullAccount('redirectautore');
-        $post = $this->publishPost($author, 'Post per il redirect.');
+        $post = $this->publishPost($author, 'Post per il permalink.');
 
         $commenter = $this->createFullAccount('redirectcommentatore');
-        $comment = app(CommentComposer::class)->compose($commenter->actor, $post, 'Commento.');
+        $comment = app(CommentComposer::class)->compose($commenter->actor, $post, 'Commento in pagina propria.');
 
         $response = $this->get(route('comments.show', $comment));
 
-        $response->assertRedirect(route('posts.show', $post).'#commento-'.$comment->id);
+        $response->assertOk();
+        $response->assertSee('Commento in pagina propria.', false);
+        $response->assertSee('Post per il permalink.', false);
+        $response->assertSee('ob-comment--focused', false);
     }
 
     public function test_a_deleted_comment_is_represented_as_a_tombstone(): void

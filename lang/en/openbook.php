@@ -217,6 +217,9 @@ return [
         'confirm_delete' => 'Are you sure you want to delete this comment?',
         'menu' => 'More comment actions',
         'reply_to' => 'Reply to :name',
+        'in_reply_to' => 'in reply to :name',
+        'open_thread' => 'Open this comment thread',
+        'thread_title' => 'Reply by :name',
         'login_to_comment' => 'Log in to leave a comment.',
     ],
 

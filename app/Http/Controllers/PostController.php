@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Application\Services\PostComposer;
 use App\Application\Services\QuotedPostResolver;
 use App\Domain\Comments\Comment;
+use App\Domain\Comments\CommentThread;
 use App\Domain\Posts\Post;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Posts\RemotePostRefresher;
@@ -17,7 +18,6 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
 class PostController extends Controller
@@ -137,7 +137,7 @@ class PostController extends Controller
 
         $comments = Comment::query()
             ->where('post_id', $post->id)
-            ->with(['actor.user.profile', 'media.thumbnail'])
+            ->with(['actor.user.profile', 'media.thumbnail', 'parent.actor.user.profile'])
             ->orderBy('created_at')
             ->get();
 
@@ -145,7 +145,7 @@ class PostController extends Controller
 
         return view('posts.show', [
             'post' => $post,
-            'commentTree' => $this->buildCommentTree($comments),
+            'commentTree' => CommentThread::tree($comments),
         ]);
     }
 
@@ -188,30 +188,5 @@ class PostController extends Controller
         }
 
         return redirect()->route('feed.index')->with('status', 'Post eliminato.');
-    }
-
-    /**
-     * Raggruppa un elenco piatto di commenti in un albero, mantenendo
-     * l'ordine cronologico a ogni livello. Per questo milestone l'intero
-     * thread viene caricato in una sola query: il caricamento progressivo
-     * per discussioni molto grandi e' rimandato a una fase successiva.
-     *
-     * @param  Collection<int, Comment>  $comments
-     * @return array<int, array{comment: Comment, children: array<int, mixed>}>
-     */
-    private function buildCommentTree($comments): array
-    {
-        $byParent = $comments->groupBy(fn (Comment $comment) => $comment->parent_comment_id ?? 'root');
-
-        $build = function (string $parentKey) use (&$build, $byParent): array {
-            return $byParent->get($parentKey, collect())
-                ->map(fn (Comment $comment) => [
-                    'comment' => $comment,
-                    'children' => $build($comment->id),
-                ])
-                ->all();
-        };
-
-        return $build('root');
     }
 }

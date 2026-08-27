@@ -143,6 +143,10 @@ class CommentTest extends TestCase
         $response->assertDontSee(__('openbook.comments.deleted'), false);
         $response->assertDontSee('Padre che sparisce.', false);
         $response->assertSee('Figlio che resta.', false);
+
+        $this->actingAs($author)
+            ->get(route('comments.show', $parent))
+            ->assertRedirect(route('posts.show', $post).'#commenti');
     }
 
     public function test_a_comment_can_be_posted_through_the_http_endpoint(): void
@@ -328,7 +332,7 @@ class CommentTest extends TestCase
         $author = $this->createFullAccount('autoreicone');
         $commenter = $this->createFullAccount('commentatoreicone');
         $post = $this->publishPost($author);
-        app(CommentComposer::class)->compose($commenter->actor, $post, 'Commento con menu.');
+        $comment = app(CommentComposer::class)->compose($commenter->actor, $post, 'Commento con menu.');
 
         $response = $this->actingAs($commenter)->get(route('posts.show', $post));
 
@@ -341,9 +345,9 @@ class CommentTest extends TestCase
         $response->assertSee('Elimina', false);
 
         $html = $response->getContent();
-        $commentActionsPos = strpos($html, 'ob-comment');
+        $commentActionsPos = strpos($html, 'id="commento-'.$comment->id.'"');
         $this->assertNotFalse($commentActionsPos);
-        $slice = substr($html, $commentActionsPos, 2500);
+        $slice = substr($html, $commentActionsPos, 4000);
         $actionsPos = strpos($slice, 'ob-post__actions');
         $this->assertNotFalse($actionsPos);
         $actionsSlice = substr($slice, $actionsPos, 600);
@@ -384,5 +388,55 @@ class CommentTest extends TestCase
             'method="POST" action="'.route('comments.destroy', $comment).'"',
             $response->getContent(),
         );
+    }
+
+    public function test_deep_replies_stay_at_one_indent_with_parent_link(): void
+    {
+        $author = $this->createFullAccount('autoreannidaprofondo');
+        $alice = $this->createFullAccount('aliceannida');
+        $bruno = $this->createFullAccount('brunoannida');
+        $carla = $this->createFullAccount('carlaannida');
+        $post = $this->publishPost($author);
+
+        $root = app(CommentComposer::class)->compose($alice->actor, $post, 'Commento radice.');
+        $child = app(CommentComposer::class)->compose($bruno->actor, $post, 'Risposta di primo livello.', $root);
+        app(CommentComposer::class)->compose($carla->actor, $post, 'Risposta di secondo livello.', $child);
+
+        $html = $this->actingAs($author)->get(route('posts.show', $post))->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, 'ob-comment__replies'));
+        $this->assertStringContainsString('Risposta di secondo livello.', $html);
+        $this->assertStringContainsString(
+            __('openbook.comments.in_reply_to', ['name' => $bruno->actor->displayName()]),
+            $html,
+        );
+
+        $repliesPos = strpos($html, 'ob-comment__replies');
+        $deepPos = strpos($html, 'Risposta di secondo livello.');
+        $this->assertNotFalse($repliesPos);
+        $this->assertGreaterThan($repliesPos, $deepPos);
+    }
+
+    public function test_comment_permalink_shows_ancestors_and_replies(): void
+    {
+        $author = $this->createFullAccount('autorepermalink');
+        $alice = $this->createFullAccount('alicepermalink');
+        $bruno = $this->createFullAccount('brunopermalink');
+        $carla = $this->createFullAccount('carlapermalink');
+        $post = $this->publishPost($author, 'Post del thread.');
+
+        $root = app(CommentComposer::class)->compose($alice->actor, $post, 'Padre del permalink.');
+        $child = app(CommentComposer::class)->compose($bruno->actor, $post, 'Commento in focus.', $root);
+        app(CommentComposer::class)->compose($carla->actor, $post, 'Nipote visibile.', $child);
+
+        $response = $this->actingAs($author)->get(route('comments.show', $child));
+
+        $response->assertOk();
+        $response->assertSee('Post del thread.', false);
+        $response->assertSee('Padre del permalink.', false);
+        $response->assertSee('Commento in focus.', false);
+        $response->assertSee('Nipote visibile.', false);
+        $response->assertSee('ob-comment--focused', false);
+        $response->assertSee(route('comments.show', $child), false);
     }
 }

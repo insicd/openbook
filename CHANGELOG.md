@@ -73,6 +73,11 @@ il [`README`](README.md#roadmap-and-project-status).
 - Titoli dei post (campo titolo, `.ob-post__title`): stessa dimensione del
   testo del corpo, solo in grassetto. Prima ereditavano l'h2 del browser
   e risultavano sproporzionati.
+- Thread dei commenti sotto al post: un solo livello di indentazione.
+  Le risposte piu' profonde restano visibili nello stesso elenco, con il
+  collegamento "in risposta a" verso il padre. Cliccando l'orario si apre
+  la pagina del commento (`GET /comments/{comment}`): il post e i padri
+  sopra, i figli sotto. I client ActivityPub continuano a ricevere la Note.
 
 ### Fixed
 - Profili remoti: la data di iscrizione non restava vuota sugli Actor gia'

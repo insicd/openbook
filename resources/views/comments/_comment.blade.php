@@ -5,21 +5,46 @@
     $displayName = $author?->displayName();
     $isDeleted = $comment->status === \App\Domain\Comments\Comment::STATUS_DELETED;
     $children = $node['children'] ?? [];
+    $depth = $depth ?? 0;
+    $threadParentId = $threadParentId ?? null;
+    $focusedId = $focusedId ?? null;
+    $showReplyForm = $showReplyForm ?? true;
+    $isFocused = $focusedId !== null && $focusedId === $comment->id;
+    $parent = $comment->parent;
+    $showInReplyTo = $parent !== null
+        && $parent->isPublished()
+        && $parent->id !== $threadParentId;
 @endphp
 
 @if ($isDeleted)
     {{-- Privacy: nessun tombstone in UI. Le eventuali risposte restano visibili. --}}
     @foreach ($children as $child)
-        @include('comments._comment', ['node' => $child, 'post' => $post])
+        @include('comments._comment', [
+            'node' => $child,
+            'post' => $post,
+            'depth' => $depth,
+            'threadParentId' => $threadParentId,
+            'focusedId' => $focusedId,
+            'showReplyForm' => $showReplyForm,
+        ])
     @endforeach
 @else
-    <div class="ob-comment" id="commento-{{ $comment->id }}">
+    <div @class(['ob-comment', 'ob-comment--focused' => $isFocused]) id="commento-{{ $comment->id }}">
         <div class="ob-post__header">
             <x-avatar :actor="$author" style="width:32px;height:32px;font-size:1rem" />
             <div class="ob-post__meta">
                 @if ($author)
                     <a href="{{ $author->profileUrl() }}" class="ob-post__author">{{ $displayName }}</a>
-                    <div class="ob-post__time">{{ $comment->created_at->diffForHumans() }}</div>
+                    <div class="ob-post__time">
+                        <a href="{{ route('comments.show', $comment) }}" class="ob-comment__permalink" aria-label="{{ __('openbook.comments.open_thread') }}">
+                            {{ $comment->created_at->diffForHumans() }}
+                        </a>
+                    </div>
+                @endif
+                @if ($showInReplyTo)
+                    <a href="{{ route('comments.show', $parent) }}" class="ob-comment__in-reply">
+                        {{ __('openbook.comments.in_reply_to', ['name' => $parent->actor?->displayName() ?? $parent->actor?->preferred_username]) }}
+                    </a>
                 @endif
             </div>
 
@@ -86,14 +111,16 @@
                     </button>
                 </form>
 
-                <button
-                    type="button"
-                    class="ob-post__action"
-                    aria-label="{{ __('openbook.actions.reply') }}"
-                    onclick="(function(){var c=document.getElementById('risposta-{{ $comment->id }}');if(!c)return;c.hidden=false;var t=document.getElementById('risposta-testo-{{ $comment->id }}');if(t){t.focus();}}())"
-                >
-                    <x-icon name="comment" />
-                </button>
+                @if ($showReplyForm)
+                    <button
+                        type="button"
+                        class="ob-post__action"
+                        aria-label="{{ __('openbook.actions.reply') }}"
+                        onclick="(function(){var c=document.getElementById('risposta-{{ $comment->id }}');if(!c)return;c.hidden=false;var t=document.getElementById('risposta-testo-{{ $comment->id }}');if(t){t.focus();}}())"
+                    >
+                        <x-icon name="comment" />
+                    </button>
+                @endif
             @else
                 <span class="ob-post__action" aria-label="{{ __('openbook.actions.like', ['count' => $comment->likes_count]) }}">
                     <x-icon name="heart" />
@@ -103,28 +130,50 @@
         </div>
 
         @auth
-            <div style="margin-top:0.6rem">
-                @include('composer.form', [
-                    'mode' => 'reply',
-                    'formId' => 'risposta-'.$comment->id,
-                    'bodyId' => 'risposta-testo-'.$comment->id,
-                    'prefix' => 'risposta-'.$comment->id,
-                    'action' => route('comments.store', $post),
-                    'parentCommentId' => $comment->id,
-                    'formHidden' => true,
-                    'showLabel' => true,
-                    'replyToName' => $displayName,
-                    'rows' => 2,
-                ])
-            </div>
+            @if ($showReplyForm)
+                <div style="margin-top:0.6rem">
+                    @include('composer.form', [
+                        'mode' => 'reply',
+                        'formId' => 'risposta-'.$comment->id,
+                        'bodyId' => 'risposta-testo-'.$comment->id,
+                        'prefix' => 'risposta-'.$comment->id,
+                        'action' => route('comments.store', $post),
+                        'parentCommentId' => $comment->id,
+                        'formHidden' => true,
+                        'showLabel' => true,
+                        'replyToName' => $displayName,
+                        'rows' => 2,
+                    ])
+                </div>
+            @endif
         @endauth
+    </div>
 
-        @if ($children !== [])
+    @if ($children !== [])
+        @if ($depth < 1)
             <div class="ob-comment__replies">
                 @foreach ($children as $child)
-                    @include('comments._comment', ['node' => $child, 'post' => $post])
+                    @include('comments._comment', [
+                        'node' => $child,
+                        'post' => $post,
+                        'depth' => 1,
+                        'threadParentId' => $comment->id,
+                        'focusedId' => $focusedId,
+                        'showReplyForm' => $showReplyForm,
+                    ])
                 @endforeach
             </div>
+        @else
+            @foreach ($children as $child)
+                @include('comments._comment', [
+                    'node' => $child,
+                    'post' => $post,
+                    'depth' => 1,
+                    'threadParentId' => $threadParentId,
+                    'focusedId' => $focusedId,
+                    'showReplyForm' => $showReplyForm,
+                ])
+            @endforeach
         @endif
-    </div>
+    @endif
 @endif

@@ -2544,9 +2544,55 @@ a.ob-post__menu-item {
 }
 
 .ob-comment__replies {
-  margin-left: 1.5rem;
+  margin-left: 0.85rem;
   border-left: 2px solid var(--ob-color-border);
-  padding-left: 1rem;
+  padding-left: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .ob-comment__replies {
+    margin-left: 1.25rem;
+    padding-left: 1rem;
+  }
+}
+
+.ob-comment__replies .ob-comment__replies {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: none;
+}
+
+.ob-comment__permalink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ob-comment__permalink:hover,
+.ob-comment__permalink:focus-visible {
+  text-decoration: underline;
+}
+
+.ob-comment__in-reply {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--ob-color-text-muted);
+  font-size: 0.85rem;
+}
+
+.ob-comment__in-reply:hover,
+.ob-comment__in-reply:focus-visible {
+  color: var(--ob-color-primary);
+}
+
+.ob-comment--focused {
+  padding: 0.35rem 0.5rem;
+  margin: 0 -0.5rem;
+  border-radius: var(--ob-radius);
+  background: var(--ob-color-primary-soft);
+}
+
+.ob-thread__ancestors .ob-comment {
+  opacity: 0.92;
 }
 
 .ob-comment__more {
