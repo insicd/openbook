@@ -871,6 +871,11 @@ discover, profile photo roll). In particular:
 - remote search (`/cerca`) and the profile page of a cached remote Actor
   (`/attori/{id}`, including the redirect to the canonical profile when the id
   corresponds to a local Actor);
+- `RemoteFollowCollectionsFetcher` (`RemoteFollowCollectionsFetcherTest`):
+  visiting a remote profile queries the `followers` and `following`
+  collections (TTL `OPENBOOK_COLLECTIONS_CACHE_TTL_HOURS`, default 24h) for
+  `totalItems` counts and a first-page sample, without writing into the local
+  `follows` graph; join date comes from `published` on the Person document;
 - `RemoteOutboxFetcher` (`RemoteOutboxFetcherTest`): on the first load of a
   remote Actor's profile page (or after cache expiry) the most recent public
   posts from their real outbox are fetched and shown, excluding replies,

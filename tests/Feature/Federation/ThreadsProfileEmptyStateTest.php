@@ -30,6 +30,7 @@ class ThreadsProfileEmptyStateTest extends TestCase
                 'totalItems' => 1200,
             ], 200, ['Content-Type' => 'application/activity+json']),
             $remote->uri.'.atom' => Http::response('Not Found', 404),
+            '*' => Http::response('', 404),
         ]);
 
         $this->actingAs($viewer)

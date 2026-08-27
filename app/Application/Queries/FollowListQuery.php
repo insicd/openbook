@@ -5,7 +5,9 @@ namespace App\Application\Queries;
 use App\Application\Services\FollowManager;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Federation\SocialGraph\RemoteCollectionMember;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 /**
  * Costruisce gli elenchi paginati di follower e "seguiti" di un Actor,
@@ -47,6 +49,41 @@ final class FollowListQuery
             ->paginate($perPage);
 
         return $this->mapToActors($paginator, 'following');
+    }
+
+    /**
+     * Campione della collection remota gia' in cache (prima pagina).
+     * Esclude chi e' gia' nel grafo locale, per non duplicare le righe.
+     *
+     * @return Collection<int, Actor>
+     */
+    public function remotePreview(Actor $actor, string $type): Collection
+    {
+        $collection = $type === 'followers'
+            ? RemoteCollectionMember::COLLECTION_FOLLOWERS
+            : RemoteCollectionMember::COLLECTION_FOLLOWING;
+
+        $localIds = $type === 'followers'
+            ? Follow::query()
+                ->where('following_id', $actor->id)
+                ->where('status', Follow::STATUS_ACCEPTED)
+                ->pluck('follower_id')
+            : Follow::query()
+                ->where('follower_id', $actor->id)
+                ->where('status', Follow::STATUS_ACCEPTED)
+                ->pluck('following_id');
+
+        return RemoteCollectionMember::query()
+            ->where('actor_id', $actor->id)
+            ->where('collection', $collection)
+            ->whereNotNull('member_actor_id')
+            ->when($localIds->isNotEmpty(), fn ($query) => $query->whereNotIn('member_actor_id', $localIds))
+            ->with('member.user.profile')
+            ->orderBy('position')
+            ->get()
+            ->map(fn (RemoteCollectionMember $row) => $row->member)
+            ->filter()
+            ->values();
     }
 
     /**

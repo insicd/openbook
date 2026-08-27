@@ -41,6 +41,10 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property Carbon|null $last_fetched_at
  * @property Carbon|null $posts_fetched_at
+ * @property Carbon|null $published_at
+ * @property int|null $followers_count
+ * @property int|null $following_count
+ * @property Carbon|null $collections_fetched_at
  */
 class Actor extends Model
 {
@@ -78,6 +82,10 @@ class Actor extends Model
         'status',
         'last_fetched_at',
         'posts_fetched_at',
+        'published_at',
+        'followers_count',
+        'following_count',
+        'collections_fetched_at',
     ];
 
     /**
@@ -92,6 +100,10 @@ class Actor extends Model
             'indexable' => 'boolean',
             'last_fetched_at' => 'datetime',
             'posts_fetched_at' => 'datetime',
+            'published_at' => 'datetime',
+            'followers_count' => 'integer',
+            'following_count' => 'integer',
+            'collections_fetched_at' => 'datetime',
         ];
     }
 

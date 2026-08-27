@@ -45,6 +45,27 @@ class ActorProfileTest extends TestCase
         $response->assertSee('@peter@remoto.example');
     }
 
+    public function test_it_shows_remote_follower_counts_and_join_date(): void
+    {
+        Http::fake(['*' => Http::response('', 404)]);
+        $viewer = $this->createFullAccount('contatoriremoti');
+        $remote = $this->createRemoteActor('contaia', overrides: [
+            'published_at' => '2019-06-15 00:00:00',
+            'followers_count' => 12800,
+            'following_count' => 42,
+            'collections_fetched_at' => now(),
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('actors.show', $remote));
+
+        $response->assertOk();
+        $response->assertSee(\App\Support\CompactNumber::format(12800), false);
+        $response->assertSee('42', false);
+        $response->assertSee(__('openbook.profile.joined_on', [
+            'date' => $remote->published_at->translatedFormat('d F Y'),
+        ]));
+    }
+
     public function test_it_renders_when_the_remote_outbox_is_unreachable(): void
     {
         Http::fake(function (): void {

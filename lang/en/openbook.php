@@ -291,6 +291,8 @@ return [
         'back_to_profile' => 'Back to profile',
         'empty_followers' => 'No followers yet.',
         'empty_following' => 'Not following anyone yet.',
+        'remote_preview' => 'Preview from the remote instance collection (first page in cache).',
+        'remote_preview_incomplete' => 'Preview from the remote instance collection: this is not the full list.',
         'infinite_scroll' => [
             'loading' => 'Loading more accounts...',
             'end' => 'There are no more accounts to show.',

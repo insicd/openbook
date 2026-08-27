@@ -46,6 +46,18 @@ class RemoteOutboxFetcherTest extends TestCase
                 'partOf' => $outboxUrl,
                 'orderedItems' => $items,
             ], 200, ['Content-Type' => 'application/activity+json']),
+            $remote->endpoints->followers => Http::response([
+                'id' => $remote->endpoints->followers,
+                'type' => 'OrderedCollection',
+                'totalItems' => 0,
+                'orderedItems' => [],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $remote->endpoints->following => Http::response([
+                'id' => $remote->endpoints->following,
+                'type' => 'OrderedCollection',
+                'totalItems' => 0,
+                'orderedItems' => [],
+            ], 200, ['Content-Type' => 'application/activity+json']),
         ]);
     }
 
@@ -150,10 +162,10 @@ class RemoteOutboxFetcherTest extends TestCase
         $this->fakeOutbox($remote, [$this->noteActivity($remote)]);
 
         $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
-        Http::assertSentCount(2);
+        Http::assertSentCount(4);
 
         $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
-        Http::assertSentCount(2);
+        Http::assertSentCount(4);
     }
 
     public function test_it_refetches_the_outbox_after_the_cache_ttl_expires(): void
@@ -165,7 +177,7 @@ class RemoteOutboxFetcherTest extends TestCase
 
         $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
 
-        Http::assertSentCount(2);
+        Http::assertSentCount(4);
     }
 
     public function test_it_records_the_fetch_attempt_even_when_the_remote_outbox_is_unreachable(): void
@@ -257,6 +269,7 @@ XML, 200, ['Content-Type' => 'application/atom+xml']),
                     ],
                 ],
             ], 200, ['Content-Type' => 'application/activity+json']),
+            '*' => Http::response('', 404),
         ]);
 
         $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
@@ -298,6 +311,7 @@ XML, 200, ['Content-Type' => 'application/atom+xml']),
                 'published' => now()->subHour()->toAtomString(),
                 'to' => ['https://www.w3.org/ns/activitystreams#Public'],
             ], 200, ['Content-Type' => 'application/activity+json']),
+            '*' => Http::response('', 404),
         ]);
 
         $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
@@ -378,6 +392,7 @@ XML, 200, ['Content-Type' => 'application/atom+xml']),
                 'published' => now()->subHour()->toAtomString(),
                 'to' => ['https://www.w3.org/ns/activitystreams#Public'],
             ], 200, ['Content-Type' => 'application/activity+json']),
+            '*' => Http::response('', 404),
         ]);
 
         $response = $this->actingAs($viewer)->get(route('actors.show', $remote));
@@ -421,6 +436,7 @@ XML, 200, ['Content-Type' => 'application/atom+xml']),
                 ]],
             ], 200, ['Content-Type' => 'application/json']),
             $noteUri => Http::response('Unauthorized', 401, ['Content-Type' => 'text/plain']),
+            '*' => Http::response('', 404),
         ]);
 
         $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();

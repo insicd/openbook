@@ -4,6 +4,7 @@ namespace App\Federation\Actors;
 
 use App\Application\Services\DomainBlockManager;
 use App\Federation\Fetch\FederationFetchSigner;
+use App\Federation\Support\ActivityPubTimestamp;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use Illuminate\Support\Carbon;
@@ -551,6 +552,23 @@ final class RemoteActorResolver
                 'last_fetched_at' => now(),
             ];
 
+            $publishedAt = $this->documentPublishedAt($document);
+
+            if ($publishedAt !== null) {
+                $attributes['published_at'] = $publishedAt;
+            }
+
+            $followersCount = $this->documentCount($document, 'followersCount');
+            $followingCount = $this->documentCount($document, 'followingCount');
+
+            if ($followersCount !== null) {
+                $attributes['followers_count'] = $followersCount;
+            }
+
+            if ($followingCount !== null) {
+                $attributes['following_count'] = $followingCount;
+            }
+
             $actor = Actor::query()->updateOrCreate(['uri' => $uri], $attributes);
 
             ActorKey::query()->updateOrCreate(
@@ -633,6 +651,49 @@ final class RemoteActorResolver
         }
 
         return $default;
+    }
+
+    /**
+     * Data di iscrizione dichiarata dall'istanza remota (campo ActivityPub
+     * "published" sul Person/Group). Assente su alcuni server: in quel caso
+     * resta null e il profilo non mostra la riga.
+     *
+     * @param  array<string, mixed>  $document
+     */
+    private function documentPublishedAt(array $document): ?Carbon
+    {
+        $value = $document['published'] ?? null;
+
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return ActivityPubTimestamp::parse($value);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Conteggio opzionale sul documento Actor (Misskey/Firefish e simili).
+     * Mastodon di solito lo espone solo sulla collection.
+     *
+     * @param  array<string, mixed>  $document
+     */
+    private function documentCount(array $document, string $key): ?int
+    {
+        $value = $document[$key] ?? null;
+
+        if (is_int($value) && $value >= 0) {
+            return $value;
+        }
+
+        if (is_string($value) && is_numeric($value) && (int) $value >= 0) {
+            return (int) $value;
+        }
+
+        return null;
     }
 
     private function coerceBoolean(mixed $value, bool $default): bool

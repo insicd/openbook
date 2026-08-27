@@ -35,6 +35,12 @@ il [`README`](README.md#roadmap-and-project-status).
   generate la favicon 32×32, l'Apple Touch Icon 180×180 (iOS) e le icone
   Android 192/512 (anche maskable) per «Aggiungi alla schermata Home»,
   piu' un web app manifest in `GET /manifest.webmanifest`.
+- Profili remoti (`GET /attori/{actor}`): follower e seguiti usano i
+  conteggi `totalItems` delle collection ActivityPub del server di origine,
+  con cache di 24 ore (`OPENBOOK_COLLECTIONS_CACHE_TTL_HOURS`). La data di
+  iscrizione arriva dal campo `published` del documento Person. Si conserva
+  anche un campione della prima pagina della lista (non l'intero grafo,
+  e non nel grafo locale `follows`).
 - Pannello di controllo, sezione **Aspetto** (`GET /admin/aspetto`): CSS
   personalizzato che sovrascrive il template sul sito pubblico (non sul
   pannello). Anteprima live in iframe su una pagina di esempio

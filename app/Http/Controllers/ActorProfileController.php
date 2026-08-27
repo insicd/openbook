@@ -13,6 +13,7 @@ use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Outbox\RemoteOutboxFetcher;
+use App\Federation\SocialGraph\RemoteFollowCollectionsFetcher;
 use App\Http\Controllers\Concerns\RendersFollowLists;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -36,6 +37,7 @@ class ActorProfileController extends Controller
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
         private readonly RemoteOutboxFetcher $outboxFetcher,
+        private readonly RemoteFollowCollectionsFetcher $collectionsFetcher,
         private readonly FeedImporter $feedImporter,
         private readonly QuotedActorResolver $quotedActorResolver,
     ) {}
@@ -56,7 +58,7 @@ class ActorProfileController extends Controller
             return redirect()->route('profile.followers', $actor->preferred_username);
         }
 
-        return $this->renderFollowList($this->followListQuery, $this->followManager, $actor, 'followers');
+        return $this->renderRemoteFollowList($actor, 'followers');
     }
 
     public function following(Actor $actor): View|RedirectResponse
@@ -65,7 +67,7 @@ class ActorProfileController extends Controller
             return redirect()->route('profile.following', $actor->preferred_username);
         }
 
-        return $this->renderFollowList($this->followListQuery, $this->followManager, $actor, 'following');
+        return $this->renderRemoteFollowList($actor, 'following');
     }
 
     /**
@@ -111,10 +113,21 @@ class ActorProfileController extends Controller
             }
         }
 
+        try {
+            $this->collectionsFetcher->refreshIfStale($actor);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+
+        $actor = $actor->fresh() ?? $actor;
+        $actor->loadMissing('feedSource');
+
         $viewerActor = auth()->user()?->actor;
 
-        $followersCount = Follow::query()->where('following_id', $actor->id)->where('status', 'accepted')->count();
-        $followingCount = Follow::query()->where('follower_id', $actor->id)->where('status', 'accepted')->count();
+        $localFollowersCount = Follow::query()->where('following_id', $actor->id)->where('status', 'accepted')->count();
+        $localFollowingCount = Follow::query()->where('follower_id', $actor->id)->where('status', 'accepted')->count();
+        $followersCount = $actor->followers_count ?? $localFollowersCount;
+        $followingCount = $actor->following_count ?? $localFollowingCount;
 
         $isFollowing = false;
         $hasPendingRequest = false;
@@ -170,5 +183,26 @@ class ActorProfileController extends Controller
         }
 
         return __('openbook.profile.no_posts_yet');
+    }
+
+    private function renderRemoteFollowList(Actor $actor, string $type): View
+    {
+        try {
+            $this->collectionsFetcher->refreshIfStale($actor);
+            $this->collectionsFetcher->hydrateUnresolvedMembers($actor, $type);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+
+        $actor = $actor->fresh() ?? $actor;
+        $remoteMembers = $this->followListQuery->remotePreview($actor, $type);
+
+        return $this->renderFollowList(
+            $this->followListQuery,
+            $this->followManager,
+            $actor,
+            $type,
+            $remoteMembers,
+        );
     }
 }

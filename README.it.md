@@ -867,6 +867,12 @@ API blog Wafrn, Accept Lemmy, Mondo/scopri, rullino profilo). In particolare:
 - la ricerca remota (`/cerca`) e la pagina profilo di un Actor remoto in cache
   (`/attori/{id}`, incluso il redirect al profilo canonico quando l'id corrisponde a
   un Actor locale);
+- `RemoteFollowCollectionsFetcher` (`RemoteFollowCollectionsFetcherTest`):
+  visitando il profilo remoto si interrogano le collection `followers` e
+  `following` (TTL `OPENBOOK_COLLECTIONS_CACHE_TTL_HOURS`, default 24h) per
+  i conteggi `totalItems` e un campione della prima pagina, senza scrivere
+  nel grafo locale `follows`; la data di iscrizione arriva da `published`
+  sul documento Person;
 - `RemoteOutboxFetcher` (`RemoteOutboxFetcherTest`): al primo caricamento della pagina
   profilo di un Actor remoto (o dopo la scadenza della cache) i post pubblici piu'
   recenti del suo outbox reale vengono recuperati e mostrati, esclusi risposte, post

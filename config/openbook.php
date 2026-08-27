@@ -330,6 +330,12 @@ return [
         // (vedi RemoteRepliesFetcher).
         'replies_cache_ttl_hours' => (int) env('OPENBOOK_REPLIES_CACHE_TTL_HOURS', 6),
 
+        // Dopo quante ore, visitando il profilo o gli elenchi di un Actor
+        // remoto, si ritentano le collection followers/following (conteggi
+        // totalItems e campione della prima pagina). Piu' lunga dell'outbox
+        // perche' i conteggi cambiano piu' lentamente dei post.
+        'collections_cache_ttl_hours' => (int) env('OPENBOOK_COLLECTIONS_CACHE_TTL_HOURS', 24),
+
         'inbox' => [
             // Limite applicativo aggiuntivo (difesa in profondita') rispetto
             // a "post_max_size"/"client_max_body_size" del server web, che

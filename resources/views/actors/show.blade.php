@@ -61,9 +61,9 @@
 
             <div class="ob-profile-toolbar">
                 <div class="ob-profile-stats">
-                    <a href="{{ route('actors.followers', $profileActor) }}"><strong>{{ $followersCount }}</strong><span>{{ $isGroup ? __('openbook.communities.members') : __('openbook.profile.followers') }}</span></a>
+                    <a href="{{ route('actors.followers', $profileActor) }}"><strong>{{ \App\Support\CompactNumber::format((int) $followersCount) }}</strong><span>{{ $isGroup ? __('openbook.communities.members') : __('openbook.profile.followers') }}</span></a>
                     @unless ($isGroup || $isFeed)
-                        <a href="{{ route('actors.following', $profileActor) }}"><strong>{{ $followingCount }}</strong><span>{{ __('openbook.profile.following') }}</span></a>
+                        <a href="{{ route('actors.following', $profileActor) }}"><strong>{{ \App\Support\CompactNumber::format((int) $followingCount) }}</strong><span>{{ __('openbook.profile.following') }}</span></a>
                     @endunless
                 </div>
 
@@ -100,6 +100,12 @@
                     @endauth
                 </div>
             </div>
+
+            @if ($profileActor->published_at)
+                <p class="ob-field__help" style="margin-top:1rem">
+                    {{ __('openbook.profile.joined_on', ['date' => $profileActor->published_at->translatedFormat('d F Y')]) }}
+                </p>
+            @endif
 
             @include('profile._tabs', [
                 'activeTab' => $activeTab ?? 'posts',

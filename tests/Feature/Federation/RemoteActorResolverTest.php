@@ -64,6 +64,22 @@ class RemoteActorResolverTest extends TestCase
         $this->assertTrue($actor->indexable);
     }
 
+    public function test_it_stores_published_and_optional_collection_counts_from_the_actor_document(): void
+    {
+        Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument([
+            'published' => '2018-04-01T12:00:00Z',
+            'followersCount' => 1234,
+            'followingCount' => 56,
+        ]), 200, ['Content-Type' => 'application/activity+json'])]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByUri(self::ACTOR_URI);
+
+        $this->assertNotNull($actor);
+        $this->assertSame('2018-04-01 12:00:00', $actor->published_at?->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame(1234, $actor->followers_count);
+        $this->assertSame(56, $actor->following_count);
+    }
+
     public function test_it_reuses_the_cache_within_the_ttl_without_a_second_http_call(): void
     {
         Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument(), 200, ['Content-Type' => 'application/activity+json'])]);

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Application\Services\FollowManager;
 use App\Domain\SocialGraph\Follow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
@@ -103,6 +104,7 @@ class FollowListTest extends TestCase
     public function test_an_authenticated_user_can_view_the_followers_list_of_a_remote_actor(): void
     {
         Queue::fake();
+        Http::fake(['*' => Http::response('', 404)]);
 
         $remote = $this->createRemoteActor('remota2');
         $local = $this->createFullAccount('localefollower');
