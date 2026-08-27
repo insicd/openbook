@@ -8,6 +8,7 @@ use App\Domain\Posts\Post;
 use App\Domain\Reactions\Like;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
+use App\Federation\Posts\RemoteReactionCountSync;
 use App\Federation\Serialization\ActivitySerializer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -21,9 +22,10 @@ use InvalidArgumentException;
  * "likeable". Il vincolo di unicita' a livello di database previene i
  * duplicati anche in caso di doppio invio concorrente. Quando l'autore del
  * contenuto e' un Actor remoto, il "Mi piace" viene anche consegnato alla
- * sua inbox; quando invece e' il contenuto stesso a essere remoto in cache
- * (ricevuto da un altro follower), il conteggio locale non e' autoritativo e
- * la reazione resta puramente locale (nessuna consegna).
+ * sua inbox. I contatori dei post remoti in cache si allineano ai
+ * {@code totalItems} di origine (vedi
+ * {@see RemoteReactionCountSync}); l'incremento
+ * locale resta un pavimento.
  */
 final class ReactionManager
 {

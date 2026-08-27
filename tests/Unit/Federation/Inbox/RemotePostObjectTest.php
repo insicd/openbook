@@ -305,4 +305,25 @@ class RemotePostObjectTest extends TestCase
         $this->assertSame($full, $attachments[0]['url']);
         $this->assertSame('Anteprima', $attachments[0]['alt']);
     }
+
+    public function test_collection_total_items_reads_inline_counts_and_json_ld_values(): void
+    {
+        $this->assertSame(12, RemotePostObject::collectionTotalItems([
+            'type' => 'Collection',
+            'totalItems' => 12,
+        ]));
+        $this->assertSame(3, RemotePostObject::collectionTotalItems([
+            'totalItems' => '3',
+        ]));
+        $this->assertSame(4, RemotePostObject::collectionTotalItems([
+            'totalItems' => ['@value' => 4],
+        ]));
+        $this->assertNull(RemotePostObject::collectionTotalItems('https://mastodon.example/likes'));
+        $this->assertNull(RemotePostObject::collectionTotalItems(['id' => 'https://mastodon.example/likes']));
+        $this->assertSame('https://mastodon.example/likes', RemotePostObject::collectionUrl('https://mastodon.example/likes'));
+        $this->assertSame(
+            'https://mastodon.example/likes',
+            RemotePostObject::collectionUrl(['id' => 'https://mastodon.example/likes', 'type' => 'Collection']),
+        );
+    }
 }

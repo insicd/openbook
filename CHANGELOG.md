@@ -55,6 +55,13 @@ il [`README`](README.md#roadmap-and-project-status).
   ad aprire il menu condividi. Senza JavaScript le stesse URL mostrano una
   pagina con l'elenco. Massimo 40 nomi, poi "e altri N". La visibilita'
   e' la stessa del post.
+- Post remoti: i contatori **Mi piace** e **Condivisioni** sulle card
+  usano i `totalItems` delle collection `likes`/`shares` del server di
+  origine (stesso GET della Note usato per i commenti, TTL
+  `OPENBOOK_REPLIES_CACHE_TTL_HOURS`). Se il totale non e' inline, al
+  massimo un GET in piu' per collection, senza scaricare l'elenco
+  completo. Il conteggio locale resta un pavimento. I totali arrivano
+  anche dall'outbox quando si importa il post.
 
 ### Changed
 - Box «In tendenza» della sidebar: il titolo include la finestra in

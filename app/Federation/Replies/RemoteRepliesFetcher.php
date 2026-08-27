@@ -9,6 +9,7 @@ use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Fetch\FederationFetchSigner;
 use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Federation\Inbox\RemotePostObject;
+use App\Federation\Posts\RemoteReactionCountSync;
 use App\Federation\Resolution\ObjectResolver;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
@@ -19,6 +20,11 @@ use Illuminate\Support\Facades\Log;
  * Recupera le risposte pubbliche dalla collection "replies" di una Note
  * remota gia' in cache locale. Necessario perche' i commenti di terzi su
  * un post seguito arrivano in inbox solo se indirizzati a questa istanza.
+ *
+ * Dalla stessa Note (stesso GET, stesso TTL) aggiorna anche i contatori
+ * likes/announces con {@code totalItems} di {@code likes} e {@code shares}:
+ * se il totale non e' inline si dereferenzia al massimo una volta ciascuna
+ * collection, senza paginare gli attori.
  *
  * Su Mastodon la prima pagina di "replies" contiene solo le auto-risposte
  * dell'autore (spesso vuota): le risposte di terzi stanno nelle pagine
@@ -63,7 +69,17 @@ final class RemoteRepliesFetcher
         $signingActor = $this->fetchSigner->resolve();
         $note = $this->fetchDocument($post->uri, $signingActor);
 
-        if ($note === null || ! $this->isType($note['type'] ?? null, 'Note')) {
+        if ($note === null) {
+            Log::channel('single')->info('federation.replies.note_unavailable', [
+                'post_uri' => $post->uri,
+            ]);
+
+            return;
+        }
+
+        $this->syncReactionTotals($post, $note, $signingActor);
+
+        if (! $this->isType($note['type'] ?? null, 'Note')) {
             Log::channel('single')->info('federation.replies.note_unavailable', [
                 'post_uri' => $post->uri,
             ]);
@@ -81,6 +97,40 @@ final class RemoteRepliesFetcher
         foreach ($items as $item) {
             $this->ingestItem($item, $post, $signingActor);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $note
+     */
+    private function syncReactionTotals(Post $post, array $note, ?Actor $signingActor): void
+    {
+        $likesTotal = RemotePostObject::collectionTotalItems($note['likes'] ?? null)
+            ?? $this->fetchCollectionTotal($note['likes'] ?? null, $signingActor);
+        $sharesTotal = RemotePostObject::collectionTotalItems($note['shares'] ?? null)
+            ?? $this->fetchCollectionTotal($note['shares'] ?? null, $signingActor);
+
+        RemoteReactionCountSync::apply($post, $likesTotal, $sharesTotal);
+
+        if ($likesTotal !== null || $sharesTotal !== null) {
+            Log::channel('single')->info('federation.reactions.synced', [
+                'post_uri' => $post->uri,
+                'likes' => $likesTotal,
+                'shares' => $sharesTotal,
+            ]);
+        }
+    }
+
+    private function fetchCollectionTotal(mixed $collection, ?Actor $signingActor): ?int
+    {
+        $url = RemotePostObject::collectionUrl($collection);
+
+        if ($url === null) {
+            return null;
+        }
+
+        $document = $this->fetchDocument($url, $signingActor);
+
+        return $document === null ? null : RemotePostObject::collectionTotalItems($document);
     }
 
     /**

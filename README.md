@@ -889,7 +889,9 @@ discover, profile photo roll). In particular:
   opening a remote post (e.g. from the feed of someone you follow) queries the
   `replies` collection of the original Note (TTL
   `OPENBOOK_REPLIES_CACHE_TTL_HOURS`), also following Mastodon's typical `next`
-  pagination (where the first page is often empty); GETs are signed
+  pagination (where the first page is often empty); the same Note GET updates
+  like/share card counts from `likes`/`shares` `totalItems` (at most one extra
+  GET per collection if the total is not inline); GETs are signed
   (authorized fetch) with the visiting user's key or a fallback local Actor;
   public/unlisted comments from third parties are cached without generating
   notifications; replies to already-known comments under the same post are

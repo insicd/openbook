@@ -129,6 +129,35 @@ class RemoteOutboxFetcherTest extends TestCase
         $this->assertNotNull($remote->fresh()->posts_fetched_at);
     }
 
+    public function test_outbox_notes_copy_origin_like_and_share_totals_onto_cached_posts(): void
+    {
+        $viewer = $this->createFullAccount('esploratorelikes');
+        $remote = $this->createRemoteActor('silvanolikes');
+
+        $this->fakeOutbox($remote, [
+            $this->noteActivity($remote, [
+                'content' => '<p>Post con reazioni remote.</p>',
+                'likes' => [
+                    'id' => $remote->uri.'/posts/1/likes',
+                    'type' => 'Collection',
+                    'totalItems' => 42,
+                ],
+                'shares' => [
+                    'id' => $remote->uri.'/posts/1/shares',
+                    'type' => 'Collection',
+                    'totalItems' => 7,
+                ],
+            ]),
+        ]);
+
+        $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
+
+        $post = Post::query()->where('actor_id', $remote->id)->first();
+        $this->assertNotNull($post);
+        $this->assertSame(42, $post->likes_count);
+        $this->assertSame(7, $post->announces_count);
+    }
+
     public function test_openbook_style_titles_are_shown_as_titles_on_the_remote_profile(): void
     {
         $viewer = $this->createFullAccount('lettoretitoli');

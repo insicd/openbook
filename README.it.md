@@ -885,9 +885,12 @@ API blog Wafrn, Accept Lemmy, Mondo/scopri, rullino profilo). In particolare:
 - `RemoteRepliesFetcher` (`RemoteRepliesFetcherTest`, `SignedFetchTest`): aprendo un
   post remoto (es. dal feed di chi si segue) viene interrogata la collection `replies`
   della Note originale (TTL `OPENBOOK_REPLIES_CACHE_TTL_HOURS`), seguendo anche la
-  paginazione `next` tipica di Mastodon (dove la prima pagina e' spesso vuota); i GET
-  sono firmati (authorized fetch) con la chiave dell'utente che visita o di un Actor
-  locale di fallback; i commenti pubblici/non elencati di terzi vengono messi in cache
+  paginazione `next` tipica di Mastodon (dove la prima pagina e' spesso vuota); dallo
+  stesso GET della Note si aggiornano i contatori Mi piace/Condivisioni delle card
+  (`likes`/`shares` `totalItems`; al massimo un GET in piu' per collection se il
+  totale non e' inline); i GET sono firmati (authorized fetch) con la chiave
+  dell'utente che visita o di un Actor locale di fallback; i commenti
+  pubblici/non elencati di terzi vengono messi in cache
   senza generare notifiche; le risposte a commenti gia' noti sotto lo stesso post
   vengono annidate correttamente;
 - gli elenchi follower/seguiti (`FollowListTest`): visibilita' pubblica per un profilo

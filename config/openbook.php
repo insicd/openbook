@@ -327,7 +327,8 @@ return [
 
         // Dopo quante ore, aprendo un post remoto, viene ritentato il
         // recupero della collection "replies" della Note originale
-        // (vedi RemoteRepliesFetcher).
+        // (vedi RemoteRepliesFetcher). Dallo stesso GET si aggiornano
+        // anche i contatori likes/shares (`totalItems`).
         'replies_cache_ttl_hours' => (int) env('OPENBOOK_REPLIES_CACHE_TTL_HOURS', 6),
 
         // Dopo quante ore, visitando il profilo o gli elenchi di un Actor

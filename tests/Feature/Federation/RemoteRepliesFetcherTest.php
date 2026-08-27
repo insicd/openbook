@@ -286,4 +286,110 @@ class RemoteRepliesFetcherTest extends TestCase
             ->assertOk()
             ->assertSee('Dalla collection id', false);
     }
+
+    public function test_opening_a_remote_post_updates_like_and_share_totals_from_the_note(): void
+    {
+        $viewer = $this->createFullAccount('lettorelikes');
+        $author = $this->createRemoteActor('autorelikes');
+        $post = $this->createRemotePost($author, 'withcounts');
+        $post->forceFill(['likes_count' => 2, 'announces_count' => 1])->save();
+
+        Http::fake([
+            $post->uri => Http::response([
+                'id' => $post->uri,
+                'type' => 'Note',
+                'attributedTo' => $author->uri,
+                'content' => '<p>Post remoto seguito.</p>',
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+                'likes' => [
+                    'id' => $post->uri.'/likes',
+                    'type' => 'Collection',
+                    'totalItems' => 18,
+                ],
+                'shares' => [
+                    'id' => $post->uri.'/shares',
+                    'type' => 'Collection',
+                    'totalItems' => 5,
+                ],
+                'replies' => [
+                    'id' => $post->uri.'/replies',
+                    'type' => 'Collection',
+                    'first' => [
+                        'type' => 'CollectionPage',
+                        'items' => [],
+                    ],
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $this->actingAs($viewer)->get(route('posts.show', $post))->assertOk();
+
+        $post = $post->fresh();
+        $this->assertSame(18, $post->likes_count);
+        $this->assertSame(5, $post->announces_count);
+        Http::assertNotSent(fn ($request) => $request->url() === $post->uri.'/likes' || $request->url() === $post->uri.'/shares');
+    }
+
+    public function test_origin_reaction_totals_do_not_drop_below_local_counts(): void
+    {
+        $viewer = $this->createFullAccount('lettorefloor');
+        $author = $this->createRemoteActor('autorefloor');
+        $post = $this->createRemotePost($author, 'floor');
+        $post->forceFill(['likes_count' => 9, 'announces_count' => 4])->save();
+
+        Http::fake([
+            $post->uri => Http::response([
+                'id' => $post->uri,
+                'type' => 'Note',
+                'attributedTo' => $author->uri,
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+                'likes' => ['type' => 'Collection', 'totalItems' => 3],
+                'shares' => ['type' => 'Collection', 'totalItems' => 1],
+                'replies' => [
+                    'id' => $post->uri.'/replies',
+                    'type' => 'Collection',
+                    'first' => ['type' => 'CollectionPage', 'items' => []],
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $this->actingAs($viewer)->get(route('posts.show', $post))->assertOk();
+
+        $post = $post->fresh();
+        $this->assertSame(9, $post->likes_count);
+        $this->assertSame(4, $post->announces_count);
+    }
+
+    public function test_it_fetches_likes_collection_when_the_note_only_has_a_url(): void
+    {
+        $viewer = $this->createFullAccount('lettorecollikes');
+        $author = $this->createRemoteActor('autorecollikes');
+        $post = $this->createRemotePost($author, 'collikes');
+        $likesUrl = $post->uri.'/likes';
+
+        Http::fake([
+            $post->uri => Http::response([
+                'id' => $post->uri,
+                'type' => 'Note',
+                'attributedTo' => $author->uri,
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+                'likes' => $likesUrl,
+                'replies' => [
+                    'id' => $post->uri.'/replies',
+                    'type' => 'Collection',
+                    'first' => ['type' => 'CollectionPage', 'items' => []],
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $likesUrl => Http::response([
+                'id' => $likesUrl,
+                'type' => 'OrderedCollection',
+                'totalItems' => 27,
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $this->actingAs($viewer)->get(route('posts.show', $post))->assertOk();
+
+        $this->assertSame(27, $post->fresh()->likes_count);
+        Http::assertSent(fn ($request) => $request->url() === $likesUrl);
+    }
 }

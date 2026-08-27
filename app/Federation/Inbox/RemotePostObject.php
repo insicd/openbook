@@ -121,6 +121,50 @@ final class RemotePostObject
     }
 
     /**
+     * Conteggio {@code totalItems} di una collection ActivityPub (likes,
+     * shares): presente quando il server manda l'oggetto inline sulla Note.
+     * Una stringa URL non ha il totale: va dereferenziata a parte.
+     */
+    public static function collectionTotalItems(mixed $collection): ?int
+    {
+        if (! is_array($collection)) {
+            return null;
+        }
+
+        $value = $collection['totalItems'] ?? null;
+
+        if (is_array($value) && array_key_exists('@value', $value)) {
+            $value = $value['@value'];
+        }
+
+        if (is_int($value) && $value >= 0) {
+            return $value;
+        }
+
+        if (is_string($value) && is_numeric($value) && (int) $value >= 0) {
+            return (int) $value;
+        }
+
+        return null;
+    }
+
+    /**
+     * URL della collection se il campo e' una stringa o un oggetto con id.
+     */
+    public static function collectionUrl(mixed $collection): ?string
+    {
+        if (is_string($collection) && $collection !== '') {
+            return $collection;
+        }
+
+        if (is_array($collection) && is_string($collection['id'] ?? null) && $collection['id'] !== '') {
+            return $collection['id'];
+        }
+
+        return null;
+    }
+
+    /**
      * True se la Note ha testo in content, contentMap o source.
      *
      * @param  array<string, mixed>  $document

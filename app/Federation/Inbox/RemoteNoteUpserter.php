@@ -12,6 +12,7 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Outbox\RemoteOutboxFetcher;
+use App\Federation\Posts\RemoteReactionCountSync;
 use App\Federation\Replies\RemoteRepliesFetcher;
 use App\Federation\Serialization\NoteSerializer;
 use App\Federation\Support\ActivityPubTimestamp;
@@ -111,6 +112,8 @@ final class RemoteNoteUpserter
         }
 
         $post->save();
+
+        RemoteReactionCountSync::applyFromNote($post, $note);
 
         if ($wasNew) {
             $this->attachAudienceRecipients($post, $note, $actor);

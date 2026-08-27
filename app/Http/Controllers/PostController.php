@@ -121,9 +121,9 @@ class PostController extends Controller
             );
         }
 
-        // Post remoto: recupera (con TTL) le replies pubbliche dal server
-        // di origine, cosi' i commenti di terzi che non sono mai arrivati
-        // in inbox compaiono comunque sul thread.
+        // Post remoto: recupera (con TTL) le replies pubbliche e i totali
+        // likes/shares dalla Note originale, cosi' commenti e contatori
+        // delle card restano allineati all'origine.
         if ($post->isRemote()) {
             try {
                 $this->remoteRepliesFetcher->fetchReplies($post);
