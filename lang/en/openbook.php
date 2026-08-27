@@ -708,7 +708,7 @@ return [
 
     'sidebar' => [
         'instance_title' => 'This instance',
-        'trending_title' => 'Trending',
+        'trending_title' => 'Trending (:days)',
         'trending_more' => 'Show all',
         'hashtag_uses' => '{1} :count post|[2,*] :count posts',
         'no_popular_hashtags' => 'No trending hashtags yet.',

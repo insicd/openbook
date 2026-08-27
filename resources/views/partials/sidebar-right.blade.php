@@ -7,7 +7,10 @@
 </div>
 
 <div class="ob-card ob-side-widget">
-    <h2 class="ob-side-widget__title">{{ __('openbook.sidebar.trending_title') }}</h2>
+    @php
+        $trendingDays = max(1, (int) config('openbook.hashtags.trending_days', 7));
+    @endphp
+    <h2 class="ob-side-widget__title">{{ __('openbook.sidebar.trending_title', ['days' => $trendingDays.'d']) }}</h2>
 
     @if (($popularHashtags ?? collect())->isNotEmpty())
         <ul class="ob-hashtag-list">

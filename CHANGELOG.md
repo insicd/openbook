@@ -44,6 +44,8 @@ il [`README`](README.md#roadmap-and-project-status).
   in forma compatta (`19,6k` in italiano, `19.6k` in inglese).
 
 ### Changed
+- Box «In tendenza» della sidebar: il titolo include la finestra in
+  giorni impostata dall'istanza, es. `In tendenza (7d)`.
 - Tab Foto del profilo (`GET /@{username}/foto` e
   `GET /attori/{actor}/foto`): scorrimento infinito come gli altri feed,
   al posto della paginazione a numeri di pagina. Senza JavaScript resta

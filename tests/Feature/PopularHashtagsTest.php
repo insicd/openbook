@@ -91,7 +91,7 @@ class PopularHashtagsTest extends TestCase
         $response = $this->actingAs($alice)->get('/home');
 
         $response->assertOk();
-        $response->assertSee(__('openbook.sidebar.trending_title'), false);
+        $response->assertSee(__('openbook.sidebar.trending_title', ['days' => '7d']), false);
         $response->assertSee('#tag1');
         $response->assertSee(__('openbook.sidebar.trending_more'), false);
         $response->assertSee(route('hashtags.index'), false);
@@ -105,7 +105,7 @@ class PopularHashtagsTest extends TestCase
         $response = $this->actingAs($alice)->get('/home');
 
         $response->assertOk();
-        $response->assertSee(__('openbook.sidebar.trending_title'), false);
+        $response->assertSee(__('openbook.sidebar.trending_title', ['days' => '7d']), false);
         $response->assertSee(__('openbook.sidebar.no_popular_hashtags'));
         $response->assertSee(__('openbook.nav.trending'), false);
         $response->assertSee(route('hashtags.index'), false);
@@ -171,6 +171,19 @@ class PopularHashtagsTest extends TestCase
             ->get(route('hashtags.index'))
             ->assertOk()
             ->assertSee(__('openbook.hashtags.index_subtitle', ['days' => 7]));
+    }
+
+    public function test_the_sidebar_title_includes_the_configured_window(): void
+    {
+        config(['openbook.hashtags.trending_days' => 14]);
+
+        $alice = $this->createFullAccount('alicesidebarwindow');
+
+        $this->actingAs($alice)
+            ->get('/home')
+            ->assertOk()
+            ->assertSee(__('openbook.sidebar.trending_title', ['days' => '14d']), false)
+            ->assertDontSee(__('openbook.sidebar.trending_title', ['days' => '7d']), false);
     }
 
     public function test_the_home_feed_renders_when_an_empty_hashtag_is_attached_to_a_post(): void

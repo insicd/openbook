@@ -708,7 +708,7 @@ return [
 
     'sidebar' => [
         'instance_title' => 'Questa istanza',
-        'trending_title' => 'In tendenza',
+        'trending_title' => 'In tendenza (:days)',
         'trending_more' => 'Mostra tutti',
         'hashtag_uses' => '{1} :count post|[2,*] :count post',
         'no_popular_hashtags' => 'Ancora nessun hashtag in tendenza.',
