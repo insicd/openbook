@@ -140,6 +140,7 @@
     <script src="{{ \App\Support\Assets::url('assets/js/post-menu.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/like.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/announce.js') }}" defer></script>
+    <script src="{{ \App\Support\Assets::url('assets/js/reaction-list.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/header-panels.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/notifications-live.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/compose-shortcut.js') }}" defer></script>

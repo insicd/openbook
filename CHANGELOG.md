@@ -49,6 +49,12 @@ il [`README`](README.md#roadmap-and-project-status).
 - Impostazioni istanza: **finestra in giorni** per gli hashtag in tendenza
   (sidebar e `GET /tendenze`, default 7). I conteggi oltre 999 si mostrano
   in forma compatta (`19,6k` in italiano, `19.6k` in inglese).
+- Cliccando il numero di **Mi piace** o **Condivisioni** di un post si apre
+  un dropdown con chi ha reagito (`GET /posts/{post}/piace-a` e
+  `GET /posts/{post}/condiviso-da`). L'icona continua a mettere mi piace o
+  ad aprire il menu condividi. Senza JavaScript le stesse URL mostrano una
+  pagina con l'elenco. Massimo 40 nomi, poi "e altri N". La visibilita'
+  e' la stessa del post.
 
 ### Changed
 - Box «In tendenza» della sidebar: il titolo include la finestra in

@@ -20,11 +20,18 @@
         return form.closest('[data-announce-menu]');
     }
 
+    function reactionList(menu) {
+        var group = menu.closest('.ob-post__action-group');
+
+        return group ? group.querySelector('[data-reaction-list]') : null;
+    }
+
     function applyState(menu, data) {
         var announced = !!data.announced;
         var count = typeof data.announces_count === 'number' ? data.announces_count : 0;
         var summary = menu.querySelector('[data-announce-summary]');
-        var countEl = summary ? summary.querySelector('.ob-post__action-count') : null;
+        var list = reactionList(menu);
+        var countEl = list ? list.querySelector('[data-reaction-count]') : null;
         var announceForm = menu.querySelector('[data-announce-action]');
         var unannounceForm = menu.querySelector('[data-unannounce-action]');
         var labelTemplate = menu.getAttribute(announced ? 'data-label-announced' : 'data-label-announce') || '';
@@ -39,6 +46,21 @@
 
         if (countEl) {
             countEl.textContent = String(count);
+        }
+
+        if (list) {
+            var listLabel = list.getAttribute('data-label') || '';
+
+            list.classList.toggle('ob-reaction-list--empty', count < 1);
+            if (count < 1) {
+                list.removeAttribute('open');
+            }
+            delete list.dataset.loaded;
+
+            if (countEl && listLabel) {
+                countEl.setAttribute('aria-label', listLabel.replace('__COUNT__', String(count)));
+                countEl.setAttribute('aria-disabled', count < 1 ? 'true' : 'false');
+            }
         }
 
         if (announceForm) {

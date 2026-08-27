@@ -135,103 +135,131 @@
         @unless ($embed)
             <div class="ob-post__actions">
                 @auth
-                    <form
-                        method="POST"
-                        action="{{ $post->liked_by_viewer ? route('posts.unlike', $post) : route('posts.like', $post) }}"
-                        data-like-form
-                        data-like-action="{{ route('posts.like', $post) }}"
-                        data-unlike-action="{{ route('posts.unlike', $post) }}"
-                        data-liked="{{ $post->liked_by_viewer ? '1' : '0' }}"
-                        data-label-like="{{ __('openbook.actions.like', ['count' => '__COUNT__']) }}"
-                        data-label-liked="{{ __('openbook.actions.liked', ['count' => '__COUNT__']) }}"
-                    >
-                        @csrf
-                        @if ($post->liked_by_viewer)
-                            @method('DELETE')
-                        @endif
-                        <button
-                            type="submit"
-                            class="ob-post__action{{ $post->liked_by_viewer ? ' ob-post__action--active' : '' }}"
-                            aria-label="{{ $post->liked_by_viewer ? __('openbook.actions.liked', ['count' => $post->likes_count]) : __('openbook.actions.like', ['count' => $post->likes_count]) }}"
+                    <div class="ob-post__action-group">
+                        <form
+                            method="POST"
+                            action="{{ $post->liked_by_viewer ? route('posts.unlike', $post) : route('posts.like', $post) }}"
+                            data-like-form
+                            data-like-action="{{ route('posts.like', $post) }}"
+                            data-unlike-action="{{ route('posts.unlike', $post) }}"
+                            data-liked="{{ $post->liked_by_viewer ? '1' : '0' }}"
+                            data-label-like="{{ __('openbook.actions.like', ['count' => '__COUNT__']) }}"
+                            data-label-liked="{{ __('openbook.actions.liked', ['count' => '__COUNT__']) }}"
                         >
-                            <x-icon name="heart" />
-                            <span class="ob-post__action-count">{{ $post->likes_count }}</span>
-                        </button>
-                    </form>
+                            @csrf
+                            @if ($post->liked_by_viewer)
+                                @method('DELETE')
+                            @endif
+                            <button
+                                type="submit"
+                                class="ob-post__action{{ $post->liked_by_viewer ? ' ob-post__action--active' : '' }}"
+                                aria-label="{{ $post->liked_by_viewer ? __('openbook.actions.liked', ['count' => $post->likes_count]) : __('openbook.actions.like', ['count' => $post->likes_count]) }}"
+                            >
+                                <x-icon name="heart" />
+                            </button>
+                        </form>
+                        @include('posts._reaction_list', [
+                            'url' => route('posts.likes', $post),
+                            'count' => $post->likes_count,
+                            'ariaLabel' => __('openbook.actions.likes_list', ['count' => $post->likes_count]),
+                            'labelTemplate' => __('openbook.actions.likes_list', ['count' => '__COUNT__']),
+                        ])
+                    </div>
 
                     <a href="{{ route('posts.show', $post) }}#commenta" class="ob-post__action" aria-label="{{ __('openbook.actions.comment', ['count' => $post->comments_count]) }}">
                         <x-icon name="comment" />
                         <span class="ob-post__action-count">{{ $post->comments_count }}</span>
                     </a>
 
-                    <details
-                        class="ob-post__share-menu"
-                        data-announce-menu
-                        data-announced="{{ ($post->direct_announced_by_viewer ?? false) ? '1' : '0' }}"
-                        data-label-announce="{{ __('openbook.actions.announce', ['count' => '__COUNT__']) }}"
-                        data-label-announced="{{ __('openbook.actions.announced', ['count' => '__COUNT__']) }}"
-                    >
-                        <summary
-                            class="ob-post__action{{ ($post->direct_announced_by_viewer ?? false) ? ' ob-post__action--active' : '' }}"
-                            data-announce-summary
-                            aria-label="{{ ($post->direct_announced_by_viewer ?? false) ? __('openbook.actions.announced', ['count' => $post->announces_count]) : __('openbook.actions.announce', ['count' => $post->announces_count]) }}"
+                    <div class="ob-post__action-group">
+                        <details
+                            class="ob-post__share-menu"
+                            data-announce-menu
+                            data-announced="{{ ($post->direct_announced_by_viewer ?? false) ? '1' : '0' }}"
+                            data-label-announce="{{ __('openbook.actions.announce', ['count' => '__COUNT__']) }}"
+                            data-label-announced="{{ __('openbook.actions.announced', ['count' => '__COUNT__']) }}"
                         >
-                            <x-icon name="share" />
-                            <span class="ob-post__action-count">{{ $post->announces_count }}</span>
-                        </summary>
-                        <div class="ob-post__menu-panel" role="menu">
-                            <form
-                                method="POST"
-                                action="{{ route('posts.announce', $post) }}"
-                                data-announce-form
-                                data-announce-action="{{ route('posts.announce', $post) }}"
-                                @class(['ob-share-form--hidden' => ($post->direct_announced_by_viewer ?? false)])
+                            <summary
+                                class="ob-post__action{{ ($post->direct_announced_by_viewer ?? false) ? ' ob-post__action--active' : '' }}"
+                                data-announce-summary
+                                aria-label="{{ ($post->direct_announced_by_viewer ?? false) ? __('openbook.actions.announced', ['count' => $post->announces_count]) : __('openbook.actions.announce', ['count' => $post->announces_count]) }}"
                             >
-                                @csrf
-                                <button type="submit" class="ob-post__menu-item" role="menuitem">
-                                    <x-icon name="share" />
-                                    {{ __('openbook.actions.announce_direct') }}
-                                </button>
-                            </form>
-                            <form
-                                method="POST"
-                                action="{{ route('posts.unannounce', $post) }}"
-                                data-announce-form
-                                data-unannounce-action="{{ route('posts.unannounce', $post) }}"
-                                @class(['ob-share-form--hidden' => ! ($post->direct_announced_by_viewer ?? false)])
-                            >
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="ob-post__menu-item" role="menuitem">
-                                    <x-icon name="share" />
-                                    {{ __('openbook.actions.unannounce') }}
-                                </button>
-                            </form>
-                            <a href="{{ route('posts.quote', $post) }}" class="ob-post__menu-item" role="menuitem">
-                                <x-icon name="quote" />
-                                {{ __('openbook.actions.announce_quote') }}
-                            </a>
-                            @unless ($post->isDirectMessage())
-                                <a href="{{ route('posts.share_to_user', $post) }}" class="ob-post__menu-item" role="menuitem">
-                                    <x-icon name="message" />
-                                    {{ __('openbook.actions.announce_share_user') }}
+                                <x-icon name="share" />
+                            </summary>
+                            <div class="ob-post__menu-panel" role="menu">
+                                <form
+                                    method="POST"
+                                    action="{{ route('posts.announce', $post) }}"
+                                    data-announce-form
+                                    data-announce-action="{{ route('posts.announce', $post) }}"
+                                    @class(['ob-share-form--hidden' => ($post->direct_announced_by_viewer ?? false)])
+                                >
+                                    @csrf
+                                    <button type="submit" class="ob-post__menu-item" role="menuitem">
+                                        <x-icon name="share" />
+                                        {{ __('openbook.actions.announce_direct') }}
+                                    </button>
+                                </form>
+                                <form
+                                    method="POST"
+                                    action="{{ route('posts.unannounce', $post) }}"
+                                    data-announce-form
+                                    data-unannounce-action="{{ route('posts.unannounce', $post) }}"
+                                    @class(['ob-share-form--hidden' => ! ($post->direct_announced_by_viewer ?? false)])
+                                >
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="ob-post__menu-item" role="menuitem">
+                                        <x-icon name="share" />
+                                        {{ __('openbook.actions.unannounce') }}
+                                    </button>
+                                </form>
+                                <a href="{{ route('posts.quote', $post) }}" class="ob-post__menu-item" role="menuitem">
+                                    <x-icon name="quote" />
+                                    {{ __('openbook.actions.announce_quote') }}
                                 </a>
-                            @endunless
-                        </div>
-                    </details>
+                                @unless ($post->isDirectMessage())
+                                    <a href="{{ route('posts.share_to_user', $post) }}" class="ob-post__menu-item" role="menuitem">
+                                        <x-icon name="message" />
+                                        {{ __('openbook.actions.announce_share_user') }}
+                                    </a>
+                                @endunless
+                            </div>
+                        </details>
+                        @include('posts._reaction_list', [
+                            'url' => route('posts.announces', $post),
+                            'count' => $post->announces_count,
+                            'ariaLabel' => __('openbook.actions.announces_list', ['count' => $post->announces_count]),
+                            'labelTemplate' => __('openbook.actions.announces_list', ['count' => '__COUNT__']),
+                        ])
+                    </div>
                 @else
-                    <span class="ob-post__action" aria-label="{{ __('openbook.actions.like', ['count' => $post->likes_count]) }}">
-                        <x-icon name="heart" />
-                        <span class="ob-post__action-count">{{ $post->likes_count }}</span>
-                    </span>
+                    <div class="ob-post__action-group">
+                        <span class="ob-post__action" aria-label="{{ __('openbook.actions.like', ['count' => $post->likes_count]) }}">
+                            <x-icon name="heart" />
+                        </span>
+                        @include('posts._reaction_list', [
+                            'url' => route('posts.likes', $post),
+                            'count' => $post->likes_count,
+                            'ariaLabel' => __('openbook.actions.likes_list', ['count' => $post->likes_count]),
+                            'labelTemplate' => __('openbook.actions.likes_list', ['count' => '__COUNT__']),
+                        ])
+                    </div>
                     <a href="{{ route('posts.show', $post) }}#commenti" class="ob-post__action" aria-label="{{ __('openbook.actions.comment', ['count' => $post->comments_count]) }}">
                         <x-icon name="comment" />
                         <span class="ob-post__action-count">{{ $post->comments_count }}</span>
                     </a>
-                    <span class="ob-post__action" aria-label="{{ __('openbook.actions.announce', ['count' => $post->announces_count]) }}">
-                        <x-icon name="share" />
-                        <span class="ob-post__action-count">{{ $post->announces_count }}</span>
-                    </span>
+                    <div class="ob-post__action-group">
+                        <span class="ob-post__action" aria-label="{{ __('openbook.actions.announce', ['count' => $post->announces_count]) }}">
+                            <x-icon name="share" />
+                        </span>
+                        @include('posts._reaction_list', [
+                            'url' => route('posts.announces', $post),
+                            'count' => $post->announces_count,
+                            'ariaLabel' => __('openbook.actions.announces_list', ['count' => $post->announces_count]),
+                            'labelTemplate' => __('openbook.actions.announces_list', ['count' => '__COUNT__']),
+                        ])
+                    </div>
                 @endauth
             </div>
         @endunless

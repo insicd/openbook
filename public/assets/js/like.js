@@ -36,11 +36,20 @@
         field.value = method;
     }
 
+    function reactionList(form) {
+        var group = form.closest('.ob-post__action-group');
+
+        return group ? group.querySelector('[data-reaction-list]') : null;
+    }
+
     function applyState(form, data) {
         var liked = !!data.liked;
         var count = typeof data.likes_count === 'number' ? data.likes_count : 0;
         var button = form.querySelector('button[type="submit"]');
-        var countEl = form.querySelector('.ob-post__action-count');
+        var list = reactionList(form);
+        var countEl = list
+            ? list.querySelector('[data-reaction-count]')
+            : form.querySelector('.ob-post__action-count');
         var likeAction = form.getAttribute('data-like-action');
         var unlikeAction = form.getAttribute('data-unlike-action');
         var labelTemplate = form.getAttribute(liked ? 'data-label-liked' : 'data-label-like') || '';
@@ -57,6 +66,21 @@
 
         if (countEl) {
             countEl.textContent = String(count);
+        }
+
+        if (list) {
+            var listLabel = list.getAttribute('data-label') || '';
+
+            list.classList.toggle('ob-reaction-list--empty', count < 1);
+            if (count < 1) {
+                list.removeAttribute('open');
+            }
+            delete list.dataset.loaded;
+
+            if (countEl && listLabel) {
+                countEl.setAttribute('aria-label', listLabel.replace('__COUNT__', String(count)));
+                countEl.setAttribute('aria-disabled', count < 1 ? 'true' : 'false');
+            }
         }
     }
 

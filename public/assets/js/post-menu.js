@@ -1,12 +1,12 @@
 /**
- * Menu a tendina dei post (overflow "tre puntini" e menu condividi):
- * - un solo menu aperto alla volta; click fuori lo chiude;
- * - voce "Copia link": scrive l'URL del post nella clipboard.
+ * Menu a tendina dei post (overflow "tre puntini", menu condividi, elenco
+ * reazioni): un solo pannello aperto alla volta; click fuori lo chiude.
+ * Voce "Copia link": scrive l'URL del post nella clipboard.
  */
 (function () {
     'use strict';
 
-    var MENU_SELECTOR = '.ob-post__menu, .ob-post__share-menu';
+    var MENU_SELECTOR = '.ob-post__menu, .ob-post__share-menu, .ob-reaction-list';
 
     document.addEventListener('click', function (event) {
         var copyBtn = event.target.closest('[data-copy-url]');

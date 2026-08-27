@@ -188,6 +188,11 @@ class Post extends Model
         return $this->morphMany(Like::class, 'likeable');
     }
 
+    public function announces(): HasMany
+    {
+        return $this->hasMany(Announce::class);
+    }
+
     public function isPublished(): bool
     {
         return $this->status === self::STATUS_PUBLISHED;

@@ -27,6 +27,7 @@ use App\Http\Controllers\LikeController;
 use App\Http\Controllers\MentionSuggestController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\PostReactionController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
@@ -210,6 +211,15 @@ Route::middleware('auth')->group(function () {
 // Identificatore canonico di un post: HTML oppure, tramite content
 // negotiation, l'oggetto ActivityStreams "Note"/"Tombstone".
 Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
+
+// Elenchi di chi ha reagito (stessa visibilita' del post). JSON per il
+// dropdown sulla card, HTML senza JavaScript.
+Route::get('/posts/{post}/piace-a', [PostReactionController::class, 'likes'])
+    ->middleware('throttle:60,1')
+    ->name('posts.likes');
+Route::get('/posts/{post}/condiviso-da', [PostReactionController::class, 'announces'])
+    ->middleware('throttle:60,1')
+    ->name('posts.announces');
 
 // Identificatore canonico di un commento (redirect al permalink sul post per
 // i browser, oggetto "Note" con "inReplyTo" per i client ActivityPub).

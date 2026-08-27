@@ -237,4 +237,74 @@ class ReactionTest extends TestCase
             ->assertSee('data-announce-action="'.route('posts.announce', $post).'"', false)
             ->assertSee('data-unannounce-action="'.route('posts.unannounce', $post).'"', false);
     }
+
+    public function test_post_cards_expose_reaction_list_markup(): void
+    {
+        $author = $this->createFullAccount('anchorreactions');
+        $post = $this->publishPost($author);
+
+        $this->actingAs($author)
+            ->get(route('feed.index'))
+            ->assertOk()
+            ->assertSee('data-reaction-list', false)
+            ->assertSee('data-url="'.route('posts.likes', $post).'"', false)
+            ->assertSee('data-url="'.route('posts.announces', $post).'"', false);
+    }
+
+    public function test_guests_can_list_likes_on_a_public_post(): void
+    {
+        $author = $this->createFullAccount('publiclikesauthor');
+        $liker = $this->createFullAccount('publiclikesliker');
+        $post = $this->publishPost($author);
+
+        app(ReactionManager::class)->like($liker->actor, $post);
+
+        $this->getJson(route('posts.likes', $post))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('remaining', 0)
+            ->assertJsonPath('actors.0.name', $liker->actor->displayName())
+            ->assertJsonPath('actors.0.handle', '@'.$liker->actor->handle())
+            ->assertJsonPath('actors.0.url', $liker->actor->profileUrl());
+
+        $this->get(route('posts.likes', $post))
+            ->assertOk()
+            ->assertSee($liker->actor->displayName(), false);
+
+        $this->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertSee('data-reaction-list', false)
+            ->assertSee('data-url="'.route('posts.likes', $post).'"', false);
+    }
+
+    public function test_announces_list_includes_who_shared_the_post(): void
+    {
+        $author = $this->createFullAccount('sharelistauthor');
+        $sharer = $this->createFullAccount('sharelistsharer');
+        $post = $this->publishPost($author);
+
+        app(AnnounceManager::class)->announce($sharer->actor, $post);
+
+        $this->actingAs($author)
+            ->getJson(route('posts.announces', $post))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('actors.0.name', $sharer->actor->displayName())
+            ->assertJsonPath('actors.0.handle', '@'.$sharer->actor->handle());
+    }
+
+    public function test_reaction_lists_are_hidden_when_the_post_is_not_visible(): void
+    {
+        $author = $this->createFullAccount('hiddenlistauthor');
+        $liker = $this->createFullAccount('hiddenlistliker');
+        $stranger = $this->createFullAccount('hiddenliststranger');
+        $post = $this->publishPost($author);
+        $post->forceFill(['visibility' => Post::VISIBILITY_FOLLOWERS])->save();
+
+        app(ReactionManager::class)->like($liker->actor, $post);
+
+        $this->actingAs($stranger)->getJson(route('posts.likes', $post))->assertNotFound();
+        $this->actingAs($stranger)->getJson(route('posts.announces', $post))->assertNotFound();
+        $this->getJson(route('posts.likes', $post))->assertNotFound();
+    }
 }

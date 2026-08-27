@@ -2399,6 +2399,114 @@ a.ob-post__menu-item {
   min-width: 0.75rem;
 }
 
+.ob-post__action-group {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.ob-post__action-group .ob-post__action {
+  min-width: 2.25rem;
+  padding-right: 0.25rem;
+}
+
+.ob-reaction-list {
+  position: relative;
+}
+
+.ob-reaction-list > summary {
+  list-style: none;
+}
+
+.ob-reaction-list > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ob-reaction-list__count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.55rem 0 0.2rem;
+  border-radius: 999px;
+  color: var(--ob-color-text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ob-reaction-list:not(.ob-reaction-list--empty) > summary:hover,
+.ob-reaction-list:not(.ob-reaction-list--empty) > summary:focus-visible,
+.ob-reaction-list[open]:not(.ob-reaction-list--empty) > summary {
+  background: var(--ob-color-bg);
+  color: var(--ob-color-primary);
+}
+
+.ob-reaction-list--empty > summary {
+  cursor: default;
+}
+
+.ob-reaction-list__panel {
+  position: absolute;
+  bottom: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 6;
+  min-width: 14rem;
+  max-width: 18rem;
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.35rem;
+  background: var(--ob-color-surface);
+  border: 1px solid var(--ob-color-border);
+  border-radius: var(--ob-radius);
+  box-shadow: 0 8px 24px rgba(28, 30, 33, 0.12);
+}
+
+.ob-reaction-list__status,
+.ob-reaction-list__more,
+.ob-reaction-list__fallback {
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  color: var(--ob-color-text-muted);
+  font-size: 0.85rem;
+}
+
+.ob-reaction-list__actors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ob-reaction-list__actor {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: calc(var(--ob-radius) - 2px);
+  color: var(--ob-color-text);
+  text-decoration: none;
+}
+
+.ob-reaction-list__actor:hover,
+.ob-reaction-list__actor:focus-visible {
+  background: var(--ob-color-bg);
+  text-decoration: none;
+}
+
+.ob-reaction-list__avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+}
+
+.ob-reaction-list__actor .ob-post__author,
+.ob-reaction-list__actor .ob-post__handle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12rem;
+}
+
 /* Comments */
 
 .ob-search-comment {
