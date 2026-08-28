@@ -247,6 +247,9 @@ Route::get('/@{user:username}/seguiti', [ProfileController::class, 'following'])
 Route::get('/@{username}/foto', [ProfileController::class, 'photos'])
     ->where('username', '[A-Za-z0-9_]+')
     ->name('profile.photos');
+Route::get('/@{username}/attivita', [ProfileController::class, 'activity'])
+    ->where('username', '[A-Za-z0-9_]+')
+    ->name('profile.activity');
 
 // Pagina profilo di comodo per un Actor remoto in cache locale (mai un
 // identificatore ActivityPub: reindirizza al profilo locale se l'id
@@ -256,6 +259,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/attori/{actor}/follower', [ActorProfileController::class, 'followers'])->name('actors.followers');
     Route::get('/attori/{actor}/seguiti', [ActorProfileController::class, 'following'])->name('actors.following');
     Route::get('/attori/{actor}/foto', [ActorProfileController::class, 'photos'])->name('actors.photos');
+    Route::get('/attori/{actor}/attivita', [ActorProfileController::class, 'activity'])->name('actors.activity');
 });
 
 // URL alternativo, non canonico: redirect permanente verso "/@{username}".

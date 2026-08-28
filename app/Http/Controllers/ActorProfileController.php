@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Queries\ActorActivityQuery;
 use App\Application\Queries\ActorMediaQuery;
 use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
@@ -34,6 +35,7 @@ class ActorProfileController extends Controller
     public function __construct(
         private readonly FeedQuery $feedQuery,
         private readonly ActorMediaQuery $mediaQuery,
+        private readonly ActorActivityQuery $activityQuery,
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
         private readonly RemoteOutboxFetcher $outboxFetcher,
@@ -50,6 +52,11 @@ class ActorProfileController extends Controller
     public function photos(Actor $actor, Request $request): View|RedirectResponse
     {
         return $this->renderRemoteProfile($actor, 'photos', $request);
+    }
+
+    public function activity(Actor $actor, Request $request): View|RedirectResponse
+    {
+        return $this->renderRemoteProfile($actor, 'activity', $request);
     }
 
     public function followers(Actor $actor): View|RedirectResponse
@@ -93,15 +100,22 @@ class ActorProfileController extends Controller
     private function renderRemoteProfile(Actor $actor, string $activeTab, Request $request): View|RedirectResponse
     {
         if ($actor->isLocal()) {
-            return redirect()->route(
-                $activeTab === 'photos' ? 'profile.photos' : 'profile.show',
-                $actor->preferred_username,
-            );
+            $route = match ($activeTab) {
+                'photos' => 'profile.photos',
+                'activity' => 'profile.activity',
+                default => 'profile.show',
+            };
+
+            return redirect()->route($route, $actor->preferred_username);
+        }
+
+        if ($activeTab === 'activity' && ($actor->isGroup() || $actor->isFeed())) {
+            return redirect()->route('actors.show', $actor);
         }
 
         $actor->loadMissing('feedSource');
 
-        if ($activeTab === 'posts') {
+        if ($activeTab === 'posts' || $activeTab === 'activity') {
             try {
                 if ($actor->isFeed()) {
                     $this->feedImporter->import($actor);
@@ -139,9 +153,12 @@ class ActorProfileController extends Controller
 
         $posts = null;
         $media = null;
+        $activity = null;
 
         if ($activeTab === 'photos') {
             $media = $this->mediaQuery->forActor($actor, $viewerActor);
+        } elseif ($activeTab === 'activity') {
+            $activity = $this->activityQuery->forActor($actor, $viewerActor, $request);
         } else {
             $posts = $this->feedQuery->forProfile($actor, $viewerActor, FeedCursor::fromRequest($request));
             Post::annotateViewerState($posts->getCollection(), $viewerActor);
@@ -152,6 +169,7 @@ class ActorProfileController extends Controller
             'activeTab' => $activeTab,
             'posts' => $posts,
             'media' => $media,
+            'activity' => $activity,
             'followersCount' => $followersCount,
             'followingCount' => $followingCount,
             'isFollowing' => $isFollowing,

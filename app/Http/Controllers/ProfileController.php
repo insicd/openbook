@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Queries\ActorActivityQuery;
 use App\Application\Queries\ActorMediaQuery;
 use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
@@ -29,6 +30,7 @@ class ProfileController extends Controller
     public function __construct(
         private readonly FeedQuery $feedQuery,
         private readonly ActorMediaQuery $mediaQuery,
+        private readonly ActorActivityQuery $activityQuery,
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
         private readonly LocalActorResolver $localActors,
@@ -51,6 +53,16 @@ class ProfileController extends Controller
     public function photos(Request $request, string $username): View|RedirectResponse
     {
         return $this->renderPersonProfile($request, $username, 'photos');
+    }
+
+    /**
+     * Cronologia delle azioni visibili a questa istanza: post, commenti,
+     * mi piace, condivisioni e follow. Il tab Post mostra solo i contenuti
+     * (e le condivisioni come card); qui restano anche le interazioni.
+     */
+    public function activity(Request $request, string $username): View|RedirectResponse
+    {
+        return $this->renderPersonProfile($request, $username, 'activity');
     }
 
     public function followers(User $user): View
@@ -156,18 +168,21 @@ class ProfileController extends Controller
 
         $posts = null;
         $media = null;
+        $activity = null;
 
-        if ($activeTab === 'photos') {
-            $media = $profileSuspended ? null : $this->mediaQuery->forActor($user->actor, $viewerActor);
+        if ($profileSuspended) {
+            // Nessun contenuto sotto le tab: il profilo resta solo l'avviso.
+        } elseif ($activeTab === 'photos') {
+            $media = $this->mediaQuery->forActor($user->actor, $viewerActor);
+        } elseif ($activeTab === 'activity') {
+            $activity = $this->activityQuery->forActor($user->actor, $viewerActor, $request);
         } else {
-            $posts = $profileSuspended ? null : $this->feedQuery->forProfile(
+            $posts = $this->feedQuery->forProfile(
                 $user->actor,
                 $viewerActor,
                 FeedCursor::fromRequest($request),
             );
-            if ($posts !== null) {
-                Post::annotateViewerState($posts->getCollection(), $viewerActor);
-            }
+            Post::annotateViewerState($posts->getCollection(), $viewerActor);
         }
 
         return view('profile.show', [
@@ -176,6 +191,7 @@ class ProfileController extends Controller
             'activeTab' => $activeTab,
             'posts' => $posts,
             'media' => $media,
+            'activity' => $activity,
             'followersCount' => $followersCount,
             'followingCount' => $followingCount,
             'communitiesCount' => $communitiesCount,

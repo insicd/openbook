@@ -62,6 +62,14 @@ il [`README`](README.md#roadmap-and-project-status).
   massimo un GET in piu' per collection, senza scaricare l'elenco
   completo. Il conteggio locale resta un pavimento. I totali arrivano
   anche dall'outbox quando si importa il post.
+- Tab **Attività** sui profili Person (`GET /@{username}/attivita` e
+  `GET /attori/{actor}/attivita`): stream cronologico di post, commenti,
+  mi piace, condivisioni e follow visibili a questa istanza. Il tab Post
+  resta sui contenuti (e le condivisioni come card); qui non si perdono
+  le interazioni. Scorrimento infinito (`OPENBOOK_ACTIVITY_PER_PAGE`,
+  default 20). Sui profili remoti la cronologia e' solo cio' che l'istanza
+  gia' conosce (non l'outbox completo). Community e feed RSS non hanno
+  il tab.
 
 ### Changed
 - Box «In tendenza» della sidebar: il titolo include la finestra in

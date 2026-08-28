@@ -109,7 +109,9 @@
 
             @include('profile._tabs', [
                 'activeTab' => $activeTab ?? 'posts',
+                'showActivityTab' => ! $isGroup && ! $isFeed,
                 'postsUrl' => route('actors.show', $profileActor),
+                'activityUrl' => route('actors.activity', $profileActor),
                 'photosUrl' => route('actors.photos', $profileActor),
             ])
         </div>
@@ -125,6 +127,11 @@
 
     @if (($activeTab ?? 'posts') === 'photos')
         @include('profile._photo_grid', ['media' => $media])
+    @elseif (($activeTab ?? 'posts') === 'activity')
+        @include('profile._activity', [
+            'activity' => $activity ?? null,
+            'activityNotice' => __('openbook.profile.activity_remote_notice'),
+        ])
     @else
         @include('posts._feed', [
             'posts' => $posts,

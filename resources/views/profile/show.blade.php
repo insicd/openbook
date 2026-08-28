@@ -104,6 +104,7 @@
             @include('profile._tabs', [
                 'activeTab' => $activeTab ?? 'posts',
                 'postsUrl' => route('profile.show', $profileUser->username),
+                'activityUrl' => route('profile.activity', $profileUser->username),
                 'photosUrl' => route('profile.photos', $profileUser->username),
             ])
             @endif
@@ -141,6 +142,8 @@
 
     @if (($activeTab ?? 'posts') === 'photos')
         @include('profile._photo_grid', ['media' => $media])
+    @elseif (($activeTab ?? 'posts') === 'activity')
+        @include('profile._activity', ['activity' => $activity ?? null])
     @else
         @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.profile.no_posts_yet')])
     @endif

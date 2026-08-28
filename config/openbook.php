@@ -196,10 +196,12 @@ return [
     |--------------------------------------------------------------------------
     |
     | Galleria foto del tab "Foto": piu' tessere per pagina rispetto al
-    | feed di post, perche' la griglia e' compatta.
+    | feed di post, perche' la griglia e' compatta. Lo stream "Attivita'"
+    | usa una pagina piu' simile al feed (righe di testo).
     */
     'profile' => [
         'photos_per_page' => (int) env('OPENBOOK_PHOTOS_PER_PAGE', 36),
+        'activity_per_page' => (int) env('OPENBOOK_ACTIVITY_PER_PAGE', 20),
     ],
 
     /*
