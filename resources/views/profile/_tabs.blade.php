@@ -1,6 +1,6 @@
 @php
     $activeTab = $activeTab ?? 'posts';
-    $showActivityTab = $showActivityTab ?? true;
+    $showActivityTab = auth()->check() && ($showActivityTab ?? true);
 @endphp
 
 <nav class="ob-profile-tabs" role="tablist" aria-label="{{ __('openbook.profile.tabs_aria') }}">

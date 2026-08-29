@@ -57,8 +57,9 @@ class ProfileController extends Controller
 
     /**
      * Cronologia di commenti/risposte e condivisioni visibili a questa
-     * istanza. Il tab Post resta sui contenuti (e le condivisioni come card);
-     * qui non si perdono i commenti fatti altrove.
+     * istanza. Solo utenti autenticati (route protetta): i visitatori
+     * anonimi restano sul tab Post. Il tab Post resta sui contenuti
+     * (e le condivisioni come card); qui non si perdono i commenti fatti altrove.
      */
     public function activity(Request $request, string $username): View|RedirectResponse
     {

@@ -247,7 +247,7 @@ Route::get('/@{user:username}/seguiti', [ProfileController::class, 'following'])
 Route::get('/@{username}/foto', [ProfileController::class, 'photos'])
     ->where('username', '[A-Za-z0-9_]+')
     ->name('profile.photos');
-Route::get('/@{username}/attivita', [ProfileController::class, 'activity'])
+Route::middleware('auth')->get('/@{username}/attivita', [ProfileController::class, 'activity'])
     ->where('username', '[A-Za-z0-9_]+')
     ->name('profile.activity');
 

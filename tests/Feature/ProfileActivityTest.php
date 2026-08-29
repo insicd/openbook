@@ -30,25 +30,46 @@ class ProfileActivityTest extends TestCase
         ]);
     }
 
-    public function test_the_profile_exposes_an_activity_tab(): void
+    public function test_guests_do_not_see_the_activity_tab_and_cannot_open_it(): void
     {
         $this->createFullAccount('attivista');
 
         $this->get(route('profile.show', 'attivista'))
             ->assertOk()
+            ->assertDontSee(__('openbook.profile.tab_activity'))
+            ->assertDontSee(route('profile.activity', 'attivista'), false);
+
+        $this->get(route('profile.activity', 'attivista'))
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_a_signed_in_user_can_open_the_activity_tab(): void
+    {
+        $profile = $this->createFullAccount('attivista');
+        $viewer = $this->createFullAccount('visitoreg');
+
+        $this->actingAs($viewer)
+            ->get(route('profile.show', 'attivista'))
+            ->assertOk()
             ->assertSee(__('openbook.profile.tab_activity'))
             ->assertSee(route('profile.activity', 'attivista'), false);
 
-        $this->get(route('profile.activity', 'attivista'))
+        $this->actingAs($viewer)
+            ->get(route('profile.activity', 'attivista'))
             ->assertOk()
             ->assertSee(__('openbook.profile.no_activity_yet'))
             ->assertSee('ob-profile-tabs__tab is-active', false);
+
+        $this->actingAs($profile)
+            ->get(route('profile.activity', 'attivista'))
+            ->assertOk();
     }
 
     public function test_activity_lists_comments_and_shares_but_not_likes_or_follows(): void
     {
         $author = $this->createFullAccount('autorefeed');
         $actor = $this->createFullAccount('cronologia');
+        $viewer = $this->createFullAccount('lettoreattivita');
         $post = $this->publishPost($author, 'Un saggio sul fediverso.');
 
         app(CommentComposer::class)->compose($actor->actor, $post, 'Commento solo in attivita.');
@@ -60,7 +81,7 @@ class ProfileActivityTest extends TestCase
         $postsTab->assertOk();
         $postsTab->assertDontSee('Commento solo in attivita.');
 
-        $activity = $this->get(route('profile.activity', 'cronologia'));
+        $activity = $this->actingAs($viewer)->get(route('profile.activity', 'cronologia'));
         $activity->assertOk();
         $activity->assertSee('id="ob-activity-list"', false);
         $activity->assertSee('data-activity-type="comment"', false);
@@ -110,7 +131,7 @@ class ProfileActivityTest extends TestCase
         app(ReactionManager::class)->like($actor->actor, $post);
         app(FollowManager::class)->follow($actor->actor, $author->actor);
 
-        $this->get(route('profile.activity', 'soloreazioni'))
+        $this->actingAs($actor)->get(route('profile.activity', 'soloreazioni'))
             ->assertOk()
             ->assertSee(__('openbook.profile.no_activity_yet'))
             ->assertDontSee('data-activity-type="like_post"', false)
@@ -123,13 +144,14 @@ class ProfileActivityTest extends TestCase
 
         $author = $this->createFullAccount('paginatore');
         $actor = $this->createFullAccount('commentapagine');
+        $viewer = $this->createFullAccount('scorritore');
         $post = $this->publishPost($author, 'Post da commentare a raffica.');
 
         $this->commentAt($actor, $post, 'Commento piu vecchio.', now()->subMinutes(3));
         $this->commentAt($actor, $post, 'Commento di mezzo.', now()->subMinutes(2));
         $this->commentAt($actor, $post, 'Commento piu recente.', now()->subMinutes(1));
 
-        $response = $this->get(route('profile.activity', 'commentapagine'));
+        $response = $this->actingAs($viewer)->get(route('profile.activity', 'commentapagine'));
 
         $response->assertOk();
         $response->assertSee('id="ob-activity-list"', false);
@@ -141,7 +163,7 @@ class ProfileActivityTest extends TestCase
         $response->assertSee('Commento di mezzo.');
         $response->assertDontSee('Commento piu vecchio.');
 
-        $pageTwo = $this->get(route('profile.activity', 'commentapagine').'?page=2');
+        $pageTwo = $this->actingAs($viewer)->get(route('profile.activity', 'commentapagine').'?page=2');
         $pageTwo->assertOk();
         $pageTwo->assertSee('Commento piu vecchio.');
         $pageTwo->assertDontSee('Commento piu recente.');

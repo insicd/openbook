@@ -64,11 +64,13 @@ il [`README`](README.md#roadmap-and-project-status).
   anche dall'outbox quando si importa il post.
 - Tab **Attività** sui profili Person (`GET /@{username}/attivita` e
   `GET /attori/{actor}/attivita`): stream cronologico di **commenti
-  (risposte)** e **condivisioni** visibili a questa istanza. I mi piace,
-  i post propri e i follow non compaiono: i post restano nel tab dedicato.
-  Scorrimento infinito (`OPENBOOK_ACTIVITY_PER_PAGE`, default 20). Sui
-  profili remoti la cronologia e' solo cio' che l'istanza gia' conosce
-  (non l'outbox completo). Community e feed RSS non hanno il tab.
+  (risposte)** e **condivisioni** visibili a questa istanza, **solo per
+  utenti autenticati**. I visitatori anonimi non vedono il tab e
+  `/attivita` reindirizza al login. I mi piace, i post propri e i follow
+  non compaiono: i post restano nel tab dedicato. Scorrimento infinito
+  (`OPENBOOK_ACTIVITY_PER_PAGE`, default 20). Sui profili remoti la
+  cronologia e' solo cio' che l'istanza gia' conosce (non l'outbox
+  completo). Community e feed RSS non hanno il tab.
 
 ### Changed
 - Box «In tendenza» della sidebar: il titolo include la finestra in
