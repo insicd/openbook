@@ -13,9 +13,14 @@
     $prefix = $prefix ?? ($isPost ? 'composer' : str_replace('-', '_', $bodyId));
 
     $action = $action ?? route('posts.store');
-    $submitLabel = $submitLabel ?? ($isPost
-        ? __('openbook.composer.submit')
-        : ($isReply ? __('openbook.actions.reply') : __('openbook.actions.comment_submit')));
+    $method = strtoupper($method ?? 'POST');
+    $editingPost = $editingPost ?? null;
+    $isEditing = $isPost && $editingPost !== null;
+    $submitLabel = $submitLabel ?? ($isEditing
+        ? __('openbook.composer.save')
+        : ($isPost
+            ? __('openbook.composer.submit')
+            : ($isReply ? __('openbook.actions.reply') : __('openbook.actions.comment_submit'))));
     $placeholder = $placeholder ?? ($isPost
         ? __('openbook.composer.placeholder')
         : __('openbook.composer.placeholder'));
@@ -38,16 +43,24 @@
     $selectedCommunityId = old('community_id', $selectedCommunityId ?? null);
     $addressedGroupActor = $addressedGroupActor ?? null;
 
-    $titleOpen = $isPost && (old('title') || $errors->has('title'));
-    $cwOpen = $isPost && (old('content_warning') || $errors->has('content_warning'));
-    $mediaOpen = old('alt_texts') || $errors->has('images') || $errors->has('images.*') || $errors->has('alt_texts.*');
-    $visibilityOpen = $isPost && (old('visibility') || $errors->has('visibility') || $defaultVisibility !== 'public');
-    $communityOpen = $isPost && $composerCommunities->isNotEmpty() && ($selectedCommunityId || $errors->has('community_id'));
+    $titleValue = old('title', $isEditing ? $editingPost->title : '');
+    $cwValue = old('content_warning', $isEditing ? $editingPost->content_warning : '');
+    $bodyValue = old('body', $isEditing ? $editingPost->body : '');
+    $visibilityValue = old('visibility', $isEditing ? $editingPost->visibility : $defaultVisibility);
+    $existingMediaCount = $isEditing ? $editingPost->media->count() : 0;
+    $remainingAttachments = max(0, $maxAttachments - $existingMediaCount);
 
-    $titleFilled = $isPost && filled(old('title'));
-    $cwFilled = $isPost && filled(old('content_warning'));
-    $visibilityFilled = $isPost && old('visibility', $defaultVisibility) !== 'public';
-    $communityFilled = $isPost && filled($selectedCommunityId);
+    $titleOpen = $isPost && (filled($titleValue) || $errors->has('title'));
+    $cwOpen = $isPost && (filled($cwValue) || $errors->has('content_warning'));
+    $mediaOpen = old('alt_texts') || $errors->has('images') || $errors->has('images.*') || $errors->has('alt_texts.*')
+        || ($isEditing && $existingMediaCount > 0);
+    $visibilityOpen = $isPost && ($errors->has('visibility') || $visibilityValue !== 'public');
+    $communityOpen = $isPost && ! $isEditing && $composerCommunities->isNotEmpty() && ($selectedCommunityId || $errors->has('community_id'));
+
+    $titleFilled = $isPost && filled($titleValue);
+    $cwFilled = $isPost && filled($cwValue);
+    $visibilityFilled = $isPost && $visibilityValue !== 'public';
+    $communityFilled = $isPost && ! $isEditing && filled($selectedCommunityId);
 
     $inModal = (bool) ($inModal ?? false);
     $composerUi = $composerUi ?? null;
@@ -64,8 +77,13 @@
     data-composer-mode="{{ $mode }}"
     @if ($formHidden) hidden @endif
 >
-    <form method="POST" action="{{ $action }}" enctype="multipart/form-data">
+    <form method="POST" action="{{ $action }}" enctype="multipart/form-data"
+        data-composer-create-action="{{ route('posts.store') }}"
+        @if ($isEditing) data-composer-editing="1" @endif>
         @csrf
+        @if ($method !== 'POST')
+            @method($method)
+        @endif
 
         @if (filled($composerUi))
             <input type="hidden" name="composer_ui" value="{{ $composerUi }}">
@@ -83,7 +101,7 @@
             </div>
         @endif
 
-        @if ($isPost && $quotedPost)
+        @if ($isPost && $quotedPost && ! $isEditing)
             <input type="hidden" name="quoted_post_id" value="{{ $quotedPost->id }}">
             <div class="ob-composer__quote-banner">
                 <x-icon name="quote" />
@@ -115,14 +133,14 @@
                 <textarea
                     id="{{ $bodyId }}"
                     name="body"
-                    rows="{{ $isPost && $quotedPost ? 3 : $rows }}"
+                    rows="{{ $isPost && $quotedPost && ! $isEditing ? 3 : $rows }}"
                     required
                     maxlength="{{ $maxLength }}"
-                    placeholder="{{ $isPost && $quotedPost ? __('openbook.composer.quote_placeholder') : $placeholder }}"
+                    placeholder="{{ $isPost && $quotedPost && ! $isEditing ? __('openbook.composer.quote_placeholder') : $placeholder }}"
                     data-mention-autocomplete
                     data-composer-body
-                    @if ($autofocus || ($isPost && $quotedPost)) autofocus @endif
-                >{{ old('body') }}</textarea>
+                    @if ($autofocus || ($isPost && $quotedPost) || $isEditing) autofocus @endif
+                >{{ $bodyValue }}</textarea>
             </div>
         </div>
 
@@ -142,14 +160,14 @@
                 <div class="ob-composer__panel" id="{{ $prefix }}-panel-title" data-composer-panel @unless($titleOpen) hidden @endunless>
                     <div class="ob-field">
                         <label for="{{ $prefix }}-title">{{ __('openbook.composer.title_label') }}</label>
-                        <input type="text" id="{{ $prefix }}-title" name="title" maxlength="255" value="{{ old('title') }}" data-composer-fill="title">
+                        <input type="text" id="{{ $prefix }}-title" name="title" maxlength="255" value="{{ $titleValue }}" data-composer-fill="title">
                     </div>
                 </div>
 
                 <div class="ob-composer__panel" id="{{ $prefix }}-panel-cw" data-composer-panel @unless($cwOpen) hidden @endunless>
                     <div class="ob-field">
                         <label for="{{ $prefix }}-cw">{{ __('openbook.composer.cw_label') }}</label>
-                        <input type="text" id="{{ $prefix }}-cw" name="content_warning" maxlength="255" value="{{ old('content_warning') }}"
+                        <input type="text" id="{{ $prefix }}-cw" name="content_warning" maxlength="255" value="{{ $cwValue }}"
                             placeholder="{{ __('openbook.composer.cw_placeholder') }}" data-composer-fill="cw">
                     </div>
                 </div>
@@ -159,7 +177,11 @@
                 <div class="ob-field">
                     <label for="{{ $prefix }}-images">{{ __('openbook.composer.images_label') }}</label>
                     <input type="file" id="{{ $prefix }}-images" name="images[]" accept="image/jpeg,image/png,image/webp,image/gif,audio/mpeg,audio/ogg,audio/wav,audio/mp4,audio/x-m4a,audio/flac,audio/webm,audio/aac" multiple data-composer-fill="media">
-                    <p class="ob-field__help">{{ __('openbook.composer.images_help', ['count' => $maxAttachments]) }}</p>
+                    @if ($isEditing && $existingMediaCount > 0)
+                        <p class="ob-field__help">{{ __('openbook.composer.existing_media_help', ['count' => $existingMediaCount, 'remaining' => $remainingAttachments]) }}</p>
+                    @else
+                        <p class="ob-field__help">{{ __('openbook.composer.images_help', ['count' => $maxAttachments]) }}</p>
+                    @endif
                 </div>
                 <div class="ob-field">
                     <label for="{{ $prefix }}-alt">{{ __('openbook.composer.alt_label') }}</label>
@@ -172,16 +194,16 @@
                 <div class="ob-composer__panel" id="{{ $prefix }}-panel-visibility" data-composer-panel @unless($visibilityOpen) hidden @endunless>
                     <div class="ob-field">
                         <label for="{{ $prefix }}-visibility">{{ __('openbook.composer.visibility_label') }}</label>
-                        <select id="{{ $prefix }}-visibility" name="visibility" data-composer-fill="visibility" data-composer-default="{{ $defaultVisibility }}">
-                            <option value="public" @selected(old('visibility', $defaultVisibility) === 'public')>{{ __('openbook.visibility.public') }}</option>
-                            <option value="unlisted" @selected(old('visibility', $defaultVisibility) === 'unlisted')>{{ __('openbook.visibility.unlisted') }}</option>
-                            <option value="followers" @selected(old('visibility', $defaultVisibility) === 'followers')>{{ __('openbook.visibility.followers') }}</option>
-                            <option value="direct" @selected(old('visibility', $defaultVisibility) === 'direct')>{{ __('openbook.visibility.direct') }}</option>
+                        <select id="{{ $prefix }}-visibility" name="visibility" data-composer-fill="visibility" data-composer-default="{{ $isEditing ? $editingPost->visibility : $defaultVisibility }}">
+                            <option value="public" @selected($visibilityValue === 'public')>{{ __('openbook.visibility.public') }}</option>
+                            <option value="unlisted" @selected($visibilityValue === 'unlisted')>{{ __('openbook.visibility.unlisted') }}</option>
+                            <option value="followers" @selected($visibilityValue === 'followers')>{{ __('openbook.visibility.followers') }}</option>
+                            <option value="direct" @selected($visibilityValue === 'direct')>{{ __('openbook.visibility.direct') }}</option>
                         </select>
                     </div>
                 </div>
 
-                @if ($composerCommunities->isNotEmpty())
+                @if (! $isEditing && $composerCommunities->isNotEmpty())
                     <div class="ob-composer__panel" id="{{ $prefix }}-panel-community" data-composer-panel @unless($communityOpen) hidden @endunless>
                         <div class="ob-field">
                             <label for="{{ $prefix }}-community">{{ __('openbook.composer.community_label') }}</label>
@@ -236,7 +258,7 @@
                         title="{{ __('openbook.composer.visibility_label') }}">
                         <x-icon name="globe" />
                     </button>
-                    @if ($composerCommunities->isNotEmpty())
+                    @if (! $isEditing && $composerCommunities->isNotEmpty())
                         <button type="button" class="ob-icon-btn ob-composer__toggle {{ $communityOpen ? 'is-active' : '' }} {{ $communityFilled ? 'is-filled' : '' }}"
                             data-composer-toggle="{{ $prefix }}-panel-community"
                             aria-label="{{ __('openbook.composer.community_label') }}"

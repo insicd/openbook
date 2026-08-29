@@ -13,7 +13,7 @@ use App\Federation\Actors\LocalActorUrls;
 /**
  * Costruisce le attivita' ActivityStreams che Openbook invia verso altri
  * server (Fase 4): Follow/Accept/Reject/Undo per il grafo sociale,
- * Create/Delete per post e commenti, Like/Announce/Undo per le reazioni.
+ * Create/Update/Delete per post e commenti, Like/Announce/Undo per le reazioni.
  *
  * Gli identificatori delle attivita' sono sempre *derivati* dalla riga di
  * dominio che le origina (id della riga in "follows"/"likes"/"announces",
@@ -216,6 +216,31 @@ final class ActivitySerializer
             'type' => 'Create',
             'actor' => $note['attributedTo'],
             'published' => $note['published'],
+            'to' => $note['to'] ?? [],
+            'cc' => $note['cc'] ?? [],
+            'object' => $note,
+        ];
+    }
+
+    /**
+     * Aggiornamento di un post o commento locale: stesso object Note del
+     * Create (stesso id canonico), con "updated" se {@see Post::wasEdited()}.
+     * L'id dell'attivita' include un timestamp, come {@see updateActor()},
+     * perche' ogni modifica e' un evento distinto e non esiste una riga
+     * dedicata da cui derivare un id stabile.
+     *
+     * @return array<string, mixed>
+     */
+    public static function update(Post|Comment $object): array
+    {
+        $note = $object instanceof Post ? NoteSerializer::forPost($object) : NoteSerializer::forComment($object);
+
+        return [
+            '@context' => self::CONTEXT,
+            'id' => $note['id'].'/aggiornamenti/'.now()->getTimestampMs(),
+            'type' => 'Update',
+            'actor' => $note['attributedTo'],
+            'published' => $note['updated'] ?? $note['published'],
             'to' => $note['to'] ?? [],
             'cc' => $note['cc'] ?? [],
             'object' => $note,

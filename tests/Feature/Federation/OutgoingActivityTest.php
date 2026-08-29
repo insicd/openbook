@@ -173,6 +173,32 @@ class OutgoingActivityTest extends TestCase
         $this->assertActivityDispatchedTo($follower->endpoints->shared_inbox, 'Create');
     }
 
+    public function test_editing_a_local_post_delivers_an_update_activity_to_a_remote_follower(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('autoremodificante');
+        $follower = $this->createRemoteActor('uma');
+
+        Follow::query()->create([
+            'follower_id' => $follower->id,
+            'following_id' => $author->actor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $post = app(PostComposer::class)->compose($author->actor, ['body' => 'Versione iniziale federata.']);
+
+        Queue::fake();
+
+        $this->actingAs($author)->put(route('posts.update', $post), [
+            'body' => 'Versione aggiornata federata.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ])->assertRedirect(route('posts.show', $post));
+
+        $this->assertActivityDispatchedTo($follower->endpoints->shared_inbox, 'Update');
+    }
+
     public function test_deleting_a_local_post_delivers_a_delete_activity_to_a_remote_follower(): void
     {
         Queue::fake();

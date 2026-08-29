@@ -149,6 +149,8 @@ return [
         'community_help' => 'If you choose a community you belong to, the post appears on its wall and is relayed to members.',
         'addressing_remote' => 'Posting to :handle (mention + delivery to the remote Group)',
         'submit' => 'Post',
+        'save' => 'Save',
+        'existing_media_help' => 'There are already :count attachments. You can add :remaining more (existing files stay).',
     ],
 
     'emoji' => [
@@ -194,6 +196,8 @@ return [
         'video_embed' => 'Embedded video (:provider)',
         'read_more' => 'More...',
         'published' => 'Your post has been published.',
+        'updated' => 'Your post has been updated.',
+        'edit_title' => 'Edit post',
         'back_to_post' => 'Back to post',
     ],
 
@@ -219,6 +223,7 @@ return [
         'reaction_list_more' => 'and :count more',
         'reaction_list_open' => 'Open list',
         'reply' => 'Reply',
+        'edit' => 'Edit',
         'delete' => 'Delete',
         'report' => 'Report',
     ],

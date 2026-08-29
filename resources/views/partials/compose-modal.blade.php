@@ -10,6 +10,10 @@
     aria-modal="true"
     aria-labelledby="ob-compose-modal-title"
     hidden
+    data-title-create="{{ __('openbook.nav.new_post_dialog') }}"
+    data-title-edit="{{ __('openbook.posts.edit_title') }}"
+    data-submit-create="{{ __('openbook.composer.submit') }}"
+    data-submit-save="{{ __('openbook.composer.save') }}"
     @if (old('composer_ui') === 'modal') data-open-on-load="1" @endif
 >
     <button type="button" class="ob-compose-modal__backdrop" data-compose-modal-close tabindex="-1" aria-label="{{ __('openbook.nav.new_post_close') }}"></button>

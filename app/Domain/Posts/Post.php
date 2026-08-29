@@ -97,6 +97,7 @@ class Post extends Model
         'visibility',
         'status',
         'published_at',
+        'edited_at',
         'replies_fetched_at',
     ];
 

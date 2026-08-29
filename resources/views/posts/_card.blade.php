@@ -44,6 +44,7 @@
 
         @if (! $embed)
             @php
+                $canUpdatePost = auth()->check() && auth()->user()->can('update', $post);
                 $canDeletePost = auth()->check() && auth()->user()->can('delete', $post);
                 $canReportPost = auth()->check() && auth()->user()->can('report', $post);
                 $canFetchUpdates = auth()->check() && $canOpenOriginal;
@@ -85,6 +86,29 @@
                         <a href="{{ route('posts.report.create', $post) }}" class="ob-post__menu-item" role="menuitem">
                             <x-icon name="flag" />
                             {{ __('openbook.actions.report') }}
+                        </a>
+                    @endif
+                    @if ($canUpdatePost)
+                        @php
+                            $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
+                            $existingMedia = $post->relationLoaded('media') ? $post->media->count() : $post->media()->count();
+                        @endphp
+                        <a
+                            href="{{ route('posts.edit', $post) }}"
+                            class="ob-post__menu-item"
+                            role="menuitem"
+                            data-edit-post
+                            data-edit-action="{{ route('posts.update', $post) }}"
+                            data-edit-body="{{ $post->body }}"
+                            data-edit-title="{{ $post->title }}"
+                            data-edit-cw="{{ $post->content_warning }}"
+                            data-edit-visibility="{{ $post->visibility }}"
+                            @if ($existingMedia > 0)
+                                data-edit-media-help="{{ __('openbook.composer.existing_media_help', ['count' => $existingMedia, 'remaining' => max(0, $maxAttachments - $existingMedia)]) }}"
+                            @endif
+                        >
+                            <x-icon name="edit" />
+                            {{ __('openbook.actions.edit') }}
                         </a>
                     @endif
                     @if ($canDeletePost)

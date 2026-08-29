@@ -13,6 +13,7 @@ use App\Federation\Replies\RemoteRepliesFetcher;
 use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\NoteSerializer;
 use App\Http\Requests\Posts\StorePostRequest;
+use App\Http\Requests\Posts\UpdatePostRequest;
 use App\Http\Support\ActivityPubNegotiation;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -56,6 +57,29 @@ class PostController extends Controller
         return redirect()
             ->route('posts.show', $post)
             ->with('status', __('openbook.posts.published'));
+    }
+
+    public function edit(Post $post): View
+    {
+        Gate::authorize('update', $post);
+
+        $post->load(Post::CARD_RELATIONS);
+
+        return view('posts.edit', [
+            'post' => $post,
+        ]);
+    }
+
+    public function update(UpdatePostRequest $request, Post $post): RedirectResponse
+    {
+        $data = $request->validated();
+        $data['images'] = $request->file('images', []);
+
+        $this->postComposer->update($request->user()->actor, $post, $data);
+
+        return redirect()
+            ->route('posts.show', $post)
+            ->with('status', __('openbook.posts.updated'));
     }
 
     /**

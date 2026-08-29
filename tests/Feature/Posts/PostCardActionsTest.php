@@ -123,6 +123,50 @@ class PostCardActionsTest extends TestCase
         $this->assertFalse($deleteInActions, 'delete must not appear among the inline action buttons');
     }
 
+    public function test_the_overflow_menu_offers_edit_for_own_local_posts_only(): void
+    {
+        $author = $this->createFullAccount('proprietarioedit');
+        $stranger = $this->createFullAccount('lettoreedit');
+        $post = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Il mio post modificabile.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        $this->actingAs($author)
+            ->get(route('feed.index'))
+            ->assertOk()
+            ->assertSee(__('openbook.actions.edit'), false)
+            ->assertSee('data-edit-post', false);
+
+        $this->actingAs($stranger)
+            ->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertDontSee('data-edit-post', false)
+            ->assertDontSee('href="'.route('posts.edit', $post).'"', false);
+    }
+
+    public function test_a_remote_post_cannot_be_edited(): void
+    {
+        $viewer = $this->createFullAccount('viewerremotoedit');
+        $remote = $this->createRemoteActor('carolinedit');
+        $post = Post::query()->create([
+            'actor_id' => $remote->id,
+            'uri' => 'https://remoto.example/users/carolinedit/statuses/3',
+            'body' => 'Non modificabile.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        $this->assertFalse((new PostPolicy)->update($viewer, $post));
+
+        $this->actingAs($viewer)
+            ->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertDontSee('data-edit-post', false)
+            ->assertDontSee('href="'.route('posts.edit', $post).'"', false);
+    }
+
     public function test_a_remote_post_cannot_be_deleted_even_by_an_admin(): void
     {
         $admin = $this->createFullAccount('adminremoto', ['is_admin' => true]);

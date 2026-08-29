@@ -9,7 +9,11 @@ class PostPolicy
 {
     public function update(User $user, Post $post): bool
     {
-        return $post->actor->user_id === $user->id;
+        if ($post->isRemote() || ! $post->isPublished() || $post->isDirectMessage()) {
+            return false;
+        }
+
+        return $post->actor?->user_id === $user->id;
     }
 
     public function delete(User $user, Post $post): bool

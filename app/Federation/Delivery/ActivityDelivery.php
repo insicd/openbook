@@ -112,13 +112,14 @@ final class ActivityDelivery
     }
 
     /**
-     * Consegna un "Create"/"Delete" di un post o commento locale secondo la
-     * sua audience: per visibilita' pubblica/non elencata/solo-follower va
-     * ai follower remoti dell'autore, mentre per i messaggi diretti va
-     * soltanto agli Actor remoti esplicitamente menzionati. In entrambi i
-     * casi consegna anche direttamente a eventuali destinatari aggiuntivi
-     * (es. l'autore del post padre di un commento), se remoti e distinti
-     * dall'autore, cosi' da notificarli anche se non lo seguono.
+     * Consegna un "Create"/"Update"/"Delete" di un post o commento locale
+     * secondo la sua audience: per visibilita' pubblica/non elencata/solo-
+     * follower va ai follower remoti dell'autore, mentre per i messaggi
+     * diretti va soltanto agli Actor remoti esplicitamente menzionati. I
+     * post in community privata vanno ai follower remoti del Group (firmati
+     * dall'autore), non ai follower dell'autore. In tutti i casi consegna
+     * anche direttamente a eventuali destinatari aggiuntivi (es. l'autore
+     * del post padre di un commento), se remoti e distinti dall'autore.
      *
      * @param  array<string, mixed>  $activity
      * @param  list<?Actor>  $extraDirectTargets
@@ -128,6 +129,22 @@ final class ActivityDelivery
         $author = $object->actor;
 
         if (! $author->isLocal()) {
+            return;
+        }
+
+        if ($object instanceof Post && $object->isInPrivateCommunity()) {
+            $object->loadMissing('community.actor', 'mentions.actor');
+            $group = $object->community?->actor;
+
+            if ($group !== null) {
+                $this->dispatchToInboxes($this->remoteFollowerInboxes($group), $activity, $author);
+            }
+
+            collect($extraDirectTargets)
+                ->filter(fn (?Actor $target) => $target !== null && ! $target->isLocal() && $target->id !== $author->id)
+                ->unique('id')
+                ->each(fn (Actor $target) => $this->deliverTo($author, $target, $activity));
+
             return;
         }
 

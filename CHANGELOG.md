@@ -71,6 +71,12 @@ il [`README`](README.md#roadmap-and-project-status).
   (`OPENBOOK_ACTIVITY_PER_PAGE`, default 20). Sui profili remoti la
   cronologia e' solo cio' che l'istanza gia' conosce (non l'outbox
   completo). Community e feed RSS non hanno il tab.
+- Menu del post: voce **Modifica** per i propri post locali pubblicati
+  (non i messaggi privati). Apre lo stesso composer della pubblicazione,
+  in un dialog se JavaScript e' disponibile (`GET /posts/{post}/modifica`
+  come fallback senza JS). Il salvataggio (`PUT /posts/{post}`) aggiorna
+  testo, titolo, avviso e visibilita', consente di aggiungere allegati,
+  e ritrasmette un'attivita' ActivityPub `Update` alla stessa audience.
 
 ### Changed
 - Box «In tendenza» della sidebar: il titolo include la finestra in

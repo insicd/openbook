@@ -149,6 +149,8 @@ return [
         'community_help' => 'Se scegli una community di cui sei membro, il post compare sul suo wall e viene ritrasmesso agli iscritti.',
         'addressing_remote' => 'Pubblicazione verso :handle (menzione + consegna al Group remoto)',
         'submit' => 'Pubblica',
+        'save' => 'Salva',
+        'existing_media_help' => 'Ci sono gia :count allegati. Puoi aggiungerne ancora :remaining (gli esistenti restano).',
     ],
 
     'emoji' => [
@@ -194,6 +196,8 @@ return [
         'video_embed' => 'Video incorporato (:provider)',
         'read_more' => 'Altro...',
         'published' => 'Il tuo post e stato pubblicato.',
+        'updated' => 'Il post e stato aggiornato.',
+        'edit_title' => 'Modifica post',
         'back_to_post' => 'Torna al post',
     ],
 
@@ -219,6 +223,7 @@ return [
         'reaction_list_more' => 'e altri :count',
         'reaction_list_open' => 'Apri elenco',
         'reply' => 'Rispondi',
+        'edit' => 'Modifica',
         'delete' => 'Elimina',
         'report' => 'Segnala',
     ],

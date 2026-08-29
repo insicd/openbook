@@ -71,6 +71,8 @@ Route::middleware('auth')->group(function () {
         ->name('verification.send');
 
     Route::post('/pubblica', [PostController::class, 'store'])->name('posts.store');
+    Route::get('/posts/{post}/modifica', [PostController::class, 'edit'])->name('posts.edit');
+    Route::put('/posts/{post}', [PostController::class, 'update'])->name('posts.update');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
     Route::post('/posts/{post}/aggiorna', [PostController::class, 'fetchUpdates'])
         ->middleware('throttle:10,1')

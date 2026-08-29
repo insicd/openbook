@@ -25,6 +25,8 @@ use InvalidArgumentException;
  * upload fallito non lascia mai un post parzialmente creato. Se l'autore e'
  * locale, il post viene anche consegnato come attivita' "Create" ai
  * destinatari federati appropriati (sezione {@see ActivityDelivery::deliverContent()}).
+ * Una modifica ({@see self::update()}) ricalcola hashtag/menzioni, marca
+ * {@see Post::$edited_at} e consegna un "Update" alla stessa audience.
  * Una citazione (quoted_post_id) conta anche come condivisione sul post
  * originale via {@see AnnounceManager}: stesso contatore della share diretta,
  * senza una seconda notifica "ha condiviso" (resta solo TYPE_QUOTE).
@@ -142,6 +144,77 @@ final class PostComposer
     }
 
     /**
+     * Aggiorna un post locale dell'autore: testo, titolo, avviso, visibilita'
+     * e eventuali nuovi allegati (gli esistenti restano). Community, citazione
+     * e conversazione non si cambiano. Dopo il salvataggio si federa un
+     * Update verso la stessa audience del Create.
+     *
+     * @param  array{title?: ?string, content_warning?: ?string, body: string, visibility?: string, language?: ?string, images?: array<int, UploadedFile>, alt_texts?: array<int, ?string>}  $data
+     */
+    public function update(Actor $author, Post $post, array $data): Post
+    {
+        if ($post->actor_id !== $author->id) {
+            throw new InvalidArgumentException('Puoi modificare solo i tuoi post.');
+        }
+
+        if ($post->isRemote() || ! $post->isPublished() || $post->isDirectMessage()) {
+            throw new InvalidArgumentException('Questo post non puo\' essere modificato.');
+        }
+
+        $post->loadMissing(['media', 'mentions.actor', 'community.actor']);
+
+        $images = $data['images'] ?? [];
+        $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
+        $existingCount = $post->media->count();
+
+        if ($existingCount + count($images) > $maxAttachments) {
+            throw new InvalidArgumentException("Puoi allegare al massimo {$maxAttachments} file per post.");
+        }
+
+        $post = DB::transaction(function () use ($author, $post, $data, $images, $existingCount) {
+            $post->update([
+                'title' => $data['title'] ?? null,
+                'content_warning' => $data['content_warning'] ?? null,
+                'body' => $data['body'],
+                'language' => $data['language'] ?? $post->language,
+                'visibility' => $data['visibility'] ?? $post->visibility,
+                'edited_at' => now(),
+            ]);
+
+            $altTexts = $data['alt_texts'] ?? [];
+            $nextPosition = $existingCount;
+
+            foreach (array_values($images) as $offset => $image) {
+                $media = $this->mediaUploader->store($image, $author, $altTexts[$offset] ?? null);
+
+                PostAttachment::query()->create([
+                    'post_id' => $post->id,
+                    'media_id' => $media->id,
+                    'position' => $nextPosition + $offset,
+                ]);
+            }
+
+            $this->attachHashtags($post);
+            $this->syncMentions($post, $author);
+
+            return $post->fresh() ?? $post;
+        });
+
+        if ($author->isLocal()) {
+            $post->load(['mentions.actor', 'quotedPost', 'community.actor', 'media']);
+
+            $addressedGroup = $post->mentions
+                ->map(fn ($mention) => $mention->actor)
+                ->first(fn (?Actor $actor) => $actor !== null && $actor->isGroup() && ! $actor->isLocal());
+
+            $extraTargets = $addressedGroup !== null ? [$addressedGroup] : [];
+            $this->delivery->deliverContent($post, ActivitySerializer::update($post), $extraTargets);
+        }
+
+        return $post;
+    }
+
+    /**
      * Avvisa i membri locali (Follow accettato verso il Group) che e' uscito
      * un nuovo post. Remoti e autore sono esclusi: le notifiche in-app sono
      * solo locali e NotificationCreator ignora gia' l'auto-notifica.
@@ -237,10 +310,6 @@ final class PostComposer
     {
         $names = $this->contentParser->extractHashtagNames($post->body);
 
-        if ($names->isEmpty()) {
-            return;
-        }
-
         $hashtagIds = $names->map(function (string $name) {
             return Hashtag::query()->firstOrCreate(['name' => $name])->id;
         });
@@ -250,19 +319,46 @@ final class PostComposer
 
     private function attachMentions(Post $post, Actor $author): void
     {
-        $mentionedActors = $this->contentParser->extractMentionedActors($post->body);
+        $this->syncMentions($post, $author, notifyNew: true);
+    }
+
+    /**
+     * Allinea le menzioni al testo attuale. I Group gia' collegati (community
+     * remota) restano anche se non compaiono nel body. Le menzioni nuove
+     * notificano; quelle rimosse dal testo vengono cancellate.
+     */
+    private function syncMentions(Post $post, Actor $author, bool $notifyNew = true): void
+    {
+        $mentionedActors = $this->contentParser->extractMentionedActors($post->body)
+            ->filter(fn (Actor $actor) => $actor->id !== $author->id)
+            ->unique('id')
+            ->values();
+
+        $keepIds = $mentionedActors->pluck('id');
+
+        $protectedGroupIds = $post->mentions
+            ->map(fn ($mention) => $mention->actor)
+            ->filter(fn (?Actor $actor) => $actor !== null && $actor->isGroup())
+            ->pluck('id');
+
+        $keepIds = $keepIds->concat($protectedGroupIds)->unique()->values();
+
+        $alreadyIds = $post->mentions->pluck('actor_id');
 
         foreach ($mentionedActors as $actor) {
-            if ($actor->id === $author->id) {
-                continue;
-            }
-
+            $isNew = ! $alreadyIds->contains($actor->id);
             $this->ensureMention($post, $actor);
 
-            if ($actor->isLocal() && $actor->isPerson()) {
+            if ($notifyNew && $isNew && $actor->isLocal() && $actor->isPerson()) {
                 $this->notificationCreator->notify($actor, Notification::TYPE_MENTION, $author, $post);
             }
         }
+
+        Mention::query()
+            ->where('mentionable_type', $post->getMorphClass())
+            ->where('mentionable_id', $post->id)
+            ->whereNotIn('actor_id', $keepIds)
+            ->delete();
     }
 
     private function ensureMention(Post $post, Actor $actor): void
