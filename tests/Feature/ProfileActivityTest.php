@@ -8,10 +8,11 @@ use App\Application\Services\FollowManager;
 use App\Application\Services\PostComposer;
 use App\Application\Services\ReactionManager;
 use App\Domain\Accounts\User;
+use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
-use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
@@ -44,7 +45,7 @@ class ProfileActivityTest extends TestCase
             ->assertSee('ob-profile-tabs__tab is-active', false);
     }
 
-    public function test_activity_includes_comments_likes_shares_and_follows(): void
+    public function test_activity_lists_comments_and_shares_but_not_likes_or_follows(): void
     {
         $author = $this->createFullAccount('autorefeed');
         $actor = $this->createFullAccount('cronologia');
@@ -64,15 +65,17 @@ class ProfileActivityTest extends TestCase
         $activity->assertSee('id="ob-activity-list"', false);
         $activity->assertSee('data-activity-type="comment"', false);
         $activity->assertSee('Commento solo in attivita.');
-        $activity->assertSee('data-activity-type="like_post"', false);
-        $activity->assertSee('Un saggio sul fediverso.');
         $activity->assertSee('data-activity-type="announce"', false);
-        $activity->assertSee('data-activity-type="follow"', false);
+        $activity->assertSee('Un saggio sul fediverso.');
         $activity->assertSee(route('profile.show', 'autorefeed'), false);
         $activity->assertSee(route('posts.show', $post), false);
+        $activity->assertDontSee('data-activity-type="like_post"', false);
+        $activity->assertDontSee('data-activity-type="like_comment"', false);
+        $activity->assertDontSee('data-activity-type="follow"', false);
+        $activity->assertDontSee('data-activity-type="post"', false);
     }
 
-    public function test_activity_hides_interactions_on_posts_the_viewer_cannot_see(): void
+    public function test_activity_hides_comments_on_posts_the_viewer_cannot_see(): void
     {
         $author = $this->createFullAccount('privato');
         $actor = $this->createFullAccount('interagente');
@@ -89,29 +92,29 @@ class ProfileActivityTest extends TestCase
             ->assertDontSee('Risposta riservata.')
             ->assertDontSee('Segreto tra follower.')
             ->assertDontSee('data-activity-type="comment"', false)
-            ->assertDontSee('data-activity-type="like_post"', false)
-            ->assertSee('data-activity-type="follow"', false);
+            ->assertSee(__('openbook.profile.no_activity_yet'));
 
         $this->actingAs($actor)
             ->get(route('profile.activity', 'interagente'))
             ->assertOk()
             ->assertSee('Risposta riservata.')
-            ->assertSee('data-activity-type="like_post"', false);
+            ->assertDontSee('data-activity-type="like_post"', false);
     }
 
-    public function test_pending_follows_are_not_listed_as_activity(): void
+    public function test_likes_and_follows_alone_do_not_fill_the_activity_tab(): void
     {
-        $protected = $this->createFullAccount('protetto');
-        $protected->actor->forceFill(['manually_approves_followers' => true])->save();
-        $actor = $this->createFullAccount('inchiodo');
+        $author = $this->createFullAccount('soloautore');
+        $actor = $this->createFullAccount('soloreazioni');
+        $post = $this->publishPost($author, 'Post senza eco pubblica.');
 
-        $follow = app(FollowManager::class)->follow($actor->actor, $protected->actor);
-        $this->assertSame(Follow::STATUS_PENDING, $follow->status);
+        app(ReactionManager::class)->like($actor->actor, $post);
+        app(FollowManager::class)->follow($actor->actor, $author->actor);
 
-        $this->get(route('profile.activity', 'inchiodo'))
+        $this->get(route('profile.activity', 'soloreazioni'))
             ->assertOk()
-            ->assertDontSee('data-activity-type="follow"', false)
-            ->assertSee(__('openbook.profile.no_activity_yet'));
+            ->assertSee(__('openbook.profile.no_activity_yet'))
+            ->assertDontSee('data-activity-type="like_post"', false)
+            ->assertDontSee('data-activity-type="follow"', false);
     }
 
     public function test_the_activity_tab_exposes_infinite_scroll_markup_when_there_are_more_pages(): void
@@ -119,32 +122,29 @@ class ProfileActivityTest extends TestCase
         config(['openbook.profile.activity_per_page' => 2]);
 
         $author = $this->createFullAccount('paginatore');
-        $this->publishPost($author, 'Post piu vecchio.')->forceFill([
-            'published_at' => now()->subMinutes(3),
-        ])->save();
-        $this->publishPost($author, 'Post di mezzo.')->forceFill([
-            'published_at' => now()->subMinutes(2),
-        ])->save();
-        $this->publishPost($author, 'Post piu recente.')->forceFill([
-            'published_at' => now()->subMinutes(1),
-        ])->save();
+        $actor = $this->createFullAccount('commentapagine');
+        $post = $this->publishPost($author, 'Post da commentare a raffica.');
 
-        $response = $this->get(route('profile.activity', 'paginatore'));
+        $this->commentAt($actor, $post, 'Commento piu vecchio.', now()->subMinutes(3));
+        $this->commentAt($actor, $post, 'Commento di mezzo.', now()->subMinutes(2));
+        $this->commentAt($actor, $post, 'Commento piu recente.', now()->subMinutes(1));
+
+        $response = $this->get(route('profile.activity', 'commentapagine'));
 
         $response->assertOk();
         $response->assertSee('id="ob-activity-list"', false);
         $response->assertSee('data-infinite-scroll', false);
-        $response->assertSee('data-next-url="'.url('/@paginatore/attivita?page=2').'"', false);
+        $response->assertSee('data-next-url="'.url('/@commentapagine/attivita?page=2').'"', false);
         $response->assertSee('<noscript>', false);
         $response->assertSee(__('openbook.profile.activity_scroll.next'));
-        $response->assertSee('Post piu recente.');
-        $response->assertSee('Post di mezzo.');
-        $response->assertDontSee('Post piu vecchio.');
+        $response->assertSee('Commento piu recente.');
+        $response->assertSee('Commento di mezzo.');
+        $response->assertDontSee('Commento piu vecchio.');
 
-        $pageTwo = $this->get(route('profile.activity', 'paginatore').'?page=2');
+        $pageTwo = $this->get(route('profile.activity', 'commentapagine').'?page=2');
         $pageTwo->assertOk();
-        $pageTwo->assertSee('Post piu vecchio.');
-        $pageTwo->assertDontSee('Post piu recente.');
+        $pageTwo->assertSee('Commento piu vecchio.');
+        $pageTwo->assertDontSee('Commento piu recente.');
         $pageTwo->assertDontSee('data-next-url', false);
     }
 
@@ -153,7 +153,8 @@ class ProfileActivityTest extends TestCase
         Http::fake(['*' => Http::response('', 404)]);
         $viewer = $this->createFullAccount('visitattivita');
         $remote = $this->createRemoteActor('remotoattivo');
-        $localPost = $this->publishPost($viewer, 'Post locale da apprezzare.');
+        $localPost = $this->publishPost($viewer, 'Post locale da commentare.');
+        app(CommentComposer::class)->compose($remote, $localPost, 'Commento remoto visibile qui.');
         app(ReactionManager::class)->like($remote, $localPost);
 
         $this->actingAs($viewer)
@@ -165,8 +166,9 @@ class ProfileActivityTest extends TestCase
         $activity = $this->actingAs($viewer)->get(route('actors.activity', $remote));
         $activity->assertOk();
         $activity->assertSee(__('openbook.profile.activity_remote_notice'));
-        $activity->assertSee('data-activity-type="like_post"', false);
-        $activity->assertSee('Post locale da apprezzare.');
+        $activity->assertSee('data-activity-type="comment"', false);
+        $activity->assertSee('Commento remoto visibile qui.');
+        $activity->assertDontSee('data-activity-type="like_post"', false);
     }
 
     public function test_remote_groups_and_feeds_do_not_have_an_activity_tab(): void
@@ -210,5 +212,13 @@ class ProfileActivityTest extends TestCase
         $this->actingAs($viewer)
             ->get(route('actors.activity', $target->actor))
             ->assertRedirect(route('profile.activity', $target->username));
+    }
+
+    private function commentAt(User $actor, Post $post, string $body, Carbon $at): Comment
+    {
+        $comment = app(CommentComposer::class)->compose($actor->actor, $post, $body);
+        $comment->forceFill(['created_at' => $at, 'updated_at' => $at])->save();
+
+        return $comment;
     }
 }

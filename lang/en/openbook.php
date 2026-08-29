@@ -89,8 +89,8 @@ return [
         'tab_activity' => 'Activity',
         'tab_photos' => 'Photos',
         'no_photos_yet' => 'No photos to show yet.',
-        'no_activity_yet' => 'There is no activity to show yet.',
-        'activity_remote_notice' => 'This timeline only includes actions known to this instance: received posts, comments and reactions on known content, and follows of accounts here. It is not the origin server\'s full outbox.',
+        'no_activity_yet' => 'There are no comments or shares to show yet.',
+        'activity_remote_notice' => 'This timeline only includes comments and shares known to this instance, not the origin server\'s full outbox. Likes are not listed here.',
         'photo_alt' => 'Profile photo',
         'open_photo_post' => 'Open post',
         'infinite_scroll' => [
@@ -106,14 +106,9 @@ return [
             'next' => 'More activity',
         ],
         'activity' => [
-            'published' => ':name published a post',
             'commented' => ':name commented on a post by :author',
             'replied' => ':name replied to :author',
-            'liked_post' => ':name liked a post by :author',
-            'liked_comment' => ':name liked a comment by :author',
             'shared' => ':name shared a post by :author',
-            'followed' => ':name started following :author',
-            'joined_community' => ':name joined :author',
         ],
     ],
 

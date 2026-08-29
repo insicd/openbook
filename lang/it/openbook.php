@@ -89,8 +89,8 @@ return [
         'tab_activity' => 'Attività',
         'tab_photos' => 'Foto',
         'no_photos_yet' => 'Non ci sono ancora foto da mostrare.',
-        'no_activity_yet' => 'Non c\'è ancora attività da mostrare.',
-        'activity_remote_notice' => 'Questa cronologia include solo le azioni visibili a questa istanza: post ricevuti, commenti e reazioni su contenuti noti, follow verso account di qui. Non è l\'outbox completo del server di origine.',
+        'no_activity_yet' => 'Non ci sono ancora commenti o condivisioni da mostrare.',
+        'activity_remote_notice' => 'Questa cronologia include solo commenti e condivisioni visibili a questa istanza, non l\'outbox completo del server di origine. I mi piace non compaiono qui.',
         'photo_alt' => 'Foto del profilo',
         'open_photo_post' => 'Apri il post',
         'infinite_scroll' => [
@@ -106,14 +106,9 @@ return [
             'next' => 'Attività successive',
         ],
         'activity' => [
-            'published' => ':name ha pubblicato un post',
             'commented' => ':name ha commentato un post di :author',
             'replied' => ':name ha risposto a :author',
-            'liked_post' => ':name ha messo mi piace a un post di :author',
-            'liked_comment' => ':name ha messo mi piace a un commento di :author',
             'shared' => ':name ha condiviso un post di :author',
-            'followed' => ':name ha iniziato a seguire :author',
-            'joined_community' => ':name si e\' iscritto a :author',
         ],
     ],
 

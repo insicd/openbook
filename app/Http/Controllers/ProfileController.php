@@ -56,9 +56,9 @@ class ProfileController extends Controller
     }
 
     /**
-     * Cronologia delle azioni visibili a questa istanza: post, commenti,
-     * mi piace, condivisioni e follow. Il tab Post mostra solo i contenuti
-     * (e le condivisioni come card); qui restano anche le interazioni.
+     * Cronologia di commenti/risposte e condivisioni visibili a questa
+     * istanza. Il tab Post resta sui contenuti (e le condivisioni come card);
+     * qui non si perdono i commenti fatti altrove.
      */
     public function activity(Request $request, string $username): View|RedirectResponse
     {
