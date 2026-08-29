@@ -106,6 +106,11 @@ il [`README`](README.md#roadmap-and-project-status).
   che apre il profilo remoto mostra il titolo come titolo, senza
   duplicarlo nel corpo. Le Note vecchie, con solo il `<b>` iniziale,
   vengono riconosciute allo stesso modo.
+- Query «In tendenza» su MySQL/MariaDB: su `post_hashtags` il campione
+  delle statistiche InnoDB passa da 20 a 100 pagine
+  (`STATS_SAMPLE_PAGES`). Con il default l'optimizer a volte partiva da
+  un full scan di `hashtags` invece che dai post recenti. SQLite non e'
+  toccato.
 - Post in una community locale (e verso un Group remoto): l'HTML federato
   aggiunge in coda una menzione visibile `in @community@dominio` (stesso
   href del tag Mention, `class="u-url mention"`). Mastodon mostra cosi'
