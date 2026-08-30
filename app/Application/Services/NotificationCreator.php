@@ -4,8 +4,13 @@ namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
 use App\Domain\Notifications\Notification;
+use App\Domain\Notifications\PushNotification;
+use App\Domain\Notifications\PushSubscription;
 use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Centralizza la creazione delle notifiche locali, cosi' che ogni servizio
@@ -33,6 +38,25 @@ final class NotificationCreator
         ]);
 
         User::query()->whereKey($recipientActor->user_id)->increment('notifications_revision');
+
+        $notificationId = $notification->id;
+        $recipientId = $recipientActor->user_id;
+
+        DB::afterCommit(static function () use ($notificationId, $recipientId): void {
+            try {
+                if (! PushSubscription::query()->where('user_id', $recipientId)->exists()) {
+                    return;
+                }
+
+                PushNotification::query()->firstOrCreate(['notification_id' => $notificationId]);
+            } catch (Throwable $exception) {
+                // Il canale push e' accessorio: la notifica locale resta valida.
+                Log::warning('Unable to enqueue a browser push notification.', [
+                    'notification_id' => $notificationId,
+                    'exception' => $exception,
+                ]);
+            }
+        });
 
         return $notification;
     }

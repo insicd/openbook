@@ -1103,6 +1103,17 @@ html.ob-compose-modal-open {
   display: block;
 }
 
+.ob-push-settings__label {
+  display: block;
+  font-weight: 600;
+}
+
+.ob-push-settings__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
 .ob-admin-favicon-preview {
   width: 48px;
   height: 48px;

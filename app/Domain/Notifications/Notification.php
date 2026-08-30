@@ -10,6 +10,7 @@ use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 
@@ -88,6 +89,11 @@ class Notification extends Model
         return $this->morphTo();
     }
 
+    public function pushNotification(): HasOne
+    {
+        return $this->hasOne(PushNotification::class);
+    }
+
     public function isRead(): bool
     {
         return $this->read_at !== null;
@@ -97,22 +103,22 @@ class Notification extends Model
      * Testo localizzato della notifica. I follow verso un Group locale usano
      * chiavi dedicate (iscrizione / richiesta di iscrizione), non "ti segue".
      */
-    public function message(): string
+    public function message(?string $locale = null): string
     {
-        return __('openbook.notifications.messages.'.$this->messageKey(), $this->messageReplacements());
+        return __('openbook.notifications.messages.'.$this->messageKey(), $this->messageReplacements($locale), $locale);
     }
 
     /**
      * @return array{name: string, community?: string}
      */
-    public function messageReplacements(): array
+    public function messageReplacements(?string $locale = null): array
     {
         $replacements = [
-            'name' => $this->actor?->displayName() ?: __('openbook.notifications.someone'),
+            'name' => $this->actor?->displayName() ?: __('openbook.notifications.someone', [], $locale),
         ];
 
         if ($this->messageNeedsCommunity()) {
-            $replacements['community'] = $this->communityDisplayName();
+            $replacements['community'] = $this->communityDisplayName($locale);
         }
 
         return $replacements;
@@ -196,7 +202,7 @@ class Notification extends Model
         ], true);
     }
 
-    private function communityDisplayName(): string
+    private function communityDisplayName(?string $locale = null): string
     {
         $actor = $this->communityActor();
         $name = $actor?->displayName() ?: $actor?->preferred_username;
@@ -205,7 +211,7 @@ class Notification extends Model
             return (string) $name;
         }
 
-        return __('openbook.notifications.a_community');
+        return __('openbook.notifications.a_community', [], $locale);
     }
 
     private function communityActor(): ?Actor

@@ -19,6 +19,13 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.36.rc1]
 
 ### Added
+- **Notifiche Web Push** per browser desktop e mobile, attivabili per ogni
+  dispositivo da Impostazioni account. Una coppia VAPID per istanza e le
+  subscription cifrate alimentano un'outbox dedicata; il poller la sopprime
+  quando l'utente e' attivo, altrimenti `openbook:cron` consegna dopo 75
+  secondi con testo localizzato e icona dell'istanza. Consegna best effort
+  senza retry, pulizia automatica degli endpoint scaduti e click sulla
+  notifica verso `/notifiche` tramite service worker.
 - Menu condividi del post: voce **Condividi a utente**
   (`GET /posts/{post}/condividi-a-utente`). Apre i messaggi privati con il
   post gia' citato: scegli il destinatario e invia (commento opzionale).
