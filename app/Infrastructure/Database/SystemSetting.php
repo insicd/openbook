@@ -31,6 +31,7 @@ class SystemSetting extends Model
 
     private const ENCRYPTED_KEYS = [
         'cron_token',
+        'push_vapid_keys',
     ];
 
     public static function get(string $key, ?string $default = null): ?string
@@ -54,11 +55,23 @@ class SystemSetting extends Model
 
     public static function put(string $key, ?string $value): void
     {
-        $stored = $value !== null && in_array($key, self::ENCRYPTED_KEYS, true)
-            ? Crypt::encryptString($value)
-            : $value;
+        static::query()->updateOrCreate(['key' => $key], ['value' => self::storedValue($key, $value)]);
+    }
 
-        static::query()->updateOrCreate(['key' => $key], ['value' => $stored]);
+    /**
+     * Inserisce una configurazione solo se non esiste gia'. Il vincolo unique
+     * sulla chiave rende sicura la prima inizializzazione da richieste concorrenti.
+     */
+    public static function putIfAbsent(string $key, ?string $value): bool
+    {
+        $now = now();
+
+        return static::query()->insertOrIgnore([
+            'key' => $key,
+            'value' => self::storedValue($key, $value),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]) === 1;
     }
 
     public static function getBool(string $key, bool $default = false): bool
@@ -75,5 +88,12 @@ class SystemSetting extends Model
     public static function putBool(string $key, bool $value): void
     {
         static::put($key, $value ? '1' : '0');
+    }
+
+    private static function storedValue(string $key, ?string $value): ?string
+    {
+        return $value !== null && in_array($key, self::ENCRYPTED_KEYS, true)
+            ? Crypt::encryptString($value)
+            : $value;
     }
 }

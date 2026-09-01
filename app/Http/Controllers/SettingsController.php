@@ -6,6 +6,7 @@ use App\Application\Services\AccountPreferencesUpdater;
 use App\Application\Services\ProfileUpdater;
 use App\Http\Requests\Settings\UpdateAccountRequest;
 use App\Http\Requests\Settings\UpdateProfileRequest;
+use App\Infrastructure\Push\VapidKeyManager;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 
@@ -20,6 +21,7 @@ class SettingsController extends Controller
     public function __construct(
         private readonly ProfileUpdater $profileUpdater,
         private readonly AccountPreferencesUpdater $accountPreferencesUpdater,
+        private readonly VapidKeyManager $vapidKeyManager,
     ) {}
 
     public function edit(): View
@@ -27,7 +29,11 @@ class SettingsController extends Controller
         $user = auth()->user();
         $user->loadMissing(['profile', 'settings', 'actor']);
 
-        return view('settings.index', ['viewer' => $user]);
+        return view('settings.index', [
+            'viewer' => $user,
+            'pushVapidPublicKey' => $this->vapidKeyManager->getOrCreate()['publicKey'],
+            'pushSubscriptionHashes' => $user->pushSubscriptions()->pluck('endpoint_hash')->all(),
+        ]);
     }
 
     public function updateProfile(UpdateProfileRequest $request): RedirectResponse

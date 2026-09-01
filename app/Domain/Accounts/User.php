@@ -2,12 +2,14 @@
 
 namespace App\Domain\Accounts;
 
+use App\Domain\Notifications\PushSubscription;
 use App\Domain\Profiles\Profile;
 use App\Federation\Actors\Actor;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -105,6 +107,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function actor(): HasOne
     {
         return $this->hasOne(Actor::class);
+    }
+
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
     }
 
     public function isActive(): bool

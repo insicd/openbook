@@ -315,6 +315,16 @@ return [
         'direct_message_policy_followers' => 'Solo i tuoi follower',
         'direct_message_policy_nobody' => 'Nessuno',
         'direct_message_policy_help' => 'Si applica ai messaggi privati federati (ActivityPub). I messaggi da altre istanze rispettano comunque le regole del server mittente.',
+        'push_label' => 'Notifiche push',
+        'push_enable' => 'Attiva notifiche push',
+        'push_disable' => 'Disattiva notifiche push',
+        'push_inactive' => 'Le notifiche push non sono attive su questo browser.',
+        'push_active' => 'Le notifiche push sono attive su questo browser.',
+        'push_reattach' => 'Questo browser non e\' collegato al tuo account. Puoi attivare nuovamente le notifiche.',
+        'push_unsupported' => 'Questo browser non supporta le notifiche push.',
+        'push_denied' => 'Le notifiche sono bloccate nelle impostazioni del browser.',
+        'push_error' => 'Non e\' stato possibile aggiornare le notifiche push. Riprova.',
+        'push_ios_help' => 'Su iPhone e iPad potrebbe essere necessario aggiungere OpenBook alla schermata Home.',
     ],
 
     'follows' => [

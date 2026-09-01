@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Domain\Accounts\User;
 use App\Domain\Notifications\Notification;
+use App\Domain\Notifications\PushNotification;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 
 class NotificationController extends Controller
 {
@@ -45,11 +47,14 @@ class NotificationController extends Controller
      */
     public function feed(Request $request): JsonResponse|Response
     {
+        $pollStartedAt = now();
         $recipientId = auth()->id();
         $revision = (int) User::query()->whereKey($recipientId)->value('notifications_revision');
         $etag = '"'.$revision.'"';
 
         if ($this->clientHasCurrentRevision($request, $revision, $etag)) {
+            $this->consumePendingPushNotifications($recipientId, $pollStartedAt);
+
             return response('', 304)->withHeaders([
                 'ETag' => $etag,
                 'Cache-Control' => 'private, no-cache',
@@ -85,6 +90,8 @@ class NotificationController extends Controller
                 ];
             })
             ->values();
+
+        $this->consumePendingPushNotifications($recipientId, $pollStartedAt);
 
         return response()
             ->json([
@@ -125,5 +132,15 @@ class NotificationController extends Controller
         $clientRevision = $request->query('v');
 
         return is_string($clientRevision) && $clientRevision !== '' && (int) $clientRevision === $revision;
+    }
+
+    private function consumePendingPushNotifications(string $recipientId, Carbon $pollStartedAt): void
+    {
+        PushNotification::query()
+            ->whereHas('notification', static function ($query) use ($recipientId, $pollStartedAt): void {
+                $query->where('recipient_id', $recipientId)
+                    ->where('created_at', '<=', $pollStartedAt);
+            })
+            ->delete();
     }
 }

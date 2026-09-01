@@ -192,6 +192,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Browser push
+    |--------------------------------------------------------------------------
+    */
+    'push' => [
+        'grace_period_seconds' => (int) env('OPENBOOK_PUSH_GRACE_PERIOD', 75),
+        'batch_size' => (int) env('OPENBOOK_PUSH_BATCH_SIZE', 20),
+        'http_timeout_seconds' => (int) env('OPENBOOK_PUSH_HTTP_TIMEOUT', 5),
+        'ttl_seconds' => (int) env('OPENBOOK_PUSH_TTL', 3600),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Profilo
     |--------------------------------------------------------------------------
     |

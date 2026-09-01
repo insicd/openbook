@@ -315,6 +315,16 @@ return [
         'direct_message_policy_followers' => 'Only your followers',
         'direct_message_policy_nobody' => 'Nobody',
         'direct_message_policy_help' => 'Applies to federated private messages (ActivityPub). Messages from other instances still follow the sender\'s server rules.',
+        'push_label' => 'Push notifications',
+        'push_enable' => 'Enable push notifications',
+        'push_disable' => 'Disable push notifications',
+        'push_inactive' => 'Push notifications are not enabled in this browser.',
+        'push_active' => 'Push notifications are enabled in this browser.',
+        'push_reattach' => 'This browser is not linked to your account. You can enable notifications again.',
+        'push_unsupported' => 'This browser does not support push notifications.',
+        'push_denied' => 'Notifications are blocked in your browser settings.',
+        'push_error' => 'Push notifications could not be updated. Please try again.',
+        'push_ios_help' => 'On iPhone and iPad you may need to add OpenBook to your Home Screen.',
     ],
 
     'follows' => [

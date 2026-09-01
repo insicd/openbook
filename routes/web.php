@@ -30,6 +30,7 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostReactionController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SearchSuggestController;
@@ -147,6 +148,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/impostazioni', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('/impostazioni/profilo', [SettingsController::class, 'updateProfile'])->name('settings.profile.update');
     Route::put('/impostazioni/account', [SettingsController::class, 'updateAccount'])->name('settings.account.update');
+    Route::post('/impostazioni/notifiche-push', [PushSubscriptionController::class, 'store'])
+        ->name('settings.push_subscriptions.store');
+    Route::delete('/impostazioni/notifiche-push', [PushSubscriptionController::class, 'destroy'])
+        ->name('settings.push_subscriptions.destroy');
 
     Route::get('/community/nuova', [CommunityController::class, 'create'])->name('communities.create');
     Route::post('/community', [CommunityController::class, 'store'])->name('communities.store');

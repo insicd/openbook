@@ -2,11 +2,11 @@
 
 namespace App\Providers;
 
-use App\Application\Services\ConversationReadTracker;
 use App\Application\Queries\PopularHashtagsQuery;
 use App\Application\Queries\SidebarSuggestionContext;
 use App\Application\Queries\SuggestedActorsByBioQuery;
 use App\Application\Queries\SuggestedLocalActorsQuery;
+use App\Application\Services\ConversationReadTracker;
 use App\Application\Services\InstanceSettings;
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
@@ -18,6 +18,8 @@ use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Infrastructure\Push\BrowserPushGateway;
+use App\Infrastructure\Push\WebPushGateway;
 use App\Infrastructure\Security\Http\DnsResolver;
 use App\Infrastructure\Security\Http\SystemDnsResolver;
 use App\Policies\CommentPolicy;
@@ -40,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
         // SSRF: nei test viene sostituita con un doppio che non richiede una
         // rete o domini realmente registrati (vedi Tests\TestCase).
         $this->app->bind(DnsResolver::class, SystemDnsResolver::class);
+        $this->app->bind(BrowserPushGateway::class, WebPushGateway::class);
     }
 
     /**
