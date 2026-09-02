@@ -52,43 +52,36 @@ final class PopularRemoteActorsQuery
 
     private function baseQuery(Actor $viewer): Builder
     {
-        $excludedIds = Follow::query()
-            ->where('follower_id', $viewer->id)
-            ->pluck('following_id')
-            ->push($viewer->id);
+        $followerSignals = DB::table('follows')
+            ->selectRaw('following_id as actor_id, count(*) as local_followers_count, null as last_public_post_at')
+            ->where('status', Follow::STATUS_ACCEPTED)
+            ->groupBy('following_id');
 
-        $localFollowersCount = DB::table('follows')
-            ->selectRaw('count(*)')
-            ->whereColumn('follows.following_id', 'actors.id')
-            ->where('follows.status', Follow::STATUS_ACCEPTED);
+        $postSignals = DB::table('posts')
+            ->selectRaw('actor_id, 0 as local_followers_count, max(published_at) as last_public_post_at')
+            ->where('status', Post::STATUS_PUBLISHED)
+            ->where('visibility', Post::VISIBILITY_PUBLIC)
+            ->groupBy('actor_id');
 
-        $lastPublicPostAt = DB::table('posts')
-            ->selectRaw('max(posts.published_at)')
-            ->whereColumn('posts.actor_id', 'actors.id')
-            ->where('posts.status', Post::STATUS_PUBLISHED)
-            ->where('posts.visibility', Post::VISIBILITY_PUBLIC);
+        $signalStats = DB::query()
+            ->fromSub($followerSignals->unionAll($postSignals), 'signals')
+            ->select('actor_id')
+            ->selectRaw('sum(local_followers_count) as local_followers_count')
+            ->selectRaw('max(last_public_post_at) as last_public_post_at')
+            ->groupBy('actor_id');
 
         return Actor::query()
             ->select('actors.*')
-            ->selectSub($localFollowersCount, 'local_followers_count')
-            ->selectSub($lastPublicPostAt, 'last_public_post_at')
+            ->addSelect('signal_stats.local_followers_count', 'signal_stats.last_public_post_at')
+            ->joinSub($signalStats, 'signal_stats', fn ($join) => $join->on('signal_stats.actor_id', 'actors.id'))
             ->where('is_local', false)
             ->where('type', Actor::TYPE_PERSON)
             ->where('status', Actor::STATUS_ACTIVE)
-            ->whereNotIn('id', $excludedIds)
-            ->where(function ($query) {
-                $query->whereExists(function ($sub) {
-                    $sub->selectRaw('1')
-                        ->from('follows')
-                        ->whereColumn('follows.following_id', 'actors.id')
-                        ->where('follows.status', Follow::STATUS_ACCEPTED);
-                })->orWhereExists(function ($sub) {
-                    $sub->selectRaw('1')
-                        ->from('posts')
-                        ->whereColumn('posts.actor_id', 'actors.id')
-                        ->where('posts.status', Post::STATUS_PUBLISHED)
-                        ->where('posts.visibility', Post::VISIBILITY_PUBLIC);
-                });
+            ->whereNotExists(function ($sub) use ($viewer): void {
+                $sub->selectRaw('1')
+                    ->from('follows as viewer_follows')
+                    ->whereColumn('viewer_follows.following_id', 'actors.id')
+                    ->where('viewer_follows.follower_id', $viewer->id);
             })
             ->orderByDesc('local_followers_count')
             ->orderByDesc('last_public_post_at');

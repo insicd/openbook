@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Costruisce il feed personale: post propri, post degli attori seguiti e
@@ -47,7 +46,6 @@ final class FeedQuery
 
     public function forActor(Actor $viewer, ?FeedCursor $cursor = null, int $perPage = 0): FeedPage
     {
-        $startedAt = hrtime(true);
         $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
 
         $isFollowedByViewer = function ($query, string $actorColumn) use ($viewer): void {
@@ -243,12 +241,6 @@ final class FeedQuery
         );
 
         Post::attachSharedBy($page->getCollection());
-
-        Log::info('feed.personal_query_completed', [
-            'duration_ms' => round((hrtime(true) - $startedAt) / 1_000_000, 2),
-            'posts_count' => $page->getCollection()->count(),
-            'has_cursor' => $cursor !== null,
-        ]);
 
         return $page;
     }
