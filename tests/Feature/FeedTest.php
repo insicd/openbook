@@ -11,6 +11,9 @@ use App\Application\Services\PostComposer;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
@@ -134,6 +137,97 @@ class FeedTest extends TestCase
         $this->assertSame($ordinaryPost->id, $items->last()->id);
     }
 
+    public function test_cursor_pagination_does_not_repeat_a_post_with_an_older_relevant_announce(): void
+    {
+        $viewer = $this->createFullAccount('feedcursorviewer');
+        $firstSharer = $this->createFullAccount('feedcursorfirst');
+        $latestSharer = $this->createFullAccount('feedcursorlast');
+        $author = $this->createFullAccount('feedcursorauthor');
+
+        app(FollowManager::class)->follow($viewer->actor, $firstSharer->actor);
+        app(FollowManager::class)->follow($viewer->actor, $latestSharer->actor);
+        app(FollowManager::class)->follow($viewer->actor, $author->actor);
+
+        $sharedPost = $this->publishPost($author, 'Post con due condivisioni.');
+        $sharedPost->update(['published_at' => now()->subDays(7)]);
+        app(AnnounceManager::class)->announce($firstSharer->actor, $sharedPost, occurredAt: now()->subHours(3));
+        app(AnnounceManager::class)->announce($latestSharer->actor, $sharedPost, occurredAt: now());
+
+        $ordinaryPost = $this->publishPost($author, 'Post tra le due condivisioni.');
+        $ordinaryPost->update(['published_at' => now()->subHour()]);
+
+        $firstPage = app(FeedQuery::class)->forActor($viewer->actor, perPage: 1);
+        $secondPage = app(FeedQuery::class)->forActor(
+            $viewer->actor,
+            \App\Application\Queries\FeedCursor::fromPost($firstPage->getCollection()->sole(), useShareSort: true),
+            perPage: 1,
+        );
+        $thirdPage = app(FeedQuery::class)->forActor(
+            $viewer->actor,
+            \App\Application\Queries\FeedCursor::fromPost($secondPage->getCollection()->sole(), useShareSort: true),
+            perPage: 1,
+        );
+
+        $this->assertSame($sharedPost->id, $firstPage->getCollection()->sole()->id);
+        $this->assertSame($ordinaryPost->id, $secondPage->getCollection()->sole()->id);
+        $this->assertTrue($thirdPage->getCollection()->isEmpty());
+    }
+
+    public static function recentFollowedPostCounts(): array
+    {
+        return ['enough recent posts' => [4], 'one recent post' => [1], 'only old posts' => [0]];
+    }
+
+    #[DataProvider('recentFollowedPostCounts')]
+    public function test_bounded_followed_stream_keeps_old_posts_and_paginates_without_duplicates(int $recentCount): void
+    {
+        $viewer = $this->createFullAccount('feedboundedviewer');
+        $author = $this->createFullAccount('feedboundedauthor');
+        $stranger = $this->createFullAccount('feedboundedstranger');
+        app(FollowManager::class)->follow($viewer->actor, $author->actor);
+        $at = now()->startOfSecond();
+        $expected = [];
+
+        for ($i = 0; $i < $recentCount; $i++) {
+            $post = $this->publishPost($author, 'Post recente '.$i);
+            $post->update(['published_at' => $at->copy()->subMinutes($i)]);
+            $expected[] = $post->id;
+        }
+        for ($i = 1; $i <= 3; $i++) {
+            $post = $this->publishPost($author, 'Post vecchio '.$i);
+            $post->update(['published_at' => $at->copy()->subDays($i)]);
+            $expected[] = $post->id;
+        }
+
+        // Una finestra recente piena di post estranei separa i due gruppi:
+        // i post vecchi devono restare raggiungibili tramite il fallback.
+        $noise = [];
+        for ($i = 0; $i < 300; $i++) {
+            $noise[] = [
+                'id' => (string) Str::uuid(),
+                'actor_id' => $stranger->actor->id,
+                'body' => 'Post estraneo.',
+                'status' => Post::STATUS_PUBLISHED,
+                'visibility' => Post::VISIBILITY_PUBLIC,
+                'published_at' => $at->copy()->subHour(),
+            ];
+        }
+        DB::table('posts')->insert($noise);
+
+        $actual = [];
+        $cursor = null;
+        $pageCount = (int) ceil(count($expected) / 2);
+        for ($i = 0; $i < $pageCount; $i++) {
+            $page = app(FeedQuery::class)->forActor($viewer->actor, $cursor, perPage: 2);
+            $items = $page->getCollection();
+            $this->assertFalse($items->isEmpty());
+            array_push($actual, ...$items->pluck('id')->all());
+            $this->assertSame($i < $pageCount - 1, $page->hasMorePages());
+            $cursor = \App\Application\Queries\FeedCursor::fromPost($items->last(), useShareSort: true);
+        }
+        $this->assertSame($expected, $actual);
+    }
+
     public function test_an_announce_does_not_bypass_direct_post_visibility(): void
     {
         $viewer = $this->createFullAccount('feedprivateviewer');
@@ -152,6 +246,94 @@ class FeedTest extends TestCase
         $postIds = app(FeedQuery::class)->forActor($viewer->actor)->getCollection()->pluck('id');
 
         $this->assertFalse($postIds->contains($directPost->id));
+    }
+
+    public static function filteredFeedSources(): array
+    {
+        return [
+            'followed posts' => [false, false],
+            'own announces' => [true, true],
+            'followed announces' => [true, false],
+        ];
+    }
+
+    #[DataProvider('filteredFeedSources')]
+    public function test_ineligible_candidates_do_not_hide_older_visible_posts(bool $announced, bool $own): void
+    {
+        $viewer = $this->createFullAccount('feedfilterviewer');
+        $author = $this->createFullAccount('feedfilterauthor');
+        $sharer = $own ? $viewer : $this->createFullAccount('feedfiltersharer');
+        if (! $announced || ! $own) {
+            app(FollowManager::class)->follow($viewer->actor, $announced ? $sharer->actor : $author->actor);
+        }
+
+        $at = now()->startOfSecond();
+        $visible = [];
+        for ($i = 0; $i < 2; $i++) {
+            $post = $this->publishPost($author, 'Post visibile '.$i);
+            $post->update(['published_at' => $at->copy()->subHours($i + 1)]);
+            if ($announced) {
+                app(AnnounceManager::class)->announce($sharer->actor, $post, occurredAt: $at->copy()->subHours($i + 1));
+            }
+            $visible[] = $post->id;
+        }
+
+        // Piu' candidati esclusi anche del vecchio margine 3 * (perPage + 1).
+        for ($i = 0; $i < 8; $i++) {
+            $post = $this->publishPost($author, 'Direct non destinato al viewer.', Post::VISIBILITY_DIRECT);
+            if ($announced) {
+                app(AnnounceManager::class)->announce($sharer->actor, $post, occurredAt: $at);
+                if ($i % 2 === 0) {
+                    $post->update(['status' => Post::STATUS_DELETED, 'visibility' => Post::VISIBILITY_PUBLIC]);
+                }
+            }
+        }
+
+        $first = app(FeedQuery::class)->forActor($viewer->actor, perPage: 1);
+        $this->assertSame([$visible[0]], $first->getCollection()->pluck('id')->all());
+        $second = app(FeedQuery::class)->forActor(
+            $viewer->actor,
+            \App\Application\Queries\FeedCursor::fromPost($first->getCollection()->sole(), useShareSort: true),
+            perPage: 1,
+        );
+        $this->assertSame([$visible[1]], $second->getCollection()->pluck('id')->all());
+    }
+
+    public static function announceSources(): array
+    {
+        return ['own announces' => [true], 'followed announces' => [false]];
+    }
+
+    #[DataProvider('announceSources')]
+    public function test_announces_at_the_same_time_paginate_in_post_id_order(bool $own): void
+    {
+        $viewer = $this->createFullAccount('feedtieviewer');
+        $author = $this->createFullAccount('feedtieauthor');
+        $sharer = $own ? $viewer : $this->createFullAccount('feedtiesharer');
+        if (! $own) {
+            app(FollowManager::class)->follow($viewer->actor, $sharer->actor);
+        }
+        $posts = collect();
+        for ($i = 0; $i < 8; $i++) {
+            $posts->push($this->publishPost($author, 'Post con announce simultanea '.$i));
+        }
+        $posts = $posts->sortByDesc('id')->values();
+        $at = now()->startOfSecond();
+        foreach ($posts as $i => $post) {
+            $announce = app(AnnounceManager::class)->announce($sharer->actor, $post, occurredAt: $at);
+            // Gli UUID degli Announce crescono nell'ordine opposto agli ID dei post.
+            $announce->forceFill(['id' => sprintf('00000000-0000-4000-8000-%012d', $i + 1)])->save();
+        }
+
+        $actual = [];
+        $cursor = null;
+        for ($page = 0; $page < 4; $page++) {
+            $items = app(FeedQuery::class)->forActor($viewer->actor, $cursor, perPage: 2)->getCollection();
+            $this->assertCount(2, $items);
+            array_push($actual, ...$items->pluck('id')->all());
+            $cursor = \App\Application\Queries\FeedCursor::fromPost($items->last(), useShareSort: true);
+        }
+        $this->assertSame($posts->pluck('id')->all(), $actual);
     }
 
     public function test_the_feed_applies_non_public_visibility_rules_per_relevant_actor(): void
