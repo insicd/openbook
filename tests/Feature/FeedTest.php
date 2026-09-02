@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Application\Queries\FeedQuery;
 use App\Application\Services\AnnounceManager;
+use App\Application\Services\CommunityMembershipService;
+use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\FollowManager;
 use App\Application\Services\PostComposer;
 use App\Domain\Accounts\User;
@@ -66,6 +68,130 @@ class FeedTest extends TestCase
         $feed = app(FeedQuery::class)->forActor($viewer->actor);
 
         $this->assertTrue($feed->getCollection()->pluck('id')->contains($post->id));
+    }
+
+    public function test_the_feed_deduplicates_a_community_announce_and_paginates_from_its_share_time(): void
+    {
+        $viewer = $this->createFullAccount('feedeventviewer');
+        $author = $this->createFullAccount('feedeventauthor');
+        $community = app(CommunityRegistrar::class)->register($author, [
+            'slug' => 'feedeventcommunity',
+            'name' => 'Community eventi feed',
+        ]);
+
+        app(FollowManager::class)->follow($viewer->actor, $author->actor);
+        app(CommunityMembershipService::class)->join($viewer->actor, $community);
+
+        $ordinaryPost = $this->publishPost($author, 'Post ordinario piu recente.');
+        $ordinaryPost->update(['published_at' => now()->subHour()]);
+
+        $communityPost = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Post vecchio annunciato dalla community.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'community_id' => $community->id,
+        ]);
+        $communityPost->update(['published_at' => now()->subDays(10)]);
+
+        $all = app(FeedQuery::class)->forActor($viewer->actor, perPage: 3)->getCollection();
+
+        $this->assertSame(1, $all->where('id', $communityPost->id)->count());
+        $this->assertSame($community->actor_id, $all->firstWhere('id', $communityPost->id)?->sharedBy?->id);
+        $this->assertSame($communityPost->id, $all->first()->id);
+
+        $firstPage = app(FeedQuery::class)->forActor($viewer->actor, perPage: 1);
+        $cursor = \App\Application\Queries\FeedCursor::fromPost($firstPage->getCollection()->sole(), useShareSort: true);
+        $secondPage = app(FeedQuery::class)->forActor($viewer->actor, $cursor, perPage: 1);
+
+        $this->assertSame($communityPost->id, $firstPage->getCollection()->sole()->id);
+        $this->assertSame($ordinaryPost->id, $secondPage->getCollection()->sole()->id);
+    }
+
+    public function test_the_feed_uses_the_latest_relevant_announce_for_ordering_and_attribution(): void
+    {
+        $viewer = $this->createFullAccount('feedlatestviewer');
+        $firstSharer = $this->createFullAccount('feedlatestfirst');
+        $latestSharer = $this->createFullAccount('feedlatestlast');
+        $author = $this->createFullAccount('feedlatestauthor');
+
+        app(FollowManager::class)->follow($viewer->actor, $firstSharer->actor);
+        app(FollowManager::class)->follow($viewer->actor, $latestSharer->actor);
+        app(FollowManager::class)->follow($viewer->actor, $author->actor);
+
+        $sharedPost = $this->publishPost($author, 'Post condiviso da due persone.');
+        $sharedPost->update(['published_at' => now()->subDays(7)]);
+        app(AnnounceManager::class)->announce($firstSharer->actor, $sharedPost, occurredAt: now()->subHours(2));
+        app(AnnounceManager::class)->announce($latestSharer->actor, $sharedPost, occurredAt: now());
+
+        $ordinaryPost = $this->publishPost($author, 'Post ordinario fra le due condivisioni.');
+        $ordinaryPost->update(['published_at' => now()->subHour()]);
+
+        $items = app(FeedQuery::class)->forActor($viewer->actor, perPage: 3)->getCollection();
+        $resolvedSharedPost = $items->firstWhere('id', $sharedPost->id);
+
+        $this->assertSame($sharedPost->id, $items->first()->id);
+        $this->assertSame(1, $items->where('id', $sharedPost->id)->count());
+        $this->assertSame($latestSharer->actor->id, $resolvedSharedPost?->sharedBy?->id);
+        $this->assertSame($ordinaryPost->id, $items->last()->id);
+    }
+
+    public function test_an_announce_does_not_bypass_direct_post_visibility(): void
+    {
+        $viewer = $this->createFullAccount('feedprivateviewer');
+        $sharer = $this->createFullAccount('feedprivatesharer');
+        $author = $this->createFullAccount('feedprivateauthor');
+        $recipient = $this->createFullAccount('feedprivaterecipient');
+
+        app(FollowManager::class)->follow($viewer->actor, $sharer->actor);
+
+        $directPost = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Messaggio diretto che non deve diventare pubblico.',
+            'visibility' => Post::VISIBILITY_DIRECT,
+        ]);
+        app(AnnounceManager::class)->announce($sharer->actor, $directPost);
+
+        $postIds = app(FeedQuery::class)->forActor($viewer->actor)->getCollection()->pluck('id');
+
+        $this->assertFalse($postIds->contains($directPost->id));
+    }
+
+    public function test_the_feed_applies_non_public_visibility_rules_per_relevant_actor(): void
+    {
+        $viewer = $this->createFullAccount('feedvisibilityviewer');
+        $otherFollower = $this->createFullAccount('feedvisibilityother');
+        $author = $this->createFullAccount('feedvisibilityauthor');
+
+        app(FollowManager::class)->follow($viewer->actor, $author->actor);
+        app(FollowManager::class)->follow($otherFollower->actor, $author->actor);
+
+        $followersPost = $this->publishPost($author, 'Post per i follower.', Post::VISIBILITY_FOLLOWERS);
+        $directPost = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Messaggio diretto per @feedvisibilityviewer.',
+            'visibility' => Post::VISIBILITY_DIRECT,
+        ]);
+
+        $community = app(CommunityRegistrar::class)->register($author, [
+            'slug' => 'feedvisibilityprivate',
+            'name' => 'Community privata del feed',
+            'is_private' => true,
+        ]);
+        $membership = app(CommunityMembershipService::class)->join($viewer->actor, $community);
+        app(FollowManager::class)->accept($community->actor, $membership->follower);
+
+        $privateCommunityPost = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Post nella community privata.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'community_id' => $community->id,
+        ]);
+
+        $viewerPostIds = app(FeedQuery::class)->forActor($viewer->actor)->getCollection()->pluck('id');
+        $otherFollowerPostIds = app(FeedQuery::class)->forActor($otherFollower->actor)->getCollection()->pluck('id');
+
+        $this->assertTrue($viewerPostIds->contains($followersPost->id));
+        $this->assertTrue($viewerPostIds->contains($directPost->id));
+        $this->assertTrue($viewerPostIds->contains($privateCommunityPost->id));
+        $this->assertTrue($otherFollowerPostIds->contains($followersPost->id));
+        $this->assertFalse($otherFollowerPostIds->contains($directPost->id));
+        $this->assertFalse($otherFollowerPostIds->contains($privateCommunityPost->id));
     }
 
     public function test_the_feed_excludes_private_conversation_messages(): void
