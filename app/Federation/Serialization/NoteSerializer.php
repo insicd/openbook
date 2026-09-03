@@ -129,16 +129,17 @@ final class NoteSerializer
      */
     public static function forComment(Comment $comment): array
     {
-        $comment->loadMissing(['actor.endpoints', 'parent', 'post', 'mentions.actor', 'media']);
+        $comment->loadMissing(['actor.endpoints', 'parent.actor', 'post.actor', 'post.community.actor', 'mentions.actor', 'media']);
 
         $actor = $comment->actor;
         $uri = self::commentUri($comment);
+        $replyTarget = self::implicitReplyMentionActor($comment);
 
         $inReplyTo = $comment->parent !== null
             ? self::commentUri($comment->parent)
             : self::postUri($comment->post);
 
-        $content = self::renderContent($comment->body, null);
+        $content = self::prependImplicitMention(self::renderContent($comment->body, null), $replyTarget);
 
         $note = [
             '@context' => 'https://www.w3.org/ns/activitystreams',
@@ -155,14 +156,15 @@ final class NoteSerializer
             $note['updated'] = $comment->edited_at->toAtomString();
         }
 
-        $comment->loadMissing('post.community.actor');
+        $visibility = $comment->post->visibility ?? Post::VISIBILITY_PUBLIC;
 
         if ($comment->post->isInPrivateCommunity()) {
             [$note['to'], $note['cc']] = self::privateCommunityAudience($comment->post->community->actor);
         } else {
-            $visibility = $comment->post->visibility ?? Post::VISIBILITY_PUBLIC;
             [$note['to'], $note['cc']] = self::audienceForVisibility($visibility, $actor, $comment->mentions);
         }
+
+        self::addressPerson($note, $replyTarget, $visibility);
 
         $attachments = self::attachmentsFor($comment);
 
@@ -171,6 +173,19 @@ final class NoteSerializer
         }
 
         $tags = self::mentionTagsFor($comment->mentions)->values()->all();
+        $mentionedUris = collect($tags)->pluck('href')->filter()->all();
+
+        if ($replyTarget !== null) {
+            $targetId = $replyTarget->activityPubId();
+
+            if ($targetId !== '' && ! in_array($targetId, $mentionedUris, true)) {
+                $tags[] = [
+                    'type' => 'Mention',
+                    'href' => $targetId,
+                    'name' => '@'.$replyTarget->handle(),
+                ];
+            }
+        }
 
         if ($tags !== []) {
             $note['tag'] = $tags;
@@ -285,6 +300,81 @@ final class NoteSerializer
         }
 
         return $html;
+    }
+
+    /**
+     * Autore a cui si risponde: post (commento di primo livello) o commento
+     * padre (reply annidata). Non e' una menzione nel body locale: serve
+     * solo in federazione, dove Mastodon & co. notificano dalle Mention.
+     */
+    private static function implicitReplyMentionActor(Comment $comment): ?Actor
+    {
+        $target = $comment->parent !== null
+            ? $comment->parent->actor
+            : $comment->post?->actor;
+
+        if ($target === null || $target->id === $comment->actor_id) {
+            return null;
+        }
+
+        return $target;
+    }
+
+    /**
+     * Menzione visibile solo nel documento federato (stesso schema della
+     * attribution ai Group): il body locale resta senza @ se chi scrive
+     * non l'ha messa. Si salta se l'href o l'handle sono gia' nel content.
+     */
+    private static function prependImplicitMention(string $html, ?Actor $target): string
+    {
+        if ($target === null) {
+            return $html;
+        }
+
+        $href = $target->activityPubId();
+        $handle = '@'.$target->handle();
+
+        if ($href === '' || str_contains($html, $href) || str_contains($html, e($handle))) {
+            return $html;
+        }
+
+        return '<p><a href="'.e($href).'" class="u-url mention" rel="mention">'.e($handle).'</a></p>'.$html;
+    }
+
+    /**
+     * Indirizza una persona in to/cc come farebbe una menzione Mastodon:
+     * cc sulle Note pubbliche/non elencate, to sugli altri audience.
+     *
+     * @param  array<string, mixed>  $note
+     */
+    private static function addressPerson(array &$note, ?Actor $person, string $visibility): void
+    {
+        if ($person === null) {
+            return;
+        }
+
+        $uri = $person->activityPubId();
+
+        if ($uri === '') {
+            return;
+        }
+
+        $to = $note['to'] ?? [];
+        $cc = $note['cc'] ?? [];
+
+        if (in_array($uri, $to, true) || in_array($uri, $cc, true)) {
+            return;
+        }
+
+        if (in_array($visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED], true)) {
+            $cc[] = $uri;
+            $note['cc'] = array_values($cc);
+
+            return;
+        }
+
+        $to[] = $uri;
+        $note['to'] = array_values($to);
     }
 
     /**

@@ -25,6 +25,9 @@ use InvalidArgumentException;
  * commento viene anche consegnato come "Create" ai destinatari federati
  * appropriati, con l'autore del post/commento padre come destinatario
  * diretto aggiuntivo (cosi' viene notificato anche se non segue chi risponde).
+ * La Note federata include anche una Mention implicita di quell'autore
+ * (tag + HTML), senza scriverla nel body ne' notificarla in-app: su
+ * Openbook reply e citazione restano distinte.
  */
 final class CommentComposer
 {
@@ -82,8 +85,8 @@ final class CommentComposer
                 ]);
             }
 
-            $this->attachMentions($comment, $author);
             $this->notifyThread($comment, $post, $author, $parent);
+            $this->attachMentions($comment, $author);
 
             return $comment;
         });

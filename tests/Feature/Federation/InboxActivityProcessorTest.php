@@ -1142,6 +1142,56 @@ class InboxActivityProcessorTest extends TestCase
         ]);
     }
 
+    public function test_a_remote_reply_that_also_mentions_the_author_does_not_double_notify(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('autoredoppia');
+        $remote = $this->createRemoteActor('marco');
+
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Post originale.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        $noteUri = $remote->uri.'/posts/'.uniqid();
+        $authorId = $author->actor->activityPubId();
+        $status = $this->process([
+            'id' => $noteUri.'/attivita',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'inReplyTo' => url("/posts/{$post->id}"),
+                'content' => '<p><a href="'.$authorId.'" class="u-url mention">@'.$author->actor->handle().'</a> Bella idea!</p>',
+                'tag' => [[
+                    'type' => 'Mention',
+                    'href' => $authorId,
+                    'name' => '@'.$author->actor->handle(),
+                ]],
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ], $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $author->id,
+            'type' => Notification::TYPE_COMMENT,
+        ]);
+        $this->assertDatabaseMissing('notifications', [
+            'recipient_id' => $author->id,
+            'type' => Notification::TYPE_MENTION,
+        ]);
+        $this->assertDatabaseHas('mentions', [
+            'actor_id' => $author->actor->id,
+        ]);
+    }
+
     public function test_a_remote_reply_with_image_attachment_is_stored_on_the_comment(): void
     {
         Queue::fake();

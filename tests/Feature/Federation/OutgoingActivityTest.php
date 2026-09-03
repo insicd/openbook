@@ -246,6 +246,42 @@ class OutgoingActivityTest extends TestCase
         $this->assertActivityDispatchedTo($remoteAuthor->endpoints->shared_inbox ?: $remoteAuthor->endpoints->inbox, 'Create');
     }
 
+    public function test_a_reply_to_a_remote_post_includes_an_implicit_mention_in_the_create_activity(): void
+    {
+        Queue::fake();
+        $remoteAuthor = $this->createRemoteActor('wendy');
+        $commenter = $this->createFullAccount('rispositoreimplicito');
+
+        $post = Post::query()->create([
+            'actor_id' => $remoteAuthor->id,
+            'uri' => $remoteAuthor->uri.'/posts/7',
+            'body' => 'Post remoto senza chiocciola in reply.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        app(CommentComposer::class)->compose($commenter->actor, $post, 'Ottimo spunto senza menzione!');
+
+        Queue::assertPushed(DeliverActivityJob::class, function (DeliverActivityJob $job) use ($remoteAuthor): bool {
+            if (($job->activity['type'] ?? null) !== 'Create') {
+                return false;
+            }
+
+            $object = is_array($job->activity['object'] ?? null) ? $job->activity['object'] : [];
+            $tags = is_array($object['tag'] ?? null) ? $object['tag'] : [];
+            $hasMention = collect($tags)->contains(
+                fn ($tag): bool => is_array($tag)
+                    && ($tag['type'] ?? null) === 'Mention'
+                    && ($tag['href'] ?? null) === $remoteAuthor->uri
+            );
+
+            return $hasMention
+                && str_contains((string) ($object['content'] ?? ''), $remoteAuthor->uri)
+                && in_array($remoteAuthor->uri, $job->activity['cc'] ?? [], true);
+        });
+    }
+
     public function test_deleting_a_reply_to_a_remote_authored_post_notifies_its_author_directly(): void
     {
         Queue::fake();

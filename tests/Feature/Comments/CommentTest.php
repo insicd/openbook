@@ -439,4 +439,168 @@ class CommentTest extends TestCase
         $response->assertSee('ob-comment--focused', false);
         $response->assertSee(route('comments.show', $child), false);
     }
+
+    public function test_a_comment_federates_an_implicit_mention_without_showing_it_locally(): void
+    {
+        $author = $this->createFullAccount('autoreimplicito');
+        $commenter = $this->createFullAccount('commentoimplicito');
+        $post = $this->publishPost($author, 'Post da commentare senza chiocciola.');
+
+        $comment = app(CommentComposer::class)->compose($commenter->actor, $post, 'Bellissimo, senza menzione.');
+
+        $this->assertDatabaseMissing('mentions', [
+            'mentionable_id' => $comment->id,
+            'mentionable_type' => $comment->getMorphClass(),
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $author->id,
+            'type' => Notification::TYPE_COMMENT,
+        ]);
+        $this->assertDatabaseMissing('notifications', [
+            'type' => Notification::TYPE_MENTION,
+        ]);
+
+        $localHtml = (string) \App\Domain\Posts\PostBodyRenderer::render($comment->body);
+        $this->assertStringContainsString('Bellissimo, senza menzione.', $localHtml);
+        $this->assertStringNotContainsString('@'.$author->actor->handle(), $localHtml);
+
+        $this->actingAs($author)
+            ->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertSee('Bellissimo, senza menzione.', false);
+
+        $note = NoteSerializer::forComment($comment->fresh());
+        $authorId = $author->actor->activityPubId();
+        $this->assertTrue(collect($note['tag'] ?? [])->contains(
+            fn (array $tag): bool => ($tag['type'] ?? null) === 'Mention' && ($tag['href'] ?? null) === $authorId
+        ));
+        $this->assertStringContainsString($authorId, $note['content']);
+        $this->assertStringContainsString('@'.$author->actor->handle(), $note['content']);
+        $this->assertContains($authorId, $note['cc'] ?? []);
+    }
+
+    public function test_a_nested_reply_federates_an_implicit_mention_of_the_parent_author(): void
+    {
+        $author = $this->createFullAccount('opimplicito');
+        $commenter = $this->createFullAccount('padreimplicito');
+        $replier = $this->createFullAccount('figlioimplicito');
+        $post = $this->publishPost($author);
+        $parent = app(CommentComposer::class)->compose($commenter->actor, $post, 'Primo commento.');
+        $reply = app(CommentComposer::class)->compose($replier->actor, $post, 'Risposta senza chiocciola.', $parent);
+
+        $this->assertDatabaseMissing('notifications', [
+            'type' => Notification::TYPE_MENTION,
+        ]);
+
+        $note = NoteSerializer::forComment($reply->fresh());
+        $parentAuthorId = $commenter->actor->activityPubId();
+        $opId = $author->actor->activityPubId();
+
+        $this->assertTrue(collect($note['tag'] ?? [])->contains(
+            fn (array $tag): bool => ($tag['type'] ?? null) === 'Mention' && ($tag['href'] ?? null) === $parentAuthorId
+        ));
+        $this->assertFalse(collect($note['tag'] ?? [])->contains(
+            fn (array $tag): bool => ($tag['type'] ?? null) === 'Mention' && ($tag['href'] ?? null) === $opId
+        ));
+        $this->assertStringContainsString($parentAuthorId, $note['content']);
+        $this->assertStringNotContainsString($opId, $note['content']);
+    }
+
+    public function test_a_comment_on_own_post_does_not_federate_a_self_mention(): void
+    {
+        $author = $this->createFullAccount('autocommento');
+        $post = $this->publishPost($author);
+        $comment = app(CommentComposer::class)->compose($author->actor, $post, 'Aggiungo io.');
+
+        $note = NoteSerializer::forComment($comment->fresh());
+        $this->assertSame([], $note['tag'] ?? []);
+        $this->assertStringNotContainsString('@'.$author->actor->handle(), $note['content']);
+    }
+
+    public function test_an_explicit_mention_of_the_replied_author_is_not_duplicated_in_federated_html(): void
+    {
+        $author = $this->createFullAccount('autoreesplicito');
+        $commenter = $this->createFullAccount('commentoesplicito');
+        $post = $this->publishPost($author);
+        $comment = app(CommentComposer::class)->compose(
+            $commenter->actor,
+            $post,
+            'Ciao @autoreesplicito, bel post.',
+        );
+
+        $note = NoteSerializer::forComment($comment->fresh());
+        $authorId = $author->actor->activityPubId();
+        $this->assertSame(1, substr_count($note['content'], $authorId));
+        $this->assertTrue(collect($note['tag'] ?? [])->contains(
+            fn (array $tag): bool => ($tag['type'] ?? null) === 'Mention' && ($tag['href'] ?? null) === $authorId
+        ));
+        $this->assertDatabaseHas('mentions', [
+            'mentionable_id' => $comment->id,
+            'actor_id' => $author->actor->id,
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $author->id,
+            'type' => Notification::TYPE_COMMENT,
+        ]);
+        $this->assertDatabaseMissing('notifications', [
+            'recipient_id' => $author->id,
+            'type' => Notification::TYPE_MENTION,
+        ]);
+    }
+
+    public function test_mentioning_someone_else_in_a_comment_still_notifies_them(): void
+    {
+        $author = $this->createFullAccount('autoreterzo');
+        $commenter = $this->createFullAccount('commentoterzo');
+        $mentioned = $this->createFullAccount('citatoterzo');
+        $post = $this->publishPost($author);
+
+        app(CommentComposer::class)->compose(
+            $commenter->actor,
+            $post,
+            'Guarda @citatoterzo, che post.',
+        );
+
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $author->id,
+            'type' => Notification::TYPE_COMMENT,
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $mentioned->id,
+            'type' => Notification::TYPE_MENTION,
+        ]);
+        $this->assertDatabaseMissing('notifications', [
+            'recipient_id' => $mentioned->id,
+            'type' => Notification::TYPE_COMMENT,
+        ]);
+    }
+
+    public function test_replying_to_a_comment_while_mentioning_its_author_does_not_double_notify(): void
+    {
+        $author = $this->createFullAccount('opnestnotif');
+        $commenter = $this->createFullAccount('padrenestnotif');
+        $replier = $this->createFullAccount('figlionestnotif');
+        $post = $this->publishPost($author);
+        $parent = app(CommentComposer::class)->compose($commenter->actor, $post, 'Primo.');
+
+        app(CommentComposer::class)->compose(
+            $replier->actor,
+            $post,
+            'Ciao @padrenestnotif, concordo.',
+            $parent,
+        );
+
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $commenter->id,
+            'type' => Notification::TYPE_REPLY,
+        ]);
+        $this->assertDatabaseMissing('notifications', [
+            'recipient_id' => $commenter->id,
+            'type' => Notification::TYPE_MENTION,
+        ]);
+        $this->assertDatabaseMissing('notifications', [
+            'recipient_id' => $author->id,
+            'type' => Notification::TYPE_MENTION,
+        ]);
+    }
 }

@@ -100,8 +100,19 @@ il [`README`](README.md#roadmap-and-project-status).
   collegamento "in risposta a" verso il padre. Cliccando l'orario si apre
   la pagina del commento (`GET /comments/{comment}`): il post e i padri
   sopra, i figli sotto. I client ActivityPub continuano a ricevere la Note.
+- Reply in uscita: il composer e la UI locale restano senza `@` automatico
+  (reply e citazione restano distinte, una sola notifica in-app). La Note
+  federata antepone pero' la menzione dell'autore a cui si risponde
+  (`tag` Mention, HTML, audience `to`/`cc`), cosi' Mastodon e gli altri
+  client remoti inviano la notifica che si aspettano.
 
 ### Fixed
+- Reply in arrivo (locali o remote) che menzionano anche l'autore del
+  post/commento padre: una sola notifica in-app. Commento/risposta e
+  menzione condividono l'id del commento (`notifiable`); se il thread e'
+  gia' stato notificato, la menzione non viene creata. Una menzione a
+  un'altra persona nello stesso commento continua ad arrivare.
+
 - Ottimizzazione feed personale e suggerimenti: riduce il costo delle query usate dal feed personale e dalla pagina Mondo, evitando liste di UUID materializzate in PHP e subquery correlate ripetute.
 - Profili remoti: la data di iscrizione non restava vuota sugli Actor gia'
   in cache. Visitando il profilo si rilegge il documento Person e si
