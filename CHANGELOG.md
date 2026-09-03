@@ -102,6 +102,7 @@ il [`README`](README.md#roadmap-and-project-status).
   sopra, i figli sotto. I client ActivityPub continuano a ricevere la Note.
 
 ### Fixed
+- Ottimizzazione feed personale e suggerimenti: riduce il costo delle query usate dal feed personale e dalla pagina Mondo, evitando liste di UUID materializzate in PHP e subquery correlate ripetute.
 - Profili remoti: la data di iscrizione non restava vuota sugli Actor gia'
   in cache. Visitando il profilo si rilegge il documento Person e si
   accettano anche `published` in JSON-LD e `createdAt`.

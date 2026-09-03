@@ -1,0 +1,32 @@
+---
+description: Aggiornare CHANGELOG.md per modifiche degne di nota
+alwaysApply: true
+---
+
+# Changelog
+
+Quando introduci modifiche rilevanti per utenti o operatori (funzionalita',
+correzioni visibili, cambiamenti di config/API/federazione, comportamenti UI),
+aggiorna [`CHANGELOG.md`](CHANGELOG.md) nella stessa sessione di lavoro.
+
+## Cosa fare
+
+- Aggiungi le voci sotto la sezione della versione corrente in
+  `config/openbook.php` (`Added` / `Changed` / `Fixed` / `Removed`), oppure
+  crea una nuova sezione versione se stai incrementando il numero.
+- Se la modifica merita un bump di versione, aggiorna insieme:
+  - `config/openbook.php` (`$version`; da 26.34: `YY.settimana` o
+    `YY.settimana.rcN`, e `$codename` sulle stable)
+  - la riga della versione corrente nel README (inglese) e in README.it.md
+  - `CHANGELOG.md`
+- Mantieni lo stile esistente del changelog (italiano, elenchi puntati,
+  riferimenti a route/config quando utili).
+- Non annotare refactor interni, formattazione, o ritocchi puramente
+  cosmetici senza impatto percepibile.
+
+## Cosa non fare
+
+- Non lasciare feature/fix utente solo nel codice senza voce in changelog
+  quando sono degne di nota.
+- Non duplicare nel README il dettaglio release: la storia va in
+  `CHANGELOG.md`; il README resta a grandi linee con link al changelog.
