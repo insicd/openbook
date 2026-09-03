@@ -39,41 +39,197 @@ final class FeedQuery
      */
     private const TIEBREAKER_COLUMN = 'id';
 
+    // Limite di lavoro del tentativo cronologico, non limite del feed:
+    // se i candidati non bastano, si usa la ricerca completa per autore.
+    // ponytail: soglia euristica fissa; ritararla solo se i benchmark mostrano fallback frequenti.
+    private const FOLLOWED_POST_PROBE_LIMIT = 256;
+
     public function forActor(Actor $viewer, ?FeedCursor $cursor = null, int $perPage = 0): FeedPage
     {
         $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
 
-        $followingIds = DB::table('follows')
-            ->where('follower_id', $viewer->id)
-            ->where('status', 'accepted')
-            ->pluck('following_id');
+        $isFollowedByViewer = function ($query, string $actorColumn) use ($viewer): void {
+            $query->selectRaw('1')
+                ->from('follows as feed_follows')
+                ->where('feed_follows.follower_id', $viewer->id)
+                ->where('feed_follows.status', 'accepted')
+                ->whereColumn('feed_follows.following_id', $actorColumn);
+        };
 
-        $relevantActorIds = $followingIds->push($viewer->id)->unique()->values();
+        $isRelevantAnnounce = function ($query, string $announceAlias) use ($viewer, $isFollowedByViewer): void {
+            $query->where($announceAlias.'.actor_id', $viewer->id)
+                ->orWhereExists(fn ($following) => $isFollowedByViewer($following, $announceAlias.'.actor_id'));
+        };
 
-        $announcedPostIds = DB::table('announces')
-            ->whereIn('actor_id', $relevantActorIds)
-            ->pluck('post_id');
+        $onlyLatestRelevantAnnounce = function ($query, string $announceAlias) use ($isRelevantAnnounce): void {
+            $query->whereNotExists(function ($newerAnnounce) use ($announceAlias, $isRelevantAnnounce): void {
+                $newerAnnounce->selectRaw('1')
+                    ->from('announces as newer_announces')
+                    ->whereColumn('newer_announces.post_id', $announceAlias.'.post_id')
+                    ->where(function ($newerEvent) use ($announceAlias): void {
+                        $newerEvent->whereColumn('newer_announces.created_at', '>', $announceAlias.'.created_at')
+                            ->orWhere(function ($sameInstant) use ($announceAlias): void {
+                                $sameInstant->whereColumn('newer_announces.created_at', '=', $announceAlias.'.created_at')
+                                    ->whereColumn('newer_announces.id', '>', $announceAlias.'.id');
+                            });
+                    })
+                    ->where(function ($relevant) use ($isRelevantAnnounce): void {
+                        $isRelevantAnnounce($relevant, 'newer_announces');
+                    });
+            });
+        };
 
-        $memberCommunityIds = DB::table('communities')
-            ->whereIn('actor_id', $followingIds)
-            ->pluck('id');
+        $applyCandidateCursor = function ($query, string $timelineColumn, string $postIdColumn) use ($cursor): void {
+            if ($cursor === null) {
+                return;
+            }
+
+            $query->where(function ($candidate) use ($cursor, $timelineColumn, $postIdColumn): void {
+                $candidate->where($timelineColumn, '<', $cursor->sortAt)
+                    ->orWhere(function ($sameInstant) use ($cursor, $timelineColumn, $postIdColumn): void {
+                        $sameInstant->where($timelineColumn, '=', $cursor->sortAt)
+                            ->where($postIdColumn, '<', $cursor->postId);
+                    });
+            });
+        };
+
+        // Ogni stream contiene post distinti, ammissibili e ordinati come
+        // il risultato finale: i primi K dell'unione sono quindi sempre
+        // nell'unione dei primi K di ciascuno stream, anche se si sovrappongono.
+        $candidateLimit = $perPage + 1;
+        $eligiblePosts = Post::query()
+            ->excludingPrivateMessages()
+            ->where('posts.status', Post::STATUS_PUBLISHED)
+            ->visibleTo($viewer);
+        $postSource = DB::query()->fromSub(
+            (clone $eligiblePosts)->select('posts.id', 'posts.actor_id', 'posts.community_id', 'posts.published_at'),
+            'posts',
+        );
+        // Lookup scalare sulla PK: verifica il post dell'evento corrente
+        // senza trasformare lo stream Announce in una scansione dei post.
+        $eligibleAnnouncedPost = (clone $eligiblePosts)->selectRaw('1')
+            ->whereColumn('posts.id', 'announces.post_id')->limit(1);
+
+        // Un post con una condivisione rilevante deve essere ordinato dalla
+        // condivisione, anche quando il post originale e' piu' recente.
+        // Per questo gli eventi "post" escludono esplicitamente tali post.
+        $ownPostEvents = (clone $postSource)
+            ->select('posts.id as post_id', 'posts.published_at as timeline_at')
+            ->selectRaw('null as shared_by_actor_id, null as shared_at, posts.id as event_id')
+            ->where('posts.actor_id', $viewer->id)
+            ->whereNotExists(function ($announce) use ($isRelevantAnnounce): void {
+                $announce->selectRaw('1')
+                    ->from('announces as relevant_announces')
+                    ->whereColumn('relevant_announces.post_id', 'posts.id')
+                    ->where(function ($relevant) use ($isRelevantAnnounce): void {
+                        $isRelevantAnnounce($relevant, 'relevant_announces');
+                    });
+            });
+        $applyCandidateCursor($ownPostEvents, 'posts.published_at', 'posts.id');
+        $ownPostEvents->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
+
+        $followedPostEvents = (clone $postSource)
+            ->join('follows as source_follows', function ($join) use ($viewer): void {
+                $join->on('source_follows.following_id', 'posts.actor_id')
+                    ->where('source_follows.follower_id', $viewer->id)
+                    ->where('source_follows.status', 'accepted');
+            })
+            ->select('posts.id as post_id', 'posts.published_at as timeline_at')
+            ->selectRaw('null as shared_by_actor_id, null as shared_at, posts.id as event_id')
+            ->whereNotExists(function ($announce) use ($isRelevantAnnounce): void {
+                $announce->selectRaw('1')
+                    ->from('announces as relevant_announces')
+                    ->whereColumn('relevant_announces.post_id', 'posts.id')
+                    ->where(function ($relevant) use ($isRelevantAnnounce): void {
+                        $isRelevantAnnounce($relevant, 'relevant_announces');
+                    });
+            });
+        $applyCandidateCursor($followedPostEvents, 'posts.published_at', 'posts.id');
+        $followedPostEvents->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
+
+        $recentPosts = DB::table('posts')->select('posts.id')
+            ->where('posts.status', Post::STATUS_PUBLISHED)
+            ->whereNull('posts.conversation_id');
+        $applyCandidateCursor($recentPosts, 'posts.published_at', 'posts.id');
+        $recentPosts->orderByDesc('posts.published_at')->orderByDesc('posts.id')
+            ->limit(self::FOLLOWED_POST_PROBE_LIMIT);
+
+        $recentFollowedPosts = (clone $followedPostEvents)
+            ->joinSub($recentPosts, 'recent_posts', fn ($join) => $join->on('recent_posts.id', 'posts.id'));
+        $recentCount = DB::query()->fromSub(clone $recentFollowedPosts, 'recent_followed_posts')->selectRaw('count(*)');
+        $fallbackPosts = (clone $followedPostEvents)->where($recentCount, '<', $candidateLimit);
+
+        // Tutto nella stessa SELECT: il conteggio e il fallback vedono lo
+        // stesso snapshot. UNION elimina i candidati recenti ripetuti dal
+        // fallback, che viene eseguito solo se non abbiamo gia' K post validi.
+        $followedPostEvents = DB::query()->fromSub(
+            $recentFollowedPosts->union($fallbackPosts),
+            'followed_candidates',
+        )->select('post_id', 'timeline_at', 'shared_by_actor_id', 'shared_at', 'event_id')
+            ->orderByDesc('timeline_at')->orderByDesc('post_id')->limit($candidateLimit);
+
+        $communityPostEvents = (clone $postSource)
+            ->join('communities as source_communities', 'source_communities.id', '=', 'posts.community_id')
+            ->join('follows as source_follows', function ($join) use ($viewer): void {
+                $join->on('source_follows.following_id', 'source_communities.actor_id')
+                    ->where('source_follows.follower_id', $viewer->id)
+                    ->where('source_follows.status', 'accepted');
+            })
+            ->select('posts.id as post_id', 'posts.published_at as timeline_at')
+            ->selectRaw('null as shared_by_actor_id, null as shared_at, posts.id as event_id')
+            ->whereNotExists(function ($announce) use ($isRelevantAnnounce): void {
+                $announce->selectRaw('1')
+                    ->from('announces as relevant_announces')
+                    ->whereColumn('relevant_announces.post_id', 'posts.id')
+                    ->where(function ($relevant) use ($isRelevantAnnounce): void {
+                        $isRelevantAnnounce($relevant, 'relevant_announces');
+                    });
+            });
+        $applyCandidateCursor($communityPostEvents, 'posts.published_at', 'posts.id');
+        $communityPostEvents->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
+
+        $ownAnnounceEvents = DB::table('announces as announces')
+            ->where(clone $eligibleAnnouncedPost, '=', 1)
+            ->select('announces.post_id', 'announces.created_at as timeline_at')
+            ->selectRaw('announces.actor_id as shared_by_actor_id, announces.created_at as shared_at, announces.id as event_id')
+            ->where('announces.actor_id', $viewer->id);
+        $onlyLatestRelevantAnnounce($ownAnnounceEvents, 'announces');
+        $applyCandidateCursor($ownAnnounceEvents, 'announces.created_at', 'announces.post_id');
+        $ownAnnounceEvents->orderByDesc('announces.created_at')->orderByDesc('announces.post_id')->limit($candidateLimit);
+
+        $followedAnnounceEvents = DB::table('announces as announces')
+            ->where(clone $eligibleAnnouncedPost, '=', 1)
+            ->join('follows as source_follows', function ($join) use ($viewer): void {
+                $join->on('source_follows.following_id', 'announces.actor_id')
+                    ->where('source_follows.follower_id', $viewer->id)
+                    ->where('source_follows.status', 'accepted');
+            })
+            ->select('announces.post_id', 'announces.created_at as timeline_at')
+            ->selectRaw('announces.actor_id as shared_by_actor_id, announces.created_at as shared_at, announces.id as event_id');
+        $onlyLatestRelevantAnnounce($followedAnnounceEvents, 'announces');
+        $applyCandidateCursor($followedAnnounceEvents, 'announces.created_at', 'announces.post_id');
+        $followedAnnounceEvents->orderByDesc('announces.created_at')->orderByDesc('announces.post_id')->limit($candidateLimit);
+
+        $rankedEvents = DB::query()
+            ->fromSub(
+                $ownPostEvents
+                    ->unionAll($followedPostEvents)
+                    ->unionAll($communityPostEvents)
+                    ->unionAll($ownAnnounceEvents)
+                    ->unionAll($followedAnnounceEvents),
+                'feed_events',
+            )
+            ->select('feed_events.post_id', 'feed_events.timeline_at', 'feed_events.shared_by_actor_id', 'feed_events.shared_at')
+            ->selectRaw('row_number() over (partition by feed_events.post_id order by feed_events.timeline_at desc, feed_events.event_id desc) as event_rank');
 
         $query = Post::query()
             ->with(Post::CARD_RELATIONS)
-            ->excludingPrivateMessages()
-            ->where('status', Post::STATUS_PUBLISHED)
-            ->where(function ($query) use ($relevantActorIds, $announcedPostIds, $memberCommunityIds) {
-                $query->whereIn('actor_id', $relevantActorIds)
-                    ->orWhereIn('id', $announcedPostIds);
+            ->joinSub($rankedEvents, 'feed_events', fn ($join) => $join->on('feed_events.post_id', 'posts.id'))
+            ->select('posts.*', 'feed_events.shared_by_actor_id', 'feed_events.shared_at')
+            ->where('feed_events.event_rank', 1);
 
-                if ($memberCommunityIds->isNotEmpty()) {
-                    $query->orWhereIn('community_id', $memberCommunityIds);
-                }
-            })
-            ->visibleTo($viewer);
-
-        $query = $this->withShareMetadata($query, $relevantActorIds)
-            ->orderByRaw('coalesce(shared_at, published_at) desc')
+        $query = $query
+            ->orderByDesc('feed_events.timeline_at')
             ->orderByDesc('posts.'.self::TIEBREAKER_COLUMN);
 
         $page = $this->paginateKeyset(
@@ -81,7 +237,7 @@ final class FeedQuery
             $perPage,
             $cursor,
             useShareSortCursor: true,
-            shareSortActorIds: $relevantActorIds,
+            sharedSortColumn: 'feed_events.timeline_at',
         );
 
         Post::attachSharedBy($page->getCollection());
@@ -248,9 +404,14 @@ final class FeedQuery
         bool $useShareSortCursor,
         ?Request $request = null,
         ?Collection $shareSortActorIds = null,
+        ?string $sharedSortColumn = null,
     ): FeedPage {
         if ($useShareSortCursor) {
-            $this->applySharedSortCursor($query, $cursor, $shareSortActorIds ?? collect());
+            if ($sharedSortColumn !== null) {
+                $this->applyTimelineCursor($query, $cursor, $sharedSortColumn);
+            } else {
+                $this->applySharedSortCursor($query, $cursor, $shareSortActorIds ?? collect());
+            }
         } else {
             $this->applyPublishedAtCursor($query, $cursor);
         }
@@ -291,6 +452,24 @@ final class FeedQuery
             $builder->where('posts.published_at', '<', $cursor->sortAt)
                 ->orWhere(function (Builder $sameInstant) use ($cursor): void {
                     $sameInstant->where('posts.published_at', '=', $cursor->sortAt)
+                        ->where('posts.'.self::TIEBREAKER_COLUMN, '<', $cursor->postId);
+                });
+        });
+    }
+
+    /**
+     * @param  Builder<Post>  $query
+     */
+    private function applyTimelineCursor(Builder $query, ?FeedCursor $cursor, string $timelineColumn): void
+    {
+        if ($cursor === null) {
+            return;
+        }
+
+        $query->where(function (Builder $builder) use ($cursor, $timelineColumn): void {
+            $builder->where($timelineColumn, '<', $cursor->sortAt)
+                ->orWhere(function (Builder $sameInstant) use ($cursor, $timelineColumn): void {
+                    $sameInstant->where($timelineColumn, '=', $cursor->sortAt)
                         ->where('posts.'.self::TIEBREAKER_COLUMN, '<', $cursor->postId);
                 });
         });
