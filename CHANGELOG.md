@@ -16,7 +16,7 @@ Il footer mostra anche il nome in codice (`config('openbook.release_label')`).
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-and-project-status).
 
-## [26.36]
+## [26.36] - Grumpy Waffle
 
 ### Added
 - **Notifiche Web Push** per browser desktop e mobile, attivabili per ogni

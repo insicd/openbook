@@ -7,7 +7,7 @@
 // due software del Fediverso che si scambiano segnali di versione diversi
 // per la stessa istanza sono un sintomo classico di misconfigurazione.
 $version = '26.36';
-$codename = '';
+$codename = 'Grumpy Waffle';
 
 return [
 
