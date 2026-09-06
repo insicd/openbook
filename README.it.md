@@ -943,7 +943,8 @@ usa-e-getta con quelle credenziali prima di lanciare la suite.
 ## Cron e attivita periodiche
 
 Openbook usa la coda **database** di Laravel (tabelle `jobs`/`failed_jobs`, nessun
-Redis/RabbitMQ ne' processo permanente): l'elaborazione dell'inbox e la consegna delle
+Redis/RabbitMQ e, salvo il worker video opzionale descritto sotto, nessun processo
+permanente): l'elaborazione dell'inbox e la consegna delle
 attivita' in uscita avvengono solo quando qualcuno esegue periodicamente il comando
 `openbook:cron`, che a sua volta invoca in sequenza:
 
@@ -974,6 +975,62 @@ Il token viene confrontato con `hash_equals()` (nessun timing attack) e l'endpoi
 rifiuta richieste troppo ravvicinate (`OPENBOOK_WEB_CRON_MIN_INTERVAL`, default 55
 secondi, risposta 429) restituendo 404 se la funzione e' disabilitata o 403 se il
 token e' mancante o errato.
+
+### Worker video (solo quando il supporto video e' abilitato)
+
+Gli upload video locali sono **disabilitati per default**. Un amministratore
+deve abilitarli dalle impostazioni dell'istanza dopo aver configurato binari
+`ffmpeg` e `ffprobe` funzionanti. Le istanze che lasciano la funzione spenta
+non richiedono i due strumenti e continuano ad accettare immagini e audio come
+prima.
+
+La transcodifica video e' volutamente esclusa da `openbook:cron` e
+dall'endpoint cron web. La configurazione consigliata usa un processo CLI
+permanente:
+
+```bash
+php /percorso/openbook/artisan openbook:process-videos
+```
+
+Il worker interroga la coda ogni cinque secondi, gestisce SIGTERM/SIGINT in
+modo graceful e verifica FFmpeg/ffprobe prima di acquisire un lavoro. `--once`
+elabora al massimo un post ed e' utile per la diagnostica. Piu' worker possono
+convivere: un lock breve sul claim e una lease per riga impediscono la doppia
+pubblicazione.
+
+Come alternativa piu' semplice, ma con maggiore latenza, un cron di sistema
+puo' elaborare un post in coda per ogni esecuzione:
+
+```cron
+* * * * * php /percorso/openbook/artisan openbook:process-videos --once >/dev/null 2>&1
+```
+
+Il comando e' esclusivamente CLI e non va esposto tramite endpoint web. Poiche'
+ogni esecuzione gestisce al massimo un post, il worker permanente e' preferibile
+nelle istanze dove gli upload video possono accumularsi.
+
+Esempio di `ExecStart` systemd:
+
+```ini
+ExecStart=/usr/bin/php /percorso/openbook/artisan openbook:process-videos
+Restart=always
+RestartSec=5
+TimeoutStopSec=960
+```
+
+Programma Supervisor equivalente:
+
+```ini
+command=/usr/bin/php /percorso/openbook/artisan openbook:process-videos
+autostart=true
+autorestart=true
+stopwaitsecs=960
+numprocs=1
+```
+
+Va usato un percorso assoluto e lo stesso utente di sistema proprietario delle
+directory storage di Openbook. Aumentare `numprocs` solo se CPU, memoria e I/O
+sono sufficienti a sostenere piu' processi FFmpeg contemporanei.
 
 ## Sicurezza e privacy
 

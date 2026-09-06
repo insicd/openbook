@@ -72,6 +72,8 @@ Route::middleware('auth')->group(function () {
         ->name('verification.send');
 
     Route::post('/pubblica', [PostController::class, 'store'])->name('posts.store');
+    Route::delete('/pubblicazioni-in-attesa/{publication}', [PostController::class, 'destroyPending'])
+        ->name('posts.pending.destroy');
     Route::get('/posts/{post}/modifica', [PostController::class, 'edit'])->name('posts.edit');
     Route::put('/posts/{post}', [PostController::class, 'update'])->name('posts.update');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');

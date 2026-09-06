@@ -31,6 +31,13 @@ class AdminSettingsTest extends TestCase
             'comment_max_length' => 1500,
             'media_max_size_kb' => 4096,
             'media_max_attachments' => 3,
+            'video_ffmpeg_path' => 'ffmpeg',
+            'video_ffprobe_path' => 'ffprobe',
+            'video_max_upload_mb' => 40,
+            'video_passthrough_max_mb' => 8,
+            'video_max_duration_seconds' => 180,
+            'video_max_dimension' => 1080,
+            'video_max_frame_rate' => 60,
             'trending_days' => 7,
         ], $overrides);
     }
@@ -51,9 +58,55 @@ class AdminSettingsTest extends TestCase
         $this->assertSame(1500, app(InstanceSettings::class)->commentMaxLength());
         $this->assertSame(7, app(InstanceSettings::class)->trendingDays());
         $this->assertSame(7, (int) config('openbook.hashtags.trending_days'));
+        $this->assertFalse(app(InstanceSettings::class)->videoEnabled());
+        $this->assertSame('ffmpeg', app(InstanceSettings::class)->videoFfmpegPath());
+        $this->assertSame(40, app(InstanceSettings::class)->videoLimits()['max_upload_mb']);
         $this->assertStringContainsString('Sii gentile', app(InstanceSettings::class)->instanceRules());
         $this->assertStringContainsString('Non vendiamo', app(InstanceSettings::class)->privacyPolicy());
         $this->assertSame('Openbook Test', config('app.name'));
+    }
+
+    public function test_video_support_cannot_be_enabled_with_missing_binaries(): void
+    {
+        $admin = $this->createFullAccount('adminvideomissing');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->from(route('admin.settings.edit'))
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'video_enabled' => '1',
+                'video_ffmpeg_path' => '/definitely/missing/openbook-ffmpeg',
+                'video_ffprobe_path' => '/definitely/missing/openbook-ffprobe',
+            ]))
+            ->assertRedirect(route('admin.settings.edit'))
+            ->assertSessionHasErrors('video_ffmpeg_path');
+
+        $this->assertFalse(app(InstanceSettings::class)->videoEnabled());
+    }
+
+    public function test_admin_can_enable_video_support_with_available_tools(): void
+    {
+        $admin = $this->createFullAccount('adminvideoenabled');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+        $tools = $this->fakeVideoTools();
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'video_enabled' => '1',
+                'video_ffmpeg_path' => $tools.'/ffmpeg',
+                'video_ffprobe_path' => $tools.'/ffprobe',
+                'video_max_upload_mb' => 50,
+                'video_passthrough_max_mb' => 10,
+            ]))
+            ->assertRedirect(route('admin.settings.edit'));
+
+        $settings = app(InstanceSettings::class);
+
+        $this->assertTrue($settings->videoEnabled());
+        $this->assertSame($tools.'/ffmpeg', $settings->videoFfmpegPath());
+        $this->assertSame(50, $settings->videoLimits()['max_upload_mb']);
+        $this->assertSame(10, $settings->videoLimits()['passthrough_max_mb']);
+        $this->assertTrue((bool) config('openbook.video.enabled'));
     }
 
     public function test_admin_can_change_the_trending_hashtag_window(): void
@@ -283,5 +336,19 @@ class AdminSettingsTest extends TestCase
             ->assertOk()
             ->assertSee('rel="apple-touch-icon"', false)
             ->assertSee(route('site.manifest'), false);
+    }
+
+    private function fakeVideoTools(): string
+    {
+        $directory = storage_path('framework/testing/admin-video-tools-'.uniqid());
+        mkdir($directory, 0777, true);
+
+        foreach (['ffmpeg', 'ffprobe'] as $tool) {
+            $path = $directory.'/'.$tool;
+            file_put_contents($path, "#!/bin/sh\nprintf '{$tool} version test-1.0\\n'\n");
+            chmod($path, 0755);
+        }
+
+        return $directory;
     }
 }

@@ -49,6 +49,13 @@
     $visibilityValue = old('visibility', $isEditing ? $editingPost->visibility : $defaultVisibility);
     $existingMediaCount = $isEditing ? $editingPost->media->count() : 0;
     $remainingAttachments = max(0, $maxAttachments - $existingMediaCount);
+    $videoUploadsEnabled = $isPost && ! $isEditing && (bool) config('openbook.video.enabled', false);
+    $acceptedMedia = array_merge(
+        (array) config('openbook.media.allowed_mime_types'),
+        $videoUploadsEnabled
+            ? array_merge((array) config('openbook.video.allowed_mime_types'), ['.mp4', '.m4v', '.mov', '.webm', '.ogv'])
+            : [],
+    );
 
     $titleOpen = $isPost && (filled($titleValue) || $errors->has('title'));
     $cwOpen = $isPost && (filled($cwValue) || $errors->has('content_warning'));
@@ -176,11 +183,11 @@
             <div class="ob-composer__panel" id="{{ $prefix }}-panel-media" data-composer-panel @unless($mediaOpen) hidden @endunless>
                 <div class="ob-field">
                     <label for="{{ $prefix }}-images">{{ __('openbook.composer.images_label') }}</label>
-                    <input type="file" id="{{ $prefix }}-images" name="images[]" accept="image/jpeg,image/png,image/webp,image/gif,audio/mpeg,audio/ogg,audio/wav,audio/mp4,audio/x-m4a,audio/flac,audio/webm,audio/aac" multiple data-composer-fill="media">
+                    <input type="file" id="{{ $prefix }}-images" name="images[]" accept="{{ implode(',', $acceptedMedia) }}" multiple data-composer-fill="media">
                     @if ($isEditing && $existingMediaCount > 0)
                         <p class="ob-field__help">{{ __('openbook.composer.existing_media_help', ['count' => $existingMediaCount, 'remaining' => $remainingAttachments]) }}</p>
                     @else
-                        <p class="ob-field__help">{{ __('openbook.composer.images_help', ['count' => $maxAttachments]) }}</p>
+                        <p class="ob-field__help">{{ __($videoUploadsEnabled ? 'openbook.composer.media_help_video' : 'openbook.composer.images_help', ['count' => $maxAttachments]) }}</p>
                     @endif
                 </div>
                 <div class="ob-field">

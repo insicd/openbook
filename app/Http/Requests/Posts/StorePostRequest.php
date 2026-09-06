@@ -19,8 +19,17 @@ class StorePostRequest extends FormRequest
     public function rules(): array
     {
         $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
-        $maxKb = (int) config('openbook.media.max_size_kb');
-        $allowedMimes = implode(',', (array) config('openbook.media.allowed_mime_types'));
+        $videoEnabled = (bool) config('openbook.video.enabled', false);
+        $maxKb = $videoEnabled
+            ? max((int) config('openbook.media.max_size_kb'), (int) config('openbook.video.max_upload_mb') * 1024)
+            : (int) config('openbook.media.max_size_kb');
+        $allowed = (array) config('openbook.media.allowed_mime_types');
+
+        if ($videoEnabled) {
+            $allowed = array_merge($allowed, (array) config('openbook.video.allowed_mime_types'));
+        }
+
+        $allowedMimes = implode(',', $allowed);
 
         return [
             'title' => ['nullable', 'string', 'max:255'],
@@ -46,6 +55,18 @@ class StorePostRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            foreach ($this->file('images', []) as $index => $file) {
+                $mime = strtolower((string) $file->getMimeType());
+                $isVideo = in_array($mime, (array) config('openbook.video.allowed_mime_types'), true);
+                $maxKb = $isVideo
+                    ? (int) config('openbook.video.max_upload_mb') * 1024
+                    : (int) config('openbook.media.max_size_kb');
+
+                if ($file->getSize() === false || $file->getSize() > $maxKb * 1024) {
+                    $validator->errors()->add("images.{$index}", __('validation.max.file', ['attribute' => __('openbook.composer.attachment'), 'max' => $maxKb]));
+                }
+            }
+
             $communityId = $this->input('community_id');
             $addressedGroupId = $this->input('addressed_group_actor_id');
 

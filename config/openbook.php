@@ -151,6 +151,38 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Video locali (opt-in)
+    |--------------------------------------------------------------------------
+    |
+    | Il supporto resta disabilitato finche' l'amministratore non lo abilita
+    | dal pannello. Questi valori sono soltanto default di bootstrap: gli
+    | override operativi vengono salvati in system_settings.
+    */
+    'video' => [
+        'enabled' => false,
+        'ffmpeg_path' => 'ffmpeg',
+        'ffprobe_path' => 'ffprobe',
+        'allowed_mime_types' => [
+            'video/mp4',
+            'application/mp4',
+            'video/x-m4v',
+            'video/quicktime',
+            'video/webm',
+            'video/ogg',
+        ],
+        'max_upload_mb' => 40,
+        'passthrough_max_mb' => 8,
+        'max_duration_seconds' => 180,
+        'max_dimension' => 1080,
+        'max_frame_rate' => 60,
+        'worker_poll_seconds' => 5,
+        'worker_claim_seconds' => 1200,
+        'worker_max_attempts' => 3,
+        'process_timeout_seconds' => 900,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Contenuti
     |--------------------------------------------------------------------------
     */

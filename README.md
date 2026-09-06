@@ -945,7 +945,8 @@ with those credentials before launching the suite.
 ## Cron and periodic tasks
 
 Openbook uses Laravel's **database** queue (`jobs`/`failed_jobs` tables, no
-Redis/RabbitMQ and no permanent process): inbox processing and outgoing
+Redis/RabbitMQ and, except for the optional video worker described below, no
+permanent process): inbox processing and outgoing
 activity delivery happen only when someone periodically runs the
 `openbook:cron` command, which in turn invokes in sequence:
 
@@ -976,6 +977,59 @@ The token is compared with `hash_equals()` (no timing attack) and the endpoint
 rejects requests that are too close together (`OPENBOOK_WEB_CRON_MIN_INTERVAL`,
 default 55 seconds, 429 response), returning 404 if the feature is disabled or
 403 if the token is missing or wrong.
+
+### Video worker (only when video support is enabled)
+
+Local video uploads are **disabled by default**. An administrator must enable
+them from the instance settings after configuring working `ffmpeg` and
+`ffprobe` executables. Instances that keep the feature disabled need neither
+tool and continue to accept images and audio as before.
+
+Video transcoding is deliberately excluded from `openbook:cron` and from the
+web cron endpoint. The recommended setup is a permanent CLI process:
+
+```bash
+php /path/to/openbook/artisan openbook:process-videos
+```
+
+The worker polls every five seconds, handles SIGTERM/SIGINT gracefully and
+checks FFmpeg/ffprobe before claiming work. `--once` processes at most one
+queued post and is useful for diagnostics. Multiple workers are safe: a short
+claim lock and a per-item lease prevent duplicate publication.
+
+As a simpler, higher-latency alternative, a system cron may run one queued
+post per invocation:
+
+```cron
+* * * * * php /path/to/openbook/artisan openbook:process-videos --once >/dev/null 2>&1
+```
+
+This command is CLI-only and must not be exposed through a web endpoint. Since
+each invocation handles at most one post, the permanent worker is preferable
+for instances where video uploads may accumulate.
+
+Example systemd `ExecStart`:
+
+```ini
+ExecStart=/usr/bin/php /path/to/openbook/artisan openbook:process-videos
+Restart=always
+RestartSec=5
+TimeoutStopSec=960
+```
+
+Equivalent Supervisor program command:
+
+```ini
+command=/usr/bin/php /path/to/openbook/artisan openbook:process-videos
+autostart=true
+autorestart=true
+stopwaitsecs=960
+numprocs=1
+```
+
+Use an absolute project path and the same operating-system user that owns the
+Openbook storage directories. Increase `numprocs` only when the host has enough
+CPU, memory and I/O capacity for concurrent FFmpeg processes.
 
 ## Security and privacy
 

@@ -7,6 +7,7 @@
         muted
         playsinline
         preload="metadata"
+        @if ($media->thumbnail) poster="{{ $media->thumbnailUrl() }}" @endif
         @if ($media->alt_text) aria-label="{{ $media->alt_text }}" @endif
     ></video>
 @elseif ($media->isAudio())

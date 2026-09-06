@@ -52,6 +52,96 @@ final class MediaUploader
         return $this->storeImage($file, $actor, $mimeType, $altText);
     }
 
+    public function storePrepared(PreparedMedia $prepared, Actor $actor): Media
+    {
+        if (! str_starts_with($prepared->mimeType, 'video/')) {
+            $file = new UploadedFile(
+                Storage::disk($prepared->disk)->path($prepared->path),
+                $prepared->originalName,
+                $prepared->mimeType,
+                UPLOAD_ERR_OK,
+                true,
+            );
+
+            return $this->store($file, $actor, $prepared->altText);
+        }
+
+        $source = Storage::disk($prepared->disk);
+
+        if (! $source->exists($prepared->path)) {
+            throw new InvalidArgumentException('Il file video preparato non esiste.');
+        }
+
+        $directory = 'media/'.date('Y/m');
+        $path = $directory.'/'.Str::uuid().'.mp4';
+        $thumbnailPath = null;
+        $readStream = $source->readStream($prepared->path);
+
+        if ($readStream === false || ! Storage::disk('public')->put($path, $readStream)) {
+            if (is_resource($readStream)) {
+                fclose($readStream);
+            }
+
+            throw new \RuntimeException('Impossibile importare il video preparato.');
+        }
+
+        if (is_resource($readStream)) {
+            fclose($readStream);
+        }
+
+        try {
+            $this->ensurePublicDirectoryIsTraversable($directory);
+            $this->ensurePublicFileIsReadable($path);
+
+            $media = Media::query()->create([
+                'actor_id' => $actor->id,
+                'disk' => 'public',
+                'path' => $path,
+                'original_name' => $prepared->originalName,
+                'mime_type' => 'video/mp4',
+                'byte_size' => $prepared->byteSize,
+                'width' => $prepared->width,
+                'height' => $prepared->height,
+                'alt_text' => $prepared->altText,
+            ]);
+
+            if ($prepared->thumbnailPath !== null && $source->exists($prepared->thumbnailPath)) {
+                $thumbnailPath = $directory.'/'.Str::uuid().'_thumb.jpg';
+                $thumbnailDimensions = @getimagesize($source->path($prepared->thumbnailPath));
+                $thumbnailStream = $source->readStream($prepared->thumbnailPath);
+
+                if ($thumbnailStream === false || ! Storage::disk('public')->put($thumbnailPath, $thumbnailStream)) {
+                    if (is_resource($thumbnailStream)) {
+                        fclose($thumbnailStream);
+                    }
+
+                    throw new \RuntimeException('Impossibile importare l\'anteprima del video.');
+                }
+
+                if (is_resource($thumbnailStream)) {
+                    fclose($thumbnailStream);
+                }
+
+                $this->ensurePublicFileIsReadable($thumbnailPath);
+
+                MediaVariant::query()->create([
+                    'media_id' => $media->id,
+                    'type' => MediaVariant::TYPE_THUMBNAIL,
+                    'disk' => 'public',
+                    'path' => $thumbnailPath,
+                    'width' => is_array($thumbnailDimensions) ? $thumbnailDimensions[0] : null,
+                    'height' => is_array($thumbnailDimensions) ? $thumbnailDimensions[1] : null,
+                ]);
+            }
+
+            return $media;
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete(array_values(array_filter([$path, $thumbnailPath])));
+
+            throw $exception;
+        }
+    }
+
     private function storeImage(UploadedFile $file, Actor $actor, string $mimeType, ?string $altText): Media
     {
         $allowedMimeTypes = (array) config('openbook.media.allowed_mime_types');
