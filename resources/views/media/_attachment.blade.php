@@ -3,6 +3,7 @@
         class="ob-post__media-video"
         src="{{ $media->url() }}"
         autoplay
+        controls
         loop
         muted
         playsinline
