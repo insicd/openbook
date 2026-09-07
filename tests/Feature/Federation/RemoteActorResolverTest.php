@@ -212,6 +212,34 @@ class RemoteActorResolverTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_resolve_by_key_id_refetches_a_fresh_cached_actor_when_its_key_is_missing(): void
+    {
+        Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument(), 200, ['Content-Type' => 'application/activity+json'])]);
+
+        $resolver = app(RemoteActorResolver::class);
+        $cached = $resolver->resolveByUri(self::ACTOR_URI);
+        $this->assertNotNull($cached);
+        $cached->key()->delete();
+
+        Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument(), 200, ['Content-Type' => 'application/activity+json'])]);
+
+        // Il profilo resta disponibile dalla cache senza introdurre rete nel
+        // percorso visuale, anche se la PEM non e' presente.
+        $profile = $resolver->resolveByUri(self::ACTOR_URI);
+        $this->assertNotNull($profile);
+        $this->assertNull($profile->key);
+        Http::assertNothingSent();
+
+        // Il percorso crittografico richiede invece la chiave e forza il fetch.
+        $signer = $resolver->resolveByKeyId(self::ACTOR_URI.'#main-key');
+        $this->assertNotNull($signer);
+        $this->assertSame(
+            $this->fakeActorDocument()['publicKey']['publicKeyPem'],
+            $signer->key?->public_key,
+        );
+        Http::assertSentCount(1);
+    }
+
     public function test_resolve_by_key_id_follows_a_cryptographic_key_document_to_its_owner(): void
     {
         // Come tags.pub / activitypub-bot: keyId e' un URL di CryptographicKey,

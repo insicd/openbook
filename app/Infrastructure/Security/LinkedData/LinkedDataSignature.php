@@ -5,6 +5,7 @@ namespace App\Infrastructure\Security\LinkedData;
 use App\Application\Services\DomainBlockManager;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
+use App\Federation\Support\ActivityPubUri;
 use Illuminate\Support\Facades\Log;
 use JsonLdException;
 use RuntimeException;
@@ -85,10 +86,7 @@ final class LinkedDataSignature
             }
         }
 
-        $actor = Actor::query()
-            ->with('key')
-            ->where('uri', explode('#', $creator, 2)[0])
-            ->first();
+        $actor = $this->remoteActors->resolveCachedActorForKeyId($creator);
 
         if ($actor === null) {
             $actor = $this->remoteActors->resolveByKeyId($creator);
@@ -103,7 +101,7 @@ final class LinkedDataSignature
             return null;
         }
 
-        if (rtrim($actor->uri, '/') !== rtrim($expectedActorUri, '/')) {
+        if (! ActivityPubUri::same($actor->uri, $expectedActorUri)) {
             Log::channel('single')->info('federation.ld_signature.rejected', [
                 'reason' => 'creator_actor_mismatch',
                 'creator_actor' => $actor->uri,
@@ -115,13 +113,16 @@ final class LinkedDataSignature
 
         try {
             $optionsHash = $this->hash($this->signableOptions($signature));
+        } catch (Throwable $exception) {
+            $this->logNormalizationFailure($activity, $creator, 'options', $exception);
+
+            return null;
+        }
+
+        try {
             $documentHash = $this->hash($this->signableData($activity));
         } catch (Throwable $exception) {
-            Log::channel('single')->info('federation.ld_signature.rejected', [
-                'reason' => 'normalize_failed',
-                'error' => $exception->getMessage(),
-                'activity_id' => $activity['id'] ?? null,
-            ]);
+            $this->logNormalizationFailure($activity, $creator, 'document', $exception);
 
             return null;
         }
@@ -130,6 +131,12 @@ final class LinkedDataSignature
         $binary = base64_decode($signatureValue, true);
 
         if ($binary === false) {
+            Log::channel('single')->info('federation.ld_signature.rejected', [
+                'reason' => 'signature_value_invalid',
+                'activity_id' => $activity['id'] ?? null,
+                'creator' => $creator,
+            ]);
+
             return null;
         }
 
@@ -146,6 +153,49 @@ final class LinkedDataSignature
         }
 
         return $actor;
+    }
+
+    /**
+     * Registra solo la forma del documento e la fase fallita: mai payload,
+     * firma, chiavi o messaggi di eccezione potenzialmente voluminosi.
+     *
+     * @param  array<string, mixed>  $activity
+     */
+    private function logNormalizationFailure(
+        array $activity,
+        string $creator,
+        string $phase,
+        Throwable $exception,
+    ): void {
+        $context = $phase === 'document'
+            ? ($activity['@context'] ?? null)
+            : self::IDENTITY_CONTEXT;
+
+        Log::channel('single')->info('federation.ld_signature.rejected', [
+            'reason' => 'normalize_failed',
+            'phase' => $phase,
+            'category' => $exception->getPrevious() instanceof JsonLdException ? 'jsonld' : 'document',
+            'context_shape' => $this->contextShape($context),
+            'activity_id' => $activity['id'] ?? null,
+            'creator' => $creator,
+        ]);
+    }
+
+    private function contextShape(mixed $context): string
+    {
+        if ($context === null) {
+            return 'missing';
+        }
+
+        if (is_string($context)) {
+            return 'string';
+        }
+
+        if (! is_array($context)) {
+            return 'other';
+        }
+
+        return array_is_list($context) ? 'list' : 'object';
     }
 
     /**

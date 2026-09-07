@@ -5,14 +5,17 @@ namespace Tests\Feature\Federation;
 use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\FollowManager;
 use App\Domain\Comments\Comment;
+use App\Domain\Comments\CommentAttachment;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
+use App\Domain\Reactions\Announce;
 use App\Domain\Reactions\Like;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\InboxItem;
 use App\Federation\Serialization\ActivitySerializer;
+use App\Infrastructure\Media\Media;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -1267,6 +1270,149 @@ class InboxActivityProcessorTest extends TestCase
         $post->refresh();
         $this->assertSame(Post::STATUS_DELETED, $post->status);
         $this->assertSame('', $post->body);
+    }
+
+    public function test_a_delete_of_a_remote_actor_releases_its_identity_and_redacts_its_content(): void
+    {
+        Queue::fake();
+        $local = $this->createFullAccount('locale');
+        $remote = $this->createRemoteActor('eraser');
+        $originalUri = $remote->uri;
+
+        $localPost = Post::query()->create([
+            'actor_id' => $local->actor->id,
+            'body' => 'Post locale.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'likes_count' => 1,
+            'announces_count' => 1,
+            'published_at' => now(),
+        ]);
+        $remotePost = Post::query()->create([
+            'actor_id' => $remote->id,
+            'uri' => $originalUri.'/posts/1',
+            'title' => 'Titolo remoto',
+            'content_warning' => 'Avviso remoto',
+            'body' => 'Contenuto remoto.',
+            'language' => 'it',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $remoteComment = Comment::query()->create([
+            'post_id' => $localPost->id,
+            'actor_id' => $remote->id,
+            'uri' => $originalUri.'/comments/1',
+            'body' => 'Commento remoto.',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+        $localReply = Comment::query()->create([
+            'post_id' => $localPost->id,
+            'parent_comment_id' => $remoteComment->id,
+            'actor_id' => $local->actor->id,
+            'body' => 'Risposta locale.',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+        $media = Media::query()->create([
+            'actor_id' => $remote->id,
+            'disk' => 'remote',
+            'path' => 'remote/example',
+            'remote_url' => 'https://remoto.example/media/example.jpg',
+            'mime_type' => 'image/jpeg',
+            'byte_size' => 0,
+        ]);
+        CommentAttachment::query()->create([
+            'comment_id' => $remoteComment->id,
+            'media_id' => $media->id,
+            'position' => 0,
+        ]);
+        Like::query()->create([
+            'actor_id' => $remote->id,
+            'likeable_type' => $localPost->getMorphClass(),
+            'likeable_id' => $localPost->id,
+        ]);
+        Announce::query()->create([
+            'actor_id' => $remote->id,
+            'post_id' => $localPost->id,
+            'is_direct' => true,
+        ]);
+        Follow::query()->create([
+            'follower_id' => $remote->id,
+            'following_id' => $local->actor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $status = $this->process([
+            'id' => $originalUri.'#delete',
+            'type' => 'Delete',
+            'actor' => $originalUri,
+            'object' => [
+                'id' => $originalUri,
+                'type' => 'Tombstone',
+            ],
+        ], $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+
+        $remote->refresh();
+        $this->assertTrue($remote->isDeleted());
+        $this->assertNotNull($remote->deleted_at);
+        $this->assertSame('urn:openbook:deleted-actor:'.$remote->id, $remote->uri);
+        $this->assertSame('deleted-'.$remote->id, $remote->preferred_username);
+        $this->assertSame('deleted.invalid', $remote->domain);
+        $this->assertNull($remote->name);
+        $this->assertNull($remote->icon_url);
+        $this->assertNull($remote->image_url);
+        $this->assertDatabaseMissing('actor_keys', ['actor_id' => $remote->id]);
+        $this->assertDatabaseMissing('actor_endpoints', ['actor_id' => $remote->id]);
+
+        $remotePost->refresh();
+        $this->assertSame(Post::STATUS_DELETED, $remotePost->status);
+        $this->assertSame('', $remotePost->body);
+        $this->assertNull($remotePost->uri);
+        $this->assertNull($remotePost->title);
+        $this->assertNull($remotePost->content_warning);
+        $this->assertNull($remotePost->language);
+
+        $remoteComment->refresh();
+        $this->assertSame(Comment::STATUS_DELETED, $remoteComment->status);
+        $this->assertSame('', $remoteComment->body);
+        $this->assertNull($remoteComment->uri);
+        $this->assertDatabaseHas('comments', [
+            'id' => $localReply->id,
+            'parent_comment_id' => $remoteComment->id,
+            'status' => Comment::STATUS_PUBLISHED,
+            'body' => 'Risposta locale.',
+        ]);
+
+        $this->assertDatabaseMissing('media', ['id' => $media->id]);
+        $this->assertDatabaseMissing('likes', ['actor_id' => $remote->id]);
+        $this->assertDatabaseMissing('announces', ['actor_id' => $remote->id]);
+        $this->assertDatabaseMissing('follows', ['follower_id' => $remote->id]);
+
+        $replacement = $this->createRemoteActor('eraser');
+        $this->assertNotSame($remote->id, $replacement->id);
+        $this->assertSame($originalUri, $replacement->uri);
+    }
+
+    public function test_a_remote_actor_cannot_delete_another_actor(): void
+    {
+        Queue::fake();
+        $signer = $this->createRemoteActor('signer');
+        $target = $this->createRemoteActor('target');
+
+        $status = $this->process([
+            'id' => $signer->uri.'#delete-other',
+            'type' => 'Delete',
+            'actor' => $signer->uri,
+            'object' => $target->uri,
+        ], $signer);
+
+        $this->assertSame(InboxItem::STATUS_IGNORED, $status);
+        $this->assertSame(Actor::STATUS_ACTIVE, $target->fresh()->status);
+        $this->assertSame(Actor::STATUS_ACTIVE, $signer->fresh()->status);
     }
 
     public function test_an_update_person_from_remote_refreshes_the_cached_actor(): void

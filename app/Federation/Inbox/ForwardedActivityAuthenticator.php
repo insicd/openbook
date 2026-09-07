@@ -4,6 +4,7 @@ namespace App\Federation\Inbox;
 
 use App\Application\Services\DomainBlockManager;
 use App\Federation\Fetch\FederationFetchSigner;
+use App\Federation\Support\ActivityPubUri;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use App\Infrastructure\Security\LinkedData\LinkedDataSignature;
@@ -28,7 +29,7 @@ final class ForwardedActivityAuthenticator
 
     /**
      * @param  array<string, mixed>  $activity  Payload consegnato dal forwarder
-     * @return array<string, mixed>|null        Documento autenticato
+     * @return array<string, mixed>|null Documento autenticato
      */
     public function authenticate(array $activity, string $claimedActorUri): ?array
     {
@@ -46,7 +47,7 @@ final class ForwardedActivityAuthenticator
 
     /**
      * @param  array<string, mixed>  $activity  Payload consegnato dal forwarder
-     * @return array<string, mixed>|null        Documento autenticato dall'origine
+     * @return array<string, mixed>|null Documento autenticato dall'origine
      */
     public function authenticateFromOrigin(array $activity, string $claimedActorUri): ?array
     {
@@ -74,14 +75,17 @@ final class ForwardedActivityAuthenticator
             return null;
         }
 
-        $document = $this->fetchActivityDocument($activityId);
+        $fetch = $this->fetchActivityDocument($activityId);
+        $document = $fetch['document'];
 
         if ($document === null) {
-            Log::channel('single')->info('federation.inbox.forward_rejected', [
+            Log::channel('single')->info('federation.inbox.forward_rejected', array_filter([
                 'reason' => 'origin_fetch_failed',
+                'category' => $fetch['category'],
+                'http_status' => $fetch['http_status'],
                 'activity_id' => $activityId,
                 'claimed_actor' => $claimedActorUri,
-            ]);
+            ], static fn (mixed $value): bool => $value !== null));
 
             return null;
         }
@@ -91,6 +95,12 @@ final class ForwardedActivityAuthenticator
         $fetchedType = is_string($document['type'] ?? null) ? $document['type'] : null;
 
         if ($fetchedId === null || $fetchedActor === null || $fetchedType === null || $fetchedType === '') {
+            Log::channel('single')->info('federation.inbox.forward_rejected', [
+                'reason' => 'origin_document_invalid',
+                'activity_id' => $activityId,
+                'claimed_actor' => $claimedActorUri,
+            ]);
+
             return null;
         }
 
@@ -118,32 +128,35 @@ final class ForwardedActivityAuthenticator
     }
 
     /**
-     * @return array<string, mixed>|null
+     * @return array{document: ?array<string, mixed>, category: ?string, http_status: ?int}
      */
-    private function fetchActivityDocument(string $uri): ?array
+    private function fetchActivityDocument(string $uri): array
     {
         try {
             $response = $this->httpClient->get($uri, [
                 'Accept' => 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"',
             ], $this->fetchSigner->resolve());
-        } catch (SsrfViolationException $exception) {
-            Log::channel('single')->info('federation.inbox.forward_fetch_blocked', [
-                'uri' => $uri,
-                'reason' => $exception->getMessage(),
-            ]);
-
-            return null;
+        } catch (SsrfViolationException) {
+            return ['document' => null, 'category' => 'blocked', 'http_status' => null];
         } catch (\Throwable) {
-            return null;
+            return ['document' => null, 'category' => 'network', 'http_status' => null];
         }
 
         if (! $response->successful()) {
-            return null;
+            return ['document' => null, 'category' => 'http', 'http_status' => $response->status];
         }
 
-        $document = $response->json();
+        try {
+            $document = $response->json();
+        } catch (\Throwable) {
+            return ['document' => null, 'category' => 'invalid_json', 'http_status' => $response->status];
+        }
 
-        return is_array($document) ? $document : null;
+        if (! is_array($document)) {
+            return ['document' => null, 'category' => 'invalid_json', 'http_status' => $response->status];
+        }
+
+        return ['document' => $document, 'category' => null, 'http_status' => $response->status];
     }
 
     private function actorUri(mixed $actor): ?string
@@ -204,6 +217,6 @@ final class ForwardedActivityAuthenticator
 
     private function normalizeUri(string $uri): string
     {
-        return rtrim($uri, '/');
+        return ActivityPubUri::normalize($uri);
     }
 }

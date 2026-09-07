@@ -10,12 +10,14 @@ use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\RemoteActorDeletionService;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Resolution\ObjectResolver;
 use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\NoteSerializer;
 use App\Federation\Support\ActivityPubTimestamp;
+use App\Federation\Support\ActivityPubUri;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -49,6 +51,7 @@ final class InboxActivityProcessor
         private readonly RemoteNoteUpserter $noteUpserter,
         private readonly RemoteNoteDocumentFetcher $noteDocumentFetcher,
         private readonly CommentSoftDeleter $commentSoftDeleter,
+        private readonly RemoteActorDeletionService $remoteActorDeletion,
     ) {}
 
     public function process(InboxItem $item): string
@@ -260,22 +263,7 @@ final class InboxActivityProcessor
      */
     private function normalizeUri(string $uri): string
     {
-        if ($uri === '') {
-            return '';
-        }
-
-        $parts = parse_url($uri);
-
-        if ($parts === false || ! isset($parts['scheme'], $parts['host'])) {
-            return rawurldecode($uri);
-        }
-
-        $path = isset($parts['path']) ? rawurldecode($parts['path']) : '';
-        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
-        $query = isset($parts['query']) ? '?'.$parts['query'] : '';
-        $fragment = isset($parts['fragment']) ? '#'.$parts['fragment'] : '';
-
-        return $parts['scheme'].'://'.$parts['host'].$port.$path.$query.$fragment;
+        return ActivityPubUri::normalize($uri);
     }
 
     /**
@@ -557,6 +545,12 @@ final class InboxActivityProcessor
 
         if ($objectId === null) {
             return InboxItem::STATUS_IGNORED;
+        }
+
+        if ($this->normalizeUri($objectId) === $this->normalizeUri($actor->uri)) {
+            return $this->remoteActorDeletion->delete($actor)
+                ? InboxItem::STATUS_PROCESSED
+                : InboxItem::STATUS_IGNORED;
         }
 
         $target = $this->objects->resolvePostOrComment($objectId);
