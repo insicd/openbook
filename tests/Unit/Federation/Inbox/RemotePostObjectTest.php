@@ -288,6 +288,64 @@ class RemotePostObjectTest extends TestCase
         $this->assertCount(2, $attachments);
     }
 
+    public function test_media_attachments_prefer_original_attachments_to_a_remote_preview(): void
+    {
+        $attachments = RemotePostObject::mediaAttachments([
+            'type' => 'Page',
+            'attachment' => [
+                [
+                    'type' => 'Image',
+                    'mediaType' => 'image/jpeg',
+                    'url' => 'https://cdn.mastodon.example/media/original/campanile.jpg',
+                ],
+            ],
+            'image' => [
+                'type' => 'Image',
+                'url' => 'https://community.example/pictrs/image/campanile.webp',
+            ],
+        ]);
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame('https://cdn.mastodon.example/media/original/campanile.jpg', $attachments[0]['url']);
+    }
+
+    public function test_media_attachments_use_image_as_fallback_without_valid_attachments(): void
+    {
+        $attachments = RemotePostObject::mediaAttachments([
+            'type' => 'Page',
+            'attachment' => [
+                ['type' => 'Link', 'url' => 'mailto:not-a-media-attachment@example.com'],
+            ],
+            'image' => [
+                'type' => 'Image',
+                'url' => 'https://community.example/pictrs/image/preview.webp',
+            ],
+        ]);
+
+        $this->assertCount(1, $attachments);
+        $this->assertSame('https://community.example/pictrs/image/preview.webp', $attachments[0]['url']);
+    }
+
+    public function test_media_attachments_keep_all_originals_and_skip_the_preview(): void
+    {
+        $attachments = RemotePostObject::mediaAttachments([
+            'type' => 'Page',
+            'attachment' => [
+                ['type' => 'Image', 'url' => 'https://cdn.example/first.jpg'],
+                ['type' => 'Image', 'url' => 'https://cdn.example/second.jpg'],
+            ],
+            'image' => [
+                'type' => 'Image',
+                'url' => 'https://community.example/pictrs/image/preview.webp',
+            ],
+        ]);
+
+        $this->assertSame([
+            'https://cdn.example/first.jpg',
+            'https://cdn.example/second.jpg',
+        ], array_column($attachments, 'url'));
+    }
+
     public function test_media_attachments_deduplicate_attachment_and_inline_preview(): void
     {
         $full = 'https://wp.example/wp-content/uploads/photo-1024x768.jpg';

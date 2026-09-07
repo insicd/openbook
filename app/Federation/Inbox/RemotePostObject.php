@@ -301,6 +301,7 @@ final class RemotePostObject
     public static function mediaAttachments(array $document): array
     {
         $found = [];
+        $hasImageAttachment = false;
 
         $attachments = $document['attachment'] ?? null;
 
@@ -315,8 +316,12 @@ final class RemotePostObject
                 }
 
                 $descriptor = self::videoDescriptorFromObject($item)
-                    ?? self::audioDescriptorFromObject($item)
-                    ?? self::imageDescriptorFromObject($item);
+                    ?? self::audioDescriptorFromObject($item);
+
+                if ($descriptor === null) {
+                    $descriptor = self::imageDescriptorFromObject($item);
+                    $hasImageAttachment = $hasImageAttachment || $descriptor !== null;
+                }
 
                 if ($descriptor !== null) {
                     $found[$descriptor['url']] = $descriptor;
@@ -329,6 +334,7 @@ final class RemotePostObject
 
             if ($descriptor !== null) {
                 $found[$descriptor['url']] = $descriptor;
+                $hasImageAttachment = true;
             }
         }
 
@@ -348,17 +354,24 @@ final class RemotePostObject
             }
         }
 
-        foreach (['image', 'icon'] as $field) {
-            $preview = $document[$field] ?? null;
+        // "image" e "icon" rappresentano normalmente l'anteprima
+        // dell'oggetto. Alcuni Group (Lemmy) le servono da una cache locale
+        // insieme agli attachment immagine originali: usiamole quindi solo
+        // come fallback, non come ulteriori elementi della galleria. Restano
+        // invece utili come poster o copertina di attachment video/audio.
+        if (! $hasImageAttachment) {
+            foreach (['image', 'icon'] as $field) {
+                $preview = $document[$field] ?? null;
 
-            if (is_array($preview)) {
-                $descriptor = self::imageDescriptorFromObject($preview);
+                if (is_array($preview)) {
+                    $descriptor = self::imageDescriptorFromObject($preview);
 
-                if ($descriptor !== null) {
-                    $found[$descriptor['url']] = $descriptor;
+                    if ($descriptor !== null) {
+                        $found[$descriptor['url']] = $descriptor;
+                    }
+                } elseif (is_string($preview) && self::isSafeHttpUrl($preview) && self::looksLikeImageUrl($preview)) {
+                    $found[$preview] = ['url' => $preview, 'mime' => null, 'alt' => null];
                 }
-            } elseif (is_string($preview) && self::isSafeHttpUrl($preview) && self::looksLikeImageUrl($preview)) {
-                $found[$preview] = ['url' => $preview, 'mime' => null, 'alt' => null];
             }
         }
 

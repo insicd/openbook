@@ -107,6 +107,11 @@ il [`README`](README.md#roadmap-and-project-status).
   client remoti inviano la notifica che si aspettano.
 
 ### Fixed
+- Allegati dei post annunciati da community remote: quando l'outbox del
+  Group espone sia gli attachment originali sia una preview locale in
+  `image`/`icon`, la preview non viene piu' aggiunta come seconda immagine
+  alla galleria. `image` e `icon` restano il fallback per i post senza
+  attachment immagine e la copertina per media video/audio.
 - Reply in arrivo (locali o remote) che menzionano anche l'autore del
   post/commento padre: una sola notifica in-app. Commento/risposta e
   menzione condividono l'id del commento (`notifiable`); se il thread e'
