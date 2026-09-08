@@ -33,6 +33,9 @@ il [`README`](README.md#roadmap-and-project-status).
   piu' risolto nel costruttore del controller. Serve solo allo staging dei
   video in pubblicazione; iniettarlo su ogni azione faceva fallire la
   pagina se l'autoloader non aveva ancora la classe.
+- Pannello Impostazioni istanza (`GET /admin/impostazioni`): `VideoCapability`
+  viene usata solo se il supporto video e' attivo (o lo si sta attivando),
+  non su ogni apertura della pagina.
 
 ## [26.36] - Grumpy Waffle
 

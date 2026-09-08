@@ -14,7 +14,7 @@ use InvalidArgumentException;
 
 final class SettingsController extends Controller
 {
-    public function edit(InstanceSettings $settings, VideoCapability $videoCapability): View
+    public function edit(InstanceSettings $settings): View
     {
         $videoEnabled = $settings->videoEnabled();
 
@@ -33,7 +33,7 @@ final class SettingsController extends Controller
             'videoFfprobePath' => $settings->videoFfprobePath(),
             'videoLimits' => $settings->videoLimits(),
             'videoCapability' => $videoEnabled
-                ? $videoCapability->inspect($settings->videoFfmpegPath(), $settings->videoFfprobePath())
+                ? app(VideoCapability::class)->inspect($settings->videoFfmpegPath(), $settings->videoFfprobePath())
                 : null,
             'trendingDays' => $settings->trendingDays(),
             'faviconUrl' => $settings->faviconUrl(),
@@ -44,7 +44,6 @@ final class SettingsController extends Controller
         Request $request,
         InstanceSettings $settings,
         InstanceIconUploader $iconUploader,
-        VideoCapability $videoCapability,
     ): RedirectResponse {
         $maxKb = (int) config('openbook.media.max_size_kb');
 
@@ -77,7 +76,7 @@ final class SettingsController extends Controller
         $videoEnabled = $request->boolean('video_enabled');
 
         if ($videoEnabled) {
-            $capability = $videoCapability->inspect($data['video_ffmpeg_path'], $data['video_ffprobe_path']);
+            $capability = app(VideoCapability::class)->inspect($data['video_ffmpeg_path'], $data['video_ffprobe_path']);
 
             if (! $capability['available']) {
                 throw ValidationException::withMessages([

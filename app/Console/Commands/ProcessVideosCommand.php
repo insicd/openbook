@@ -22,7 +22,6 @@ class ProcessVideosCommand extends Command
     public function handle(
         PostPublicationQueue $queue,
         PendingPostFinalizer $finalizer,
-        VideoCapability $capability,
         InstanceSettings $instanceSettings,
     ): int {
         if (! $instanceSettings->videoEnabled()) {
@@ -31,7 +30,7 @@ class ProcessVideosCommand extends Command
             return self::SUCCESS;
         }
 
-        $status = $capability->inspect(
+        $status = app(VideoCapability::class)->inspect(
             (string) config('openbook.video.ffmpeg_path'),
             (string) config('openbook.video.ffprobe_path'),
         );
