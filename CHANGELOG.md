@@ -36,6 +36,11 @@ il [`README`](README.md#roadmap-and-project-status).
 - Pannello Impostazioni istanza (`GET /admin/impostazioni`): `VideoCapability`
   viene usata solo se il supporto video e' attivo (o lo si sta attivando),
   non su ogni apertura della pagina.
+- Inbox ActivityPub: le `Delete` di Actor o contenuti remoti gia' assenti sono
+  accettate in modo idempotente; gli Actor cancellati vengono anonimizzati come
+  tombstone liberando URI e handle, senza recuperare da remoto chiavi ormai non
+  disponibili. Normalizzazione centralizzata degli URI e log sintetici rendono
+  piu' affidabili autenticazione e diagnosi delle attivita' inoltrate.
 
 ## [26.36] - Grumpy Waffle
 
