@@ -50,10 +50,15 @@
     $existingMediaCount = $isEditing ? $editingPost->media->count() : 0;
     $remainingAttachments = max(0, $maxAttachments - $existingMediaCount);
     $videoUploadsEnabled = $isPost && ! $isEditing && (bool) config('openbook.video.enabled', false);
+    $maxMediaBytes = max(0, (int) config('openbook.media.max_size_kb')) * 1024;
+    $maxVideoBytes = $videoUploadsEnabled
+        ? max(0, (int) config('openbook.video.max_upload_mb')) * 1024 * 1024
+        : 0;
+    $videoMimeTypes = (array) config('openbook.video.allowed_mime_types');
     $acceptedMedia = array_merge(
         (array) config('openbook.media.allowed_mime_types'),
         $videoUploadsEnabled
-            ? array_merge((array) config('openbook.video.allowed_mime_types'), ['.mp4', '.m4v', '.mov', '.webm', '.ogv'])
+            ? array_merge($videoMimeTypes, ['.mp4', '.m4v', '.mov', '.webm', '.ogv'])
             : [],
     );
 
@@ -183,7 +188,11 @@
             <div class="ob-composer__panel" id="{{ $prefix }}-panel-media" data-composer-panel @unless($mediaOpen) hidden @endunless>
                 <div class="ob-field">
                     <label for="{{ $prefix }}-images">{{ __('openbook.composer.images_label') }}</label>
-                    <input type="file" id="{{ $prefix }}-images" name="images[]" accept="{{ implode(',', $acceptedMedia) }}" multiple data-composer-fill="media">
+                    <input type="file" id="{{ $prefix }}-images" name="images[]" accept="{{ implode(',', $acceptedMedia) }}" multiple data-composer-fill="media"
+                        data-max-media-bytes="{{ $maxMediaBytes }}"
+                        data-max-video-bytes="{{ $maxVideoBytes }}"
+                        data-video-mime-types="{{ $videoUploadsEnabled ? implode(',', $videoMimeTypes) : '' }}"
+                        data-file-too-large="{{ __('openbook.composer.file_too_large') }}">
                     @if ($isEditing && $existingMediaCount > 0)
                         <p class="ob-field__help">{{ __('openbook.composer.existing_media_help', ['count' => $existingMediaCount, 'remaining' => $remainingAttachments]) }}</p>
                     @else
