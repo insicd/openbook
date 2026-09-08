@@ -441,7 +441,7 @@ final class NoteSerializer
      */
     private static function attachmentsFor(Post|Comment $content): array
     {
-        $content->loadMissing('media');
+        $content->loadMissing('media.thumbnail');
 
         return $content->media->map(function ($media) {
             $type = 'Image';
@@ -450,12 +450,22 @@ final class NoteSerializer
                 $type = 'Document';
             }
 
-            return [
+            $attachment = [
                 'type' => $type,
                 'mediaType' => $media->mime_type,
                 'url' => $media->url(),
                 'name' => $media->alt_text ?: '',
             ];
+
+            if ($media->isVideo() && $media->thumbnail !== null) {
+                $attachment['icon'] = [
+                    'type' => 'Image',
+                    'mediaType' => 'image/jpeg',
+                    'url' => $media->thumbnailUrl(),
+                ];
+            }
+
+            return $attachment;
         })->values()->all();
     }
 

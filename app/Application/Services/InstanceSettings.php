@@ -33,6 +33,22 @@ final class InstanceSettings
 
     public const KEY_MEDIA_MAX_ATTACHMENTS = 'media_max_attachments';
 
+    public const KEY_VIDEO_ENABLED = 'video_enabled';
+
+    public const KEY_VIDEO_FFMPEG_PATH = 'video_ffmpeg_path';
+
+    public const KEY_VIDEO_FFPROBE_PATH = 'video_ffprobe_path';
+
+    public const KEY_VIDEO_MAX_UPLOAD_MB = 'video_max_upload_mb';
+
+    public const KEY_VIDEO_PASSTHROUGH_MAX_MB = 'video_passthrough_max_mb';
+
+    public const KEY_VIDEO_MAX_DURATION_SECONDS = 'video_max_duration_seconds';
+
+    public const KEY_VIDEO_MAX_DIMENSION = 'video_max_dimension';
+
+    public const KEY_VIDEO_MAX_FRAME_RATE = 'video_max_frame_rate';
+
     public const KEY_TRENDING_DAYS = 'trending_days';
 
     public const KEY_SHOW_HOME_STAFF = 'show_home_staff';
@@ -77,6 +93,14 @@ final class InstanceSettings
         $this->applyIntSetting(self::KEY_COMMENT_MAX_LENGTH, 'openbook.comments.max_length');
         $this->applyIntSetting(self::KEY_MEDIA_MAX_SIZE_KB, 'openbook.media.max_size_kb');
         $this->applyIntSetting(self::KEY_MEDIA_MAX_ATTACHMENTS, 'openbook.media.max_attachments_per_post');
+        Config::set('openbook.video.enabled', $this->videoEnabled());
+        Config::set('openbook.video.ffmpeg_path', $this->videoFfmpegPath());
+        Config::set('openbook.video.ffprobe_path', $this->videoFfprobePath());
+        $this->applyIntSetting(self::KEY_VIDEO_MAX_UPLOAD_MB, 'openbook.video.max_upload_mb');
+        $this->applyIntSetting(self::KEY_VIDEO_PASSTHROUGH_MAX_MB, 'openbook.video.passthrough_max_mb');
+        $this->applyIntSetting(self::KEY_VIDEO_MAX_DURATION_SECONDS, 'openbook.video.max_duration_seconds');
+        $this->applyIntSetting(self::KEY_VIDEO_MAX_DIMENSION, 'openbook.video.max_dimension');
+        $this->applyIntSetting(self::KEY_VIDEO_MAX_FRAME_RATE, 'openbook.video.max_frame_rate');
         $this->applyIntSetting(self::KEY_TRENDING_DAYS, 'openbook.hashtags.trending_days');
     }
 
@@ -124,6 +148,33 @@ final class InstanceSettings
     public function mediaMaxAttachments(): int
     {
         return $this->intSetting(self::KEY_MEDIA_MAX_ATTACHMENTS, (int) config('openbook.media.max_attachments_per_post'));
+    }
+
+    public function videoEnabled(): bool
+    {
+        return SystemSetting::getBool(self::KEY_VIDEO_ENABLED, (bool) config('openbook.video.enabled', false));
+    }
+
+    public function videoFfmpegPath(): string
+    {
+        return SystemSetting::get(self::KEY_VIDEO_FFMPEG_PATH) ?: (string) config('openbook.video.ffmpeg_path', 'ffmpeg');
+    }
+
+    public function videoFfprobePath(): string
+    {
+        return SystemSetting::get(self::KEY_VIDEO_FFPROBE_PATH) ?: (string) config('openbook.video.ffprobe_path', 'ffprobe');
+    }
+
+    /** @return array{max_upload_mb: int, passthrough_max_mb: int, max_duration_seconds: int, max_dimension: int, max_frame_rate: int} */
+    public function videoLimits(): array
+    {
+        return [
+            'max_upload_mb' => $this->intSetting(self::KEY_VIDEO_MAX_UPLOAD_MB, (int) config('openbook.video.max_upload_mb', 40)),
+            'passthrough_max_mb' => $this->intSetting(self::KEY_VIDEO_PASSTHROUGH_MAX_MB, (int) config('openbook.video.passthrough_max_mb', 8)),
+            'max_duration_seconds' => $this->intSetting(self::KEY_VIDEO_MAX_DURATION_SECONDS, (int) config('openbook.video.max_duration_seconds', 180)),
+            'max_dimension' => $this->intSetting(self::KEY_VIDEO_MAX_DIMENSION, (int) config('openbook.video.max_dimension', 1080)),
+            'max_frame_rate' => $this->intSetting(self::KEY_VIDEO_MAX_FRAME_RATE, (int) config('openbook.video.max_frame_rate', 60)),
+        ];
     }
 
     /**
@@ -218,6 +269,14 @@ final class InstanceSettings
      *     comment_max_length: int,
      *     media_max_size_kb: int,
      *     media_max_attachments: int,
+     *     video_enabled: bool,
+     *     video_ffmpeg_path: string,
+     *     video_ffprobe_path: string,
+     *     video_max_upload_mb: int,
+     *     video_passthrough_max_mb: int,
+     *     video_max_duration_seconds: int,
+     *     video_max_dimension: int,
+     *     video_max_frame_rate: int,
      *     trending_days: int,
      *     instance_icon_dir?: string|null
      * }  $data
@@ -233,6 +292,9 @@ final class InstanceSettings
         $commentMax = (int) $data['comment_max_length'];
         $mediaKb = (int) $data['media_max_size_kb'];
         $mediaAttachments = (int) $data['media_max_attachments'];
+        $videoEnabled = (bool) $data['video_enabled'];
+        $videoFfmpegPath = trim($data['video_ffmpeg_path']);
+        $videoFfprobePath = trim($data['video_ffprobe_path']);
         $trendingDays = max(1, (int) ($data['trending_days'] ?? $this->trendingDays()));
 
         SystemSetting::put(self::KEY_SITE_NAME, $siteName);
@@ -244,6 +306,14 @@ final class InstanceSettings
         SystemSetting::put(self::KEY_COMMENT_MAX_LENGTH, (string) $commentMax);
         SystemSetting::put(self::KEY_MEDIA_MAX_SIZE_KB, (string) $mediaKb);
         SystemSetting::put(self::KEY_MEDIA_MAX_ATTACHMENTS, (string) $mediaAttachments);
+        SystemSetting::putBool(self::KEY_VIDEO_ENABLED, $videoEnabled);
+        SystemSetting::put(self::KEY_VIDEO_FFMPEG_PATH, $videoFfmpegPath);
+        SystemSetting::put(self::KEY_VIDEO_FFPROBE_PATH, $videoFfprobePath);
+        SystemSetting::put(self::KEY_VIDEO_MAX_UPLOAD_MB, (string) $data['video_max_upload_mb']);
+        SystemSetting::put(self::KEY_VIDEO_PASSTHROUGH_MAX_MB, (string) $data['video_passthrough_max_mb']);
+        SystemSetting::put(self::KEY_VIDEO_MAX_DURATION_SECONDS, (string) $data['video_max_duration_seconds']);
+        SystemSetting::put(self::KEY_VIDEO_MAX_DIMENSION, (string) $data['video_max_dimension']);
+        SystemSetting::put(self::KEY_VIDEO_MAX_FRAME_RATE, (string) $data['video_max_frame_rate']);
         SystemSetting::put(self::KEY_TRENDING_DAYS, (string) $trendingDays);
 
         if (array_key_exists('instance_icon_dir', $data)) {
@@ -256,6 +326,14 @@ final class InstanceSettings
         Config::set('openbook.comments.max_length', $commentMax);
         Config::set('openbook.media.max_size_kb', $mediaKb);
         Config::set('openbook.media.max_attachments_per_post', $mediaAttachments);
+        Config::set('openbook.video.enabled', $videoEnabled);
+        Config::set('openbook.video.ffmpeg_path', $videoFfmpegPath);
+        Config::set('openbook.video.ffprobe_path', $videoFfprobePath);
+        Config::set('openbook.video.max_upload_mb', (int) $data['video_max_upload_mb']);
+        Config::set('openbook.video.passthrough_max_mb', (int) $data['video_passthrough_max_mb']);
+        Config::set('openbook.video.max_duration_seconds', (int) $data['video_max_duration_seconds']);
+        Config::set('openbook.video.max_dimension', (int) $data['video_max_dimension']);
+        Config::set('openbook.video.max_frame_rate', (int) $data['video_max_frame_rate']);
         Config::set('openbook.hashtags.trending_days', $trendingDays);
 
         if ($actor !== null) {
@@ -264,6 +342,7 @@ final class InstanceSettings
                 'registration_open' => $registrationOpen,
                 'show_home_staff' => $showHomeStaff,
                 'trending_days' => $trendingDays,
+                'video_enabled' => $videoEnabled,
                 'has_custom_icons' => $this->hasCustomIcons(),
             ]);
         }

@@ -7,7 +7,9 @@ use App\Application\Queries\FeedQuery;
 use App\Application\Queries\InstanceStaffQuery;
 use App\Application\Queries\PopularRemoteActorsQuery;
 use App\Application\Queries\SuggestedLocalActorsQuery;
+use App\Domain\Accounts\User;
 use App\Domain\Communities\Community;
+use App\Domain\Posts\PendingPostPublication;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -55,6 +57,17 @@ class FeedController extends Controller
             'quotedPost' => $quotedPost,
             'composerCommunities' => $composerCommunities,
             'welcomeKit' => $welcomeKit,
+            'pendingPublications' => config('openbook.video.enabled', false)
+                ? PendingPostPublication::query()
+                    ->where('actor_id', $user->actor->id)
+                    ->whereIn('status', [
+                        PendingPostPublication::STATUS_PENDING,
+                        PendingPostPublication::STATUS_PROCESSING,
+                        PendingPostPublication::STATUS_FAILED,
+                    ])
+                    ->latest()
+                    ->get()
+                : collect(),
         ]);
     }
 
@@ -63,7 +76,7 @@ class FeedController extends Controller
      * account remoti gia' noti all'istanza, senza duplicati.
      *
      * @return array{
-     *     staff: Collection<int, \App\Domain\Accounts\User>,
+     *     staff: Collection<int, User>,
      *     local: Collection<int, Actor>,
      *     remote: Collection<int, Actor>,
      * }

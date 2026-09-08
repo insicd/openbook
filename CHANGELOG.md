@@ -19,6 +19,14 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.36] - Grumpy Waffle
 
 ### Added
+- **Supporto video locale opt-in**: dal pannello amministrativo si configurano
+  FFmpeg/ffprobe e limiti di upload, durata, risoluzione, fps e copy-through.
+  I post con video vengono salvati in staging privato, analizzati con ffprobe
+  e pubblicati solo dopo l'eventuale conversione MP4 H.264/AAC e la generazione
+  del poster. Il worker CLI dedicato (`openbook:process-videos`) puo' restare
+  residente oppure essere richiamato da cron con `--once`; claim con lease,
+  retry limitati e collegamento idempotente evitano doppie pubblicazioni. La
+  home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
 - **Notifiche Web Push** per browser desktop e mobile, attivabili per ogni
   dispositivo da Impostazioni account. Una coppia VAPID per istanza e le
   subscription cifrate alimentano un'outbox dedicata; il poller la sopprime

@@ -14,6 +14,7 @@ use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Serialization\ActivitySerializer;
 use App\Infrastructure\Media\MediaUploader;
+use App\Infrastructure\Media\PreparedMedia;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -48,14 +49,15 @@ final class PostComposer
     ) {}
 
     /**
-     * @param  array{title?: ?string, content_warning?: ?string, body: string, visibility?: string, language?: ?string, quoted_post_id?: ?string, community_id?: ?string, addressed_group_actor_id?: ?string, images?: array<int, UploadedFile>, alt_texts?: array<int, ?string>}  $data
+     * @param  array{title?: ?string, content_warning?: ?string, body: string, visibility?: string, language?: ?string, quoted_post_id?: ?string, community_id?: ?string, addressed_group_actor_id?: ?string, images?: array<int, UploadedFile>, prepared_media?: array<int, PreparedMedia>, alt_texts?: array<int, ?string>}  $data
      */
     public function compose(Actor $author, array $data): Post
     {
         $images = $data['images'] ?? [];
+        $preparedMedia = $data['prepared_media'] ?? [];
         $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
 
-        if (count($images) > $maxAttachments) {
+        if (count($images) + count($preparedMedia) > $maxAttachments) {
             throw new InvalidArgumentException("Puoi allegare al massimo {$maxAttachments} file per post.");
         }
 
@@ -67,7 +69,7 @@ final class PostComposer
             throw new InvalidArgumentException(__('openbook.communities.errors.addressed_and_local'));
         }
 
-        $post = DB::transaction(function () use ($author, $data, $images, $quotedPost, $community, $addressedGroup) {
+        $post = DB::transaction(function () use ($author, $data, $images, $preparedMedia, $quotedPost, $community, $addressedGroup) {
             $post = Post::query()->create([
                 'actor_id' => $author->id,
                 'community_id' => $community?->id,
@@ -93,6 +95,22 @@ final class PostComposer
                     'post_id' => $post->id,
                     'media_id' => $media->id,
                     'position' => $position,
+                ]);
+            }
+
+            $positionOffset = count($images);
+
+            foreach (array_values($preparedMedia) as $position => $prepared) {
+                if (! $prepared instanceof PreparedMedia) {
+                    throw new InvalidArgumentException('Allegato preparato non valido.');
+                }
+
+                $media = $this->mediaUploader->storePrepared($prepared, $author);
+
+                PostAttachment::query()->create([
+                    'post_id' => $post->id,
+                    'media_id' => $media->id,
+                    'position' => $positionOffset + $position,
                 ]);
             }
 

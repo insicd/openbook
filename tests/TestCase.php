@@ -22,6 +22,28 @@ abstract class TestCase extends BaseTestCase
      */
     private ?string $originalLockContents = null;
 
+    /**
+     * Impedisce alla suite di usare accidentalmente il database configurato
+     * per l'istanza locale. RefreshDatabase esegue migrate:fresh sulle
+     * connessioni non in-memory, quindi una configurazione Laravel rimasta in
+     * cache potrebbe altrimenti cancellare il database di sviluppo.
+     */
+    protected function refreshApplication()
+    {
+        parent::refreshApplication();
+
+        $connection = $this->app['config']->get('database.default');
+        $database = $this->app['config']->get("database.connections.{$connection}.database");
+
+        if ($connection !== 'sqlite' || $database !== ':memory:') {
+            throw new \RuntimeException(sprintf(
+                'Test interrotti: la connessione database attiva è [%s] con database [%s], atteso sqlite [:memory:]. Rimuovere la cache di configurazione prima di eseguire la suite.',
+                (string) $connection,
+                (string) $database,
+            ));
+        }
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
