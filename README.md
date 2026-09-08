@@ -9,7 +9,7 @@ Mastodon clone, and not a link aggregator: it is meant for personal, local,
 association, and topic-based communities, with an interface that non-technical
 users can understand.
 
-Current version: **26.36.rc1**. Release notes are in Italian in
+Current version: **26.38.rc1**. Release notes are in Italian in
 [`CHANGELOG.md`](CHANGELOG.md). The first stable release was **26.34 - Lovable Pancake**. Openbook is
 beyond basic bidirectional federation: it includes **communities** (local and
 remote `Group` Actors, membership, wall, Lemmy/Friendica interoperability) and
@@ -1049,7 +1049,7 @@ To report vulnerabilities see [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap and project status
 
-Current version: **26.36.rc1**. Release notes are in Italian in
+Current version: **26.38.rc1**. Release notes are in Italian in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 ### Versioning
@@ -1060,8 +1060,8 @@ codename Lovable Pancake). Follow-up patch candidates of the same week are
 stable (it is not a pre-release before it). The `0.x` versions in the changelog
 are pre-stable history.
 
-NodeInfo and the User-Agent use the technical version (`26.36.rc1`); the footer
-shows `26.36.rc1` (release candidates have no codename).
+NodeInfo and the User-Agent use the technical version (`26.38.rc1`); the footer
+shows `26.38.rc1` (release candidates have no codename).
 
 - ✅ **Phase 1 — Structure and installation**: project, configuration,
   installer, database, authentication, administrator account, local profiles.

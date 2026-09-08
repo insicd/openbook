@@ -6,8 +6,8 @@
 // sia nel documento NodeInfo sia nello User-Agent delle richieste in uscita:
 // due software del Fediverso che si scambiano segnali di versione diversi
 // per la stessa istanza sono un sintomo classico di misconfigurazione.
-$version = '26.36';
-$codename = 'Grumpy Waffle';
+$version = '26.38.rc1';
+$codename = '';
 
 return [
 

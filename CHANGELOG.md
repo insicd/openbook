@@ -16,7 +16,7 @@ Il footer mostra anche il nome in codice (`config('openbook.release_label')`).
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-and-project-status).
 
-## [26.36] - Grumpy Waffle
+## [26.38.rc1]
 
 ### Added
 - **Supporto video locale opt-in**: dal pannello amministrativo si configurano
@@ -27,6 +27,10 @@ il [`README`](README.md#roadmap-and-project-status).
   residente oppure essere richiamato da cron con `--once`; claim con lease,
   retry limitati e collegamento idempotente evitano doppie pubblicazioni. La
   home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
+
+## [26.36] - Grumpy Waffle
+
+### Added
 - **Notifiche Web Push** per browser desktop e mobile, attivabili per ogni
   dispositivo da Impostazioni account. Una coppia VAPID per istanza e le
   subscription cifrate alimentano un'outbox dedicata; il poller la sopprime

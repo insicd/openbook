@@ -8,7 +8,7 @@ integrato con il Fediverso. Non e' un microblog, non e' un clone di Mastodon e n
 un aggregatore di link: e' pensato per comunita' personali, territoriali, associative e
 tematiche, con un'interfaccia comprensibile anche a utenti non tecnici.
 
-Versione corrente: **26.36.rc1** (vedi [`CHANGELOG.md`](CHANGELOG.md)). La prima
+Versione corrente: **26.38.rc1** (vedi [`CHANGELOG.md`](CHANGELOG.md)). La prima
 stable e' stata **26.34 - Lovable Pancake**. Openbook e'
 oltre la federazione bidirezionale di base: include **community** (Actor `Group`
 locali e remoti, iscrizione, wall, interoperabilita' Lemmy/Friendica) e sta
@@ -1050,15 +1050,15 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap e stato del progetto
 
-Versione corrente: **26.36.rc1**. Il dettaglio delle modifiche per versione e' in
+Versione corrente: **26.38.rc1**. Il dettaglio delle modifiche per versione e' in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 Da 26.34 in poi una stable usa `YY.settimana` (questa e' `26.34`, nome in
 codice Lovable Pancake). Le patch candidate della stessa settimana sono
 `26.34.rc1`, `26.34.rc2`, … e arrivano *dopo* la stable `26.34` (non sono
 pre-release precedenti). Le `0.x` nel changelog restano lo storico
-pre-stable. NodeInfo e User-Agent usano la versione tecnica (`26.36.rc1`); il
-footer mostra `26.36.rc1` (le release candidate non hanno nome in codice).
+pre-stable. NodeInfo e User-Agent usano la versione tecnica (`26.38.rc1`); il
+footer mostra `26.38.rc1` (le release candidate non hanno nome in codice).
 
 - ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,
   database, autenticazione, account amministratore, profili locali.
