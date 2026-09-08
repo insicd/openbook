@@ -30,7 +30,6 @@ class PostController extends Controller
 {
     public function __construct(
         private readonly PostComposer $postComposer,
-        private readonly PostPublicationStager $postPublicationStager,
         private readonly ActivityDelivery $delivery,
         private readonly RemoteRepliesFetcher $remoteRepliesFetcher,
         private readonly RemotePostRefresher $remotePostRefresher,
@@ -43,7 +42,7 @@ class PostController extends Controller
         $data['images'] = $request->file('images', []);
 
         if ($this->containsVideo($data['images'])) {
-            $this->postPublicationStager->stage($request->user()->actor, $data);
+            app(PostPublicationStager::class)->stage($request->user()->actor, $data);
 
             return redirect()
                 ->route('feed.index')

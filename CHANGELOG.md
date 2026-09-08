@@ -28,6 +28,12 @@ il [`README`](README.md#roadmap-and-project-status).
   retry limitati e collegamento idempotente evitano doppie pubblicazioni. La
   home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
 
+### Fixed
+- Dettaglio post (`GET /posts/{post}`): `PostPublicationStager` non viene
+  piu' risolto nel costruttore del controller. Serve solo allo staging dei
+  video in pubblicazione; iniettarlo su ogni azione faceva fallire la
+  pagina se l'autoloader non aveva ancora la classe.
+
 ## [26.36] - Grumpy Waffle
 
 ### Added
