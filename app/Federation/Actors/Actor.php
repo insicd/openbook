@@ -39,6 +39,7 @@ use Illuminate\Support\Carbon;
  * @property bool $discoverable
  * @property bool $indexable
  * @property string $status
+ * @property Carbon|null $deleted_at
  * @property Carbon|null $last_fetched_at
  * @property Carbon|null $posts_fetched_at
  * @property Carbon|null $published_at
@@ -62,6 +63,8 @@ class Actor extends Model
 
     public const STATUS_BLOCKED = 'blocked';
 
+    public const STATUS_DELETED = 'deleted';
+
     /**
      * @var list<string>
      */
@@ -80,6 +83,7 @@ class Actor extends Model
         'discoverable',
         'indexable',
         'status',
+        'deleted_at',
         'last_fetched_at',
         'posts_fetched_at',
         'published_at',
@@ -101,6 +105,7 @@ class Actor extends Model
             'last_fetched_at' => 'datetime',
             'posts_fetched_at' => 'datetime',
             'published_at' => 'datetime',
+            'deleted_at' => 'datetime',
             'followers_count' => 'integer',
             'following_count' => 'integer',
             'collections_fetched_at' => 'datetime',
@@ -186,6 +191,11 @@ class Actor extends Model
     public function isBlocked(): bool
     {
         return $this->status === self::STATUS_BLOCKED;
+    }
+
+    public function isDeleted(): bool
+    {
+        return $this->status === self::STATUS_DELETED;
     }
 
     /**

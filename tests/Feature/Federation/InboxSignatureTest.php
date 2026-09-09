@@ -2,15 +2,21 @@
 
 namespace Tests\Feature\Federation;
 
+use App\Domain\Posts\Post;
+use App\Federation\Actors\Actor;
+use App\Federation\Actors\ActorKey;
+use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Inbox\InboxItem;
 use App\Infrastructure\Security\HttpSignatureSigner;
 use App\Infrastructure\Security\KeyPair;
+use App\Infrastructure\Security\LinkedData\LinkedDataSignature;
 use App\Infrastructure\Security\RsaKeyPairGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Tests\Concerns\CreatesAccounts;
+use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
 
 /**
@@ -22,7 +28,7 @@ use Tests\TestCase;
  */
 class InboxSignatureTest extends TestCase
 {
-    use CreatesAccounts, RefreshDatabase;
+    use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
     private const REMOTE_ACTOR_URI = 'https://remoto.example/users/carol';
 
@@ -78,6 +84,28 @@ class InboxSignatureTest extends TestCase
             ['host' => $host, 'date' => $date, 'digest' => $digest],
             self::REMOTE_ACTOR_URI.'#main-key',
             $this->remoteKeyPair->privateKey,
+            ['(request-target)', 'host', 'date', 'digest']
+        );
+
+        return compact('path', 'body', 'date', 'digest', 'signature');
+    }
+
+    /**
+     * @param  array<string, mixed>  $activity
+     * @return array{path: string, body: string, date: string, digest: string, signature: string}
+     */
+    private function signedActivityParts(string $path, array $activity, string $keyOwnerUri, KeyPair $keyPair): array
+    {
+        $body = json_encode($activity, JSON_THROW_ON_ERROR);
+        $date = now()->toRfc7231String();
+        $digest = HttpSignatureSigner::digest($body);
+        $host = parse_url(url('/'), PHP_URL_HOST);
+        $signature = (new HttpSignatureSigner)->sign(
+            'POST',
+            $path,
+            ['host' => $host, 'date' => $date, 'digest' => $digest],
+            $keyOwnerUri.'#main-key',
+            $keyPair->privateKey,
             ['(request-target)', 'host', 'date', 'digest']
         );
 
@@ -161,6 +189,209 @@ class InboxSignatureTest extends TestCase
         $this->assertDatabaseCount('inbox_items', 0);
     }
 
+    public function test_a_self_delete_for_an_unknown_remote_actor_is_an_idempotent_no_op(): void
+    {
+        $target = $this->createFullAccount('deleteassente');
+        $actorUri = 'https://assente.example/users/nessuno';
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $actorUri.'#delete',
+            'type' => 'Delete',
+            'actor' => $actorUri,
+            'object' => ['id' => $actorUri, 'type' => 'Tombstone'],
+        ];
+
+        $response = $this->call('POST', '/users/'.$target->username.'/inbox', [], [], [], [
+            'CONTENT_TYPE' => 'application/activity+json',
+        ], json_encode($activity, JSON_THROW_ON_ERROR));
+
+        $response->assertStatus(202);
+        $this->assertDatabaseCount('inbox_items', 0);
+        Http::assertNothingSent();
+    }
+
+    public function test_a_delete_for_an_unknown_post_or_comment_is_an_idempotent_no_op(): void
+    {
+        $target = $this->createFullAccount('deletecontenutoassente');
+        $actorUri = 'https://remoto.example/users/assente';
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $actorUri.'/activities/delete-1',
+            'type' => 'Delete',
+            'actor' => $actorUri,
+            'object' => ['id' => $actorUri.'/posts/inesistente', 'type' => 'Tombstone'],
+        ];
+
+        $response = $this->call('POST', '/users/'.$target->username.'/inbox', [], [], [], [
+            'CONTENT_TYPE' => 'application/activity+json',
+        ], json_encode($activity, JSON_THROW_ON_ERROR));
+
+        $response->assertStatus(202);
+        $this->assertDatabaseCount('inbox_items', 0);
+        Http::assertNothingSent();
+    }
+
+    public function test_a_delete_for_an_existing_post_still_requires_authentication(): void
+    {
+        $target = $this->createFullAccount('deletecontenutopresente');
+        $remote = $this->createRemoteActor('autorecontenuto');
+        $post = Post::query()->create([
+            'actor_id' => $remote->id,
+            'uri' => $remote->uri.'/posts/1',
+            'body' => 'Contenuto presente.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $remote->uri.'/activities/delete-1',
+            'type' => 'Delete',
+            'actor' => $remote->uri,
+            'object' => $post->uri,
+        ];
+
+        $response = $this->call('POST', '/users/'.$target->username.'/inbox', [], [], [], [
+            'CONTENT_TYPE' => 'application/activity+json',
+        ], json_encode($activity, JSON_THROW_ON_ERROR));
+
+        $response->assertStatus(401);
+        $this->assertDatabaseCount('inbox_items', 0);
+        $this->assertSame(Post::STATUS_PUBLISHED, $post->fresh()->status);
+    }
+
+    public function test_a_known_actor_self_delete_uses_its_stale_cached_key_without_refetching(): void
+    {
+        $target = $this->createFullAccount('deletecached');
+        $remote = $this->createRemoteActor('cacheddelete');
+        $remote->key->update(['public_key' => $this->remoteKeyPair->publicKey]);
+        $remote->update(['last_fetched_at' => now()->subDays(2)]);
+        Http::fake([$remote->uri => Http::response([], 410)]);
+
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $remote->uri.'#delete',
+            'type' => 'Delete',
+            'actor' => $remote->uri,
+            'object' => $remote->uri,
+        ];
+        $parts = $this->signedActivityParts('/users/'.$target->username.'/inbox', $activity, $remote->uri, $this->remoteKeyPair);
+
+        $this->postSigned($parts)->assertStatus(202);
+        $this->assertDatabaseHas('inbox_items', [
+            'remote_activity_uri' => $activity['id'],
+            'activity_type' => 'Delete',
+            'actor_uri' => $remote->uri,
+        ]);
+        Http::assertNothingSent();
+    }
+
+    public function test_a_known_actor_self_delete_does_not_refetch_after_cached_key_verification_fails(): void
+    {
+        $target = $this->createFullAccount('deletebadkey');
+        $remote = $this->createRemoteActor('badkeydelete');
+        $remote->update(['last_fetched_at' => now()->subDays(2)]);
+        Http::fake([$remote->uri => Http::response([], 410)]);
+        $wrongKey = (new RsaKeyPairGenerator)->generate(2048);
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $remote->uri.'#delete',
+            'type' => 'Delete',
+            'actor' => $remote->uri,
+            'object' => $remote->uri,
+        ];
+        $parts = $this->signedActivityParts('/users/'.$target->username.'/inbox', $activity, $remote->uri, $wrongKey);
+
+        $this->postSigned($parts)->assertStatus(401);
+        $this->assertDatabaseCount('inbox_items', 0);
+        Http::assertNothingSent();
+    }
+
+    public function test_a_known_actor_without_a_cached_key_cannot_use_the_idempotent_delete_no_op(): void
+    {
+        $target = $this->createFullAccount('deletenokey');
+        $remote = $this->createRemoteActor('nokeydelete');
+        $remote->key()->delete();
+        Http::fake([$remote->uri => Http::response([], 410)]);
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $remote->uri.'#delete',
+            'type' => 'Delete',
+            'actor' => $remote->uri,
+            'object' => $remote->uri,
+        ];
+        $parts = $this->signedActivityParts('/users/'.$target->username.'/inbox', $activity, $remote->uri, $this->remoteKeyPair);
+
+        $this->postSigned($parts)->assertStatus(401);
+        $this->assertDatabaseCount('inbox_items', 0);
+        Http::assertNothingSent();
+    }
+
+    public function test_a_forwarded_actor_delete_can_fetch_the_transport_signer_and_use_the_deleted_actors_cached_ld_key(): void
+    {
+        $target = $this->createFullAccount('deleteforwarded');
+        $deletedActorUri = 'https://commentatore.example/users/alice';
+        $deletedActorKey = (new RsaKeyPairGenerator)->generate(2048);
+        $deletedActor = Actor::query()->create([
+            'type' => Actor::TYPE_PERSON,
+            'is_local' => false,
+            'preferred_username' => 'alice',
+            'domain' => 'commentatore.example',
+            'uri' => $deletedActorUri,
+            'status' => Actor::STATUS_ACTIVE,
+            'last_fetched_at' => now()->subDays(2),
+        ]);
+        ActorKey::query()->create([
+            'actor_id' => $deletedActor->id,
+            'public_key' => $deletedActorKey->publicKey,
+            'private_key' => $deletedActorKey->privateKey,
+        ]);
+        $deletedActor->load('key');
+
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $deletedActorUri.'#delete',
+            'type' => 'Delete',
+            'actor' => $deletedActorUri,
+            'object' => ['id' => $deletedActorUri, 'type' => 'Tombstone'],
+        ];
+        $signedActivity = app(LinkedDataSignature::class)
+            ->sign($activity, $deletedActor);
+
+        Http::fake([
+            self::REMOTE_ACTOR_URI => Http::response([
+                'id' => self::REMOTE_ACTOR_URI,
+                'type' => 'Person',
+                'preferredUsername' => 'carol',
+                'inbox' => self::REMOTE_ACTOR_URI.'/inbox',
+                'outbox' => self::REMOTE_ACTOR_URI.'/outbox',
+                'followers' => self::REMOTE_ACTOR_URI.'/followers',
+                'following' => self::REMOTE_ACTOR_URI.'/following',
+                'publicKey' => [
+                    'id' => self::REMOTE_ACTOR_URI.'#main-key',
+                    'owner' => self::REMOTE_ACTOR_URI,
+                    'publicKeyPem' => $this->remoteKeyPair->publicKey,
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $deletedActorUri => Http::response([], 410),
+        ]);
+        $parts = $this->signedActivityParts(
+            '/users/'.$target->username.'/inbox',
+            $signedActivity,
+            self::REMOTE_ACTOR_URI,
+            $this->remoteKeyPair,
+        );
+
+        $this->postSigned($parts)->assertStatus(202);
+        $this->assertDatabaseHas('inbox_items', [
+            'remote_activity_uri' => $activity['id'],
+            'activity_type' => 'Delete',
+            'actor_uri' => $deletedActorUri,
+        ]);
+        Http::assertSent(fn ($request): bool => $request->url() === self::REMOTE_ACTOR_URI);
+        Http::assertNotSent(fn ($request): bool => $request->url() === $deletedActorUri);
+    }
+
     public function test_a_tampered_body_fails_the_digest_check(): void
     {
         $target = $this->createFullAccount('manomesso');
@@ -189,6 +420,24 @@ class InboxSignatureTest extends TestCase
         $this->assertDatabaseCount('inbox_items', 0);
     }
 
+    public function test_an_equivalent_actor_uri_variant_is_treated_as_the_http_signer(): void
+    {
+        $target = $this->createFullAccount('urivariante');
+        $parts = $this->buildSignedFollowActivity(
+            '/users/urivariante/inbox',
+            $target->actor->uri,
+            claimedActor: self::REMOTE_ACTOR_URI.'/',
+        );
+
+        $this->postSigned($parts)->assertStatus(202);
+        $activity = json_decode($parts['body'], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertDatabaseHas('inbox_items', [
+            'remote_activity_uri' => $activity['id'],
+            'actor_uri' => self::REMOTE_ACTOR_URI,
+            'signature_valid' => true,
+        ]);
+    }
+
     public function test_a_forwarded_create_with_ld_signature_is_accepted_without_origin_fetch(): void
     {
         $forwarderUri = self::REMOTE_ACTOR_URI;
@@ -196,17 +445,17 @@ class InboxSignatureTest extends TestCase
         $commenterKey = (new RsaKeyPairGenerator)->generate(2048);
 
         // Commentatore gia' in cache (come dopo un Follow o un Create precedente).
-        $commenter = \App\Federation\Actors\Actor::query()->create([
-            'type' => \App\Federation\Actors\Actor::TYPE_PERSON,
+        $commenter = Actor::query()->create([
+            'type' => Actor::TYPE_PERSON,
             'is_local' => false,
             'preferred_username' => 'alice',
             'domain' => 'commentatore.example',
             'uri' => $commenterUri,
             'name' => 'Alice',
-            'status' => \App\Federation\Actors\Actor::STATUS_ACTIVE,
+            'status' => Actor::STATUS_ACTIVE,
             'last_fetched_at' => now(),
         ]);
-        \App\Federation\Actors\ActorKey::query()->create([
+        ActorKey::query()->create([
             'actor_id' => $commenter->id,
             'public_key' => $commenterKey->publicKey,
             'private_key' => $commenterKey->privateKey,
@@ -228,7 +477,7 @@ class InboxSignatureTest extends TestCase
             ],
         ];
 
-        $signed = app(\App\Infrastructure\Security\LinkedData\LinkedDataSignature::class)
+        $signed = app(LinkedDataSignature::class)
             ->sign($activity, $commenter);
 
         Http::fake([
@@ -485,7 +734,7 @@ class InboxSignatureTest extends TestCase
         ]);
 
         // Come dopo un Follow: Actor gia' in cache con la PEM.
-        $this->assertNotNull(app(\App\Federation\Actors\RemoteActorResolver::class)->resolveByUri(self::REMOTE_ACTOR_URI));
+        $this->assertNotNull(app(RemoteActorResolver::class)->resolveByUri(self::REMOTE_ACTOR_URI));
 
         $target = $this->createFullAccount('tagskey');
         $path = '/users/tagskey/inbox';

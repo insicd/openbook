@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Security;
 
 use App\Federation\Actors\RemoteActorResolver;
+use App\Federation\Support\ActivityPubUri;
 use Illuminate\Http\Request;
 
 /**
@@ -25,7 +26,7 @@ final class HttpSignatureVerifier
         private readonly RemoteActorResolver $remoteActorResolver,
     ) {}
 
-    public function verify(Request $request): SignatureVerificationResult
+    public function verify(Request $request, ?string $cachedOnlyActorUri = null): SignatureVerificationResult
     {
         $signatureHeader = $request->header('Signature');
         $signatureInput = $request->header('Signature-Input');
@@ -34,13 +35,13 @@ final class HttpSignatureVerifier
         // tags.pub possono mandare Signature-Input non nel sottoinsieme che
         // supportiamo, oppure entrambi gli header nello stesso tentativo).
         if (filled($signatureInput) && filled($signatureHeader) && $this->isRfc9421SignatureHeader($signatureHeader)) {
-            $rfc9421 = $this->verifyRfc9421($request, $signatureInput, $signatureHeader);
+            $rfc9421 = $this->verifyRfc9421($request, $signatureInput, $signatureHeader, $cachedOnlyActorUri);
 
             if ($rfc9421->valid) {
                 return $rfc9421;
             }
 
-            $cavage = $this->verifyCavage($request, $signatureHeader);
+            $cavage = $this->verifyCavage($request, $signatureHeader, $cachedOnlyActorUri);
 
             if ($cavage->valid) {
                 return $cavage;
@@ -53,10 +54,10 @@ final class HttpSignatureVerifier
                 : $rfc9421;
         }
 
-        return $this->verifyCavage($request, $signatureHeader);
+        return $this->verifyCavage($request, $signatureHeader, $cachedOnlyActorUri);
     }
 
-    private function verifyCavage(Request $request, ?string $header): SignatureVerificationResult
+    private function verifyCavage(Request $request, ?string $header, ?string $cachedOnlyActorUri): SignatureVerificationResult
     {
         if (blank($header)) {
             return SignatureVerificationResult::failure('Intestazione Signature mancante.');
@@ -106,7 +107,7 @@ final class HttpSignatureVerifier
 
         $signingString = $this->buildCavageSigningStringFromRequest($request, $parsed['headers']);
 
-        return $this->verifyWithRemoteKey($keyId, $signingString, $signatureBinary);
+        return $this->verifyWithRemoteKey($keyId, $signingString, $signatureBinary, $cachedOnlyActorUri);
     }
 
     /**
@@ -114,8 +115,12 @@ final class HttpSignatureVerifier
      * alg {@code rsa-v1_5-sha256}, componenti {@code @method}/{@code @target-uri}
      * e header {@code content-digest} sulle POST.
      */
-    private function verifyRfc9421(Request $request, string $signatureInput, string $signatureHeader): SignatureVerificationResult
-    {
+    private function verifyRfc9421(
+        Request $request,
+        string $signatureInput,
+        string $signatureHeader,
+        ?string $cachedOnlyActorUri,
+    ): SignatureVerificationResult {
         $input = $this->parseBestRfc9421Input($signatureInput);
 
         if ($input === null) {
@@ -158,12 +163,16 @@ final class HttpSignatureVerifier
             return SignatureVerificationResult::failure('Componenti Signature-Input non ricostruibili.', $keyId);
         }
 
-        return $this->verifyWithRemoteKey($keyId, $signingString, $signatureBinary);
+        return $this->verifyWithRemoteKey($keyId, $signingString, $signatureBinary, $cachedOnlyActorUri);
     }
 
-    private function verifyWithRemoteKey(string $keyId, string $signingString, string $signatureBinary): SignatureVerificationResult
-    {
-        $actor = $this->remoteActorResolver->resolveByKeyId($keyId);
+    private function verifyWithRemoteKey(
+        string $keyId,
+        string $signingString,
+        string $signatureBinary,
+        ?string $cachedOnlyActorUri,
+    ): SignatureVerificationResult {
+        $actor = $this->remoteActorResolver->resolveByKeyId($keyId, $cachedOnlyActorUri);
 
         if ($actor === null || $actor->key === null || blank($actor->key->public_key)) {
             return SignatureVerificationResult::failure("Impossibile recuperare la chiave pubblica dell'attore firmatario.", $keyId);
@@ -171,6 +180,11 @@ final class HttpSignatureVerifier
 
         if ($this->verifyRsaSha256($signingString, $signatureBinary, $actor->key->public_key)) {
             return SignatureVerificationResult::success($actor, $keyId);
+        }
+
+        if ($cachedOnlyActorUri !== null
+            && ActivityPubUri::same($actor->uri, $cachedOnlyActorUri)) {
+            return SignatureVerificationResult::failure('Firma crittografica non valida.', $keyId);
         }
 
         // La chiave potrebbe essere stata ruotata sul server remoto: un solo

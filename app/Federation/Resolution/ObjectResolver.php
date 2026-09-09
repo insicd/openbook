@@ -6,6 +6,7 @@ use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
+use App\Federation\Support\ActivityPubUri;
 
 /**
  * Risolve un identificatore ActivityPub (Actor, Post o Comment) alla riga
@@ -90,7 +91,7 @@ final class ObjectResolver
             }
         }
 
-        $normalized = rtrim($uri, '/');
+        $normalized = ActivityPubUri::normalize($uri);
 
         return Post::query()
             ->where(function ($query) use ($uri, $normalized) {
@@ -153,7 +154,15 @@ final class ObjectResolver
             return Comment::query()->find($localId);
         }
 
-        return Comment::query()->where('uri', $uri)->first();
+        $normalized = ActivityPubUri::normalize($uri);
+
+        return Comment::query()
+            ->where(function ($query) use ($uri, $normalized): void {
+                $query->where('uri', $uri)
+                    ->orWhere('uri', $normalized)
+                    ->orWhere('uri', $normalized.'/');
+            })
+            ->first();
     }
 
     /**

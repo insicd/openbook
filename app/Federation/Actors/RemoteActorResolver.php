@@ -5,6 +5,7 @@ namespace App\Federation\Actors;
 use App\Application\Services\DomainBlockManager;
 use App\Federation\Fetch\FederationFetchSigner;
 use App\Federation\Support\ActivityPubTimestamp;
+use App\Federation\Support\ActivityPubUri;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use Illuminate\Support\Carbon;
@@ -37,20 +38,22 @@ final class RemoteActorResolver
      *   (frammento → URI Actor)
      * - tags.pub / activitypub-bot: {@code https://host/user/alice/publickey}
      *   (documento {@code CryptographicKey} con {@code owner} + {@code publicKeyPem})
-     *
-     * @param  string  $keyId
      */
-    public function resolveByKeyId(string $keyId): ?Actor
+    public function resolveByKeyId(string $keyId, ?string $cachedOnlyActorUri = null): ?Actor
     {
         if ($this->domainBlocks->isBlockedUrl($keyId)) {
             return null;
         }
 
-        $withoutFragment = explode('#', $keyId, 2)[0];
+        if ($cachedOnlyActorUri !== null && $this->keyIdBelongsToActor($keyId, $cachedOnlyActorUri)) {
+            return $this->resolveCachedActorForKeyId($keyId);
+        }
+
+        $fragmentOwnerUri = $this->fragmentOwnerUri($keyId);
 
         // keyId con frammento: e' l'URI Actor (caso Mastodon).
-        if ($withoutFragment !== $keyId) {
-            return $this->resolveByUri($withoutFragment);
+        if ($fragmentOwnerUri !== null) {
+            return $this->resolveByUriForKey($fragmentOwnerUri);
         }
 
         // Dopo un Follow abbiamo gia' Actor + PEM dal documento Person.
@@ -78,10 +81,77 @@ final class RemoteActorResolver
         $ownerUri = $this->guessOwnerUriFromKeyId($keyId);
 
         if ($ownerUri !== null) {
-            return $this->resolveByUri($ownerUri);
+            return $this->resolveByUriForKey($ownerUri);
         }
 
-        return $this->resolveByUri($keyId);
+        return $this->resolveByUriForKey($keyId);
+    }
+
+    /**
+     * La navigazione puo' usare un Actor cached senza chiave; l'autenticazione
+     * no. Se resolveByUri restituisce una cache incompleta, forza un singolo
+     * recupero senza attendere la scadenza del TTL.
+     */
+    private function resolveByUriForKey(string $actorUri): ?Actor
+    {
+        $actor = $this->resolveByUri($actorUri);
+
+        if ($actor === null) {
+            return null;
+        }
+
+        $actor->loadMissing('key');
+
+        if ($actor->key !== null && filled($actor->key->public_key)) {
+            return $actor;
+        }
+
+        return $this->refresh($actor) ?? $actor;
+    }
+
+    private function keyIdBelongsToActor(string $keyId, string $actorUri): bool
+    {
+        $ownerUri = $this->fragmentOwnerUri($keyId) ?? $this->guessOwnerUriFromKeyId($keyId);
+
+        return $ownerUri !== null
+            && ActivityPubUri::same($ownerUri, $actorUri);
+    }
+
+    /**
+     * Risolve una chiave gia' nota senza contattare il server remoto. Usato
+     * dalle Delete Actor, che possono arrivare quando l'URI e' gia' 404/410.
+     */
+    public function resolveCachedActorForKeyId(string $keyId): ?Actor
+    {
+        if ($this->domainBlocks->isBlockedUrl($keyId)) {
+            return null;
+        }
+
+        $ownerUri = $this->fragmentOwnerUri($keyId)
+            ?? $this->guessOwnerUriFromKeyId($keyId)
+            ?? $keyId;
+
+        $actor = Actor::query()
+            ->where('uri', $ownerUri)
+            ->with(['key', 'endpoints'])
+            ->first();
+
+        if ($actor === null || $actor->key === null || blank($actor->key->public_key)) {
+            return null;
+        }
+
+        return $actor;
+    }
+
+    /**
+     * Nei keyId Mastodon il frammento identifica la chiave e la parte che lo
+     * precede e' l'URI dell'Actor proprietario.
+     */
+    private function fragmentOwnerUri(string $keyId): ?string
+    {
+        $withoutFragment = ActivityPubUri::withoutFragment($keyId);
+
+        return $withoutFragment === $keyId ? null : $withoutFragment;
     }
 
     /**
