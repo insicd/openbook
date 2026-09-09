@@ -6,6 +6,7 @@ use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
@@ -78,6 +79,25 @@ class RemoteActorResolverTest extends TestCase
         $this->assertSame('2018-04-01 12:00:00', $actor->published_at?->utc()->format('Y-m-d H:i:s'));
         $this->assertSame(1234, $actor->followers_count);
         $this->assertSame(56, $actor->following_count);
+    }
+
+    #[DataProvider('actorDatesOutsideMysqlTimestampRange')]
+    public function test_it_ignores_actor_dates_outside_the_mysql_timestamp_range(string $published): void
+    {
+        Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument([
+            'published' => $published,
+        ]), 200, ['Content-Type' => 'application/activity+json'])]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByUri(self::ACTOR_URI);
+
+        $this->assertNotNull($actor);
+        $this->assertNull($actor->published_at);
+    }
+
+    public static function actorDatesOutsideMysqlTimestampRange(): iterable
+    {
+        yield 'before 1970' => ['1916-08-14T00:00:00Z'];
+        yield 'after 2038' => ['2040-01-01T00:00:00Z'];
     }
 
     public function test_it_stores_json_ld_and_created_at_join_dates(): void
