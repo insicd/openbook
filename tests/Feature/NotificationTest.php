@@ -60,12 +60,10 @@ class NotificationTest extends TestCase
         $response->assertSee('data-header-panel="search"', false);
         $response->assertSee('id="ob-header-search-form"', false);
         $response->assertSee('id="ob-notifications-panel"', false);
+        $response->assertSee('class="ob-icon-btn ob-mobile-notifications"', false);
+        $response->assertSee('data-notifications-mobile-nav', false);
+        $response->assertSee('href="'.route('notifications.index').'"', false);
         $response->assertSee('assets/js/header-panels.js', false);
-        // La campanella della navbar non e' piu' un link diretto alla pagina.
-        $response->assertDontSee(
-            'href="'.route('notifications.index').'" class="ob-icon-btn"',
-            false
-        );
         $response->assertDontSee(
             'href="'.route('search.create').'" class="ob-icon-btn"',
             false

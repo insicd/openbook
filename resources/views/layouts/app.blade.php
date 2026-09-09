@@ -49,6 +49,14 @@
                 </div>
 
                 <div class="ob-header__end">
+                    <a href="{{ route('notifications.index') }}" class="ob-icon-btn ob-mobile-notifications"
+                        aria-label="{{ __('openbook.nav.notifications') }}" data-notifications-mobile-nav>
+                        <x-icon name="bell" />
+                        @if (($unreadNotificationsCount ?? 0) > 0)
+                            <span class="ob-badge-dot" data-notifications-badge>{{ $unreadNotificationsCount > 9 ? '9+' : $unreadNotificationsCount }}</span>
+                        @endif
+                    </a>
+
                     <button type="button" class="ob-icon-btn ob-nav-toggle" id="ob-nav-toggle"
                         aria-label="Altre opzioni" aria-controls="ob-nav-icons" aria-expanded="false">
                         <x-icon name="more" />

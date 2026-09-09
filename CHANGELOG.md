@@ -41,6 +41,9 @@ il [`README`](README.md#roadmap-and-project-status).
   tombstone liberando URI e handle, senza recuperare da remoto chiavi ormai non
   disponibili. Normalizzazione centralizzata degli URI e log sintetici rendono
   piu' affidabili autenticazione e diagnosi delle attivita' inoltrate.
+- Interfaccia profilo e mobile: il tab media indica esplicitamente "Foto e
+  video"; sugli schermi piccoli la campanella con il numero delle notifiche
+  non lette resta visibile accanto al menu e porta alla pagina notifiche.
 
 ## [26.36] - Grumpy Waffle
 
