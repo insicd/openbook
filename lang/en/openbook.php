@@ -87,7 +87,7 @@ return [
         'tabs_aria' => 'Profile sections',
         'tab_posts' => 'Posts',
         'tab_activity' => 'Activity',
-        'tab_photos' => 'Photos',
+        'tab_photos' => 'Photos and videos',
         'no_photos_yet' => 'No photos to show yet.',
         'no_activity_yet' => 'There are no comments or shares to show yet.',
         'activity_remote_notice' => 'This timeline only includes comments and shares known to this instance, not the origin server\'s full outbox. Likes are not listed here.',

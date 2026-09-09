@@ -87,7 +87,7 @@ return [
         'tabs_aria' => 'Sezioni del profilo',
         'tab_posts' => 'Post',
         'tab_activity' => 'Attività',
-        'tab_photos' => 'Foto',
+        'tab_photos' => 'Foto e video',
         'no_photos_yet' => 'Non ci sono ancora foto da mostrare.',
         'no_activity_yet' => 'Non ci sono ancora commenti o condivisioni da mostrare.',
         'activity_remote_notice' => 'Questa cronologia include solo commenti e condivisioni visibili a questa istanza, non l\'outbox completo del server di origine. I mi piace non compaiono qui.',
