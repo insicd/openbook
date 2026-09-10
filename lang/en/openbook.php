@@ -142,6 +142,7 @@ return [
         'images_label' => 'Attachments',
         'images_help' => 'Up to :count files (JPEG, PNG, WebP, GIF, MP3, OGG, WAV, M4A, FLAC, AAC).',
         'media_help_video' => 'Up to :count supported image, audio and video files. Videos may be processed before publication.',
+        'file_too_large' => 'The file ":file" is :size. Maximum allowed: :limit.',
         'attachment' => 'attachment',
         'alt_label' => 'Alt text for the first image',
         'alt_help' => 'Describe the image content for people using a screen reader.',

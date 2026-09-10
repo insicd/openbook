@@ -44,6 +44,9 @@ il [`README`](README.md#roadmap-and-project-status).
 - Interfaccia profilo e mobile: il tab media indica esplicitamente "Foto e
   video"; sugli schermi piccoli la campanella con il numero delle notifiche
   non lette resta visibile accanto al menu e porta alla pagina notifiche.
+- Composer: la dimensione degli allegati viene controllata nel browser prima
+  dell'upload, usando i limiti media e video configurati dall'istanza; i file
+  troppo grandi vengono segnalati immediatamente senza attendere il server.
 
 ## [26.36] - Grumpy Waffle
 
