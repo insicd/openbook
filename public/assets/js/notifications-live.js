@@ -45,6 +45,7 @@
         var dots = document.querySelectorAll('[data-notifications-badge]');
         var headerToggle = document.getElementById('ob-notifications-toggle');
         var sideNav = document.querySelector('[data-notifications-nav]');
+        var mobileNav = document.querySelector('[data-notifications-mobile-nav]');
 
         if (count <= 0) {
             dots.forEach(function (el) {
@@ -68,6 +69,13 @@
             sideBadge.className = 'ob-badge-count';
             sideBadge.setAttribute('data-notifications-badge', '');
             sideNav.appendChild(sideBadge);
+        }
+
+        if (mobileNav && !mobileNav.querySelector('[data-notifications-badge]')) {
+            var mobileBadge = document.createElement('span');
+            mobileBadge.className = 'ob-badge-dot';
+            mobileBadge.setAttribute('data-notifications-badge', '');
+            mobileNav.appendChild(mobileBadge);
         }
 
         document.querySelectorAll('[data-notifications-badge]').forEach(function (el) {

@@ -395,7 +395,8 @@ html.ob-compose-modal-open {
 }
 
 .ob-sidebar-toggle,
-.ob-nav-toggle {
+.ob-nav-toggle,
+.ob-mobile-notifications {
   display: none;
 }
 
@@ -2823,6 +2824,11 @@ a.ob-post__menu-item {
     display: inline-flex;
   }
 
+  .ob-mobile-notifications {
+    display: inline-flex;
+    margin-right: 0.4rem;
+  }
+
   .ob-nav--icons {
     display: none;
     position: absolute;
@@ -2872,6 +2878,10 @@ a.ob-post__menu-item {
     position: static;
     margin-left: auto;
     border: none;
+  }
+
+  .ob-nav--icons > [data-header-panel="notifications"] {
+    display: none;
   }
 
   .ob-header-search,
