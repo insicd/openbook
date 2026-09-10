@@ -156,6 +156,17 @@ return [
         'submit' => 'Post',
         'save' => 'Save',
         'existing_media_help' => 'There are already :count attachments. You can add :remaining more (existing files stay).',
+        'location_toggle' => 'Add location',
+        'location_label' => 'Location',
+        'location_placeholder' => 'Search for a city or region...',
+        'location_current' => 'Current location',
+        'location_remove' => 'Remove location',
+        'location_help' => 'Your precise position is only used to find the nearest city and is not stored.',
+        'location_attribution' => 'Geographical data provided by',
+        'location_empty' => 'No matching location.',
+        'location_error' => 'The location search could not be completed.',
+        'location_geolocation_error' => 'Your current location could not be detected.',
+        'location_selection_required' => 'Choose a location from the list.',
     ],
 
     'emoji' => [

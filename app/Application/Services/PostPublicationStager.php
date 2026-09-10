@@ -120,6 +120,7 @@ final class PostPublicationStager
             'quoted_post_id',
             'community_id',
             'addressed_group_actor_id',
+            'location_id',
         ]));
     }
 

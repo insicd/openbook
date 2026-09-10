@@ -165,6 +165,71 @@ final class RemotePostObject
     }
 
     /**
+     * Location ActivityStreams di un post remoto. Il nome e' obbligatorio;
+     * coordinate e campi non standard sono accettati solo se scalari e validi.
+     *
+     * @param  array<string, mixed>  $document
+     * @return array{name: string, admin1_name: ?string, country_code: ?string, country_name: ?string, latitude: ?float, longitude: ?float}|null
+     */
+    public static function location(array $document): ?array
+    {
+        $place = $document['location'] ?? null;
+
+        if (! is_array($place) || ! self::hasType($place['type'] ?? null, 'Place')) {
+            return null;
+        }
+
+        $name = self::shortScalarString($place['name'] ?? null, 200);
+
+        if ($name === null) {
+            return null;
+        }
+
+        $latitude = self::coordinate($place['latitude'] ?? null, -90, 90);
+        $longitude = self::coordinate($place['longitude'] ?? null, -180, 180);
+
+        if ($latitude === null || $longitude === null) {
+            $latitude = null;
+            $longitude = null;
+        }
+
+        $countryCode = self::shortScalarString($place['countryCode'] ?? null, 2);
+
+        return [
+            'name' => $name,
+            'admin1_name' => self::shortScalarString($place['region'] ?? null, 200),
+            'country_code' => $countryCode !== null ? strtoupper($countryCode) : null,
+            'country_name' => self::shortScalarString($place['country'] ?? null, 200),
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+        ];
+    }
+
+    private static function shortScalarString(mixed $value, int $maxLength): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value !== '' ? mb_substr($value, 0, $maxLength) : null;
+    }
+
+    private static function coordinate(mixed $value, float $minimum, float $maximum): ?float
+    {
+        if (! is_int($value) && ! is_float($value) && ! (is_string($value) && is_numeric($value))) {
+            return null;
+        }
+
+        $coordinate = (float) $value;
+
+        return is_finite($coordinate) && $coordinate >= $minimum && $coordinate <= $maximum
+            ? $coordinate
+            : null;
+    }
+
+    /**
      * True se la Note ha testo in content, contentMap o source.
      *
      * @param  array<string, mixed>  $document

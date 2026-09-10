@@ -103,6 +103,8 @@
                             data-edit-title="{{ $post->title }}"
                             data-edit-cw="{{ $post->content_warning }}"
                             data-edit-visibility="{{ $post->visibility }}"
+                            data-edit-location-id="{{ $post->location?->geo_city_id }}"
+                            data-edit-location-label="{{ $post->location?->label() }}"
                             @if ($existingMedia > 0)
                                 data-edit-media-help="{{ __('openbook.composer.existing_media_help', ['count' => $existingMedia, 'remaining' => max(0, $maxAttachments - $existingMedia)]) }}"
                             @endif
@@ -285,6 +287,12 @@
                         ])
                     </div>
                 @endauth
+                @if ($post->location)
+                    <p class="ob-post__location">
+                        <x-icon name="map-pin" />
+                        <span>{{ $post->location->label() }}</span>
+                    </p>
+                @endif
             </div>
         @endunless
     @endif

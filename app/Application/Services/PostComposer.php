@@ -3,6 +3,8 @@
 namespace App\Application\Services;
 
 use App\Domain\Communities\Community;
+use App\Domain\Locations\GeoCity;
+use App\Domain\Locations\PostLocation;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\ContentParser;
 use App\Domain\Posts\Hashtag;
@@ -116,6 +118,7 @@ final class PostComposer
 
             $this->attachHashtags($post);
             $this->attachMentions($post, $author);
+            $this->syncLocation($post, $data['location_id'] ?? null);
 
             if ($addressedGroup !== null) {
                 $this->ensureMention($post, $addressedGroup);
@@ -214,6 +217,7 @@ final class PostComposer
 
             $this->attachHashtags($post);
             $this->syncMentions($post, $author);
+            $this->syncLocation($post, $data['location_id'] ?? null);
 
             return $post->fresh() ?? $post;
         });
@@ -230,6 +234,31 @@ final class PostComposer
         }
 
         return $post;
+    }
+
+    private function syncLocation(Post $post, mixed $cityId): void
+    {
+        if ($cityId === null || $cityId === '') {
+            $post->location()->delete();
+
+            return;
+        }
+
+        $city = GeoCity::query()->findOrFail((int) $cityId);
+
+        PostLocation::query()->updateOrCreate(
+            ['post_id' => $post->id],
+            [
+                'geo_city_id' => $city->geoname_id,
+                'name' => $city->name,
+                'admin1_name' => $city->admin1_name,
+                'country_code' => $city->country_code,
+                'country_name' => $city->country_name,
+                'latitude' => $city->latitude,
+                'longitude' => $city->longitude,
+                'source' => 'local',
+            ],
+        );
     }
 
     /**

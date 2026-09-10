@@ -76,6 +76,9 @@ Il percorso piu' semplice non richiede Composer ne' SSH: usa il bootstrap
 4. Al termine vieni reindirizzato a `/install` per database, nome istanza e
    account amministratore (installer Laravel gia' esistente).
 5. Configura il cron (vedi [Cron e attivita periodiche](#cron-e-attivita-periodiche)).
+6. Facoltativamente importa il catalogo delle citta' GeoNames per abilitare le
+   posizioni nei post (vedi [Posizioni nei post](#posizioni-nei-post)). Questo
+   passaggio richiede accesso CLI e non serve alle altre funzioni di Openbook.
 
 > Le release e il manifesto `releases/latest.json` devono essere pubblicati su
 > about.openb.app (vedi `bin/build-release.sh` e `distribution/manifest.example.json`).
@@ -136,6 +139,15 @@ Il percorso piu' semplice non richiede Composer ne' SSH: usa il bootstrap
    volta bloccato, ogni richiesta a `/install/*` viene reindirizzata alla home.
 
 5. Configura il cron (vedi [Cron e attivita periodiche](#cron-e-attivita-periodiche)).
+6. Facoltativamente abilita le posizioni nei post importando il catalogo delle
+   citta' GeoNames:
+
+   ```bash
+   php artisan openbook:update-cities
+   ```
+
+   Vedi [Posizioni nei post](#posizioni-nei-post) per l'importazione offline e
+   i dettagli sulla privacy.
 
 ## Installazione manuale / CLI
 
@@ -152,6 +164,9 @@ php artisan migrate --force
 
 # Crea il primo amministratore (chiede i dati interattivamente se omessi):
 php artisan openbook:make-admin --username=admin --email=admin@example.org
+
+# Facoltativo: importa il catalogo GeoNames per abilitare le posizioni nei post:
+php artisan openbook:update-cities
 
 # (Opzionale) promuovi un account esistente a moderatore di istanza:
 # php artisan openbook:make-moderator --promote=nome-utente
@@ -347,6 +362,39 @@ Tutte le impostazioni specifiche di Openbook sono centralizzate in
 Il caricamento di immagini richiede l'estensione PHP `gd` (verificata dall'installer come
 requisito **consigliato**, non bloccante): senza `gd` l'istanza funziona regolarmente,
 ma sara' possibile pubblicare solo post testuali.
+
+### Posizione dei post
+
+La posizione dei post è facoltativa e usa un catalogo locale
+[GeoNames](https://www.geonames.org/). Dopo l'installazione o un aggiornamento,
+l'amministratore può scaricare il dataset predefinito `cities500` con:
+
+```bash
+php artisan openbook:update-cities
+```
+
+Il download predefinito importa anche i dizionari ufficiali di paesi e regioni
+amministrative di primo livello, usati per produrre label leggibili. Per
+importare l'archivio ZIP serve l'estensione PHP `zip`. Nelle installazioni
+offline è possibile indicare un archivio GeoNames o il TSV già estratto:
+
+```bash
+php artisan openbook:update-cities /percorso/cities500.zip
+php artisan openbook:update-cities /percorso/cities500.txt
+```
+
+La modalità da file non effettua richieste di rete. Se nella stessa directory
+sono presenti `admin1CodesASCII.txt` e `countryInfo.txt`, vengono usati per
+completare le label. Senza un catalogo importato Openbook continua a funzionare,
+ma gli utenti locali non possono scegliere la posizione di un post.
+
+La posizione viene aggiunta sempre in modo esplicito. Le coordinate richieste
+dal browser tramite il pulsante “Posizione attuale” vengono usate solo in modo
+transitorio per trovare la città più vicina: non sono salvate, registrate nei
+log, mostrate o federate. Openbook conserva e pubblica esclusivamente la città
+GeoNames selezionata e le coordinate del suo centro. I dati geografici sono
+forniti da GeoNames con licenza
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## Architettura
 

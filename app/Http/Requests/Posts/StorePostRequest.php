@@ -49,6 +49,8 @@ class StorePostRequest extends FormRequest
             'quoted_post_id' => ['nullable', 'uuid', 'exists:posts,id'],
             'community_id' => ['nullable', 'uuid', 'exists:communities,id'],
             'addressed_group_actor_id' => ['nullable', 'uuid', 'exists:actors,id'],
+            'location_id' => ['nullable', 'required_with:location_label', 'integer', 'exists:geo_cities,geoname_id'],
+            'location_label' => ['nullable', 'string', 'max:600'],
         ];
     }
 
@@ -108,6 +110,7 @@ class StorePostRequest extends FormRequest
             'images' => 'allegati',
             'images.*' => 'allegato',
             'quoted_post_id' => 'post citato',
+            'location_id' => 'posizione',
         ];
     }
 }

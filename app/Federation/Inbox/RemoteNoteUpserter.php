@@ -5,6 +5,7 @@ namespace App\Federation\Inbox;
 use App\Application\Services\DirectMessageLinker;
 use App\Application\Services\NotificationCreator;
 use App\Domain\Comments\Comment;
+use App\Domain\Locations\PostLocation;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Mention;
@@ -112,6 +113,7 @@ final class RemoteNoteUpserter
         }
 
         $post->save();
+        $this->syncLocation($post, $note);
 
         RemoteReactionCountSync::applyFromNote($post, $note);
 
@@ -130,6 +132,26 @@ final class RemoteNoteUpserter
         $this->attachments->sync($post, $actor, $note);
 
         return $post;
+    }
+
+    /** @param array<string, mixed> $note */
+    private function syncLocation(Post $post, array $note): void
+    {
+        $location = RemotePostObject::location($note);
+
+        if ($location === null) {
+            $post->location()->delete();
+
+            return;
+        }
+
+        PostLocation::query()->updateOrCreate(
+            ['post_id' => $post->id],
+            array_merge($location, [
+                'geo_city_id' => null,
+                'source' => 'remote',
+            ]),
+        );
     }
 
     /**

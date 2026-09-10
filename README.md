@@ -77,6 +77,9 @@ The simplest path needs neither Composer nor SSH: it uses the
 4. When it finishes you are redirected to `/install` for the database, instance
    name, and administrator account (the existing Laravel installer).
 5. Configure cron (see [Cron and periodic tasks](#cron-and-periodic-tasks)).
+6. Optionally import the GeoNames city catalog to enable post locations (see
+   [Post locations](#post-locations)). This step requires CLI access and is not
+   needed for the rest of Openbook.
 
 > Releases and the `releases/latest.json` manifest must be published on
 > about.openb.app (see `bin/build-release.sh` and `distribution/manifest.example.json`).
@@ -137,6 +140,13 @@ The simplest path needs neither Composer nor SSH: it uses the
    once locked, every request to `/install/*` is redirected to the home page.
 
 5. Configure cron (see [Cron and periodic tasks](#cron-and-periodic-tasks)).
+6. Optionally enable post locations by importing the GeoNames city catalog:
+
+   ```bash
+   php artisan openbook:update-cities
+   ```
+
+   See [Post locations](#post-locations) for offline import and privacy details.
 
 ## Manual installation / CLI
 
@@ -153,6 +163,9 @@ php artisan migrate --force
 
 # Crea il primo amministratore (chiede i dati interattivamente se omessi):
 php artisan openbook:make-admin --username=admin --email=admin@example.org
+
+# Optional: import the GeoNames catalog to enable post locations:
+php artisan openbook:update-cities
 
 # (Opzionale) promuovi un account esistente a moderatore di istanza:
 # php artisan openbook:make-moderator --promote=nome-utente
@@ -348,6 +361,38 @@ All Openbook-specific settings are centralized in
 Image uploads require the PHP `gd` extension (checked by the installer as a
 **recommended**, non-blocking requirement): without `gd` the instance works
 normally, but only text posts can be published.
+
+### Post locations
+
+Post locations are optional and use a local [GeoNames](https://www.geonames.org/)
+catalog. After installing or updating Openbook, an administrator can download
+the default `cities500` dataset with:
+
+```bash
+php artisan openbook:update-cities
+```
+
+The default download also imports the official country and first-level
+administrative-area dictionaries used for readable labels. Importing the ZIP
+requires the PHP `zip` extension. For offline installations, pass an already
+downloaded GeoNames ZIP or extracted TSV instead:
+
+```bash
+php artisan openbook:update-cities /path/to/cities500.zip
+php artisan openbook:update-cities /path/to/cities500.txt
+```
+
+The file mode performs no network requests. If `admin1CodesASCII.txt` and
+`countryInfo.txt` are in the same directory, they are used to complete labels.
+Without an imported catalog, Openbook continues to work but local users cannot
+select a post location.
+
+Location is always added explicitly. Browser coordinates requested by the
+“Current location” button are used transiently to find the nearest catalog
+city and are never stored, logged, displayed, or federated. Only the selected
+GeoNames city and its city-centre coordinates are saved and published.
+Geographical data is provided by GeoNames under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## Architecture
 

@@ -27,7 +27,7 @@ final class NoteSerializer
      */
     public static function forPost(Post $post): array
     {
-        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor', 'quotedPost', 'quotedActor', 'community.actor']);
+        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor', 'quotedPost', 'quotedActor', 'community.actor', 'location']);
 
         $actor = $post->actor;
         $uri = self::postUri($post);
@@ -98,6 +98,24 @@ final class NoteSerializer
 
         if ($attachments !== []) {
             $note['attachment'] = $attachments;
+        }
+
+        if ($post->location !== null) {
+            $location = [
+                'type' => 'Place',
+                'name' => $post->location->label(),
+            ];
+
+            if ($post->location->latitude !== null && $post->location->longitude !== null) {
+                $location['latitude'] = $post->location->latitude;
+                $location['longitude'] = $post->location->longitude;
+            }
+
+            if (filled($post->location->country_name) || filled($post->location->country_code)) {
+                $location['country'] = $post->location->country_name ?? $post->location->country_code;
+            }
+
+            $note['location'] = $location;
         }
 
         $tags = self::hashtagTagsFor($post)->concat(self::mentionTagsFor($post->mentions))->values()->all();
