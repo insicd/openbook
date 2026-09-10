@@ -25,6 +25,8 @@ class VideoUploadFlowTest extends TestCase
         $this->actingAs($user)->get(route('feed.index'))
             ->assertDontSee('application/mp4', false)
             ->assertDontSee('.mov', false)
+            ->assertSee('data-composer-ajax-upload="1"', false)
+            ->assertSee('data-composer-upload-progress', false)
             ->assertSee('data-max-media-bytes="16777216"', false)
             ->assertSee('data-max-video-bytes="0"', false);
 
@@ -57,6 +59,27 @@ class VideoUploadFlowTest extends TestCase
         $this->actingAs($user)->delete(route('posts.pending.destroy', $publication))->assertRedirect();
         $this->assertDatabaseCount('post_publication_queue', 0);
         $this->assertSame([], Storage::disk('local')->allFiles('post-publication'));
+    }
+
+    public function test_ajax_video_upload_returns_the_feed_redirect_as_json(): void
+    {
+        Storage::fake('local');
+        $user = $this->createFullAccount('videowebajax');
+        config([
+            'openbook.video.enabled' => true,
+            'openbook.video.ffprobe_path' => $this->fakeProbe(),
+        ]);
+
+        $this->actingAs($user)->postJson(route('posts.store'), [
+            'body' => 'Video dal browser via XHR.',
+            'visibility' => 'public',
+            'images' => [UploadedFile::fake()->createWithContent('clip.mp4', $this->mp4Bytes())],
+        ])->assertCreated()
+            ->assertExactJson(['redirect' => route('feed.index')])
+            ->assertSessionHas('status', __('openbook.posts.video_queued'));
+
+        $this->assertDatabaseCount('post_publication_queue', 1);
+        $this->assertDatabaseCount('posts', 0);
     }
 
     public function test_video_upload_is_rejected_when_disabled(): void

@@ -91,6 +91,10 @@
 >
     <form method="POST" action="{{ $action }}" enctype="multipart/form-data"
         data-composer-create-action="{{ route('posts.store') }}"
+        @if ($isPost && ! $isEditing)
+            data-composer-ajax-upload="1"
+            data-upload-failed="{{ __('openbook.composer.upload_failed') }}"
+        @endif
         @if ($isEditing) data-composer-editing="1" @endif>
         @csrf
         @if ($method !== 'POST')
@@ -289,6 +293,15 @@
             </div>
 
             <button type="submit" class="ob-btn ob-btn--primary ob-composer__submit">{{ $submitLabel }}</button>
+            @if ($isPost && ! $isEditing)
+                <div class="ob-composer__upload" data-composer-upload hidden aria-live="polite">
+                    <div class="ob-composer__upload-label">
+                        <span>{{ __('openbook.composer.uploading') }}</span>
+                        <span data-composer-upload-percent>0%</span>
+                    </div>
+                    <progress max="100" value="0" data-composer-upload-progress></progress>
+                </div>
+            @endif
         </div>
     </form>
 </div>

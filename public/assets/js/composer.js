@@ -105,6 +105,102 @@
         return field.checkValidity();
     }
 
+    function resetComposerUpload(form) {
+        var submit = form.querySelector('.ob-composer__submit');
+        var upload = form.querySelector('[data-composer-upload]');
+        var progress = form.querySelector('[data-composer-upload-progress]');
+        var percent = form.querySelector('[data-composer-upload-percent]');
+
+        delete form.dataset.uploading;
+        form.removeAttribute('aria-busy');
+        if (submit) {
+            submit.disabled = false;
+        }
+        if (upload) {
+            upload.hidden = true;
+        }
+        if (progress) {
+            progress.value = 0;
+        }
+        if (percent) {
+            percent.hidden = false;
+            percent.textContent = '0%';
+        }
+    }
+
+    function uploadComposer(form) {
+        var submit = form.querySelector('.ob-composer__submit');
+        var upload = form.querySelector('[data-composer-upload]');
+        var progress = form.querySelector('[data-composer-upload-progress]');
+        var percent = form.querySelector('[data-composer-upload-percent]');
+        var xhr = new XMLHttpRequest();
+
+        form.dataset.uploading = '1';
+        form.setAttribute('aria-busy', 'true');
+        if (submit) {
+            submit.disabled = true;
+        }
+        if (upload) {
+            upload.hidden = false;
+        }
+
+        xhr.open(form.method || 'POST', form.action);
+        xhr.responseType = 'json';
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.upload.addEventListener('progress', function (event) {
+            if (!event.lengthComputable || !progress) {
+                if (progress) {
+                    progress.removeAttribute('value');
+                }
+                if (percent) {
+                    percent.hidden = true;
+                }
+                return;
+            }
+
+            var value = Math.min(100, Math.round(event.loaded / event.total * 100));
+            progress.value = value;
+            if (percent) {
+                percent.hidden = false;
+                percent.textContent = value + '%';
+            }
+        });
+
+        function fail(message) {
+            resetComposerUpload(form);
+            window.alert(message || form.dataset.uploadFailed || 'Upload failed. Please try again.');
+        }
+
+        xhr.addEventListener('load', function () {
+            var response = xhr.response || {};
+            if (xhr.status >= 200 && xhr.status < 300 && response.redirect) {
+                window.location.assign(response.redirect);
+                return;
+            }
+
+            var errors = response.errors || {};
+            var firstError = Object.keys(errors).reduce(function (found, key) {
+                return found || (Array.isArray(errors[key]) ? errors[key][0] : errors[key]);
+            }, '');
+            fail(firstError || response.message);
+        });
+        xhr.addEventListener('error', function () {
+            fail();
+        });
+        xhr.addEventListener('abort', function () {
+            fail();
+        });
+        xhr.send(new FormData(form));
+    }
+
+    function hasSelectedFiles(form) {
+        return Array.prototype.some.call(form.querySelectorAll('input[type="file"]'), function (field) {
+            return field.files && field.files.length > 0;
+        });
+    }
+
     function bindComposer(composer) {
         if (composer.dataset.composerBound === '1') {
             return;
@@ -150,6 +246,11 @@
         var form = composer.querySelector('form');
         if (form) {
             form.addEventListener('submit', function (event) {
+                if (form.dataset.uploading === '1') {
+                    event.preventDefault();
+                    return;
+                }
+
                 var valid = true;
                 form.querySelectorAll('input[type="file"][data-max-media-bytes]').forEach(function (field) {
                     valid = validateFileSizes(field, false) && valid;
@@ -157,6 +258,16 @@
                 if (!valid) {
                     event.preventDefault();
                     form.reportValidity();
+                    return;
+                }
+
+                if (form.dataset.composerAjaxUpload === '1'
+                    && form.dataset.composerEditing !== '1'
+                    && hasSelectedFiles(form)
+                    && window.FormData
+                    && window.XMLHttpRequest) {
+                    event.preventDefault();
+                    uploadComposer(form);
                 }
             });
         }
@@ -187,6 +298,14 @@
     } else {
         init();
     }
+
+    // Safari puo' ripristinare dal back-forward cache il pulsante disabilitato.
+    window.addEventListener('pageshow', function (event) {
+        if (!event.persisted) {
+            return;
+        }
+        document.querySelectorAll('form[data-composer-ajax-upload]').forEach(resetComposerUpload);
+    });
 
     // Reply form reso visibile in seguito: ri-bind se necessario.
     document.addEventListener('click', function (event) {
