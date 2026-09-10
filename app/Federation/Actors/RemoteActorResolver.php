@@ -24,6 +24,10 @@ use Illuminate\Support\Facades\Log;
  */
 final class RemoteActorResolver
 {
+    private const MYSQL_TIMESTAMP_MIN_UNIX = 1;
+
+    private const MYSQL_TIMESTAMP_MAX_UNIX = 2_147_483_647;
+
     public function __construct(
         private readonly SafeHttpClient $httpClient,
         private readonly DomainBlockManager $domainBlocks,
@@ -773,10 +777,18 @@ final class RemoteActorResolver
         }
 
         try {
-            return ActivityPubTimestamp::parse($value);
+            $timestamp = ActivityPubTimestamp::parse($value);
         } catch (\Throwable) {
             return null;
         }
+
+        $unixTimestamp = $timestamp->getTimestamp();
+
+        if ($unixTimestamp < self::MYSQL_TIMESTAMP_MIN_UNIX || $unixTimestamp > self::MYSQL_TIMESTAMP_MAX_UNIX) {
+            return null;
+        }
+
+        return $timestamp;
     }
 
     /**

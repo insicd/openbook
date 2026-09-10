@@ -29,6 +29,9 @@ il [`README`](README.md#roadmap-and-project-status).
   home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
 
 ### Fixed
+- Actor remoti ([issue #62](https://github.com/insicd/openbook/issues/62)):
+  le date di pubblicazione fuori dal range supportato da MySQL `TIMESTAMP`
+  vengono ignorate, senza impedire il salvataggio del profilo.
 - Dettaglio post (`GET /posts/{post}`): `PostPublicationStager` non viene
   piu' risolto nel costruttore del controller. Serve solo allo staging dei
   video in pubblicazione; iniettarlo su ogni azione faceva fallire la
