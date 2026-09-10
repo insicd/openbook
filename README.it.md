@@ -365,9 +365,12 @@ ma sara' possibile pubblicare solo post testuali.
 
 ### Posizione dei post
 
-La posizione dei post è facoltativa e usa un catalogo locale
-[GeoNames](https://www.geonames.org/). Dopo l'installazione o un aggiornamento,
-l'amministratore può scaricare il dataset predefinito `cities500` con:
+La posizione dei post è una funzionalità facoltativa e usa un catalogo locale
+[GeoNames](https://www.geonames.org/). I relativi controlli restano nascosti
+finché un amministratore non completa correttamente l'importazione; tutte le
+altre funzioni di Openbook continuano a funzionare normalmente. Dopo
+l'installazione o un aggiornamento, scarica il dataset predefinito `cities500`
+con:
 
 ```bash
 php artisan openbook:update-cities

@@ -2,12 +2,15 @@
 
 namespace App\Infrastructure\Locations;
 
+use App\Infrastructure\Database\SystemSetting;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 class GeoNamesCityImporter
 {
+    public const READY_SETTING_KEY = 'locations_catalog_ready';
+
     /**
      * @return array{imported: int, deleted: int}
      */
@@ -67,6 +70,7 @@ class GeoNamesCityImporter
             }
 
             $deleted = DB::table('geo_cities')->where('catalog_batch', '!=', $batch)->delete();
+            SystemSetting::putBool(self::READY_SETTING_KEY, true);
 
             return ['imported' => $count, 'deleted' => $deleted];
         });

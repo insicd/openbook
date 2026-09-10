@@ -182,6 +182,7 @@ return [
     ],
 
     'locations' => [
+        'catalog_ready' => false,
         'cities_url' => 'https://download.geonames.org/export/dump/cities500.zip',
         'admin1_url' => 'https://download.geonames.org/export/dump/admin1CodesASCII.txt',
         'countries_url' => 'https://download.geonames.org/export/dump/countryInfo.txt',

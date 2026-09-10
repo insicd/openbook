@@ -364,9 +364,11 @@ normally, but only text posts can be published.
 
 ### Post locations
 
-Post locations are optional and use a local [GeoNames](https://www.geonames.org/)
-catalog. After installing or updating Openbook, an administrator can download
-the default `cities500` dataset with:
+Post locations are an optional feature and use a local
+[GeoNames](https://www.geonames.org/) catalog. The location controls remain
+hidden until an administrator successfully imports the catalog; all other
+Openbook features continue to work normally. After installing or updating
+Openbook, download the default `cities500` dataset with:
 
 ```bash
 php artisan openbook:update-cities

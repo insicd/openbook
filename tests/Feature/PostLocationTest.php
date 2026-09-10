@@ -14,6 +14,22 @@ class PostLocationTest extends TestCase
 {
     use CreatesAccounts, RefreshDatabase;
 
+    public function test_location_controls_are_hidden_until_the_catalog_is_ready(): void
+    {
+        $user = $this->createFullAccount('catalogtoggle');
+
+        $this->actingAs($user)
+            ->get(route('feed.index'))
+            ->assertOk()
+            ->assertDontSee('data-location-picker', false);
+
+        config()->set('openbook.locations.catalog_ready', true);
+
+        $this->get(route('feed.index'))
+            ->assertOk()
+            ->assertSee('data-location-picker', false);
+    }
+
     public function test_a_catalog_city_is_snapshotted_when_a_post_is_created(): void
     {
         $user = $this->createFullAccount('locatedpost');

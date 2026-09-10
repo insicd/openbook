@@ -76,6 +76,7 @@
     $cwFilled = $isPost && filled($cwValue);
     $visibilityFilled = $isPost && $visibilityValue !== 'public';
     $locationFilled = $isPost && filled($locationIdValue);
+    $locationsEnabled = $isPost && (bool) config('openbook.locations.catalog_ready', false);
     $communityFilled = $isPost && ! $isEditing && filled($selectedCommunityId);
 
     $inModal = (bool) ($inModal ?? false);
@@ -227,41 +228,43 @@
                     </div>
                 </div>
 
-                <div class="ob-composer__panel" id="{{ $prefix }}-panel-location" data-composer-panel @unless($locationOpen) hidden @endunless>
-                    <div class="ob-location-picker"
-                        data-location-picker
-                        data-suggest-url="{{ route('locations.suggest') }}"
-                        data-nearest-url="{{ route('locations.nearest') }}"
-                        data-empty="{{ __('openbook.composer.location_empty') }}"
-                        data-error="{{ __('openbook.composer.location_error') }}"
-                        data-geolocation-error="{{ __('openbook.composer.location_geolocation_error') }}"
-                        data-selection-required="{{ __('openbook.composer.location_selection_required') }}">
-                        <div class="ob-field">
-                            <label for="{{ $prefix }}-location-search">{{ __('openbook.composer.location_label') }}</label>
-                            <input type="search" id="{{ $prefix }}-location-search" name="location_label"
-                                maxlength="600" value="{{ $locationLabelValue }}" autocomplete="off"
-                                placeholder="{{ __('openbook.composer.location_placeholder') }}"
-                                data-location-search>
-                            <input type="hidden" name="location_id" value="{{ $locationIdValue }}"
-                                data-location-id data-composer-fill="location">
-                            <div class="ob-location-picker__suggestions" data-location-suggestions hidden></div>
-                            @error('location_id') <p class="ob-field__error">{{ $message }}</p> @enderror
+                @if ($locationsEnabled)
+                    <div class="ob-composer__panel" id="{{ $prefix }}-panel-location" data-composer-panel @unless($locationOpen) hidden @endunless>
+                        <div class="ob-location-picker"
+                            data-location-picker
+                            data-suggest-url="{{ route('locations.suggest') }}"
+                            data-nearest-url="{{ route('locations.nearest') }}"
+                            data-empty="{{ __('openbook.composer.location_empty') }}"
+                            data-error="{{ __('openbook.composer.location_error') }}"
+                            data-geolocation-error="{{ __('openbook.composer.location_geolocation_error') }}"
+                            data-selection-required="{{ __('openbook.composer.location_selection_required') }}">
+                            <div class="ob-field">
+                                <label for="{{ $prefix }}-location-search">{{ __('openbook.composer.location_label') }}</label>
+                                <input type="search" id="{{ $prefix }}-location-search" name="location_label"
+                                    maxlength="600" value="{{ $locationLabelValue }}" autocomplete="off"
+                                    placeholder="{{ __('openbook.composer.location_placeholder') }}"
+                                    data-location-search>
+                                <input type="hidden" name="location_id" value="{{ $locationIdValue }}"
+                                    data-location-id data-composer-fill="location">
+                                <div class="ob-location-picker__suggestions" data-location-suggestions hidden></div>
+                                @error('location_id') <p class="ob-field__error">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="ob-location-picker__actions">
+                                <button type="button" class="ob-btn ob-btn--secondary" data-location-current>
+                                    {{ __('openbook.composer.location_current') }}
+                                </button>
+                                <button type="button" class="ob-btn ob-btn--secondary" data-location-remove @unless($locationFilled) hidden @endunless>
+                                    {{ __('openbook.composer.location_remove') }}
+                                </button>
+                            </div>
+                            <p class="ob-field__help" data-location-status>{{ __('openbook.composer.location_help') }}</p>
+                            <p class="ob-field__help">
+                                {{ __('openbook.composer.location_attribution') }}
+                                <a href="https://www.geonames.org/" target="_blank" rel="noopener noreferrer">GeoNames</a> (CC BY 4.0).
+                            </p>
                         </div>
-                        <div class="ob-location-picker__actions">
-                            <button type="button" class="ob-btn ob-btn--secondary" data-location-current>
-                                {{ __('openbook.composer.location_current') }}
-                            </button>
-                            <button type="button" class="ob-btn ob-btn--secondary" data-location-remove @unless($locationFilled) hidden @endunless>
-                                {{ __('openbook.composer.location_remove') }}
-                            </button>
-                        </div>
-                        <p class="ob-field__help" data-location-status>{{ __('openbook.composer.location_help') }}</p>
-                        <p class="ob-field__help">
-                            {{ __('openbook.composer.location_attribution') }}
-                            <a href="https://www.geonames.org/" target="_blank" rel="noopener noreferrer">GeoNames</a> (CC BY 4.0).
-                        </p>
                     </div>
-                </div>
+                @endif
 
                 @if (! $isEditing && $composerCommunities->isNotEmpty())
                     <div class="ob-composer__panel" id="{{ $prefix }}-panel-community" data-composer-panel @unless($communityOpen) hidden @endunless>
@@ -318,13 +321,15 @@
                         title="{{ __('openbook.composer.visibility_label') }}">
                         <x-icon name="globe" />
                     </button>
-                    <button type="button" class="ob-icon-btn ob-composer__toggle {{ $locationOpen ? 'is-active' : '' }} {{ $locationFilled ? 'is-filled' : '' }}"
-                        data-composer-toggle="{{ $prefix }}-panel-location"
-                        aria-label="{{ __('openbook.composer.location_toggle') }}"
-                        aria-expanded="{{ $locationOpen ? 'true' : 'false' }}"
-                        title="{{ __('openbook.composer.location_toggle') }}">
-                        <x-icon name="map-pin" />
-                    </button>
+                    @if ($locationsEnabled)
+                        <button type="button" class="ob-icon-btn ob-composer__toggle {{ $locationOpen ? 'is-active' : '' }} {{ $locationFilled ? 'is-filled' : '' }}"
+                            data-composer-toggle="{{ $prefix }}-panel-location"
+                            aria-label="{{ __('openbook.composer.location_toggle') }}"
+                            aria-expanded="{{ $locationOpen ? 'true' : 'false' }}"
+                            title="{{ __('openbook.composer.location_toggle') }}">
+                            <x-icon name="map-pin" />
+                        </button>
+                    @endif
                     @if (! $isEditing && $composerCommunities->isNotEmpty())
                         <button type="button" class="ob-icon-btn ob-composer__toggle {{ $communityOpen ? 'is-active' : '' }} {{ $communityFilled ? 'is-filled' : '' }}"
                             data-composer-toggle="{{ $prefix }}-panel-community"

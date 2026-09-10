@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Console;
 
+use App\Application\Services\InstanceSettings;
+use App\Infrastructure\Database\SystemSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -29,6 +31,7 @@ class UpdateCitiesCommandTest extends TestCase
             'latitude_bucket' => -9,
             'longitude_bucket' => 115,
         ]);
+        $this->assertTrue(SystemSetting::getBool(InstanceSettings::KEY_LOCATIONS_CATALOG_READY));
     }
 
     public function test_a_malformed_catalog_does_not_replace_existing_cities(): void
@@ -55,6 +58,7 @@ class UpdateCitiesCommandTest extends TestCase
             ->assertFailed();
 
         $this->assertDatabaseHas('geo_cities', ['geoname_id' => 1, 'name' => 'Existing']);
+        $this->assertFalse(SystemSetting::getBool(InstanceSettings::KEY_LOCATIONS_CATALOG_READY));
     }
 
     private function fixtureDirectory(): string

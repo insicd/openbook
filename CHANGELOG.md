@@ -30,8 +30,10 @@ il [`README`](README.md#roadmap-and-project-status).
   modificata o rimossa, viene mostrata nelle card e federata come `Place`
   ActivityStreams; sono supportate anche le location ricevute dai post remoti.
   Il catalogo `cities500` si installa o aggiorna con il comando dedicato
-  `openbook:update-cities`. Le coordinate precise del dispositivo sono usate
-  soltanto per la ricerca, senza essere mai salvate, mostrate o federate.
+  `openbook:update-cities`; fino al primo import riuscito i controlli location
+  restano nascosti e il resto di Openbook funziona normalmente. Le coordinate
+  precise del dispositivo sono usate soltanto per la ricerca, senza essere mai
+  salvate, mostrate o federate.
 - **Supporto video locale opt-in**: dal pannello amministrativo si configurano
   FFmpeg/ffprobe e limiti di upload, durata, risoluzione, fps e copy-through.
   I post con video vengono salvati in staging privato, analizzati con ffprobe
