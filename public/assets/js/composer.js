@@ -69,6 +69,42 @@
         textarea.style.height = Math.min(textarea.scrollHeight, 320) + 'px';
     }
 
+    function formatFileSize(bytes) {
+        var unit = bytes >= 1024 * 1024 ? 'MB' : 'KB';
+        var divisor = unit === 'MB' ? 1024 * 1024 : 1024;
+        return (Math.round(bytes / divisor * 10) / 10) + ' ' + unit;
+    }
+
+    function validateFileSizes(field, report) {
+        field.setCustomValidity('');
+
+        var mediaMax = Number(field.dataset.maxMediaBytes || 0);
+        var videoMax = Number(field.dataset.maxVideoBytes || 0);
+        var videoMimes = (field.dataset.videoMimeTypes || '').split(',');
+
+        Array.prototype.some.call(field.files || [], function (file) {
+            var isVideo = videoMax > 0 && (videoMimes.indexOf(file.type) !== -1 || /\.(mp4|m4v|mov|webm|ogv)$/i.test(file.name));
+            var max = isVideo ? videoMax : mediaMax;
+
+            if (max <= 0 || file.size <= max) {
+                return false;
+            }
+
+            var message = field.dataset.fileTooLarge || 'The selected file is too large.';
+            field.setCustomValidity(message
+                .replace(':file', file.name)
+                .replace(':size', formatFileSize(file.size))
+                .replace(':limit', formatFileSize(max)));
+            return true;
+        });
+
+        if (report && !field.checkValidity()) {
+            field.reportValidity();
+        }
+
+        return field.checkValidity();
+    }
+
     function bindComposer(composer) {
         if (composer.dataset.composerBound === '1') {
             return;
@@ -104,9 +140,26 @@
                 eventName = 'change';
             }
             field.addEventListener(eventName, function () {
+                if (field.type === 'file') {
+                    validateFileSizes(field, true);
+                }
                 syncFilledState(composer);
             });
         });
+
+        var form = composer.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function (event) {
+                var valid = true;
+                form.querySelectorAll('input[type="file"][data-max-media-bytes]').forEach(function (field) {
+                    valid = validateFileSizes(field, false) && valid;
+                });
+                if (!valid) {
+                    event.preventDefault();
+                    form.reportValidity();
+                }
+            });
+        }
 
         syncFilledState(composer);
 

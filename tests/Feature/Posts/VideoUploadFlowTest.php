@@ -17,13 +17,22 @@ class VideoUploadFlowTest extends TestCase
     {
         $user = $this->createFullAccount('videoaccept');
 
-        config(['openbook.video.enabled' => false]);
-        $this->actingAs($user)->get(route('feed.index'))->assertDontSee('application/mp4', false);
-        $this->actingAs($user)->get(route('feed.index'))->assertDontSee('.mov', false);
+        config([
+            'openbook.media.max_size_kb' => 16384,
+            'openbook.video.enabled' => false,
+            'openbook.video.max_upload_mb' => 80,
+        ]);
+        $this->actingAs($user)->get(route('feed.index'))
+            ->assertDontSee('application/mp4', false)
+            ->assertDontSee('.mov', false)
+            ->assertSee('data-max-media-bytes="16777216"', false)
+            ->assertSee('data-max-video-bytes="0"', false);
 
         config(['openbook.video.enabled' => true]);
-        $this->actingAs($user)->get(route('feed.index'))->assertSee('application/mp4', false);
-        $this->actingAs($user)->get(route('feed.index'))->assertSee('.mov', false);
+        $this->actingAs($user)->get(route('feed.index'))
+            ->assertSee('application/mp4', false)
+            ->assertSee('.mov', false)
+            ->assertSee('data-max-video-bytes="83886080"', false);
     }
 
     public function test_enabled_video_upload_is_staged_and_can_be_deleted(): void

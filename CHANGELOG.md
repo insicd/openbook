@@ -41,6 +41,9 @@ il [`README`](README.md#roadmap-and-project-status).
   tombstone liberando URI e handle, senza recuperare da remoto chiavi ormai non
   disponibili. Normalizzazione centralizzata degli URI e log sintetici rendono
   piu' affidabili autenticazione e diagnosi delle attivita' inoltrate.
+- Composer: la dimensione degli allegati viene controllata nel browser prima
+  dell'upload, usando i limiti media e video configurati dall'istanza; i file
+  troppo grandi vengono segnalati immediatamente senza attendere il server.
 
 ## [26.36] - Grumpy Waffle
 
