@@ -2,13 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
 use App\Application\Services\AnnounceManager;
 use App\Application\Services\CommunityMembershipService;
 use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\FollowManager;
+use App\Application\Services\MessageComposer;
 use App\Application\Services\PostComposer;
 use App\Domain\Accounts\User;
+use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -57,6 +60,83 @@ class FeedTest extends TestCase
         $this->assertFalse($ids->contains($strangerPost->id));
     }
 
+    public function test_the_feed_includes_public_posts_with_a_followed_hashtag(): void
+    {
+        $viewer = $this->createFullAccount('tagfeedviewer');
+        $author = $this->createFullAccount('tagfeedauthor');
+        $matching = $this->publishPost($author, 'Post pubblico su #musica.');
+        $unrelated = $this->publishPost($author, 'Post pubblico su #fotografia.');
+        $hashtag = Hashtag::query()->where('name', 'musica')->firstOrFail();
+        $viewer->actor->followedHashtags()->attach($hashtag->id);
+
+        $ids = app(FeedQuery::class)->forActor($viewer->actor)->getCollection()->pluck('id');
+
+        $this->assertTrue($ids->contains($matching->id));
+        $this->assertFalse($ids->contains($unrelated->id));
+    }
+
+    public function test_followed_hashtags_do_not_include_non_public_posts(): void
+    {
+        $viewer = $this->createFullAccount('tagvisibilityviewer');
+        $author = $this->createFullAccount('tagvisibilityauthor');
+        $public = $this->publishPost($author, 'Pubblico #argomento.', Post::VISIBILITY_PUBLIC);
+        $unlisted = $this->publishPost($author, 'Non elencato #argomento.', Post::VISIBILITY_UNLISTED);
+        $followers = $this->publishPost($author, 'Per follower #argomento.', Post::VISIBILITY_FOLLOWERS);
+        $hashtag = Hashtag::query()->where('name', 'argomento')->firstOrFail();
+        $viewer->actor->followedHashtags()->attach($hashtag->id);
+
+        $ids = app(FeedQuery::class)->forActor($viewer->actor)->getCollection()->pluck('id');
+
+        $this->assertTrue($ids->contains($public->id));
+        $this->assertFalse($ids->contains($unlisted->id));
+        $this->assertFalse($ids->contains($followers->id));
+    }
+
+    public function test_a_post_matching_multiple_sources_and_followed_hashtags_is_not_duplicated(): void
+    {
+        $viewer = $this->createFullAccount('tagdedupeviewer');
+        $author = $this->createFullAccount('tagdedupeauthor');
+        app(FollowManager::class)->follow($viewer->actor, $author->actor);
+        $post = $this->publishPost($author, 'Post su #musica e #concerti.');
+        $viewer->actor->followedHashtags()->attach(
+            Hashtag::query()->whereIn('name', ['musica', 'concerti'])->pluck('id'),
+        );
+
+        $items = app(FeedQuery::class)->forActor($viewer->actor)->getCollection();
+
+        $this->assertSame(1, $items->where('id', $post->id)->count());
+    }
+
+    public function test_followed_hashtag_posts_paginate_without_duplicates_or_gaps(): void
+    {
+        $viewer = $this->createFullAccount('tagcursorviewer');
+        $author = $this->createFullAccount('tagcursorauthor');
+        $posts = collect();
+
+        for ($i = 0; $i < 4; $i++) {
+            $post = $this->publishPost($author, "Post hashtag {$i} #timeline.");
+            $post->update(['published_at' => now()->subMinutes($i)]);
+            $posts->push($post);
+        }
+
+        $hashtag = Hashtag::query()->where('name', 'timeline')->firstOrFail();
+        $viewer->actor->followedHashtags()->attach($hashtag->id);
+        $actual = collect();
+        $cursor = null;
+
+        for ($pageNumber = 0; $pageNumber < 2; $pageNumber++) {
+            $page = app(FeedQuery::class)->forActor($viewer->actor, $cursor, perPage: 2);
+            $actual->push(...$page->getCollection()->pluck('id'));
+            $cursor = FeedCursor::fromPost(
+                $page->getCollection()->last(),
+                useShareSort: true,
+            );
+        }
+
+        $this->assertSame($posts->pluck('id')->all(), $actual->all());
+        $this->assertSame($actual->unique()->count(), $actual->count());
+    }
+
     public function test_the_feed_includes_posts_announced_by_followed_actors(): void
     {
         $viewer = $this->createFullAccount('feedviewer2');
@@ -102,7 +182,7 @@ class FeedTest extends TestCase
         $this->assertSame($communityPost->id, $all->first()->id);
 
         $firstPage = app(FeedQuery::class)->forActor($viewer->actor, perPage: 1);
-        $cursor = \App\Application\Queries\FeedCursor::fromPost($firstPage->getCollection()->sole(), useShareSort: true);
+        $cursor = FeedCursor::fromPost($firstPage->getCollection()->sole(), useShareSort: true);
         $secondPage = app(FeedQuery::class)->forActor($viewer->actor, $cursor, perPage: 1);
 
         $this->assertSame($communityPost->id, $firstPage->getCollection()->sole()->id);
@@ -159,12 +239,12 @@ class FeedTest extends TestCase
         $firstPage = app(FeedQuery::class)->forActor($viewer->actor, perPage: 1);
         $secondPage = app(FeedQuery::class)->forActor(
             $viewer->actor,
-            \App\Application\Queries\FeedCursor::fromPost($firstPage->getCollection()->sole(), useShareSort: true),
+            FeedCursor::fromPost($firstPage->getCollection()->sole(), useShareSort: true),
             perPage: 1,
         );
         $thirdPage = app(FeedQuery::class)->forActor(
             $viewer->actor,
-            \App\Application\Queries\FeedCursor::fromPost($secondPage->getCollection()->sole(), useShareSort: true),
+            FeedCursor::fromPost($secondPage->getCollection()->sole(), useShareSort: true),
             perPage: 1,
         );
 
@@ -223,7 +303,7 @@ class FeedTest extends TestCase
             $this->assertFalse($items->isEmpty());
             array_push($actual, ...$items->pluck('id')->all());
             $this->assertSame($i < $pageCount - 1, $page->hasMorePages());
-            $cursor = \App\Application\Queries\FeedCursor::fromPost($items->last(), useShareSort: true);
+            $cursor = FeedCursor::fromPost($items->last(), useShareSort: true);
         }
         $this->assertSame($expected, $actual);
     }
@@ -293,7 +373,7 @@ class FeedTest extends TestCase
         $this->assertSame([$visible[0]], $first->getCollection()->pluck('id')->all());
         $second = app(FeedQuery::class)->forActor(
             $viewer->actor,
-            \App\Application\Queries\FeedCursor::fromPost($first->getCollection()->sole(), useShareSort: true),
+            FeedCursor::fromPost($first->getCollection()->sole(), useShareSort: true),
             perPage: 1,
         );
         $this->assertSame([$visible[1]], $second->getCollection()->pluck('id')->all());
@@ -331,7 +411,7 @@ class FeedTest extends TestCase
             $items = app(FeedQuery::class)->forActor($viewer->actor, $cursor, perPage: 2)->getCollection();
             $this->assertCount(2, $items);
             array_push($actual, ...$items->pluck('id')->all());
-            $cursor = \App\Application\Queries\FeedCursor::fromPost($items->last(), useShareSort: true);
+            $cursor = FeedCursor::fromPost($items->last(), useShareSort: true);
         }
         $this->assertSame($posts->pluck('id')->all(), $actual);
     }
@@ -382,7 +462,7 @@ class FeedTest extends TestCase
         $recipient = $this->createFullAccount('feedrecipient_dm');
 
         $publicPost = $this->publishPost($viewer, 'Post pubblico nel feed.');
-        $dm = app(\App\Application\Services\MessageComposer::class)->send(
+        $dm = app(MessageComposer::class)->send(
             $viewer->actor,
             $recipient->actor,
             'Messaggio privato fuori feed',

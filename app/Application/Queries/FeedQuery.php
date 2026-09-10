@@ -102,7 +102,7 @@ final class FeedQuery
             ->where('posts.status', Post::STATUS_PUBLISHED)
             ->visibleTo($viewer);
         $postSource = DB::query()->fromSub(
-            (clone $eligiblePosts)->select('posts.id', 'posts.actor_id', 'posts.community_id', 'posts.published_at'),
+            (clone $eligiblePosts)->select('posts.id', 'posts.actor_id', 'posts.community_id', 'posts.visibility', 'posts.published_at'),
             'posts',
         );
         // Lookup scalare sulla PK: verifica il post dell'evento corrente
@@ -188,6 +188,32 @@ final class FeedQuery
         $applyCandidateCursor($communityPostEvents, 'posts.published_at', 'posts.id');
         $communityPostEvents->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
 
+        // EXISTS evita che un post con piu' hashtag seguiti occupi piu'
+        // candidati prima della deduplicazione finale della timeline.
+        $hashtagPostEvents = (clone $postSource)
+            ->select('posts.id as post_id', 'posts.published_at as timeline_at')
+            ->selectRaw('null as shared_by_actor_id, null as shared_at, posts.id as event_id')
+            ->where('posts.visibility', Post::VISIBILITY_PUBLIC)
+            ->whereExists(function ($followedHashtag) use ($viewer): void {
+                $followedHashtag->selectRaw('1')
+                    ->from('post_hashtags as feed_post_hashtags')
+                    ->join('hashtag_follows as feed_hashtag_follows', function ($join) use ($viewer): void {
+                        $join->on('feed_hashtag_follows.hashtag_id', 'feed_post_hashtags.hashtag_id')
+                            ->where('feed_hashtag_follows.actor_id', $viewer->id);
+                    })
+                    ->whereColumn('feed_post_hashtags.post_id', 'posts.id');
+            })
+            ->whereNotExists(function ($announce) use ($isRelevantAnnounce): void {
+                $announce->selectRaw('1')
+                    ->from('announces as relevant_announces')
+                    ->whereColumn('relevant_announces.post_id', 'posts.id')
+                    ->where(function ($relevant) use ($isRelevantAnnounce): void {
+                        $isRelevantAnnounce($relevant, 'relevant_announces');
+                    });
+            });
+        $applyCandidateCursor($hashtagPostEvents, 'posts.published_at', 'posts.id');
+        $hashtagPostEvents->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
+
         $ownAnnounceEvents = DB::table('announces as announces')
             ->where(clone $eligibleAnnouncedPost, '=', 1)
             ->select('announces.post_id', 'announces.created_at as timeline_at')
@@ -215,6 +241,7 @@ final class FeedQuery
                 $ownPostEvents
                     ->unionAll($followedPostEvents)
                     ->unionAll($communityPostEvents)
+                    ->unionAll($hashtagPostEvents)
                     ->unionAll($ownAnnounceEvents)
                     ->unionAll($followedAnnounceEvents),
                 'feed_events',
@@ -531,7 +558,6 @@ final class FeedQuery
 
     /**
      * @param  Collection<int, string>  $sharerIds
-     * @return \Illuminate\Database\Query\Builder
      */
     private function sharedAtSubquery(Collection $sharerIds): \Illuminate\Database\Query\Builder
     {

@@ -343,12 +343,13 @@ return [
         'back_to_profile' => 'Torna al profilo',
         'empty_followers' => 'Nessun follower per ora.',
         'empty_following' => 'Non sta ancora seguendo nessuno.',
+        'hashtag' => 'Hashtag seguito',
         'remote_preview' => 'Anteprima dalla collection dell\'istanza remota (prima pagina in cache).',
         'remote_preview_incomplete' => 'Anteprima dalla collection dell\'istanza remota: non è l\'elenco completo.',
         'infinite_scroll' => [
-            'loading' => 'Caricamento altri account...',
-            'end' => 'Non ci sono altri account da mostrare.',
-            'error' => 'Impossibile caricare altri account. Riprova ricaricando la pagina.',
+            'loading' => 'Caricamento altri elementi...',
+            'end' => 'Non ci sono altri elementi da mostrare.',
+            'error' => 'Impossibile caricare altri elementi. Riprova ricaricando la pagina.',
         ],
     ],
 

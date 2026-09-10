@@ -2,6 +2,7 @@
 
 namespace App\Domain\Posts;
 
+use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -24,6 +25,11 @@ class Hashtag extends Model
     public function posts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_hashtags');
+    }
+
+    public function followers(): BelongsToMany
+    {
+        return $this->belongsToMany(Actor::class, 'hashtag_follows')->withTimestamps();
     }
 
     /**

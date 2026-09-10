@@ -5,11 +5,13 @@ namespace App\Federation\Actors;
 use App\Domain\Accounts\User;
 use App\Domain\Communities\Community;
 use App\Domain\Feeds\FeedSource;
+use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
@@ -140,6 +142,14 @@ class Actor extends Model
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class);
+    }
+
+    /**
+     * Hashtag seguiti localmente: non fanno parte del grafo ActivityPub.
+     */
+    public function followedHashtags(): BelongsToMany
+    {
+        return $this->belongsToMany(Hashtag::class, 'hashtag_follows')->withTimestamps();
     }
 
     /**

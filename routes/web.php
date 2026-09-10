@@ -21,6 +21,7 @@ use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\HashtagController;
+use App\Http\Controllers\HashtagFollowController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstanceRulesController;
 use App\Http\Controllers\LikeController;
@@ -59,6 +60,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/home', [FeedController::class, 'index'])->name('feed.index');
     Route::get('/mondo', [WorldController::class, 'index'])->name('world.index');
     Route::get('/mondo/scopri', [WorldController::class, 'discover'])->name('world.discover');
+
+    Route::post('/tag/{name}/segui', [HashtagFollowController::class, 'store'])->name('hashtags.follow');
+    Route::delete('/tag/{name}/segui', [HashtagFollowController::class, 'destroy'])->name('hashtags.unfollow');
 
     Route::get('/email/verifica', [EmailVerificationController::class, 'notice'])
         ->name('verification.notice');

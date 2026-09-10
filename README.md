@@ -706,6 +706,13 @@ and "Edit profile" button on your own profile) makes them editable:
   only hashtags on posts published by *local* Actors, with public or unlisted
   visibility, never from remote content merely in cache or from posts reserved
   to followers/direct recipients.
+- **Followed hashtags**: authenticated users can follow or unfollow tags from
+  a hashtag page or the full trends page. Public posts already known to the
+  instance then join the personal Home feed, with the existing timeline
+  deduplication and cursor pagination. This is a local preference rather than
+  a federated ActivityPub follow: it does not discover content the instance
+  has not received. Followed tags stay private and are shown only to their
+  owner, mixed chronologically with Actors in the owner's "Following" list.
 - **Image lightbox**: clicking an image attached to a post or comment opens a
   full-screen overlay with the original at full resolution (previous/next
   arrows if the post has more than one, close with Esc, click outside the image,

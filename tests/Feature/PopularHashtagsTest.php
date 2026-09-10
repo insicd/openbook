@@ -123,6 +123,20 @@ class PopularHashtagsTest extends TestCase
         $response->assertSee('#laravel');
     }
 
+    public function test_the_trending_index_shows_follow_state_for_each_hashtag(): void
+    {
+        $alice = $this->createFullAccount('trendfollow');
+        $this->publishPost($alice, 'Post su #musica e #fotografia');
+        $music = Hashtag::query()->where('name', 'musica')->firstOrFail();
+        $alice->actor->followedHashtags()->attach($music->id);
+
+        $response = $this->actingAs($alice)->get(route('hashtags.index'));
+
+        $response->assertOk();
+        $response->assertSee(route('hashtags.unfollow', ['name' => 'musica']), false);
+        $response->assertSee(route('hashtags.follow', ['name' => 'fotografia']), false);
+    }
+
     public function test_it_excludes_empty_hashtag_names_from_trending(): void
     {
         $alice = $this->createFullAccount('alice');

@@ -18,7 +18,13 @@
                 @foreach ($hashtags as $hashtag)
                     <li>
                         <a href="{{ route('hashtags.show', $hashtag->name) }}">#{{ $hashtag->name }}</a>
-                        <span class="ob-field__help">{{ trans_choice('openbook.sidebar.hashtag_uses', (int) $hashtag->usage_count, ['count' => \App\Support\CompactNumber::format((int) $hashtag->usage_count)]) }}</span>
+                        <div class="ob-hashtag-list__actions">
+                            <span class="ob-field__help">{{ trans_choice('openbook.sidebar.hashtag_uses', (int) $hashtag->usage_count, ['count' => \App\Support\CompactNumber::format((int) $hashtag->usage_count)]) }}</span>
+                            @include('hashtags._follow-button', [
+                                'hashtagName' => $hashtag->name,
+                                'isFollowing' => in_array($hashtag->id, $followedHashtagIds ?? [], true),
+                            ])
+                        </div>
                     </li>
                 @endforeach
             </ul>
