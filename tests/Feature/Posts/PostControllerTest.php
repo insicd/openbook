@@ -33,6 +33,32 @@ class PostControllerTest extends TestCase
         ]);
     }
 
+    public function test_an_ajax_post_upload_returns_its_redirect_as_json(): void
+    {
+        $user = $this->createFullAccount('pubblicatoreajax');
+
+        $response = $this->actingAs($user)->postJson(route('posts.store'), [
+            'body' => 'Il mio post caricato via XHR.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        $post = Post::query()->where('body', 'Il mio post caricato via XHR.')->sole();
+        $response
+            ->assertCreated()
+            ->assertExactJson(['redirect' => route('posts.show', $post)])
+            ->assertSessionHas('status', __('openbook.posts.published'));
+    }
+
+    public function test_ajax_validation_errors_are_returned_as_json(): void
+    {
+        $user = $this->createFullAccount('pubblicatoreajaxerrore');
+
+        $this->actingAs($user)->postJson(route('posts.store'), [
+            'body' => '',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ])->assertUnprocessable()->assertJsonValidationErrors('body');
+    }
+
     public function test_a_guest_cannot_publish_a_post(): void
     {
         $response = $this->post(route('posts.store'), [

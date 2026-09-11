@@ -143,6 +143,8 @@ return [
         'images_help' => 'Fino a :count file (JPEG, PNG, WebP, GIF, MP3, OGG, WAV, M4A, FLAC, AAC).',
         'media_help_video' => 'Fino a :count file (immagini, audio e video supportati). I video potrebbero essere elaborati prima della pubblicazione.',
         'file_too_large' => 'Il file ":file" pesa :size. Il limite consentito e :limit.',
+        'uploading' => 'Caricamento in corso...',
+        'upload_failed' => 'Non è stato possibile completare il caricamento. Riprova.',
         'attachment' => 'allegato',
         'alt_label' => 'Testo alternativo per la prima immagine',
         'alt_help' => 'Descrivi il contenuto dell\'immagine per chi usa uno screen reader.',

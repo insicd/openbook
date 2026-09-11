@@ -36,7 +36,7 @@ class PostController extends Controller
         private readonly QuotedPostResolver $quotedPostResolver,
     ) {}
 
-    public function store(StorePostRequest $request): RedirectResponse
+    public function store(StorePostRequest $request): RedirectResponse|JsonResponse
     {
         $data = $request->validated();
         $data['images'] = $request->file('images', []);
@@ -44,9 +44,11 @@ class PostController extends Controller
         if ($this->containsVideo($data['images'])) {
             app(PostPublicationStager::class)->stage($request->user()->actor, $data);
 
-            return redirect()
-                ->route('feed.index')
-                ->with('status', __('openbook.posts.video_queued'));
+            return $this->storeResponse(
+                $request,
+                route('feed.index'),
+                __('openbook.posts.video_queued'),
+            );
         }
 
         $post = $this->postComposer->compose($request->user()->actor, $data);
@@ -54,22 +56,39 @@ class PostController extends Controller
         if ($post->community_id !== null) {
             $post->loadMissing('community');
 
-            return redirect()
-                ->route('communities.show', $post->community)
-                ->with('status', __('openbook.communities.post_published'));
+            return $this->storeResponse(
+                $request,
+                route('communities.show', $post->community),
+                __('openbook.communities.post_published'),
+            );
         }
 
         $addressedGroupId = $data['addressed_group_actor_id'] ?? null;
 
         if (is_string($addressedGroupId) && $addressedGroupId !== '') {
-            return redirect()
-                ->route('actors.show', $addressedGroupId)
-                ->with('status', __('openbook.communities.remote_post_sent'));
+            return $this->storeResponse(
+                $request,
+                route('actors.show', $addressedGroupId),
+                __('openbook.communities.remote_post_sent'),
+            );
         }
 
-        return redirect()
-            ->route('posts.show', $post)
-            ->with('status', __('openbook.posts.published'));
+        return $this->storeResponse(
+            $request,
+            route('posts.show', $post),
+            __('openbook.posts.published'),
+        );
+    }
+
+    private function storeResponse(Request $request, string $redirect, string $status): RedirectResponse|JsonResponse
+    {
+        if ($request->expectsJson()) {
+            $request->session()->flash('status', $status);
+
+            return response()->json(['redirect' => $redirect], 201);
+        }
+
+        return redirect()->to($redirect)->with('status', $status);
     }
 
     public function destroyPending(PendingPostPublication $publication): RedirectResponse

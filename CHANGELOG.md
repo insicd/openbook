@@ -34,6 +34,10 @@ il [`README`](README.md#roadmap-and-project-status).
   home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
 
 ### Fixed
+- Composer con allegati: l'upload usa XHR e mostra avanzamento percentuale,
+  disabilitando il pulsante durante l'invio per rendere evidente che i file
+  piu' grandi sono in caricamento. Errori e redirect conservano il flusso
+  esistente; i post senza allegati continuano a usare il submit tradizionale.
 - Actor remoti ([issue #62](https://github.com/insicd/openbook/issues/62)):
   le date di pubblicazione fuori dal range supportato da MySQL `TIMESTAMP`
   vengono ignorate, senza impedire il salvataggio del profilo.
