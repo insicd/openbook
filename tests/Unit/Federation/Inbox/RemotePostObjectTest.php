@@ -384,4 +384,38 @@ class RemotePostObjectTest extends TestCase
             RemotePostObject::collectionUrl(['id' => 'https://mastodon.example/likes', 'type' => 'Collection']),
         );
     }
+
+    public function test_location_accepts_a_place_and_discards_invalid_coordinates(): void
+    {
+        $this->assertSame([
+            'name' => 'Denpasar, Bali, Indonesia',
+            'admin1_name' => null,
+            'country_code' => null,
+            'country_name' => 'Indonesia',
+            'latitude' => -8.65,
+            'longitude' => 115.2167,
+        ], RemotePostObject::location([
+            'location' => [
+                'type' => 'Place',
+                'name' => 'Denpasar, Bali, Indonesia',
+                'country' => 'Indonesia',
+                'latitude' => '-8.65',
+                'longitude' => '115.2167',
+            ],
+        ]));
+
+        $location = RemotePostObject::location([
+            'location' => [
+                'type' => 'Place',
+                'name' => 'Somewhere',
+                'latitude' => 999,
+                'longitude' => 20,
+            ],
+        ]);
+
+        $this->assertNotNull($location);
+        $this->assertNull($location['latitude']);
+        $this->assertNull($location['longitude']);
+        $this->assertNull(RemotePostObject::location(['location' => 'not-a-place']));
+    }
 }

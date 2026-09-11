@@ -44,6 +44,8 @@ class UpdatePostRequest extends FormRequest
             'images.*' => ['file', 'mimetypes:'.$allowedMimes, 'max:'.$maxKb],
             'alt_texts' => ['nullable', 'array'],
             'alt_texts.*' => ['nullable', 'string', 'max:1000'],
+            'location_id' => ['nullable', 'required_with:location_label', 'integer', 'exists:geo_cities,geoname_id'],
+            'location_label' => ['nullable', 'string', 'max:600'],
         ];
     }
 
@@ -76,6 +78,7 @@ class UpdatePostRequest extends FormRequest
             'content_warning' => 'avviso sul contenuto',
             'images' => 'allegati',
             'images.*' => 'allegato',
+            'location_id' => 'posizione',
         ];
     }
 }

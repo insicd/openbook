@@ -5,6 +5,7 @@ namespace App\Application\Services;
 use App\Domain\Accounts\User;
 use App\Infrastructure\Appearance\CustomCssSanitizer;
 use App\Infrastructure\Database\SystemSetting;
+use App\Infrastructure\Locations\GeoNamesCityImporter;
 use App\Infrastructure\Media\InstanceIconUploader;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -57,6 +58,8 @@ final class InstanceSettings
 
     public const KEY_CUSTOM_CSS = 'custom_css';
 
+    public const KEY_LOCATIONS_CATALOG_READY = GeoNamesCityImporter::READY_SETTING_KEY;
+
     public const CUSTOM_CSS_MAX_LENGTH = 50000;
 
     /**
@@ -102,6 +105,7 @@ final class InstanceSettings
         $this->applyIntSetting(self::KEY_VIDEO_MAX_DIMENSION, 'openbook.video.max_dimension');
         $this->applyIntSetting(self::KEY_VIDEO_MAX_FRAME_RATE, 'openbook.video.max_frame_rate');
         $this->applyIntSetting(self::KEY_TRENDING_DAYS, 'openbook.hashtags.trending_days');
+        Config::set('openbook.locations.catalog_ready', $this->locationsCatalogReady());
     }
 
     public function siteName(): string
@@ -187,6 +191,11 @@ final class InstanceSettings
             self::KEY_TRENDING_DAYS,
             (int) config('openbook.hashtags.trending_days', 7),
         ));
+    }
+
+    public function locationsCatalogReady(): bool
+    {
+        return SystemSetting::getBool(self::KEY_LOCATIONS_CATALOG_READY, false);
     }
 
     /**

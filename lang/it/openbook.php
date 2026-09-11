@@ -156,6 +156,17 @@ return [
         'submit' => 'Pubblica',
         'save' => 'Salva',
         'existing_media_help' => 'Ci sono già :count allegati. Puoi aggiungerne ancora :remaining (gli esistenti restano).',
+        'location_toggle' => 'Aggiungi posizione',
+        'location_label' => 'Posizione',
+        'location_placeholder' => 'Cerca una città o una regione...',
+        'location_current' => 'Posizione attuale',
+        'location_remove' => 'Rimuovi posizione',
+        'location_help' => 'La posizione precisa serve solo a trovare la città più vicina e non viene salvata.',
+        'location_attribution' => 'Dati geografici forniti da',
+        'location_empty' => 'Nessuna località corrispondente.',
+        'location_error' => 'Non è stato possibile cercare la località.',
+        'location_geolocation_error' => 'Non è stato possibile rilevare la posizione attuale.',
+        'location_selection_required' => 'Scegli una località dall’elenco.',
     ],
 
     'emoji' => [

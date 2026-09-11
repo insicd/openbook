@@ -1559,6 +1559,48 @@ body.ob-css-preview #ob-compose-modal {
   margin-bottom: 0;
 }
 
+.ob-location-picker__suggestions {
+  margin-top: 0.35rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: var(--ob-radius);
+  background: var(--ob-color-surface);
+  overflow: hidden;
+}
+
+.ob-location-picker__option {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--ob-color-border);
+  background: transparent;
+  color: var(--ob-color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ob-location-picker__option:last-child {
+  border-bottom: 0;
+}
+
+.ob-location-picker__option:hover,
+.ob-location-picker__option:focus-visible {
+  background: var(--ob-color-bg);
+}
+
+.ob-location-picker__empty {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  color: var(--ob-color-text-muted);
+}
+
+.ob-location-picker__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
 .ob-composer__toolbar {
   display: flex;
   flex-direction: column;
@@ -1998,6 +2040,24 @@ a.ob-post__menu-item {
   margin: 0 0 0.5rem;
   color: var(--ob-color-text-muted);
   font-size: 0.9rem;
+}
+
+.ob-post__location {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0 0 0 auto;
+  color: var(--ob-color-text-muted);
+  font-size: 0.9rem;
+  text-align: right;
+}
+
+.ob-post__location .ob-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
 }
 
 .ob-post__community .ob-icon {
