@@ -894,6 +894,51 @@ html.ob-compose-modal-open {
   padding: 0.75rem 0;
 }
 
+.ob-hashtag-list__actions,
+.ob-hashtag-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ob-hashtag-list__actions {
+  flex: 0 0 auto;
+}
+
+.ob-hashtag-header {
+  justify-content: space-between;
+}
+
+.ob-hashtag-header h1,
+.ob-hashtag-follow-form {
+  margin: 0;
+}
+
+.ob-followed-hashtag__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--ob-color-primary);
+  background: var(--ob-color-primary-soft);
+}
+
+.ob-followed-hashtag__icon .ob-icon {
+  width: 22px;
+  height: 22px;
+}
+
+@media (max-width: 520px) {
+  .ob-hashtag-list__actions {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+}
+
 .ob-side-widget__more {
   display: inline-block;
   margin-top: 0.75rem;

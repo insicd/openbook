@@ -11,7 +11,8 @@
         ? __('openbook.follows.empty_followers')
         : __('openbook.follows.empty_following'));
     $remoteMembers = $remoteMembers ?? collect();
-    $nextUrl = $actors->hasMorePages() ? $actors->nextPageUrl() : null;
+    $items = $items ?? $actors;
+    $nextUrl = $items->hasMorePages() ? $items->nextPageUrl() : null;
     $hasRemote = $remoteMembers->isNotEmpty();
 @endphp
 
@@ -49,8 +50,12 @@
             data-end-label="{{ __('openbook.follows.infinite_scroll.end') }}"
             data-error-label="{{ __('openbook.follows.infinite_scroll.error') }}"
         >
-            @forelse ($actors as $rowActor)
-                @include('follows._row', ['rowActor' => $rowActor])
+            @forelse ($items as $item)
+                @if ($item instanceof \App\Domain\Posts\Hashtag)
+                    @include('follows._hashtag-row', ['hashtag' => $item])
+                @else
+                    @include('follows._row', ['rowActor' => $item])
+                @endif
             @empty
                 @unless ($hasRemote)
                     <div class="ob-empty-state">
@@ -60,10 +65,10 @@
             @endforelse
         </div>
 
-        @if ($actors->hasPages())
+        @if ($items->hasPages())
             <noscript>
                 <div class="ob-pagination">
-                    {{ $actors->onEachSide(1)->links() }}
+                    {{ $items->onEachSide(1)->links() }}
                 </div>
             </noscript>
         @endif

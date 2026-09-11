@@ -3,11 +3,13 @@
 namespace App\Application\Queries;
 
 use App\Application\Services\FollowManager;
+use App\Domain\Posts\Hashtag;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\SocialGraph\RemoteCollectionMember;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Costruisce gli elenchi paginati di follower e "seguiti" di un Actor,
@@ -35,11 +37,15 @@ final class FollowListQuery
     }
 
     /**
-     * @return LengthAwarePaginator<int, Actor>
+     * @return LengthAwarePaginator<int, Actor|Hashtag>
      */
-    public function following(Actor $actor, int $perPage = 0): LengthAwarePaginator
+    public function following(Actor $actor, int $perPage = 0, bool $includeHashtags = false): LengthAwarePaginator
     {
         $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
+
+        if ($includeHashtags) {
+            return $this->followingWithHashtags($actor, $perPage);
+        }
 
         $paginator = Follow::query()
             ->where('follower_id', $actor->id)
@@ -49,6 +55,53 @@ final class FollowListQuery
             ->paginate($perPage);
 
         return $this->mapToActors($paginator, 'following');
+    }
+
+    /**
+     * Mescola Actor e hashtag prima della paginazione, mantenendo privati i
+     * tag seguiti: il chiamante abilita questo percorso solo per il proprietario.
+     *
+     * @return LengthAwarePaginator<int, Actor|Hashtag>
+     */
+    private function followingWithHashtags(Actor $actor, int $perPage): LengthAwarePaginator
+    {
+        $actorFollows = DB::table('follows')
+            ->where('follower_id', $actor->id)
+            ->where('status', Follow::STATUS_ACCEPTED)
+            ->selectRaw("'actor' as item_type, following_id as item_id, accepted_at as followed_at");
+
+        $hashtagFollows = DB::table('hashtag_follows')
+            ->where('actor_id', $actor->id)
+            ->selectRaw("'hashtag' as item_type, hashtag_id as item_id, created_at as followed_at");
+
+        $paginator = DB::query()
+            ->fromSub($actorFollows->unionAll($hashtagFollows), 'followed_items')
+            ->orderByDesc('followed_at')
+            ->orderByDesc('item_id')
+            ->paginate($perPage);
+
+        $rows = $paginator->getCollection();
+        $actors = Actor::query()
+            ->whereIn('id', $rows->where('item_type', 'actor')->pluck('item_id'))
+            ->with('user.profile')
+            ->get()
+            ->keyBy('id');
+        $hashtags = Hashtag::query()
+            ->whereIn('id', $rows->where('item_type', 'hashtag')->pluck('item_id'))
+            ->get()
+            ->keyBy('id');
+
+        $items = $rows
+            ->map(fn ($row) => $row->item_type === 'actor'
+                ? $actors->get($row->item_id)
+                : $hashtags->get($row->item_id))
+            ->filter()
+            ->values();
+
+        /** @var LengthAwarePaginator<int, Actor|Hashtag> $paginator */
+        $paginator->setCollection($items);
+
+        return $paginator;
     }
 
     /**

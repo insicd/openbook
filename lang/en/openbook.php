@@ -343,12 +343,13 @@ return [
         'back_to_profile' => 'Back to profile',
         'empty_followers' => 'No followers yet.',
         'empty_following' => 'Not following anyone yet.',
+        'hashtag' => 'Followed hashtag',
         'remote_preview' => 'Preview from the remote instance collection (first page in cache).',
         'remote_preview_incomplete' => 'Preview from the remote instance collection: this is not the full list.',
         'infinite_scroll' => [
-            'loading' => 'Loading more accounts...',
-            'end' => 'There are no more accounts to show.',
-            'error' => 'Could not load more accounts. Try reloading the page.',
+            'loading' => 'Loading more items...',
+            'end' => 'There are no more items to show.',
+            'error' => 'Could not load more items. Try reloading the page.',
         ],
     ],
 

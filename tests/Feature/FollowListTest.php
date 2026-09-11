@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Application\Services\FollowManager;
+use App\Domain\Posts\Hashtag;
 use App\Domain\SocialGraph\Follow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -168,5 +169,78 @@ class FollowListTest extends TestCase
         $pageTwo->assertOk();
         $pageTwo->assertSee('id="ob-follow-list"', false);
         $pageTwo->assertDontSee('data-next-url', false);
+    }
+
+    public function test_the_owner_sees_followed_hashtags_mixed_chronologically_with_actors(): void
+    {
+        $alice = $this->createFullAccount('mixedfollowing');
+        $bob = $this->createFullAccount('olderactor');
+        $follow = app(FollowManager::class)->follow($alice->actor, $bob->actor);
+        $follow->update(['accepted_at' => now()->subHour()]);
+
+        $hashtag = Hashtag::query()->create(['name' => 'recente']);
+        $alice->actor->followedHashtags()->attach($hashtag->id, [
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($alice)
+            ->get(route('profile.following', $alice))
+            ->assertOk()
+            ->assertSeeInOrder(['#recente', 'olderactor'])
+            ->assertSee(route('hashtags.unfollow', ['name' => 'recente']), false);
+    }
+
+    public function test_followed_hashtags_are_private_to_the_owner(): void
+    {
+        $alice = $this->createFullAccount('privatehashtags');
+        $viewer = $this->createFullAccount('hashtagviewer');
+        $hashtag = Hashtag::query()->create(['name' => 'interesseprivato']);
+        $alice->actor->followedHashtags()->attach($hashtag->id);
+
+        $this->get(route('profile.following', $alice))
+            ->assertOk()
+            ->assertDontSee('#interesseprivato');
+
+        $this->actingAs($viewer)
+            ->get(route('profile.following', $alice))
+            ->assertOk()
+            ->assertDontSee('#interesseprivato');
+
+        $this->actingAs($alice)
+            ->get(route('profile.following', $alice))
+            ->assertOk()
+            ->assertSee('#interesseprivato');
+    }
+
+    public function test_mixed_following_items_are_paginated_after_chronological_ordering(): void
+    {
+        config(['openbook.feed.per_page' => 2]);
+
+        $alice = $this->createFullAccount('mixedpages');
+        $older = $this->createFullAccount('mixedolder');
+        $newer = $this->createFullAccount('mixednewer');
+        app(FollowManager::class)->follow($alice->actor, $older->actor)
+            ->update(['accepted_at' => now()->subHours(3)]);
+        app(FollowManager::class)->follow($alice->actor, $newer->actor)
+            ->update(['accepted_at' => now()->subHour()]);
+
+        $hashtag = Hashtag::query()->create(['name' => 'mixedmiddle']);
+        $alice->actor->followedHashtags()->attach($hashtag->id, [
+            'created_at' => now()->subHours(2),
+            'updated_at' => now()->subHours(2),
+        ]);
+
+        $firstPage = $this->actingAs($alice)->get(route('profile.following', $alice));
+        $firstPage->assertOk();
+        $firstPage->assertSeeInOrder(['mixednewer', '#mixedmiddle']);
+        $firstPage->assertDontSee('mixedolder');
+        $firstPage->assertSee('data-next-url="'.route('profile.following', $alice).'?page=2"', false);
+
+        $this->actingAs($alice)
+            ->get(route('profile.following', [$alice, 'page' => 2]))
+            ->assertOk()
+            ->assertSee('mixedolder')
+            ->assertDontSee('#mixedmiddle');
     }
 }

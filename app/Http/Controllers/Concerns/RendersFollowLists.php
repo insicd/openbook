@@ -25,13 +25,20 @@ trait RendersFollowLists
         string $type,
         ?Collection $remoteMembers = null,
     ): View {
+        $viewerActor = auth()->user()?->actor;
+        $includePrivateHashtags = $type === 'following'
+            && $owner->isLocal()
+            && $viewerActor?->id === $owner->id;
         $paginator = $type === 'followers'
             ? $followListQuery->followers($owner)
-            : $followListQuery->following($owner);
+            : $followListQuery->following($owner, includeHashtags: $includePrivateHashtags);
 
         $remoteMembers ??= collect();
-        $viewerActor = auth()->user()?->actor;
-        $statusActors = $paginator->getCollection()->concat($remoteMembers)->unique('id')->values();
+        $statusActors = $paginator->getCollection()
+            ->filter(fn ($item) => $item instanceof Actor)
+            ->concat($remoteMembers)
+            ->unique('id')
+            ->values();
         $statusMap = $viewerActor !== null
             ? $followManager->statusMapFor($viewerActor, $statusActors)
             : [];
@@ -43,7 +50,7 @@ trait RendersFollowLists
         return view('follows.index', [
             'owner' => $owner,
             'type' => $type,
-            'actors' => $paginator,
+            'items' => $paginator,
             'remoteMembers' => $remoteMembers,
             'remotePreviewIncomplete' => is_int($remoteTotal) && $remoteTotal > $remoteMembers->count() + $paginator->total(),
             'viewerActor' => $viewerActor,

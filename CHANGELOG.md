@@ -19,6 +19,11 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38.rc1]
 
 ### Added
+- **Follow locale degli hashtag**: dalla pagina di un tag e dall'elenco delle
+  tendenze gli utenti possono seguire o smettere di seguire un hashtag. I post
+  pubblici gia' conosciuti dall'istanza entrano nella Home personale senza
+  duplicati; i tag seguiti restano privati e compaiono, mescolati per data agli
+  Actor, soltanto nell'elenco "Seguiti" del proprietario.
 - **Supporto video locale opt-in**: dal pannello amministrativo si configurano
   FFmpeg/ffprobe e limiti di upload, durata, risoluzione, fps e copy-through.
   I post con video vengono salvati in staging privato, analizzati con ffprobe

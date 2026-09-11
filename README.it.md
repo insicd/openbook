@@ -699,6 +699,14 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   solo hashtag su post pubblicati da Actor *locali*, con visibilita' pubblica o non
   elencata, mai da contenuto remoto semplicemente in cache o da post riservati a
   follower/destinatari diretti.
+- **Hashtag seguiti**: gli utenti autenticati possono seguire o smettere di
+  seguire un tag dalla sua pagina o dall'elenco completo delle tendenze. I post
+  pubblici gia' conosciuti dall'istanza entrano quindi nella Home personale,
+  riusando deduplicazione e paginazione a cursore della timeline. Si tratta di
+  una preferenza locale, non di un Follow ActivityPub federato: non scopre
+  contenuti mai ricevuti dall'istanza. I tag seguiti restano privati e sono
+  mostrati soltanto al proprietario, mescolati cronologicamente agli Actor nel
+  proprio elenco "Seguiti".
 - **Lightbox sulle immagini**: cliccando su un'immagine allegata a un post o commento
   si apre un overlay a schermo intero con l'originale a piena risoluzione (frecce
   precedente/successiva se il post ne ha piu' di una, chiusura con Esc, click fuori
