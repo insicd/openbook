@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property int $likes_count
  * @property int $replies_count
+ * @property Carbon $created_at
  * @property Carbon|null $edited_at
  */
 class Comment extends Model

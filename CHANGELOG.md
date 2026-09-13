@@ -44,6 +44,10 @@ il [`README`](README.md#roadmap-and-project-status).
   home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
 
 ### Fixed
+- Commenti remoti ([issue #74](https://github.com/insicd/openbook/issues/74)):
+  il timestamp ActivityPub `published` viene conservato in `created_at` sia
+  per le reply ricevute in inbox sia per quelle recuperate aprendo un post;
+  un successivo aggiornamento corregge anche gli orari importati in precedenza.
 - Composer con allegati: l'upload usa XHR e mostra avanzamento percentuale,
   disabilitando il pulsante durante l'invio per rendere evidente che i file
   piu' grandi sono in caricamento. Errori e redirect conservano il flusso

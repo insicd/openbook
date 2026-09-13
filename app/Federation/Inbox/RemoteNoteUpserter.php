@@ -260,6 +260,12 @@ final class RemoteNoteUpserter
         $comment = Comment::query()->where('uri', $noteUri)->first() ?? new Comment(['uri' => $noteUri]);
         $wasNew = ! $comment->exists;
 
+        $published = $note['published'] ?? null;
+
+        if (is_string($published) && $published !== '') {
+            $comment->created_at = ActivityPubTimestamp::parse($published);
+        }
+
         $comment->fill([
             'post_id' => $postId,
             'parent_comment_id' => $parentComment?->id,

@@ -7,6 +7,7 @@ use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
@@ -88,8 +89,11 @@ class RemoteRepliesFetcherTest extends TestCase
         $replier = $this->createRemoteActor('commentatore', 'altro.example');
         $post = $this->createRemotePost($author);
 
+        $publishedAt = Carbon::parse('2026-09-10T18:30:00+03:00');
         $this->fakeNoteWithReplies($post, [
-            $this->replyNote($replier, $post->uri, 'Ciao dal fediverso'),
+            $this->replyNote($replier, $post->uri, 'Ciao dal fediverso', [
+                'published' => $publishedAt->toAtomString(),
+            ]),
         ]);
 
         $response = $this->actingAs($viewer)->get(route('posts.show', $post));
@@ -97,10 +101,40 @@ class RemoteRepliesFetcherTest extends TestCase
         $response->assertOk();
         $response->assertSee('Ciao dal fediverso', false);
 
-        $this->assertSame(1, Comment::query()->where('post_id', $post->id)->count());
+        $comment = Comment::query()->where('post_id', $post->id)->firstOrFail();
+        $this->assertTrue($comment->created_at->equalTo($publishedAt));
         $this->assertSame(1, $post->fresh()->comments_count);
         $this->assertNotNull($post->fresh()->replies_fetched_at);
         $this->assertSame(0, Notification::query()->count());
+    }
+
+    public function test_refreshing_replies_corrects_the_timestamp_of_an_existing_remote_comment(): void
+    {
+        $viewer = $this->createFullAccount('lettoreorario');
+        $author = $this->createRemoteActor('autoreorario');
+        $replier = $this->createRemoteActor('commentatoreorario', 'orario.example');
+        $post = $this->createRemotePost($author, 'orario');
+        $noteUri = $replier->uri.'/statuses/reply-orario';
+        $publishedAt = Carbon::parse('2026-09-09T22:15:00-04:00');
+
+        $comment = Comment::query()->create([
+            'post_id' => $post->id,
+            'actor_id' => $replier->id,
+            'uri' => $noteUri,
+            'body' => 'Commento con orario errato.',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+
+        $this->fakeNoteWithReplies($post, [
+            $this->replyNote($replier, $post->uri, 'Commento aggiornato.', [
+                'id' => $noteUri,
+                'published' => $publishedAt->toAtomString(),
+            ]),
+        ]);
+
+        $this->actingAs($viewer)->get(route('posts.show', $post))->assertOk();
+
+        $this->assertTrue($comment->fresh()->created_at->equalTo($publishedAt));
     }
 
     public function test_it_skips_replies_to_other_posts_private_notes_and_respects_ttl(): void
