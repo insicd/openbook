@@ -219,6 +219,7 @@
         setPanelBySuffix(composer, 'media', false);
         setPanelBySuffix(composer, 'community', false);
         setPanelBySuffix(composer, 'visibility', defaultVisibility !== 'public');
+        setPanelBySuffix(composer, 'location', false);
         refreshComposerUi(composer);
         editing = false;
     }
@@ -246,10 +247,14 @@
         var title = form.querySelector('[data-composer-fill="title"]');
         var cw = form.querySelector('[data-composer-fill="cw"]');
         var visibility = form.querySelector('[data-composer-fill="visibility"]');
+        var locationId = form.querySelector('[data-location-id]');
+        var locationSearch = form.querySelector('[data-location-search]');
         var bodyValue = link.getAttribute('data-edit-body') || '';
         var titleValue = link.getAttribute('data-edit-title') || '';
         var cwValue = link.getAttribute('data-edit-cw') || '';
         var visibilityValue = link.getAttribute('data-edit-visibility') || 'public';
+        var locationIdValue = link.getAttribute('data-edit-location-id') || '';
+        var locationLabelValue = link.getAttribute('data-edit-location-label') || '';
         var mediaHelpText = link.getAttribute('data-edit-media-help');
 
         if (body) {
@@ -266,6 +271,12 @@
             visibility.value = visibilityValue;
             visibility.setAttribute('data-composer-default', visibilityValue);
         }
+        if (locationId) {
+            locationId.value = locationIdValue;
+        }
+        if (locationSearch) {
+            locationSearch.value = locationLabelValue;
+        }
 
         var help = form.querySelector('#modal_composer-panel-media .ob-field__help');
         if (help && mediaHelpText) {
@@ -281,6 +292,7 @@
         setPanelBySuffix(composer, 'cw', cwValue.trim() !== '');
         setPanelBySuffix(composer, 'media', mediaHelpText !== null);
         setPanelBySuffix(composer, 'visibility', visibilityValue !== 'public');
+        setPanelBySuffix(composer, 'location', locationIdValue !== '');
         refreshComposerUi(composer);
         editing = true;
 

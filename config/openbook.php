@@ -181,6 +181,16 @@ return [
         'process_timeout_seconds' => 900,
     ],
 
+    'locations' => [
+        'catalog_ready' => false,
+        'cities_url' => 'https://download.geonames.org/export/dump/cities500.zip',
+        'admin1_url' => 'https://download.geonames.org/export/dump/admin1CodesASCII.txt',
+        'countries_url' => 'https://download.geonames.org/export/dump/countryInfo.txt',
+        'download_timeout_seconds' => 120,
+        'max_download_bytes' => 64 * 1024 * 1024,
+        'nearest_city_max_km' => 250,
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Contenuti

@@ -15,6 +15,7 @@ use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\InboxItem;
 use App\Federation\Serialization\ActivitySerializer;
+use App\Federation\Serialization\NoteSerializer;
 use App\Infrastructure\Media\Media;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -806,6 +807,61 @@ class InboxActivityProcessorTest extends TestCase
         $post = Post::query()->where('uri', $noteUri)->first();
         $this->assertNotNull($post);
         $this->assertSame('2026-08-04 12:30:00', $post->published_at?->format('Y-m-d H:i:s'));
+    }
+
+    public function test_a_remote_note_location_is_stored_as_a_snapshot(): void
+    {
+        Queue::fake();
+        $follower = $this->createFullAccount('locationfollower');
+        $remote = $this->createRemoteActor('traveller', 'travel.example');
+        app(FollowManager::class)->follow($follower->actor, $remote)
+            ->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $noteUri = $remote->uri.'/posts/location';
+        $status = $this->process([
+            'id' => $noteUri.'/activity',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>Saluti da Bali.</p>',
+                'published' => now()->toAtomString(),
+                'to' => [NoteSerializer::PUBLIC_STREAM],
+                'location' => [
+                    'type' => 'Place',
+                    'name' => 'Denpasar, Bali, Indonesia',
+                    'country' => 'Indonesia',
+                    'latitude' => '-8.65',
+                    'longitude' => '115.2167',
+                ],
+            ],
+        ], $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $post = Post::query()->where('uri', $noteUri)->firstOrFail();
+        $this->assertSame('Denpasar, Bali, Indonesia', $post->location?->label());
+        $this->assertSame(-8.65, $post->location?->latitude);
+        $this->assertSame(115.2167, $post->location?->longitude);
+        $this->assertSame('remote', $post->location?->source);
+
+        $updatedStatus = $this->process([
+            'id' => $noteUri.'/update',
+            'type' => 'Update',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>Saluti senza posizione.</p>',
+                'published' => now()->toAtomString(),
+                'to' => [NoteSerializer::PUBLIC_STREAM],
+            ],
+        ], $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $updatedStatus);
+        $this->assertDatabaseMissing('post_locations', ['post_id' => $post->id]);
     }
 
     public function test_a_wordpress_style_article_create_is_stored(): void

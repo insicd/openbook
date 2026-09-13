@@ -132,6 +132,7 @@ class ReportController extends Controller
             'body' => '',
             'status' => Post::STATUS_DELETED,
         ]);
+        $post->location()->delete();
 
         if ($isLocalAuthor) {
             $post->load('mentions.actor', 'actor');

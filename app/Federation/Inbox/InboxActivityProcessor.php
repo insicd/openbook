@@ -563,6 +563,7 @@ final class InboxActivityProcessor
 
         if ($target instanceof Post) {
             $target->update(['title' => null, 'content_warning' => null, 'body' => '', 'status' => Post::STATUS_DELETED]);
+            $target->location()->delete();
         } else {
             $this->commentSoftDeleter->delete($target);
         }

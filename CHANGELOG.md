@@ -24,6 +24,16 @@ il [`README`](README.md#roadmap-and-project-status).
   pubblici gia' conosciuti dall'istanza entrano nella Home personale senza
   duplicati; i tag seguiti restano privati e compaiono, mescolati per data agli
   Actor, soltanto nell'elenco "Seguiti" del proprietario.
+- **Posizione facoltativa nei post**: il composer permette di scegliere una
+  citta' dal catalogo locale GeoNames oppure di proporre quella piu' vicina
+  tramite la geolocalizzazione del browser. La posizione puo' essere aggiunta,
+  modificata o rimossa, viene mostrata nelle card e federata come `Place`
+  ActivityStreams; sono supportate anche le location ricevute dai post remoti.
+  Il catalogo `cities500` si installa o aggiorna con il comando dedicato
+  `openbook:update-cities`; fino al primo import riuscito i controlli location
+  restano nascosti e il resto di Openbook funziona normalmente. Le coordinate
+  precise del dispositivo sono usate soltanto per la ricerca, senza essere mai
+  salvate, mostrate o federate.
 - **Supporto video locale opt-in**: dal pannello amministrativo si configurano
   FFmpeg/ffprobe e limiti di upload, durata, risoluzione, fps e copy-through.
   I post con video vengono salvati in staging privato, analizzati con ffprobe

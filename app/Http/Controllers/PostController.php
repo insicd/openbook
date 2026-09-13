@@ -281,6 +281,7 @@ class PostController extends Controller
             'body' => '',
             'status' => Post::STATUS_DELETED,
         ]);
+        $post->location()->delete();
 
         if ($isLocalAuthor) {
             $this->delivery->deliverContent($post, ActivitySerializer::delete($post));

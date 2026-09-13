@@ -4,6 +4,7 @@ namespace App\Domain\Posts;
 
 use App\Application\Queries\FeedQuery;
 use App\Domain\Communities\Community;
+use App\Domain\Locations\PostLocation;
 use App\Domain\Messaging\Conversation;
 use App\Domain\Reactions\Announce;
 use App\Domain\Reactions\Like;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 
@@ -75,9 +77,11 @@ class Post extends Model
         'community.actor',
         'media.thumbnail',
         'hashtags',
+        'location',
         'quotedPost.actor.user.profile',
         'quotedPost.media.thumbnail',
         'quotedPost.hashtags',
+        'quotedPost.location',
     ];
 
     /**
@@ -164,6 +168,11 @@ class Post extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(PostAttachment::class)->orderBy('position');
+    }
+
+    public function location(): HasOne
+    {
+        return $this->hasOne(PostLocation::class);
     }
 
     public function media(): BelongsToMany

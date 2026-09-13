@@ -25,6 +25,7 @@ use App\Http\Controllers\HashtagFollowController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstanceRulesController;
 use App\Http\Controllers\LikeController;
+use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MentionSuggestController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostController;
@@ -129,6 +130,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/menzioni/suggerimenti', MentionSuggestController::class)
         ->middleware('throttle:60,1')
         ->name('mentions.suggest');
+
+    Route::get('/localita/suggerimenti', [LocationController::class, 'suggestions'])
+        ->middleware('throttle:60,1')
+        ->name('locations.suggest');
+    Route::post('/localita/vicina', [LocationController::class, 'nearest'])
+        ->middleware('throttle:30,1')
+        ->name('locations.nearest');
 
     Route::get('/notifiche', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifiche/feed', [NotificationController::class, 'feed'])

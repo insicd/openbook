@@ -39,6 +39,7 @@ final class RemoteActorDeletionService
                 ->where('actor_id', $lockedActor->id);
 
             DB::table('post_hashtags')->whereIn('post_id', clone $authoredPostIds)->delete();
+            DB::table('post_locations')->whereIn('post_id', clone $authoredPostIds)->delete();
             Mention::query()
                 ->where('mentionable_type', (new Post)->getMorphClass())
                 ->whereIn('mentionable_id', clone $authoredPostIds)
