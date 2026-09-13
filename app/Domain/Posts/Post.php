@@ -35,6 +35,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $title
  * @property string|null $content_warning
  * @property string $body
+ * @property array<string, string>|null $custom_emojis
  * @property string|null $language
  * @property string $visibility
  * @property string $status
@@ -97,6 +98,7 @@ class Post extends Model
         'title',
         'content_warning',
         'body',
+        'custom_emojis',
         'language',
         'visibility',
         'status',
@@ -112,6 +114,7 @@ class Post extends Model
     {
         return [
             'published_at' => 'datetime',
+            'custom_emojis' => 'array',
             'edited_at' => 'datetime',
             'replies_fetched_at' => 'datetime',
             'likes_count' => 'integer',

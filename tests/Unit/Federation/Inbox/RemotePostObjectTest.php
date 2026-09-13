@@ -2,11 +2,58 @@
 
 namespace Tests\Unit\Federation\Inbox;
 
+use App\Federation\Inbox\RemoteCustomEmoji;
 use App\Federation\Inbox\RemotePostObject;
 use Tests\TestCase;
 
 class RemotePostObjectTest extends TestCase
 {
+    public function test_it_extracts_only_valid_declared_custom_emojis(): void
+    {
+        $this->assertSame([
+            ':blobcat:' => 'https://mastodon.example/emoji/blobcat.png',
+        ], RemoteCustomEmoji::extract([
+            'tag' => [
+                [
+                    'type' => 'Emoji',
+                    'name' => ':blobcat:',
+                    'icon' => [
+                        'type' => 'Image',
+                        'url' => 'https://mastodon.example/emoji/blobcat.png',
+                    ],
+                ],
+                [
+                    'type' => 'Emoji',
+                    'name' => ':unsafe:',
+                    'icon' => ['url' => 'javascript:alert(1)'],
+                ],
+                [
+                    'type' => 'Emoji',
+                    'name' => 'missing-colons',
+                    'icon' => ['url' => 'https://mastodon.example/emoji/nope.png'],
+                ],
+                [
+                    'type' => 'Hashtag',
+                    'name' => ':not_an_emoji:',
+                    'icon' => ['url' => 'https://mastodon.example/emoji/nope.png'],
+                ],
+            ],
+        ]));
+    }
+
+    public function test_it_accepts_a_single_custom_emoji_tag_object(): void
+    {
+        $this->assertSame([
+            ':party_parrot:' => 'https://social.example/emoji/parrot.gif',
+        ], RemoteCustomEmoji::extract([
+            'tag' => [
+                'type' => 'https://www.w3.org/ns/activitystreams#Emoji',
+                'name' => ':party_parrot:',
+                'icon' => ['url' => 'https://social.example/emoji/parrot.gif'],
+            ],
+        ]));
+    }
+
     public function test_it_accepts_article_video_and_image_types(): void
     {
         $this->assertTrue(RemotePostObject::isPostable('Article'));

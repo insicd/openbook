@@ -7,6 +7,7 @@ use App\Domain\Communities\Community;
 use App\Domain\Feeds\FeedSource;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
+use App\Domain\Posts\PostBodyRenderer;
 use App\Domain\SocialGraph\Follow;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\HtmlString;
 
 /**
  * Rappresentazione unificata di un Actor ActivityPub.
@@ -35,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property string $uri
  * @property string|null $name
  * @property string|null $summary
+ * @property array<string, string>|null $custom_emojis
  * @property string|null $icon_url
  * @property string|null $image_url
  * @property bool $manually_approves_followers
@@ -79,6 +82,7 @@ class Actor extends Model
         'uri',
         'name',
         'summary',
+        'custom_emojis',
         'icon_url',
         'image_url',
         'manually_approves_followers',
@@ -101,6 +105,7 @@ class Actor extends Model
     {
         return [
             'is_local' => 'boolean',
+            'custom_emojis' => 'array',
             'manually_approves_followers' => 'boolean',
             'discoverable' => 'boolean',
             'indexable' => 'boolean',
@@ -257,6 +262,11 @@ class Actor extends Model
         }
 
         return filled($this->name) ? $this->name : $this->preferred_username;
+    }
+
+    public function displayNameHtml(): HtmlString
+    {
+        return PostBodyRenderer::renderInlineCustomEmojis($this->displayName(), $this->custom_emojis);
     }
 
     /**

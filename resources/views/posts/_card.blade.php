@@ -18,7 +18,7 @@
     @if ($sharedBy)
         <div class="ob-post__shared-by">
             <x-icon name="share" />
-            <a href="{{ $sharedBy->profileUrl() }}">{{ $sharedBy->displayName() }}</a>
+            <a href="{{ $sharedBy->profileUrl() }}">{!! $sharedBy->displayNameHtml() !!}</a>
             {{ __('openbook.actions.shared_this') }}
         </div>
     @endif
@@ -27,7 +27,7 @@
         <x-avatar :actor="$author" />
         <div class="ob-post__meta">
             @if ($author)
-                <a href="{{ $author->profileUrl() }}" class="ob-post__author">{{ $displayName }}</a>
+                <a href="{{ $author->profileUrl() }}" class="ob-post__author">{!! $author->displayNameHtml() !!}</a>
                 <div class="ob-post__handle">{{ $handle }}</div>
             @endif
             <div class="ob-post__time">
@@ -134,7 +134,7 @@
         @if ($post->community)
             <p class="ob-post__community">
                 <x-icon name="people" />
-                <a href="{{ route('communities.show', $post->community) }}">{{ $post->community->actor?->displayName() ?: $post->community->slug }}</a>
+                <a href="{{ route('communities.show', $post->community) }}">{!! $post->community->actor?->displayNameHtml() ?: e($post->community->slug) !!}</a>
             </p>
         @endif
         @if ($post->title)

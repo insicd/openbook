@@ -14,7 +14,7 @@
             <a href="{{ $actor->profileUrl() }}" class="ob-mini-profile__link">
                 <x-avatar :actor="$actor" style="width:48px;height:48px" />
                 <div>
-                    <div class="ob-post__author">{{ $actor->displayName() }}</div>
+                    <div class="ob-post__author">{!! $actor->displayNameHtml() !!}</div>
                     <div class="ob-post__handle">!{{ $actor->handle() }}</div>
                     @if (filled($actor->summary))
                         <p class="ob-field__help">{{ \Illuminate\Support\Str::limit(strip_tags($actor->summary), 120) }}</p>

@@ -114,7 +114,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="ob-comment__body">{{ \App\Domain\Posts\PostBodyRenderer::render($comment->body) }}</div>
+                        <div class="ob-comment__body">{{ \App\Domain\Posts\PostBodyRenderer::render($comment->body, $comment->custom_emojis) }}</div>
                         @if ($parentPost)
                             <p class="ob-field__help">
                                 <a href="{{ route('posts.show', $parentPost) }}#commento-{{ $comment->id }}">

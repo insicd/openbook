@@ -19,7 +19,7 @@
                 <a href="{{ $rowActor->profileUrl() }}" class="ob-mini-profile__link">
                     <x-avatar :actor="$rowActor" style="width:40px;height:40px" />
                     <div>
-                        <div class="ob-post__author">{{ $rowActor->displayName() }}</div>
+                        <div class="ob-post__author">{!! $rowActor->displayNameHtml() !!}</div>
                         <div class="ob-post__handle">{{ '@'.$rowActor->handle() }}</div>
                     </div>
                 </a>

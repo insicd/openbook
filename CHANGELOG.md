@@ -19,6 +19,11 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38.rc1]
 
 ### Added
+- **Custom emoji federate** ([issue #76](https://github.com/insicd/openbook/issues/76)):
+  le emoji dichiarate nei `tag` ActivityPub vengono conservate e mostrate
+  inline nei post, nei commenti, nei nomi e nelle biografie degli Actor remoti.
+  Shortcode e URL sono validati, mentre i file restano ospitati sull'istanza
+  di origine senza introdurre cataloghi o download locali.
 - **Follow locale degli hashtag**: dalla pagina di un tag e dall'elenco delle
   tendenze gli utenti possono seguire o smettere di seguire un hashtag. I post
   pubblici gia' conosciuti dall'istanza entrano nella Home personale senza

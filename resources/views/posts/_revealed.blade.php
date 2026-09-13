@@ -9,7 +9,7 @@
      */
 @endphp
 
-@include('posts._body', ['body' => $post->body, 'truncateBody' => $truncateBody])
+@include('posts._body', ['body' => $post->body, 'customEmojis' => $post->custom_emojis, 'truncateBody' => $truncateBody])
 @include('posts._video_embed_if_any', ['body' => $post->body])
 
 @if ($post->media->isNotEmpty())
