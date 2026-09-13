@@ -19,6 +19,10 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38.rc1]
 
 ### Added
+- **Condivisione nativa dei post pubblici**
+  ([issue #75](https://github.com/insicd/openbook/issues/75)): sui browser che
+  supportano la Web Share API, il menu di condivisione permette agli utenti
+  autenticati di inviare il permalink locale tramite il menu del dispositivo.
 - **Follow locale degli hashtag**: dalla pagina di un tag e dall'elenco delle
   tendenze gli utenti possono seguire o smettere di seguire un hashtag. I post
   pubblici gia' conosciuti dall'istanza entrano nella Home personale senza

@@ -238,6 +238,7 @@ return [
         'announce_direct' => 'Share directly',
         'announce_quote' => 'Share with quote',
         'announce_share_user' => 'Share with user',
+        'share_link' => 'Share link',
         'unannounce' => 'Undo share',
         'shared_this' => 'shared this post',
         'reaction_list_empty' => 'Nobody yet.',

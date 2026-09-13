@@ -9,6 +9,22 @@
     var MENU_SELECTOR = '.ob-post__menu, .ob-post__share-menu, .ob-reaction-list';
 
     document.addEventListener('click', function (event) {
+        var shareMenu = event.target.closest('.ob-post__share-menu');
+
+        if (shareMenu && typeof navigator.share === 'function') {
+            shareMenu.querySelectorAll('[data-native-share-url]').forEach(function (button) {
+                button.hidden = false;
+            });
+        }
+
+        var nativeShareBtn = event.target.closest('[data-native-share-url]');
+
+        if (nativeShareBtn) {
+            event.preventDefault();
+            sharePostUrl(nativeShareBtn);
+            return;
+        }
+
         var copyBtn = event.target.closest('[data-copy-url]');
 
         if (copyBtn) {
@@ -61,6 +77,20 @@
             closeParentMenu(button);
         }).catch(function () {
             flashLabel(button, labelEl, error, original);
+        });
+    }
+
+    function sharePostUrl(button) {
+        var url = button.getAttribute('data-native-share-url');
+
+        if (!url || typeof navigator.share !== 'function') {
+            return;
+        }
+
+        navigator.share({ url: url }).then(function () {
+            closeParentMenu(button);
+        }).catch(function () {
+            // Annullare il menu nativo non richiede alcun feedback nella pagina.
         });
     }
 
