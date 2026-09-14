@@ -82,6 +82,34 @@ class PostCardActionsTest extends TestCase
             ->assertSee(__('openbook.posts.copy_link'), false);
     }
 
+    public function test_native_share_is_offered_to_authenticated_users_for_public_posts_only(): void
+    {
+        $author = $this->createFullAccount('nativeshare');
+        $attributes = [
+            'actor_id' => $author->actor->id,
+            'body' => 'Post condivisibile.',
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ];
+        $public = Post::query()->create($attributes + ['visibility' => Post::VISIBILITY_PUBLIC]);
+        $unlisted = Post::query()->create($attributes + ['visibility' => Post::VISIBILITY_UNLISTED]);
+        $direct = Post::query()->create($attributes + ['visibility' => Post::VISIBILITY_DIRECT]);
+
+        $this->get(route('posts.show', $public))
+            ->assertOk()
+            ->assertDontSee('data-native-share-url', false);
+
+        $this->actingAs($author);
+
+        $publicHtml = view('posts._card', ['post' => $public])->render();
+        $unlistedHtml = view('posts._card', ['post' => $unlisted])->render();
+        $directHtml = view('posts._card', ['post' => $direct])->render();
+
+        $this->assertStringContainsString('data-native-share-url="'.route('posts.show', $public).'"', $publicHtml);
+        $this->assertStringNotContainsString('data-native-share-url', $unlistedHtml);
+        $this->assertStringNotContainsString('data-native-share-url', $directHtml);
+    }
+
     public function test_action_buttons_are_icon_only_without_word_labels(): void
     {
         $author = $this->createFullAccount('iconeazioni');

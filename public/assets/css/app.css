@@ -1901,6 +1901,10 @@ body.ob-css-preview #ob-compose-modal {
   display: none !important;
 }
 
+.ob-post__share-menu [data-native-share-url][hidden] {
+  display: none;
+}
+
 .ob-post__share-menu {
   position: relative;
 }

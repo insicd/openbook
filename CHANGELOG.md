@@ -24,6 +24,10 @@ il [`README`](README.md#roadmap-and-project-status).
   inline nei post, nei commenti, nei nomi e nelle biografie degli Actor remoti.
   Shortcode e URL sono validati, mentre i file restano ospitati sull'istanza
   di origine senza introdurre cataloghi o download locali.
+- **Condivisione nativa dei post pubblici**
+  ([issue #75](https://github.com/insicd/openbook/issues/75)): sui browser che
+  supportano la Web Share API, il menu di condivisione permette agli utenti
+  autenticati di inviare il permalink locale tramite il menu del dispositivo.
 - **Follow locale degli hashtag**: dalla pagina di un tag e dall'elenco delle
   tendenze gli utenti possono seguire o smettere di seguire un hashtag. I post
   pubblici gia' conosciuti dall'istanza entrano nella Home personale senza
@@ -49,6 +53,10 @@ il [`README`](README.md#roadmap-and-project-status).
   home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
 
 ### Fixed
+- Commenti remoti ([issue #74](https://github.com/insicd/openbook/issues/74)):
+  il timestamp ActivityPub `published` viene conservato in `created_at` sia
+  per le reply ricevute in inbox sia per quelle recuperate aprendo un post;
+  un successivo aggiornamento corregge anche gli orari importati in precedenza.
 - Composer con allegati: l'upload usa XHR e mostra avanzamento percentuale,
   disabilitando il pulsante durante l'invio per rendere evidente che i file
   piu' grandi sono in caricamento. Errori e redirect conservano il flusso

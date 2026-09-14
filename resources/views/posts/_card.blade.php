@@ -250,6 +250,18 @@
                                         {{ __('openbook.actions.announce_share_user') }}
                                     </a>
                                 @endunless
+                                @if ($post->visibility === \App\Domain\Posts\Post::VISIBILITY_PUBLIC)
+                                    <button
+                                        type="button"
+                                        class="ob-post__menu-item"
+                                        role="menuitem"
+                                        data-native-share-url="{{ route('posts.show', $post) }}"
+                                        hidden
+                                    >
+                                        <x-icon name="link" />
+                                        {{ __('openbook.actions.share_link') }}
+                                    </button>
+                                @endif
                             </div>
                         </details>
                         @include('posts._reaction_list', [

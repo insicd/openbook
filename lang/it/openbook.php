@@ -238,6 +238,7 @@ return [
         'announce_direct' => 'Condivisione diretta',
         'announce_quote' => 'Condivisione con citazione',
         'announce_share_user' => 'Condividi a utente',
+        'share_link' => 'Condividi link',
         'unannounce' => 'Annulla condivisione',
         'shared_this' => 'ha condiviso questo post',
         'reaction_list_empty' => 'Nessuno per ora.',
