@@ -1170,6 +1170,7 @@ class InboxActivityProcessorTest extends TestCase
         ]);
 
         $noteUri = $remote->uri.'/posts/'.uniqid();
+        $publishedAt = now()->subHours(3)->startOfSecond();
         $activity = [
             'id' => $noteUri.'/attivita',
             'type' => 'Create',
@@ -1180,7 +1181,7 @@ class InboxActivityProcessorTest extends TestCase
                 'attributedTo' => $remote->uri,
                 'inReplyTo' => url("/posts/{$post->id}"),
                 'content' => 'Bella idea!',
-                'published' => now()->toAtomString(),
+                'published' => $publishedAt->copy()->setTimezone('America/New_York')->toAtomString(),
                 'to' => ['https://www.w3.org/ns/activitystreams#Public'],
             ],
         ];
@@ -1194,6 +1195,8 @@ class InboxActivityProcessorTest extends TestCase
             'actor_id' => $remote->id,
             'body' => 'Bella idea!',
         ]);
+        $comment = Comment::query()->where('uri', $noteUri)->firstOrFail();
+        $this->assertTrue($comment->created_at->equalTo($publishedAt));
         $this->assertSame(1, $post->fresh()->comments_count);
         $this->assertDatabaseHas('notifications', [
             'recipient_id' => $author->id,
