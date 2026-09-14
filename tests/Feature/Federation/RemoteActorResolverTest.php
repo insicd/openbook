@@ -51,6 +51,27 @@ class RemoteActorResolverTest extends TestCase
         $this->assertFalse($actor->indexable);
     }
 
+    public function test_it_stores_custom_emojis_declared_by_the_remote_actor(): void
+    {
+        Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument([
+            'name' => 'Walt :blobcat:',
+            'summary' => '<p>Bio :blobcat:</p>',
+            'tag' => [[
+                'type' => 'Emoji',
+                'name' => ':blobcat:',
+                'icon' => ['type' => 'Image', 'url' => 'https://remoto.example/emoji/blobcat.png'],
+            ]],
+        ]), 200, ['Content-Type' => 'application/activity+json'])]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByUri(self::ACTOR_URI);
+
+        $this->assertNotNull($actor);
+        $this->assertSame(
+            [':blobcat:' => 'https://remoto.example/emoji/blobcat.png'],
+            $actor->custom_emojis,
+        );
+    }
+
     public function test_it_stores_mastodon_discoverable_and_indexable_flags(): void
     {
         Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument([

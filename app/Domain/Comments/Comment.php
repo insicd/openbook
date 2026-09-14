@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property string $actor_id
  * @property string|null $uri
  * @property string $body
+ * @property array<string, string>|null $custom_emojis
  * @property string $status
  * @property int $likes_count
  * @property int $replies_count
@@ -49,12 +50,14 @@ class Comment extends Model
         'actor_id',
         'uri',
         'body',
+        'custom_emojis',
         'status',
     ];
 
     protected function casts(): array
     {
         return [
+            'custom_emojis' => 'array',
             'edited_at' => 'datetime',
             'likes_count' => 'integer',
             'replies_count' => 'integer',

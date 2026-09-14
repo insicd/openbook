@@ -12,6 +12,54 @@ class PostBodyRendererTest extends TestCase
 {
     use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
+    public function test_it_renders_only_declared_custom_emojis_as_images(): void
+    {
+        $html = (string) PostBodyRenderer::render(
+            'Ciao :blobcat: e :unknown:',
+            [':blobcat:' => 'https://mastodon.example/emoji/blobcat.png'],
+        );
+
+        $this->assertStringContainsString('class="ob-custom-emoji"', $html);
+        $this->assertStringContainsString('src="https://mastodon.example/emoji/blobcat.png"', $html);
+        $this->assertStringContainsString('alt=":blobcat:"', $html);
+        $this->assertStringContainsString(':unknown:', $html);
+    }
+
+    public function test_it_does_not_render_custom_emojis_inside_links_or_code(): void
+    {
+        $html = (string) PostBodyRenderer::render(
+            '[:blobcat:](https://example.org) `:blobcat:` :blobcat:',
+            [':blobcat:' => 'https://mastodon.example/emoji/blobcat.png'],
+        );
+
+        $this->assertSame(1, substr_count($html, 'class="ob-custom-emoji"'));
+        $this->assertStringContainsString('>:blobcat:</a>', $html);
+        $this->assertStringContainsString('<code>:blobcat:</code>', $html);
+    }
+
+    public function test_it_ignores_unsafe_custom_emoji_urls(): void
+    {
+        $html = (string) PostBodyRenderer::render(
+            ':blobcat:',
+            [':blobcat:' => 'javascript:alert(1)'],
+        );
+
+        $this->assertStringNotContainsString('<img', $html);
+        $this->assertStringContainsString(':blobcat:', $html);
+    }
+
+    public function test_inline_custom_emoji_rendering_escapes_display_names(): void
+    {
+        $html = (string) PostBodyRenderer::renderInlineCustomEmojis(
+            '<b>Alice</b> :blobcat:',
+            [':blobcat:' => 'https://mastodon.example/emoji/blobcat.png'],
+        );
+
+        $this->assertStringContainsString('&lt;b&gt;Alice&lt;/b&gt;', $html);
+        $this->assertStringNotContainsString('<b>Alice</b>', $html);
+        $this->assertStringContainsString('class="ob-custom-emoji"', $html);
+    }
+
     public function test_it_turns_a_url_into_a_clickable_link_opening_in_a_new_tab(): void
     {
         $html = (string) PostBodyRenderer::render('Guarda questo: https://esempio.it/pagina');

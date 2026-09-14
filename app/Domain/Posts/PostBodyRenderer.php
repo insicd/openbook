@@ -58,9 +58,36 @@ final class PostBodyRenderer
         self::$mentionHrefCache = [];
     }
 
-    public static function render(string $body): HtmlString
+    /** @param array<string, string>|null $customEmojis */
+    public static function render(string $body, ?array $customEmojis = null): HtmlString
     {
-        return self::renderBody($body, forFederation: false);
+        return self::renderBody($body, forFederation: false, customEmojis: $customEmojis);
+    }
+
+    /** @param array<string, string>|null $customEmojis */
+    public static function renderInlineCustomEmojis(string $text, ?array $customEmojis = null): HtmlString
+    {
+        $valid = self::validCustomEmojis($customEmojis ?? []);
+
+        if ($valid === [] || ! str_contains($text, ':')) {
+            return new HtmlString(e($text));
+        }
+
+        $parts = preg_split(self::customEmojiPattern($valid), $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+
+        if ($parts === false) {
+            return new HtmlString(e($text));
+        }
+
+        $html = '';
+
+        foreach ($parts as $part) {
+            $html .= isset($valid[$part])
+                ? '<img class="ob-custom-emoji" src="'.e($valid[$part]).'" alt="'.e($part).'" title="'.e($part).'" loading="lazy" decoding="async">'
+                : e($part);
+        }
+
+        return new HtmlString($html);
     }
 
     /**
@@ -72,7 +99,8 @@ final class PostBodyRenderer
         return self::renderBody($body, forFederation: true);
     }
 
-    private static function renderBody(string $body, bool $forFederation): HtmlString
+    /** @param array<string, string>|null $customEmojis */
+    private static function renderBody(string $body, bool $forFederation, ?array $customEmojis = null): HtmlString
     {
         if (trim($body) === '') {
             return new HtmlString('');
@@ -84,7 +112,7 @@ final class PostBodyRenderer
             return new HtmlString('');
         }
 
-        return new HtmlString(self::enhanceRenderedHtml($html, $forFederation));
+        return new HtmlString(self::enhanceRenderedHtml($html, $forFederation, $customEmojis));
     }
 
     private static function converter(): MarkdownConverter
@@ -115,7 +143,8 @@ final class PostBodyRenderer
         return self::$converter = new MarkdownConverter($environment);
     }
 
-    private static function enhanceRenderedHtml(string $html, bool $forFederation = false): string
+    /** @param array<string, string>|null $customEmojis */
+    private static function enhanceRenderedHtml(string $html, bool $forFederation = false, ?array $customEmojis = null): string
     {
         $document = new DOMDocument;
         $previous = libxml_use_internal_errors(true);
@@ -138,6 +167,10 @@ final class PostBodyRenderer
         self::processAnchors($root, $forFederation);
         self::linkifyTextNodes($root, $forFederation);
 
+        if (! $forFederation) {
+            self::renderCustomEmojis($root, $customEmojis ?? []);
+        }
+
         $result = '';
 
         foreach ($root->childNodes as $child) {
@@ -145,6 +178,96 @@ final class PostBodyRenderer
         }
 
         return $result;
+    }
+
+    /** @param array<string, string> $customEmojis */
+    private static function renderCustomEmojis(DOMElement $root, array $customEmojis): void
+    {
+        $valid = self::validCustomEmojis($customEmojis);
+
+        if ($valid === []) {
+            return;
+        }
+
+        $pattern = self::customEmojiPattern($valid);
+        $xpath = new DOMXPath($root->ownerDocument);
+        $textNodes = [];
+
+        foreach ($xpath->query('.//text()[not(ancestor::a) and not(ancestor::code) and not(ancestor::pre)]', $root) ?: [] as $textNode) {
+            if ($textNode instanceof DOMText && str_contains($textNode->wholeText, ':')) {
+                $textNodes[] = $textNode;
+            }
+        }
+
+        foreach ($textNodes as $textNode) {
+            self::renderCustomEmojisInTextNode($textNode, $valid, $pattern);
+        }
+    }
+
+    /**
+     * @param  array<string, string>  $customEmojis
+     * @return array<string, string>
+     */
+    private static function validCustomEmojis(array $customEmojis): array
+    {
+        $valid = [];
+
+        foreach ($customEmojis as $name => $url) {
+            if (is_string($name)
+                && is_string($url)
+                && preg_match('/^:[A-Za-z0-9_]{1,100}:$/', $name) === 1
+                && strlen($url) <= 2048
+                && filter_var($url, FILTER_VALIDATE_URL) !== false
+                && in_array(strtolower((string) parse_url($url, PHP_URL_SCHEME)), ['http', 'https'], true)) {
+                $valid[$name] = $url;
+            }
+        }
+
+        uksort($valid, static fn (string $left, string $right): int => strlen($right) <=> strlen($left));
+
+        return $valid;
+    }
+
+    /** @param array<string, string> $customEmojis */
+    private static function customEmojiPattern(array $customEmojis): string
+    {
+        return '/('.implode('|', array_map(
+            static fn (string $name): string => preg_quote($name, '/'),
+            array_keys($customEmojis),
+        )).')/';
+    }
+
+    /** @param array<string, string> $customEmojis */
+    private static function renderCustomEmojisInTextNode(DOMText $textNode, array $customEmojis, string $pattern): void
+    {
+        $parts = preg_split($pattern, $textNode->wholeText, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $document = $textNode->ownerDocument;
+        $parent = $textNode->parentNode;
+
+        if ($parts === false || count($parts) === 1 || $document === null || $parent === null) {
+            return;
+        }
+
+        foreach ($parts as $part) {
+            if (! isset($customEmojis[$part])) {
+                if ($part !== '') {
+                    $parent->insertBefore($document->createTextNode($part), $textNode);
+                }
+
+                continue;
+            }
+
+            $image = $document->createElement('img');
+            $image->setAttribute('class', 'ob-custom-emoji');
+            $image->setAttribute('src', $customEmojis[$part]);
+            $image->setAttribute('alt', $part);
+            $image->setAttribute('title', $part);
+            $image->setAttribute('loading', 'lazy');
+            $image->setAttribute('decoding', 'async');
+            $parent->insertBefore($image, $textNode);
+        }
+
+        $parent->removeChild($textNode);
     }
 
     private static function stripImages(DOMElement $root): void

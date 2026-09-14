@@ -32,7 +32,7 @@
                 @endif
             </div>
 
-            <h1 class="ob-profile-name">{{ $displayName }}</h1>
+            <h1 class="ob-profile-name">{!! $profileActor->displayNameHtml() !!}</h1>
             <p class="ob-profile-handle">{{ $isGroup ? '!'.$profileActor->handle() : $handle }}</p>
 
             @if ($isFeed)
@@ -46,7 +46,7 @@
             @endif
 
             @if ($profileActor->summary)
-                <div class="ob-profile-bio">{{ \App\Domain\Posts\PostBodyRenderer::render(\App\Federation\Inbox\RemoteContentSanitizer::toPlainText($profileActor->summary)) }}</div>
+                <div class="ob-profile-bio">{{ \App\Domain\Posts\PostBodyRenderer::render(\App\Federation\Inbox\RemoteContentSanitizer::toPlainText($profileActor->summary), $profileActor->custom_emojis) }}</div>
             @endif
 
             @if ($feedSource)

@@ -4,6 +4,7 @@ namespace App\Federation\Actors;
 
 use App\Application\Services\DomainBlockManager;
 use App\Federation\Fetch\FederationFetchSigner;
+use App\Federation\Inbox\RemoteCustomEmoji;
 use App\Federation\Support\ActivityPubTimestamp;
 use App\Federation\Support\ActivityPubUri;
 use App\Infrastructure\Security\Http\SafeHttpClient;
@@ -617,6 +618,7 @@ final class RemoteActorResolver
                 'uri' => $uri,
                 'name' => isset($document['name']) ? (string) $document['name'] : null,
                 'summary' => isset($document['summary']) ? (string) $document['summary'] : null,
+                'custom_emojis' => RemoteCustomEmoji::extract($document) ?: null,
                 'icon_url' => $this->extractImageUrl($document['icon'] ?? null),
                 'image_url' => $this->extractImageUrl($document['image'] ?? null),
                 'manually_approves_followers' => (bool) ($document['manuallyApprovesFollowers'] ?? false),

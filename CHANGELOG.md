@@ -19,6 +19,11 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38.rc1]
 
 ### Added
+- **Custom emoji federate** ([issue #76](https://github.com/insicd/openbook/issues/76)):
+  le emoji dichiarate nei `tag` ActivityPub vengono conservate e mostrate
+  inline nei post, nei commenti, nei nomi e nelle biografie degli Actor remoti.
+  Shortcode e URL sono validati, mentre i file restano ospitati sull'istanza
+  di origine senza introdurre cataloghi o download locali.
 - **Condivisione nativa dei post pubblici**
   ([issue #75](https://github.com/insicd/openbook/issues/75)): sui browser che
   supportano la Web Share API, il menu di condivisione permette agli utenti

@@ -86,6 +86,7 @@ final class RemoteActorDeletionService
                 'uri' => 'urn:openbook:deleted-actor:'.$tombstoneId,
                 'name' => null,
                 'summary' => null,
+                'custom_emojis' => null,
                 'icon_url' => null,
                 'image_url' => null,
                 'manually_approves_followers' => false,

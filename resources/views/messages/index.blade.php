@@ -69,7 +69,7 @@
                 <x-avatar :actor="$other" style="width:48px;height:48px" />
                 <div class="ob-message-row__body">
                     <div class="ob-message-row__top">
-                        <strong>{{ $other->displayName() }}</strong>
+                        <strong>{!! $other->displayNameHtml() !!}</strong>
                         @if ($preview)
                             <span class="ob-message-row__time">{{ $preview->published_at->diffForHumans() }}</span>
                         @endif
@@ -80,7 +80,7 @@
                                 <span class="ob-message-row__you">{{ __('openbook.messages.you_prefix') }}</span>
                             @endif
                             @if (filled($preview->body))
-                                {{ Str::limit(strip_tags((string) \App\Domain\Posts\PostBodyRenderer::render($preview->body)), 120) }}
+                                {{ Str::limit(strip_tags((string) \App\Domain\Posts\PostBodyRenderer::render($preview->body, $preview->custom_emojis)), 120) }}
                             @elseif ($preview->quoted_post_id)
                                 {{ __('openbook.messages.shared_post_preview') }}
                             @elseif ($preview->quoted_actor_id)

@@ -15,8 +15,8 @@
 
         @if ($isComment)
             <div class="ob-report-preview ob-card" style="margin-top:1rem;padding:1rem">
-                <p class="ob-field__help">{{ $comment->actor?->displayName() }}</p>
-                <div>{{ \App\Domain\Posts\PostBodyRenderer::render($comment->body) }}</div>
+                <p class="ob-field__help">{!! $comment->actor?->displayNameHtml() !!}</p>
+                <div>{{ \App\Domain\Posts\PostBodyRenderer::render($comment->body, $comment->custom_emojis) }}</div>
             </div>
             @php
                 $formAction = route('comments.report.store', $comment);

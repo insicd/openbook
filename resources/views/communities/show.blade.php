@@ -27,7 +27,7 @@
             @endif
 
             @if (filled($community->actor->summary))
-                <div class="ob-profile-bio">{{ \App\Domain\Posts\PostBodyRenderer::render($community->actor->summary) }}</div>
+                <div class="ob-profile-bio">{{ \App\Domain\Posts\PostBodyRenderer::render($community->actor->summary, $community->actor->custom_emojis) }}</div>
             @endif
 
             <div class="ob-profile-stats">
@@ -131,7 +131,7 @@
                     <a href="{{ $request->follower->profileUrl() }}" class="ob-mini-profile__link">
                         <x-avatar :actor="$request->follower" style="width:40px;height:40px" />
                         <div>
-                            <div class="ob-post__author">{{ $request->follower->displayName() }}</div>
+                            <div class="ob-post__author">{!! $request->follower->displayNameHtml() !!}</div>
                             <div class="ob-post__handle">{{ '@'.$request->follower->preferred_username }}</div>
                         </div>
                     </a>

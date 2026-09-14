@@ -67,7 +67,7 @@
                         <a href="{{ route('communities.show', $community) }}" class="ob-mini-profile__link">
                             <x-avatar :actor="$community->actor" style="width:48px;height:48px" />
                             <div>
-                                <div class="ob-post__author">{{ $community->actor->displayName() }}</div>
+                                <div class="ob-post__author">{!! $community->actor->displayNameHtml() !!}</div>
                                 <div class="ob-post__handle">!{{ $community->slug }}</div>
                                 @if (filled($community->actor->summary))
                                     <p class="ob-field__help">{{ \Illuminate\Support\Str::limit($community->actor->summary, 120) }}</p>

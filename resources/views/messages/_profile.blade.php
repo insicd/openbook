@@ -13,7 +13,7 @@
     <a href="{{ $quotedActor->profileUrl() }}" class="ob-mini-profile__link">
         <x-avatar :actor="$quotedActor" style="width:40px;height:40px" />
         <div>
-            <div class="ob-post__author">{{ $quotedActor->displayName() }}</div>
+            <div class="ob-post__author">{!! $quotedActor->displayNameHtml() !!}</div>
             <div class="ob-post__handle">{{ '@'.$quotedActor->handle() }}</div>
         </div>
     </a>

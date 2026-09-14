@@ -38,11 +38,11 @@
         @endunless
     @elseif ($report->comment)
         <div class="ob-card" style="margin-top:1rem;padding:1rem">
-            <p class="ob-field__help">{{ $report->comment->actor?->displayName() }}</p>
+            <p class="ob-field__help">{!! $report->comment->actor?->displayNameHtml() !!}</p>
             @if ($report->comment->status === \App\Domain\Comments\Comment::STATUS_DELETED)
                 <p class="ob-post__deleted">{{ __('openbook.comments.deleted') }}</p>
             @else
-                <div>{{ \App\Domain\Posts\PostBodyRenderer::render($report->comment->body) }}</div>
+                <div>{{ \App\Domain\Posts\PostBodyRenderer::render($report->comment->body, $report->comment->custom_emojis) }}</div>
             @endif
         </div>
         @if ($report->comment->post)

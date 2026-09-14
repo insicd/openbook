@@ -42,7 +42,7 @@ final class ConversationMessagePresenter
             'author_name' => $message->actor->displayName(),
             'published_at' => $message->published_at->toIso8601String(),
             'published_label' => $message->published_at->format('d/m/Y H:i'),
-            'body_html' => (string) PostBodyRenderer::render($message->body),
+            'body_html' => (string) PostBodyRenderer::render($message->body, $message->custom_emojis),
             'quote_html' => $quoteHtml,
         ];
     }

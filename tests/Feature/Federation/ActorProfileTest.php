@@ -4,6 +4,9 @@ namespace Tests\Feature\Federation;
 
 use App\Application\Services\FollowManager;
 use App\Federation\Actors\Actor;
+use App\Support\CompactNumber;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Psr7\Request;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -59,7 +62,7 @@ class ActorProfileTest extends TestCase
         $response = $this->actingAs($viewer)->get(route('actors.show', $remote));
 
         $response->assertOk();
-        $response->assertSee(\App\Support\CompactNumber::format(12800), false);
+        $response->assertSee(CompactNumber::format(12800), false);
         $response->assertSee('42', false);
         $response->assertSee(__('openbook.profile.joined_on', [
             'date' => $remote->published_at->translatedFormat('d F Y'),
@@ -70,9 +73,9 @@ class ActorProfileTest extends TestCase
     {
         Http::fake(function (): void {
             throw new ConnectionException(
-                new \GuzzleHttp\Exception\ConnectException(
+                new ConnectException(
                     'cURL error 28: Connection timed out after 10001 milliseconds',
-                    new \GuzzleHttp\Psr7\Request('GET', 'https://offline.example/outbox'),
+                    new Request('GET', 'https://offline.example/outbox'),
                 ),
             );
         });
@@ -106,6 +109,24 @@ class ActorProfileTest extends TestCase
         $response->assertSee('https://example.test/tags/fediverso', false);
         $response->assertSee('#fediverso');
         $response->assertDontSee('href="https://example.test/tags/fediverso">#fediverso</a>', false);
+    }
+
+    public function test_custom_emojis_are_rendered_in_remote_actor_name_and_summary(): void
+    {
+        Http::fake(['*' => Http::response('', 404)]);
+        $viewer = $this->createFullAccount('visitatoreemoji');
+        $remote = $this->createRemoteActor('emoji', overrides: [
+            'name' => 'Emoji :blobcat:',
+            'summary' => '<p>Bio :blobcat:</p>',
+            'custom_emojis' => [':blobcat:' => 'https://remoto.example/emoji/blobcat.png'],
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('actors.show', $remote));
+
+        $response->assertOk();
+        $response->assertSee('class="ob-custom-emoji"', false);
+        $response->assertSee('src="https://remoto.example/emoji/blobcat.png"', false);
+        $response->assertSee('alt=":blobcat:"', false);
     }
 
     public function test_visiting_a_local_actor_id_redirects_to_the_canonical_profile(): void

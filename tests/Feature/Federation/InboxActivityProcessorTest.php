@@ -698,6 +698,11 @@ class InboxActivityProcessorTest extends TestCase
                 'type' => 'Note',
                 'attributedTo' => $remote->uri,
                 'content' => '<p>Ciao dal fediverso!</p>',
+                'tag' => [[
+                    'type' => 'Emoji',
+                    'name' => ':blobcat:',
+                    'icon' => ['type' => 'Image', 'url' => 'https://remoto.example/emoji/blobcat.png'],
+                ]],
                 'published' => now()->toAtomString(),
                 'to' => ['https://www.w3.org/ns/activitystreams#Public'],
             ],
@@ -712,6 +717,10 @@ class InboxActivityProcessorTest extends TestCase
             'body' => 'Ciao dal fediverso!',
             'visibility' => Post::VISIBILITY_PUBLIC,
         ]);
+        $this->assertSame(
+            [':blobcat:' => 'https://remoto.example/emoji/blobcat.png'],
+            Post::query()->where('uri', $noteUri)->firstOrFail()->custom_emojis,
+        );
     }
 
     public function test_a_remote_quote_post_with_quote_url_embeds_the_cited_post(): void
@@ -1181,6 +1190,12 @@ class InboxActivityProcessorTest extends TestCase
                 'attributedTo' => $remote->uri,
                 'inReplyTo' => url("/posts/{$post->id}"),
                 'content' => 'Bella idea!',
+                'tag' => [[
+                    'type' => 'Emoji',
+                    'name' => ':blobcat:',
+                    'icon' => ['type' => 'Image', 'url' => 'https://remoto.example/emoji/blobcat.png'],
+                ]],
+                'published' => now()->toAtomString(),
                 'published' => $publishedAt->copy()->setTimezone('America/New_York')->toAtomString(),
                 'to' => ['https://www.w3.org/ns/activitystreams#Public'],
             ],
@@ -1195,6 +1210,10 @@ class InboxActivityProcessorTest extends TestCase
             'actor_id' => $remote->id,
             'body' => 'Bella idea!',
         ]);
+        $this->assertSame(
+            [':blobcat:' => 'https://remoto.example/emoji/blobcat.png'],
+            Comment::query()->where('uri', $noteUri)->firstOrFail()->custom_emojis,
+        );
         $comment = Comment::query()->where('uri', $noteUri)->firstOrFail();
         $this->assertTrue($comment->created_at->equalTo($publishedAt));
         $this->assertSame(1, $post->fresh()->comments_count);

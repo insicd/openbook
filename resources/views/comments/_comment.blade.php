@@ -34,7 +34,7 @@
             <x-avatar :actor="$author" style="width:32px;height:32px;font-size:1rem" />
             <div class="ob-post__meta">
                 @if ($author)
-                    <a href="{{ $author->profileUrl() }}" class="ob-post__author">{{ $displayName }}</a>
+                    <a href="{{ $author->profileUrl() }}" class="ob-post__author">{!! $author->displayNameHtml() !!}</a>
                     <div class="ob-post__time">
                         <a href="{{ route('comments.show', $comment) }}" class="ob-comment__permalink" aria-label="{{ __('openbook.comments.open_thread') }}">
                             {{ $comment->created_at->diffForHumans() }}
@@ -75,7 +75,7 @@
             @endcanany
         </div>
 
-        <div class="ob-comment__body">{{ \App\Domain\Posts\PostBodyRenderer::render($comment->body) }}</div>
+        <div class="ob-comment__body">{{ \App\Domain\Posts\PostBodyRenderer::render($comment->body, $comment->custom_emojis) }}</div>
 
         @if ($comment->media->isNotEmpty())
             <div class="ob-post__media ob-comment__media" data-lightbox-group>

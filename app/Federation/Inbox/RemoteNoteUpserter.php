@@ -90,6 +90,7 @@ final class RemoteNoteUpserter
             'title' => RemotePostObject::title($note),
             'content_warning' => $sensitive ? (is_string($note['summary'] ?? null) ? mb_substr($note['summary'], 0, 255) : null) : null,
             'body' => $body,
+            'custom_emojis' => RemoteCustomEmoji::extract($note) ?: null,
             'visibility' => $visibility,
             'status' => Post::STATUS_PUBLISHED,
             // Riconverti sempre al TZ app: i caller possono passare un Carbon
@@ -271,6 +272,7 @@ final class RemoteNoteUpserter
             'parent_comment_id' => $parentComment?->id,
             'actor_id' => $actor->id,
             'body' => $body,
+            'custom_emojis' => RemoteCustomEmoji::extract($note) ?: null,
             'status' => Comment::STATUS_PUBLISHED,
         ]);
 
