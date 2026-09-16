@@ -90,6 +90,20 @@ final class PostBodyRenderer
         return new HtmlString($html);
     }
 
+    /** @param array<string, string>|null $customEmojis */
+    public static function stripInlineCustomEmojis(string $text, ?array $customEmojis = null): string
+    {
+        $valid = self::validCustomEmojis($customEmojis ?? []);
+
+        if ($valid === []) {
+            return $text;
+        }
+
+        $stripped = str_replace(array_keys($valid), '', $text);
+
+        return trim(preg_replace('/\s+/u', ' ', $stripped) ?? $stripped);
+    }
+
     /**
      * Come {@see render()}, ma gli href delle menzioni puntano agli id
      * ActivityPub (non alle pagine HTML locali di Openbook).

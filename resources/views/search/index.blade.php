@@ -93,7 +93,6 @@
                 @foreach ($results['comments'] as $comment)
                     @php
                         $commentAuthor = $comment->actor;
-                        $commentName = $commentAuthor?->displayName();
                         $parentPost = $comment->post;
                     @endphp
                     <div class="ob-search-comment">
@@ -101,7 +100,7 @@
                             <x-avatar :actor="$commentAuthor" style="width:36px;height:36px;font-size:1rem" />
                             <div class="ob-post__meta">
                                 @if ($commentAuthor)
-                                    <a href="{{ $commentAuthor->profileUrl() }}" class="ob-post__author">{{ $commentName }}</a>
+                                    <a href="{{ $commentAuthor->profileUrl() }}" class="ob-post__author">{!! $commentAuthor->displayNameHtml() !!}</a>
                                 @endif
                                 <div class="ob-post__time">
                                     @if ($parentPost)

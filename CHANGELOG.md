@@ -56,6 +56,10 @@ il [`README`](README.md#roadmap-and-project-status).
   home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
 
 ### Fixed
+- Custom emoji federate: i nomi degli Actor ora renderizzano correttamente le
+  emoji anche in notifiche, attivita', commenti, messaggi, segnalazioni e liste
+  delle reazioni; nei contesti solo testuali gli shortcode dichiarati vengono
+  rimossi senza alterare eventuali sequenze sconosciute.
 - Commenti remoti ([issue #74](https://github.com/insicd/openbook/issues/74)):
   il timestamp ActivityPub `published` viene conservato in `created_at` sia
   per le reply ricevute in inbox sia per quelle recuperate aprendo un post;

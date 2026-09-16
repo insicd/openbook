@@ -10,11 +10,12 @@ use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAccounts;
+use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
 
 class NotificationTest extends TestCase
 {
-    use CreatesAccounts, RefreshDatabase;
+    use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
     public function test_a_guest_cannot_view_notifications(): void
     {
@@ -118,6 +119,35 @@ class NotificationTest extends TestCase
         $response->assertJsonPath('notifications.0.unread', true);
         $this->assertStringContainsString('notiffollower5', $response->json('notifications.0.message'));
         $response->assertHeader('ETag');
+    }
+
+    public function test_custom_emojis_are_rendered_in_notification_actor_names(): void
+    {
+        $recipient = $this->createFullAccount('notifemoji');
+        $actor = $this->createRemoteActor('emoji', overrides: [
+            'name' => 'Emoji :blobcat:',
+            'custom_emojis' => [':blobcat:' => 'https://remoto.example/emoji/blobcat.png'],
+        ]);
+
+        Notification::query()->create([
+            'recipient_id' => $recipient->id,
+            'actor_id' => $actor->id,
+            'type' => Notification::TYPE_MENTION,
+            'notifiable_type' => Post::class,
+            'notifiable_id' => app(PostComposer::class)->compose($recipient->actor, [
+                'body' => 'Post menzionato.',
+                'visibility' => Post::VISIBILITY_PUBLIC,
+            ])->id,
+        ]);
+
+        $page = $this->actingAs($recipient)->get(route('notifications.index'));
+        $page->assertOk();
+        $page->assertSee('class="ob-custom-emoji"', false);
+        $page->assertSee('src="https://remoto.example/emoji/blobcat.png"', false);
+
+        $feed = $this->actingAs($recipient)->getJson(route('notifications.feed'));
+        $feed->assertOk();
+        $this->assertStringContainsString('ob-custom-emoji', $feed->json('notifications.0.message_html'));
     }
 
     public function test_like_and_share_notifications_link_the_actor_profile_separately_from_the_post(): void

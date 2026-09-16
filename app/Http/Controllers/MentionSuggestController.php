@@ -28,7 +28,7 @@ class MentionSuggestController extends Controller
                 'handle' => $actor->isLocal()
                     ? $actor->preferred_username
                     : $actor->handle(),
-                'display_name' => $actor->displayName(),
+                'display_name' => $actor->displayNameForText(),
                 'avatar_url' => $actor->avatarUrl(),
                 'is_local' => $actor->isLocal(),
             ])->values(),

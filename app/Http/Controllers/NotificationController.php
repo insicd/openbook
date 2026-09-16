@@ -74,7 +74,7 @@ class NotificationController extends Controller
             ->get()
             ->map(static function (Notification $notification): array {
                 $actor = $notification->actor;
-                $name = $actor?->displayName() ?: __('openbook.notifications.someone');
+                $name = $actor?->displayNameForText() ?: __('openbook.notifications.someone');
 
                 return [
                     'id' => $notification->id,

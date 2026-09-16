@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @php
-    $ownerName = $owner->displayName();
+    $ownerName = $owner->displayNameForText();
     $pageTitle = $pageTitle ?? ($type === 'followers'
         ? __('openbook.follows.followers_title', ['name' => $ownerName])
         : __('openbook.follows.following_title', ['name' => $ownerName]));

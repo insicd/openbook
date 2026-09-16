@@ -126,7 +126,10 @@
             <input type="hidden" name="quoted_post_id" value="{{ $quotedPost->id }}">
             <div class="ob-composer__quote-banner">
                 <x-icon name="quote" />
-                <span>{{ __('openbook.composer.quoting', ['name' => $quotedPost->actor?->displayName() ?: $quotedPost->actor?->handle()]) }}</span>
+                <span>{!! \App\Domain\Posts\PostBodyRenderer::renderInlineCustomEmojis(
+                    __('openbook.composer.quoting', ['name' => $quotedPost->actor?->displayName() ?: $quotedPost->actor?->handle()]),
+                    $quotedPost->actor?->custom_emojis,
+                ) !!}</span>
                 <a href="{{ route('feed.index') }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
             </div>
         @endif
@@ -274,7 +277,7 @@
                                 <option value="">{{ __('openbook.composer.community_none') }}</option>
                                 @foreach ($composerCommunities as $communityOption)
                                     <option value="{{ $communityOption->id }}" @selected((string) $selectedCommunityId === (string) $communityOption->id)>
-                                        {{ $communityOption->actor?->displayName() ?: $communityOption->slug }}
+                                        {{ $communityOption->actor?->displayNameForText() ?: $communityOption->slug }}
                                     </option>
                                 @endforeach
                             </select>

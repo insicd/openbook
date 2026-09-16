@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @php
-    $displayName = $comment->actor->displayName();
+    $displayName = $comment->actor->displayNameForText();
 @endphp
 
 @section('title', __('openbook.comments.thread_title', ['name' => $displayName]).' - '.config('app.name'))

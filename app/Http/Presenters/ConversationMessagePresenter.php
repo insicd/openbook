@@ -39,7 +39,7 @@ final class ConversationMessagePresenter
         return [
             'id' => $message->id,
             'mine' => $message->actor_id === $viewer->id,
-            'author_name' => $message->actor->displayName(),
+            'author_name' => $message->actor->displayNameForText(),
             'published_at' => $message->published_at->toIso8601String(),
             'published_label' => $message->published_at->format('d/m/Y H:i'),
             'body_html' => (string) PostBodyRenderer::render($message->body, $message->custom_emojis),

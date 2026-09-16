@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @php
-    $displayName = $other->displayName();
+    $displayName = $other->displayNameForText();
     $lastMessage = $messages->last();
     $quotedPost = $quotedPost ?? null;
     $quotedActor = $quotedActor ?? null;
@@ -19,7 +19,7 @@
             <div class="ob-message-thread__peer">
                 <x-avatar :actor="$other" style="width:40px;height:40px" />
                 <div>
-                    <strong>{{ $displayName }}</strong>
+                    <strong>{!! $other->displayNameHtml() !!}</strong>
                     <div class="ob-message-thread__handle">{{ '@'.$other->handle() }}</div>
                 </div>
             </div>
@@ -50,7 +50,10 @@
                     <input type="hidden" name="quoted_post_id" value="{{ $quotedPost->id }}" data-message-quoted-id>
                     <div class="ob-composer__quote-banner" data-message-quote>
                         <x-icon name="quote" />
-                        <span>{{ __('openbook.composer.quoting', ['name' => $quotedPost->actor?->displayName() ?: $quotedPost->actor?->handle()]) }}</span>
+                        <span>{!! \App\Domain\Posts\PostBodyRenderer::renderInlineCustomEmojis(
+                            __('openbook.composer.quoting', ['name' => $quotedPost->actor?->displayName() ?: $quotedPost->actor?->handle()]),
+                            $quotedPost->actor?->custom_emojis,
+                        ) !!}</span>
                         <a href="{{ route('messages.show', $conversation) }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
                     </div>
                     <div data-message-quote-embed>
@@ -60,7 +63,10 @@
                     <input type="hidden" name="quoted_actor_id" value="{{ $quotedActor->id }}" data-message-quoted-id>
                     <div class="ob-composer__quote-banner" data-message-quote>
                         <x-icon name="share" />
-                        <span>{{ __('openbook.messages.sharing_profile', ['name' => $quotedActor->displayName()]) }}</span>
+                        <span>{!! \App\Domain\Posts\PostBodyRenderer::renderInlineCustomEmojis(
+                            __('openbook.messages.sharing_profile', ['name' => $quotedActor->displayName()]),
+                            $quotedActor->custom_emojis,
+                        ) !!}</span>
                         <a href="{{ route('messages.show', $conversation) }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
                     </div>
                     <div data-message-quote-embed>

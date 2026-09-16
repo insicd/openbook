@@ -156,7 +156,11 @@
         var meta = document.createElement('div');
         var nameEl = document.createElement('div');
         nameEl.className = 'ob-post__author';
-        nameEl.textContent = actor.name || '';
+        if (actor.name_html) {
+            nameEl.innerHTML = actor.name_html;
+        } else {
+            nameEl.textContent = actor.name || '';
+        }
         var handleEl = document.createElement('div');
         handleEl.className = 'ob-post__handle';
         handleEl.textContent = actor.handle || '';

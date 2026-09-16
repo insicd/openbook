@@ -91,7 +91,8 @@ class PostReactionController extends Controller
                 'total' => $total,
                 'remaining' => $remaining,
                 'actors' => $actors->map(fn (Actor $actor) => [
-                    'name' => $actor->displayName(),
+                    'name' => $actor->displayNameForText(),
+                    'name_html' => (string) $actor->displayNameHtml(),
                     'handle' => '@'.$actor->handle(),
                     'url' => $actor->profileUrl(),
                     'avatar_url' => $actor->avatarUrl(),

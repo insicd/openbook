@@ -18,7 +18,7 @@
     @endif
 
     @if ($actorUrl)
-        <a href="{{ $actorUrl }}" class="ob-notification__actor" aria-label="{{ $causedByActor?->displayName() }}">
+        <a href="{{ $actorUrl }}" class="ob-notification__actor" aria-label="{{ $causedByActor?->displayNameForText() }}">
             <x-avatar :actor="$causedByActor" style="{{ $avatarStyle }}" />
         </a>
     @else

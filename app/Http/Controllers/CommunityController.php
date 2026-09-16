@@ -213,7 +213,7 @@ class CommunityController extends Controller
             'actors' => $paginator,
             'viewerActor' => $viewerActor,
             'statusMap' => $statusMap,
-            'pageTitle' => __('openbook.communities.members_title', ['name' => $community->actor->displayName()]),
+            'pageTitle' => __('openbook.communities.members_title', ['name' => $community->actor->displayNameForText()]),
             'backUrl' => route('communities.show', $community),
             'backLabel' => __('openbook.communities.back_to_community'),
             'emptyMessage' => __('openbook.communities.empty_members'),

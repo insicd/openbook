@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @php
+    $displayName = $post->actor->displayNameForText();
     $displayName = $post->actor->displayName();
     $openGraphTitle = $post->title ?: __('openbook.posts.page_title', ['name' => $displayName]);
     $openGraphBodyHtml = (string) \App\Domain\Posts\PostBodyRenderer::render($post->body);
