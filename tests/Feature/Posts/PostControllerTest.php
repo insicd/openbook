@@ -5,6 +5,8 @@ namespace Tests\Feature\Posts;
 use App\Application\Services\FollowManager;
 use App\Application\Services\PostComposer;
 use App\Domain\Posts\Post;
+use App\Domain\Posts\PostAttachment;
+use App\Infrastructure\Media\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -88,6 +90,51 @@ class PostControllerTest extends TestCase
         $post = $this->publishPost($author, 'Post pubblico visibile a tutti.');
 
         $this->get(route('posts.show', $post))->assertOk()->assertSee('Post pubblico visibile a tutti.');
+    }
+
+    public function test_a_public_post_exposes_open_graph_metadata(): void
+    {
+        $author = $this->createFullAccount('anteprima');
+        $post = $this->publishPost($author, "Una foto & davvero speciale.\nSeconda riga.");
+        $media = Media::query()->create([
+            'actor_id' => $author->actor->id,
+            'disk' => 'remote',
+            'path' => 'remote/preview-photo',
+            'remote_url' => 'https://cdn.example/preview.jpg',
+            'mime_type' => 'image/jpeg',
+            'byte_size' => 0,
+            'width' => 1200,
+            'height' => 800,
+            'alt_text' => 'Una fotografia di prova',
+        ]);
+
+        PostAttachment::query()->create([
+            'post_id' => $post->id,
+            'media_id' => $media->id,
+            'position' => 0,
+        ]);
+
+        $this->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertSee('<meta property="og:type" content="article">', false)
+            ->assertSee('<meta property="og:url" content="'.route('posts.show', $post).'">', false)
+            ->assertSee('<meta property="og:description" content="Una foto &amp; davvero speciale. Seconda riga.">', false)
+            ->assertSee('<meta property="og:image" content="https://cdn.example/preview.jpg">', false)
+            ->assertSee('<meta property="og:image:width" content="1200">', false)
+            ->assertSee('<meta property="og:image:height" content="800">', false)
+            ->assertSee('<meta property="og:image:alt" content="Una fotografia di prova">', false)
+            ->assertDontSee('twitter:card', false);
+    }
+
+    public function test_a_non_public_post_does_not_expose_open_graph_metadata(): void
+    {
+        $author = $this->createFullAccount('anteprivata');
+        $post = $this->publishPost($author, 'Testo da non esporre nei metadati.', Post::VISIBILITY_FOLLOWERS);
+
+        $this->actingAs($author)
+            ->get(route('posts.show', $post))
+            ->assertOk()
+            ->assertDontSee('property="og:', false);
     }
 
     public function test_a_followers_only_post_is_hidden_from_non_followers(): void
