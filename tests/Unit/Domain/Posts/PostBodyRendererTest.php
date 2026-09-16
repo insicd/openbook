@@ -60,6 +60,16 @@ class PostBodyRendererTest extends TestCase
         $this->assertStringContainsString('class="ob-custom-emoji"', $html);
     }
 
+    public function test_declared_custom_emojis_can_be_removed_from_plain_text(): void
+    {
+        $text = PostBodyRenderer::stripInlineCustomEmojis(
+            'Yamakyu :riceAaaaa: e :unknown:',
+            [':riceAaaaa:' => 'https://mastodon.example/emoji/rice.png'],
+        );
+
+        $this->assertSame('Yamakyu e :unknown:', $text);
+    }
+
     public function test_it_turns_a_url_into_a_clickable_link_opening_in_a_new_tab(): void
     {
         $html = (string) PostBodyRenderer::render('Guarda questo: https://esempio.it/pagina');

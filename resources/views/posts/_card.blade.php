@@ -1,7 +1,6 @@
 @php
     /** @var \App\Domain\Posts\Post $post */
     $author = $post->actor;
-    $displayName = $author?->displayName();
     $handle = $author ? '@'.$author->handle() : '';
     $isDeleted = $post->status === \App\Domain\Posts\Post::STATUS_DELETED;
     $linkToPost = $linkToPost ?? true;

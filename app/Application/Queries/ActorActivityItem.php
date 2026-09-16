@@ -120,8 +120,10 @@ final class ActorActivityItem
 
     private function linkedName(?Actor $actor): string
     {
-        $name = $actor?->displayName() ?: __('openbook.notifications.someone');
-        $escaped = e($name);
+        $name = $actor?->displayNameForText() ?: __('openbook.notifications.someone');
+        $escaped = $actor !== null
+            ? (string) $actor->displayNameHtml()
+            : e($name);
         $url = $actor?->profileUrl();
 
         if ($url === null) {

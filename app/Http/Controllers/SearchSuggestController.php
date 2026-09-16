@@ -76,7 +76,7 @@ class SearchSuggestController extends Controller
             'type' => 'person',
             'url' => route('profile.show', $user->username),
             'handle' => $user->username,
-            'display_name' => $actor?->displayName() ?: ($user->profile?->display_name ?: $user->username),
+            'display_name' => $actor?->displayNameForText() ?: ($user->profile?->display_name ?: $user->username),
             'avatar_url' => $actor?->avatarUrl(),
             'is_local' => true,
         ];
@@ -91,7 +91,7 @@ class SearchSuggestController extends Controller
             'type' => 'person',
             'url' => $actor->profileUrl(),
             'handle' => $actor->handle(),
-            'display_name' => $actor->displayName(),
+            'display_name' => $actor->displayNameForText(),
             'avatar_url' => $actor->avatarUrl(),
             'is_local' => false,
         ];

@@ -114,7 +114,7 @@ class Notification extends Model
     public function messageReplacements(?string $locale = null): array
     {
         $replacements = [
-            'name' => $this->actor?->displayName() ?: __('openbook.notifications.someone', [], $locale),
+            'name' => $this->actor?->displayNameForText() ?: __('openbook.notifications.someone', [], $locale),
         ];
 
         if ($this->messageNeedsCommunity()) {
@@ -158,7 +158,9 @@ class Notification extends Model
 
     private function actorNameHtml(string $name): string
     {
-        $escaped = e($name);
+        $escaped = $this->actor !== null
+            ? (string) $this->actor->displayNameHtml()
+            : e($name);
         $url = $this->actorProfileUrl();
 
         if ($url === null) {
@@ -170,8 +172,11 @@ class Notification extends Model
 
     private function communityNameHtml(string $name): string
     {
-        $escaped = e($name);
-        $url = $this->communityActor()?->profileUrl();
+        $actor = $this->communityActor();
+        $escaped = $actor !== null
+            ? (string) $actor->displayNameHtml()
+            : e($name);
+        $url = $actor?->profileUrl();
 
         if ($url === null) {
             return $escaped;
@@ -205,7 +210,7 @@ class Notification extends Model
     private function communityDisplayName(?string $locale = null): string
     {
         $actor = $this->communityActor();
-        $name = $actor?->displayName() ?: $actor?->preferred_username;
+        $name = $actor?->displayNameForText() ?: $actor?->preferred_username;
 
         if (filled($name)) {
             return (string) $name;

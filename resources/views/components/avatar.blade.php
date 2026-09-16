@@ -3,12 +3,12 @@
 {{--
     Accetta indifferentemente un utente locale ("user", il caso storico) o un
     Actor ActivityPub ("actor", locale o remoto): quest'ultimo espone
-    displayName()/avatarUrl() gia' uniformati, utile per mostrare autori
+    displayNameForText()/avatarUrl() gia' uniformati, utile per mostrare autori
     remoti nelle card di post/commenti senza duplicare la logica qui.
 --}}
 @php
     if ($actor) {
-        $displayName = $actor->displayName();
+        $displayName = $actor->displayNameForText();
         $avatarUrl = $actor->avatarUrl();
     } else {
         $displayName = $user?->profile?->display_name ?: $user?->username ?: '?';

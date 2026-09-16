@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @php
-    $displayName = $profileActor->displayName();
+    $displayName = $profileActor->displayNameForText();
     $handle = '@'.$profileActor->handle();
     $isGroup = $profileActor->isGroup();
     $isFeed = $profileActor->isFeed();

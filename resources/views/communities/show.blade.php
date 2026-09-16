@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @php
-    $displayName = $community->actor->displayName();
+    $displayName = $community->actor->displayNameForText();
     $handle = '!'.$community->slug.'@'.config('openbook.domain');
 @endphp
 
@@ -19,7 +19,7 @@
                 @endif
             </div>
 
-            <h1 class="ob-profile-name">{{ $displayName }}</h1>
+            <h1 class="ob-profile-name">{!! $community->actor->displayNameHtml() !!}</h1>
             <p class="ob-profile-handle">{{ $handle }}</p>
 
             @if ($community->is_private)

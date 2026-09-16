@@ -2,7 +2,7 @@
     /** @var \App\Domain\Comments\Comment $comment */
     $comment = $node['comment'];
     $author = $comment->actor;
-    $displayName = $author?->displayName();
+    $displayName = $author?->displayNameForText();
     $isDeleted = $comment->status === \App\Domain\Comments\Comment::STATUS_DELETED;
     $children = $node['children'] ?? [];
     $depth = $depth ?? 0;
@@ -43,7 +43,10 @@
                 @endif
                 @if ($showInReplyTo)
                     <a href="{{ route('comments.show', $parent) }}" class="ob-comment__in-reply">
-                        {{ __('openbook.comments.in_reply_to', ['name' => $parent->actor?->displayName() ?? $parent->actor?->preferred_username]) }}
+                        {!! \App\Domain\Posts\PostBodyRenderer::renderInlineCustomEmojis(
+                            __('openbook.comments.in_reply_to', ['name' => $parent->actor?->displayName() ?? $parent->actor?->preferred_username]),
+                            $parent->actor?->custom_emojis,
+                        ) !!}
                     </a>
                 @endif
             </div>

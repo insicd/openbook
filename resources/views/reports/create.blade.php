@@ -2,7 +2,7 @@
 
 @php
     $target = $comment ?? $post;
-    $displayName = $target->actor?->displayName() ?: __('openbook.notifications.someone');
+    $displayName = $target->actor?->displayNameForText() ?: __('openbook.notifications.someone');
     $isComment = $comment !== null;
 @endphp
 
@@ -11,7 +11,10 @@
 @section('content')
     <div class="ob-card ob-narrow">
         <h1>{{ $isComment ? __('openbook.reports.page_title_comment') : __('openbook.reports.page_title') }}</h1>
-        <p class="ob-field__help">{{ __('openbook.reports.intro', ['name' => $displayName]) }}</p>
+        <p class="ob-field__help">{!! \App\Domain\Posts\PostBodyRenderer::renderInlineCustomEmojis(
+            __('openbook.reports.intro', ['name' => $target->actor?->displayName() ?: __('openbook.notifications.someone')]),
+            $target->actor?->custom_emojis,
+        ) !!}</p>
 
         @if ($isComment)
             <div class="ob-report-preview ob-card" style="margin-top:1rem;padding:1rem">

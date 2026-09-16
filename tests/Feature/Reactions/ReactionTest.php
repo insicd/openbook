@@ -11,11 +11,12 @@ use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAccounts;
+use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
 
 class ReactionTest extends TestCase
 {
-    use CreatesAccounts, RefreshDatabase;
+    use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
     private function publishPost(User $author): Post
     {
@@ -275,6 +276,23 @@ class ReactionTest extends TestCase
             ->assertOk()
             ->assertSee('data-reaction-list', false)
             ->assertSee('data-url="'.route('posts.likes', $post).'"', false);
+    }
+
+    public function test_reaction_json_renders_custom_emojis_and_exposes_a_clean_text_name(): void
+    {
+        $author = $this->createFullAccount('reactionemoji');
+        $liker = $this->createRemoteActor('emojiliker', overrides: [
+            'name' => 'Emoji :blobcat:',
+            'custom_emojis' => [':blobcat:' => 'https://remoto.example/emoji/blobcat.png'],
+        ]);
+        $post = $this->publishPost($author);
+
+        app(ReactionManager::class)->like($liker, $post);
+
+        $this->getJson(route('posts.likes', $post))
+            ->assertOk()
+            ->assertJsonPath('actors.0.name', 'Emoji')
+            ->assertJsonPath('actors.0.name_html', fn (string $html): bool => str_contains($html, 'ob-custom-emoji'));
     }
 
     public function test_announces_list_includes_who_shared_the_post(): void

@@ -269,6 +269,13 @@ class Actor extends Model
         return PostBodyRenderer::renderInlineCustomEmojis($this->displayName(), $this->custom_emojis);
     }
 
+    public function displayNameForText(): string
+    {
+        $name = PostBodyRenderer::stripInlineCustomEmojis($this->displayName(), $this->custom_emojis);
+
+        return $name !== '' ? $name : $this->preferred_username;
+    }
+
     /**
      * Vedi {@see self::displayName()}: stessa uniformita' per l'avatar.
      */

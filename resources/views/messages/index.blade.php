@@ -18,7 +18,10 @@
             <p class="ob-message-new__intro">{{ __('openbook.messages.share_intro') }}</p>
             <div class="ob-composer__quote-banner">
                 <x-icon name="quote" />
-                <span>{{ __('openbook.composer.quoting', ['name' => $quotedPost->actor?->displayName() ?: $quotedPost->actor?->handle()]) }}</span>
+                <span>{!! \App\Domain\Posts\PostBodyRenderer::renderInlineCustomEmojis(
+                    __('openbook.composer.quoting', ['name' => $quotedPost->actor?->displayName() ?: $quotedPost->actor?->handle()]),
+                    $quotedPost->actor?->custom_emojis,
+                ) !!}</span>
                 <a href="{{ route('messages.index') }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
             </div>
             @include('messages._quote', ['quotedPost' => $quotedPost])
@@ -26,7 +29,10 @@
             <p class="ob-message-new__intro">{{ __('openbook.messages.share_profile_intro') }}</p>
             <div class="ob-composer__quote-banner">
                 <x-icon name="share" />
-                <span>{{ __('openbook.messages.sharing_profile', ['name' => $quotedActor->displayName()]) }}</span>
+                <span>{!! \App\Domain\Posts\PostBodyRenderer::renderInlineCustomEmojis(
+                    __('openbook.messages.sharing_profile', ['name' => $quotedActor->displayName()]),
+                    $quotedActor->custom_emojis,
+                ) !!}</span>
                 <a href="{{ route('messages.index') }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
             </div>
             @include('messages._profile', ['quotedActor' => $quotedActor, 'showFollow' => false])

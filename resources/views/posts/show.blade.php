@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @php
-    $displayName = $post->actor->displayName();
+    $displayName = $post->actor->displayNameForText();
 @endphp
 
 @section('title', __('openbook.posts.page_title', ['name' => $displayName]).' - '.config('app.name'))

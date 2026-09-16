@@ -193,6 +193,24 @@ class ProfileActivityTest extends TestCase
         $activity->assertDontSee('data-activity-type="like_post"', false);
     }
 
+    public function test_custom_emojis_are_rendered_in_activity_actor_names(): void
+    {
+        Http::fake(['*' => Http::response('', 404)]);
+        $viewer = $this->createFullAccount('visitatoreemoji');
+        $remote = $this->createRemoteActor('attivitaemoji', overrides: [
+            'name' => 'Emoji :blobcat:',
+            'custom_emojis' => [':blobcat:' => 'https://remoto.example/emoji/blobcat.png'],
+        ]);
+        $post = $this->publishPost($viewer, 'Post locale da commentare.');
+        app(CommentComposer::class)->compose($remote, $post, 'Commento con autore emoji.');
+
+        $this->actingAs($viewer)
+            ->get(route('actors.activity', $remote))
+            ->assertOk()
+            ->assertSee('class="ob-custom-emoji"', false)
+            ->assertSee('src="https://remoto.example/emoji/blobcat.png"', false);
+    }
+
     public function test_remote_groups_and_feeds_do_not_have_an_activity_tab(): void
     {
         Http::fake(['*' => Http::response('', 404)]);
