@@ -19,6 +19,9 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38.rc1]
 
 ### Added
+- **Anteprime dei post condivisi**: le pagine dei post pubblici espongono
+  metadati Open Graph con titolo, estratto e prima immagine o copertina video,
+  permettendo alle applicazioni compatibili di generare preview piu' complete.
 - **Custom emoji federate** ([issue #76](https://github.com/insicd/openbook/issues/76)):
   le emoji dichiarate nei `tag` ActivityPub vengono conservate e mostrate
   inline nei post, nei commenti, nei nomi e nelle biografie degli Actor remoti.
