@@ -16,7 +16,7 @@ Il footer mostra anche il nome in codice (`config('openbook.release_label')`).
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-and-project-status).
 
-## [26.38.rc1]
+## [26.38] - Melancholy Taco
 
 ### Added
 - **Anteprime dei post condivisi**: le pagine dei post pubblici espongono
