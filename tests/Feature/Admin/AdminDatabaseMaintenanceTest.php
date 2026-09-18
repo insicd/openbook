@@ -2,8 +2,12 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Domain\Posts\PendingPostAttachment;
+use App\Domain\Posts\PendingPostPublication;
 use App\Federation\Inbox\InboxItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
@@ -86,5 +90,67 @@ class AdminDatabaseMaintenanceTest extends TestCase
         $this->assertDatabaseHas('inbox_items', [
             'remote_activity_uri' => 'https://remote.test/like/old-pending',
         ]);
+    }
+
+    public function test_purge_removes_only_expired_terminal_publications_and_their_staging_files(): void
+    {
+        Storage::fake('local');
+        config(['openbook.maintenance.publication_queue_retention_days' => 7]);
+
+        $admin = $this->createFullAccount('adminpublicationpurge');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $oldPublished = $this->createPublication($admin->actor->id, PendingPostPublication::STATUS_PUBLISHED, 8);
+        $oldFailed = $this->createPublication($admin->actor->id, PendingPostPublication::STATUS_FAILED, 8);
+        $oldPending = $this->createPublication($admin->actor->id, PendingPostPublication::STATUS_PENDING, 8);
+        $recentFailed = $this->createPublication($admin->actor->id, PendingPostPublication::STATUS_FAILED, 2);
+
+        foreach ([$oldPublished, $oldFailed, $oldPending, $recentFailed] as $publication) {
+            Storage::disk('local')->put("post-publication/{$publication->id}/source.mov", 'video');
+        }
+
+        $this->actingAs($admin)
+            ->post(route('admin.database.purge'), ['table' => 'post_publication_queue'])
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        foreach ([$oldPublished, $oldFailed] as $publication) {
+            $this->assertDatabaseMissing('post_publication_queue', ['id' => $publication->id]);
+            $this->assertDatabaseMissing('post_publication_queue_attachments', ['publication_id' => $publication->id]);
+            Storage::disk('local')->assertMissing("post-publication/{$publication->id}");
+        }
+
+        foreach ([$oldPending, $recentFailed] as $publication) {
+            $this->assertDatabaseHas('post_publication_queue', ['id' => $publication->id]);
+            $this->assertDatabaseHas('post_publication_queue_attachments', ['publication_id' => $publication->id]);
+            Storage::disk('local')->assertExists("post-publication/{$publication->id}/source.mov");
+        }
+    }
+
+    private function createPublication(string $actorId, string $status, int $ageDays): PendingPostPublication
+    {
+        $publication = PendingPostPublication::query()->create([
+            'actor_id' => $actorId,
+            'payload' => ['body' => 'Pubblicazione temporanea.'],
+            'status' => $status,
+        ]);
+
+        PendingPostAttachment::query()->create([
+            'publication_id' => $publication->id,
+            'position' => 0,
+            'disk' => 'local',
+            'path' => "post-publication/{$publication->id}/source.mov",
+            'original_name' => 'source.mov',
+            'mime_type' => 'video/quicktime',
+            'byte_size' => 5,
+            'media_type' => 'video',
+            'processing' => PendingPostAttachment::PROCESS_TRANSCODE,
+        ]);
+
+        DB::table('post_publication_queue')
+            ->where('id', $publication->id)
+            ->update(['created_at' => now()->subDays($ageDays), 'updated_at' => now()->subDays($ageDays)]);
+
+        return $publication->fresh();
     }
 }
