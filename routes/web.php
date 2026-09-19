@@ -18,6 +18,7 @@ use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\ConversationController;
+use App\Http\Controllers\EventCommentController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\EventInteractionController;
 use App\Http\Controllers\FeedController;
@@ -64,11 +65,23 @@ Route::middleware('auth')->group(function () {
     Route::get('/mondo', [WorldController::class, 'index'])->name('world.index');
     Route::get('/mondo/scopri', [WorldController::class, 'discover'])->name('world.discover');
 
+    Route::get('/eventi/crea', [EventController::class, 'create'])->name('events.create');
+    Route::post('/eventi', [EventController::class, 'store'])->name('events.store');
+    Route::get('/eventi/{event}/modifica', [EventController::class, 'edit'])->name('events.edit');
+    Route::put('/eventi/{event}', [EventController::class, 'update'])->name('events.update');
+    Route::patch('/eventi/{event}/annulla', [EventController::class, 'cancel'])->name('events.cancel');
+    Route::delete('/eventi/{event}', [EventController::class, 'destroy'])->name('events.destroy');
     Route::post('/eventi/{event}/interesse', [EventInteractionController::class, 'interest'])->name('events.interest');
     Route::delete('/eventi/{event}/interesse', [EventInteractionController::class, 'removeInterest'])->name('events.uninterest');
     Route::post('/eventi/{event}/partecipa', [EventInteractionController::class, 'join'])->name('events.join');
     Route::delete('/eventi/{event}/partecipa', [EventInteractionController::class, 'leave'])->name('events.leave');
+    Route::post('/eventi/{event}/partecipazioni/{participation}/accetta', [EventInteractionController::class, 'accept'])->name('events.participations.accept');
+    Route::post('/eventi/{event}/partecipazioni/{participation}/rifiuta', [EventInteractionController::class, 'reject'])->name('events.participations.reject');
     Route::get('/eventi/{event}/condividi-a-utente', [EventController::class, 'shareToUser'])->name('events.share_to_user');
+    Route::post('/eventi/{event}/commenti', [EventCommentController::class, 'store'])->name('event-comments.store');
+    Route::delete('/commenti-evento/{comment}', [EventCommentController::class, 'destroy'])->name('event-comments.destroy');
+    Route::post('/commenti-evento/{comment}/mi-piace', [LikeController::class, 'likeEventComment'])->name('event-comments.like');
+    Route::delete('/commenti-evento/{comment}/mi-piace', [LikeController::class, 'unlikeEventComment'])->name('event-comments.unlike');
 
     Route::post('/tag/{name}/segui', [HashtagFollowController::class, 'store'])->name('hashtags.follow');
     Route::delete('/tag/{name}/segui', [HashtagFollowController::class, 'destroy'])->name('hashtags.unfollow');
@@ -244,6 +257,7 @@ Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show')
 Route::get('/eventi', [EventController::class, 'index'])->name('events.index');
 Route::get('/eventi/passati', [EventController::class, 'archive'])->name('events.archive');
 Route::get('/eventi/{event}', [EventController::class, 'show'])->name('events.show');
+Route::get('/event-comments/{comment}', [EventCommentController::class, 'show'])->name('event-comments.show');
 
 // Elenchi di chi ha reagito (stessa visibilita' del post). JSON per il
 // dropdown sulla card, HTML senza JavaScript.

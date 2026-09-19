@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Events;
 
+use App\Application\Services\EventParticipationManager;
 use App\Domain\Events\Event;
+use App\Domain\Events\EventComment;
 use App\Domain\Events\EventParticipation;
 use App\Domain\Notifications\Notification;
 use App\Federation\Actors\Actor;
@@ -195,6 +197,264 @@ class EventInteractionTest extends TestCase
         $this->assertDatabaseCount('event_participations', 0);
     }
 
+    public function test_remote_join_to_a_free_local_event_is_accepted_and_counted(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('localfreeowner');
+        $guest = $this->createRemoteActor('remoteguest', 'guest.example');
+        $event = $this->localEvent($owner->actor, ['join_mode' => 'free']);
+        $joinUri = $guest->uri.'/activities/join-free';
+
+        $status = $this->process([
+            'id' => $joinUri,
+            'type' => 'Join',
+            'actor' => $guest->uri,
+            'object' => $event->uri,
+        ], $guest);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $participation = EventParticipation::query()->sole();
+        $this->assertSame(EventParticipation::STATUS_ACCEPTED, $participation->status);
+        $this->assertSame(1, $event->fresh()->participant_count);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $owner->id,
+            'actor_id' => $guest->id,
+            'type' => Notification::TYPE_EVENT_JOINED,
+            'notifiable_type' => 'event_participation',
+            'notifiable_id' => $participation->id,
+        ]);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Accept'
+            && ($job->activity['object']['id'] ?? null) === $joinUri
+            && $job->activity['actor'] === $owner->actor->activityPubId()
+        );
+
+        app(EventParticipationManager::class)->receiveJoin($guest, $event, $joinUri);
+        $this->assertDatabaseCount('event_participations', 1);
+        Queue::assertPushed(DeliverActivityJob::class, 1);
+    }
+
+    public function test_restricted_local_event_notifies_owner_and_can_be_accepted(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('restrictedowner');
+        $guest = $this->createRemoteActor('restrictedguest', 'guest.example');
+        $event = $this->localEvent($owner->actor, ['join_mode' => 'restricted']);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process([
+            'id' => $guest->uri.'/activities/join-restricted',
+            'type' => 'Join',
+            'actor' => $guest->uri,
+            'object' => $event->uri,
+        ], $guest));
+
+        $participation = EventParticipation::query()->sole();
+        $this->assertSame(EventParticipation::STATUS_PENDING, $participation->status);
+        $this->assertSame(0, $event->fresh()->participant_count);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $owner->id,
+            'actor_id' => $guest->id,
+            'type' => Notification::TYPE_EVENT_JOIN_REQUEST,
+            'notifiable_type' => 'event_participation',
+            'notifiable_id' => $participation->id,
+        ]);
+        $this->actingAs($owner)->get(route('events.show', $event))
+            ->assertOk()
+            ->assertSeeText(__('openbook.events.pending_participations'))
+            ->assertSee($guest->handle());
+
+        $this->actingAs($owner)
+            ->post(route('events.participations.accept', [$event, $participation]))
+            ->assertRedirect();
+
+        $this->assertSame(EventParticipation::STATUS_ACCEPTED, $participation->fresh()->status);
+        $this->assertSame(1, $event->fresh()->participant_count);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Accept'
+            && ($job->activity['object']['id'] ?? null) === $participation->activity_uri
+        );
+    }
+
+    public function test_restricted_local_event_request_can_be_rejected(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('rejectingowner');
+        $guest = $this->createRemoteActor('rejectedguest', 'guest.example');
+        $event = $this->localEvent($owner->actor, ['join_mode' => 'restricted']);
+        $this->process([
+            'id' => $guest->uri.'/activities/join-reject',
+            'type' => 'Join',
+            'actor' => $guest->uri,
+            'object' => $event->uri,
+        ], $guest);
+        $participation = EventParticipation::query()->sole();
+
+        $this->actingAs($owner)
+            ->post(route('events.participations.reject', [$event, $participation]))
+            ->assertRedirect();
+
+        $this->assertSame(EventParticipation::STATUS_REJECTED, $participation->fresh()->status);
+        $this->assertSame(0, $event->fresh()->participant_count);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Reject');
+    }
+
+    public function test_remote_leave_and_undo_join_remove_local_participation(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('leaveowner');
+        $guest = $this->createRemoteActor('leavingguest', 'guest.example');
+        $event = $this->localEvent($owner->actor, ['join_mode' => 'free']);
+        $joinUri = $guest->uri.'/activities/join-leave';
+        $join = [
+            'id' => $joinUri,
+            'type' => 'Join',
+            'actor' => $guest->uri,
+            'object' => $event->uri,
+        ];
+        $this->process($join, $guest);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process([
+            'id' => $guest->uri.'/activities/leave',
+            'type' => 'Leave',
+            'actor' => $guest->uri,
+            'object' => $event->uri,
+        ], $guest));
+        $this->assertDatabaseCount('event_participations', 0);
+        $this->assertSame(0, $event->fresh()->participant_count);
+
+        $secondJoin = [...$join, 'id' => $guest->uri.'/activities/join-again'];
+        $this->process($secondJoin, $guest);
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process([
+            'id' => $guest->uri.'/activities/undo-join',
+            'type' => 'Undo',
+            'actor' => $guest->uri,
+            'object' => $secondJoin,
+        ], $guest));
+        $this->assertDatabaseCount('event_participations', 0);
+        $this->assertSame(0, $event->fresh()->participant_count);
+    }
+
+    public function test_local_user_can_join_a_local_event_without_a_delivery_job(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('sameinstanceowner');
+        $guest = $this->createFullAccount('sameinstanceguest');
+        $event = $this->localEvent($owner->actor, ['join_mode' => 'free']);
+
+        $this->actingAs($guest)->post(route('events.join', $event))->assertRedirect();
+
+        $this->assertDatabaseHas('event_participations', [
+            'event_id' => $event->id,
+            'actor_id' => $guest->actor->id,
+            'status' => EventParticipation::STATUS_ACCEPTED,
+        ]);
+        $this->assertSame(1, $event->fresh()->participant_count);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $owner->id,
+            'actor_id' => $guest->actor->id,
+            'type' => Notification::TYPE_EVENT_JOINED,
+        ]);
+        Queue::assertNotPushed(DeliverActivityJob::class);
+    }
+
+    public function test_local_restricted_request_is_decided_without_federation_and_notifies_guest(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('localrequestowner');
+        $guest = $this->createFullAccount('localrequestguest');
+        $event = $this->localEvent($owner->actor, ['join_mode' => 'restricted']);
+
+        $this->actingAs($guest)->post(route('events.join', $event))->assertRedirect();
+        $participation = EventParticipation::query()->sole();
+        $this->assertSame(EventParticipation::STATUS_PENDING, $participation->status);
+
+        $this->actingAs($owner)
+            ->post(route('events.participations.accept', [$event, $participation]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $guest->id,
+            'actor_id' => $owner->actor->id,
+            'type' => Notification::TYPE_EVENT_JOIN_ACCEPTED,
+            'notifiable_id' => $participation->id,
+        ]);
+        Queue::assertNotPushed(DeliverActivityJob::class);
+    }
+
+    public function test_only_event_owner_can_decide_a_participation_request(): void
+    {
+        $owner = $this->createFullAccount('decisionowner');
+        $stranger = $this->createFullAccount('decisionstranger');
+        $guest = $this->createRemoteActor('decisionguest', 'guest.example');
+        $event = $this->localEvent($owner->actor, ['join_mode' => 'restricted']);
+        $this->process([
+            'id' => $guest->uri.'/activities/join-decision',
+            'type' => 'Join',
+            'actor' => $guest->uri,
+            'object' => $event->uri,
+        ], $guest);
+        $participation = EventParticipation::query()->sole();
+
+        $this->actingAs($stranger)
+            ->post(route('events.participations.accept', [$event, $participation]))
+            ->assertForbidden();
+        $this->assertSame(EventParticipation::STATUS_PENDING, $participation->fresh()->status);
+    }
+
+    public function test_join_claiming_another_actor_is_ignored(): void
+    {
+        $owner = $this->createFullAccount('claimedowner');
+        $signer = $this->createRemoteActor('joinsigner', 'guest.example');
+        $claimed = $this->createRemoteActor('claimedguest', 'other.example');
+        $event = $this->localEvent($owner->actor, ['join_mode' => 'free']);
+
+        $status = $this->process([
+            'id' => $signer->uri.'/activities/forged-join',
+            'type' => 'Join',
+            'actor' => $claimed->uri,
+            'object' => $event->uri,
+        ], $signer);
+
+        $this->assertSame(InboxItem::STATUS_IGNORED, $status);
+        $this->assertDatabaseCount('event_participations', 0);
+    }
+
+    public function test_remote_like_and_undo_are_applied_to_a_local_event_comment(): void
+    {
+        $owner = $this->createFullAccount('eventcommentowner');
+        $remote = $this->createRemoteActor('eventcommentliker', 'guest.example');
+        $event = $this->localEvent($owner->actor);
+        $comment = EventComment::query()->create([
+            'event_id' => $event->id,
+            'actor_id' => $owner->actor->id,
+            'uri' => route('event-comments.show', fake()->uuid()),
+            'body' => 'Commento locale.',
+            'status' => EventComment::STATUS_PUBLISHED,
+        ]);
+        $like = [
+            'id' => $remote->uri.'/activities/like-event-comment',
+            'type' => 'Like',
+            'actor' => $remote->uri,
+            'object' => $comment->uri,
+        ];
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process($like, $remote));
+        $this->assertSame(1, $comment->fresh()->likes_count);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $owner->id,
+            'actor_id' => $remote->id,
+            'type' => Notification::TYPE_LIKE,
+            'notifiable_type' => 'event_comment',
+            'notifiable_id' => $comment->id,
+        ]);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process([
+            'id' => $remote->uri.'/activities/undo-like-event-comment',
+            'type' => 'Undo',
+            'actor' => $remote->uri,
+            'object' => $like,
+        ], $remote));
+        $this->assertSame(0, $comment->fresh()->likes_count);
+    }
+
     private function process(array $activity, Actor $signer): string
     {
         $item = InboxItem::query()->create([
@@ -231,5 +491,26 @@ class EventInteractionTest extends TestCase
             'remote_counts_fetched_at' => now(),
             ...$attributes,
         ]);
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function localEvent(Actor $actor, array $attributes = []): Event
+    {
+        $event = new Event;
+        $event->id = $event->newUniqueId();
+        $event->forceFill([
+            'actor_id' => $actor->id,
+            'uri' => route('events.show', $event->id),
+            'url' => route('events.show', $event->id),
+            'name' => 'Evento locale interattivo',
+            'visibility' => Event::VISIBILITY_PUBLIC,
+            'status' => Event::STATUS_SCHEDULED,
+            'start_at' => now()->addDay(),
+            'participant_count' => 0,
+            'published_at' => now(),
+            ...$attributes,
+        ])->save();
+
+        return $event->fresh('actor');
     }
 }

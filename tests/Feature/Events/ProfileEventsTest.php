@@ -73,6 +73,22 @@ class ProfileEventsTest extends TestCase
             ->assertSee($private->name);
     }
 
+    public function test_only_the_profile_owner_sees_the_create_event_action(): void
+    {
+        $owner = $this->createFullAccount('eventowner');
+        $visitor = $this->createFullAccount('eventvisitor');
+
+        $this->actingAs($owner)
+            ->get(route('profile.events', $owner->username))
+            ->assertOk()
+            ->assertSee(route('events.create'));
+
+        $this->actingAs($visitor)
+            ->get(route('profile.events', $owner->username))
+            ->assertOk()
+            ->assertDontSee(route('events.create'));
+    }
+
     public function test_actor_tab_includes_attributed_events_without_leaking_private_ones(): void
     {
         Http::fake();

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Application\Queries\PopularHashtagsQuery;
 use App\Application\Services\PostComposer;
 use App\Domain\Accounts\User;
+use App\Domain\Events\Event;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,8 +14,8 @@ use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
 
 /**
- * Sidebar destra "In tendenza": classifica hashtag dai post pubblici/unlisted
- * in cache (locali e remoti). Vedi {@see PopularHashtagsQuery}.
+ * Sidebar destra "In tendenza": classifica hashtag da post ed eventi
+ * pubblici/unlisted in cache. Vedi {@see PopularHashtagsQuery}.
  */
 class PopularHashtagsTest extends TestCase
 {
@@ -78,6 +79,61 @@ class PopularHashtagsTest extends TestCase
         $names = app(PopularHashtagsQuery::class)->top()->pluck('name');
 
         $this->assertTrue($names->contains('fediverso'));
+    }
+
+    public function test_it_combines_public_post_and_event_hashtag_uses(): void
+    {
+        $alice = $this->createFullAccount('eventtrend');
+        $this->publishPost($alice, 'Un post su #musica');
+        $music = Hashtag::query()->where('name', 'musica')->firstOrFail();
+        $festival = Hashtag::query()->create(['name' => 'festival']);
+        $event = Event::query()->create([
+            'actor_id' => $alice->actor->id,
+            'uri' => route('events.show', fake()->uuid()),
+            'name' => 'Festival musicale',
+            'visibility' => Event::VISIBILITY_PUBLIC,
+            'status' => Event::STATUS_SCHEDULED,
+            'start_at' => now()->addDay(),
+            'published_at' => now(),
+        ]);
+        $event->hashtags()->attach([$music->id, $festival->id]);
+
+        $top = app(PopularHashtagsQuery::class)->top();
+
+        $this->assertSame(['musica', 'festival'], $top->pluck('name')->all());
+        $this->assertSame(2, $top->firstWhere('name', 'musica')->usage_count);
+        $this->assertSame(1, $top->firstWhere('name', 'festival')->usage_count);
+    }
+
+    public function test_it_excludes_private_cancelled_and_old_events(): void
+    {
+        $alice = $this->createFullAccount('eventtrendfilters');
+
+        foreach ([
+            ['name' => 'visibile', 'visibility' => Event::VISIBILITY_UNLISTED, 'status' => Event::STATUS_SCHEDULED, 'published_at' => now()],
+            ['name' => 'privato', 'visibility' => Event::VISIBILITY_DIRECT, 'status' => Event::STATUS_SCHEDULED, 'published_at' => now()],
+            ['name' => 'annullato', 'visibility' => Event::VISIBILITY_PUBLIC, 'status' => Event::STATUS_CANCELLED, 'published_at' => now()],
+            ['name' => 'vecchio', 'visibility' => Event::VISIBILITY_PUBLIC, 'status' => Event::STATUS_SCHEDULED, 'published_at' => now()->subDays(8)],
+        ] as $position => $attributes) {
+            $hashtag = Hashtag::query()->create(['name' => $attributes['name']]);
+            $event = Event::query()->create([
+                'actor_id' => $alice->actor->id,
+                'uri' => 'https://events.example/event/'.$position,
+                'name' => 'Evento '.$position,
+                'visibility' => $attributes['visibility'],
+                'status' => $attributes['status'],
+                'start_at' => now()->addDay(),
+                'published_at' => $attributes['published_at'],
+            ]);
+            $event->hashtags()->attach($hashtag->id);
+        }
+
+        $names = app(PopularHashtagsQuery::class)->top()->pluck('name');
+
+        $this->assertTrue($names->contains('visibile'));
+        $this->assertFalse($names->contains('privato'));
+        $this->assertFalse($names->contains('annullato'));
+        $this->assertFalse($names->contains('vecchio'));
     }
 
     public function test_the_sidebar_shows_trending_hashtags_with_limit_and_more_link(): void

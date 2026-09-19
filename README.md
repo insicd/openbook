@@ -412,7 +412,7 @@ app/
     Profiles/
     Posts/           # Posts, attachments, hashtags, mentions, text rendering
     Comments/        # Comments (top-level and nested replies)
-    Events/          # Federated events, locations, RSVP and read-only comments
+    Events/          # Federated events, locations, RSVP and comment threads
     Reactions/        # Likes and shares (Like/Announce at the local level)
     SocialGraph/      # Follows between Actors (local and remote)
     Notifications/    # Local notifications (not federated)
@@ -683,18 +683,31 @@ Openbook recognizes ActivityStreams `Event` objects received through signed
 `Create` and `Announce` activities and keeps them separate from timeline
 posts. The public **Events** section (`/eventi`) provides upcoming and past
 event lists, local detail pages, location and time-zone information, media,
-hashtags, search results, remote counters, and read-only federated comment
+hashtags, search results, remote counters, and federated comment
 threads. Visibility follows the event audience: public and unlisted events can
 be opened by link, while followers-only and direct events require a recorded
 local recipient. Deleted events remain as tombstones instead of becoming an
 ambiguous 404 for users who were allowed to see them.
 
-Authenticated users can send `Like`/`Undo(Like)` as an expression of interest
-and, where supported by the origin, `Join`, `Undo(Join)`, or `Leave` for an
-RSVP. An event can also be shared in a private Openbook conversation only when
-the recipient already belongs to its audience; sharing never grants access to
-restricted content. Events marked `sensitive` keep descriptions and media
-behind an explicit reveal control.
+Authenticated users can create public or unlisted events from the Events
+section or from their profile. The composer supports a cover image, Markdown
+description, explicit time zone, physical/online/hybrid location, hashtags,
+mentions, and open, moderated, or external participation. Local events can be
+edited, cancelled, or deleted; Openbook publishes the corresponding
+`Create(Event)`, `Update(Event)`, and `Delete(Event)` activities and exposes
+them in both the Actor outbox and its dedicated `events` collection.
+
+Users can send `Like`/`Undo(Like)` as an expression of interest and, where
+supported by the origin, `Join`, `Undo(Join)`, or `Leave` for an RSVP. Local
+organizers receive notifications for new participants and can accept or reject
+moderated requests. Event comments and nested replies are federated as `Note`
+objects whose `inReplyTo` points to the Event or parent comment; comments also
+support attachments, likes, notifications, and tombstone deletion. An event
+can be shared in a private Openbook conversation only when the recipient
+already belongs to its audience; sharing never grants access to restricted
+content. Events marked `sensitive` keep descriptions and media behind an
+explicit reveal control. Hashtags used by recent public/unlisted events also
+contribute to the trending ranking alongside post hashtags.
 
 No additional worker is required: event activities use the existing inbox and
 delivery queues processed by `openbook:cron`. After deploying support for a
@@ -707,8 +720,6 @@ php artisan openbook:reprocess-inbox
 
 The command requeues every retained ignored inbox item and remains safe to run
 more than once; unsupported activities simply return to the ignored state.
-This release receives and interacts with remote events. Creating and
-publishing a new local Event is intentionally left for a later iteration.
 
 Not yet part of the mature product: a real recipient system for direct
 messages (beyond mentions), and advanced federation-debug tools (beyond the

@@ -92,6 +92,8 @@ final class InboxActivityProcessor
             'Update' => $this->handleUpdate($activity, $signer, $inboxTarget),
             'Delete' => $this->handleDelete($activity, $signer),
             'Like' => $this->handleLike($activity, $signer),
+            'Join' => $this->handleEventJoin($activity, $signer),
+            'Leave' => $this->handleEventLeave($activity, $signer),
             'Announce' => $this->handleAnnounce($activity, $signer, $inboxTarget),
             default => InboxItem::STATUS_IGNORED,
         };
@@ -334,6 +336,7 @@ final class InboxActivityProcessor
             'Follow' => $this->handleUndoFollow($object, $actor),
             'Like' => $this->handleUndoLike($object, $actor),
             'Announce' => $this->handleUndoAnnounce($object, $actor),
+            'Join' => $this->handleUndoEventJoin($object, $actor),
             default => $this->handleUndoByReference($object, $actor),
         };
     }
@@ -360,6 +363,15 @@ final class InboxActivityProcessor
         if ($eventAnnounce !== null) {
             $eventAnnounce->delete();
 
+            return InboxItem::STATUS_PROCESSED;
+        }
+
+        $participation = EventParticipation::query()
+            ->where('actor_id', $actor->id)
+            ->where('activity_uri', $objectId)
+            ->first();
+
+        if ($participation !== null && $this->eventParticipations->receiveLeave($actor, $participation->event, $objectId)) {
             return InboxItem::STATUS_PROCESSED;
         }
 
@@ -401,7 +413,7 @@ final class InboxActivityProcessor
     {
         $targetUri = $this->objectId($embeddedLike['object'] ?? null);
         $target = $targetUri !== null
-            ? ($this->objects->resolveEvent($targetUri) ?? $this->objects->resolvePostOrComment($targetUri))
+            ? ($this->objects->resolveEvent($targetUri) ?? $this->objects->resolveEventComment($targetUri) ?? $this->objects->resolvePostOrComment($targetUri))
             : null;
 
         if ($target === null || $target->actor === null || ! $target->actor->isLocal()) {
@@ -438,6 +450,61 @@ final class InboxActivityProcessor
         return InboxItem::STATUS_PROCESSED;
     }
 
+    /** @param array<string, mixed> $embeddedJoin */
+    private function handleUndoEventJoin(array $embeddedJoin, Actor $actor): string
+    {
+        if ($this->actorUri($embeddedJoin['actor'] ?? null) !== $this->normalizeUri($actor->activityPubId())) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $eventUri = $this->objectId($embeddedJoin['object'] ?? null);
+        $event = $eventUri !== null ? $this->objects->resolveEvent($eventUri) : null;
+        $activityUri = $this->objectId($embeddedJoin);
+
+        if ($event === null || ! $this->eventParticipations->receiveLeave($actor, $event, $activityUri)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        return InboxItem::STATUS_PROCESSED;
+    }
+
+    /** @param array<string, mixed> $activity */
+    private function handleEventJoin(array $activity, Actor $actor): string
+    {
+        if ($this->actorUri($activity['actor'] ?? null) !== $this->normalizeUri($actor->activityPubId())) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $eventUri = $this->objectId($activity['object'] ?? null);
+        $event = $eventUri !== null ? $this->objects->resolveEvent($eventUri) : null;
+        $activityUri = $this->objectId($activity);
+
+        if ($event === null || $activityUri === null || $event->isRemote()) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        return $this->eventParticipations->receiveJoin($actor, $event, $activityUri) !== null
+            ? InboxItem::STATUS_PROCESSED
+            : InboxItem::STATUS_IGNORED;
+    }
+
+    /** @param array<string, mixed> $activity */
+    private function handleEventLeave(array $activity, Actor $actor): string
+    {
+        if ($this->actorUri($activity['actor'] ?? null) !== $this->normalizeUri($actor->activityPubId())) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $eventUri = $this->objectId($activity['object'] ?? null);
+        $event = $eventUri !== null ? $this->objects->resolveEvent($eventUri) : null;
+
+        if ($event === null || $event->isRemote() || ! $this->eventParticipations->receiveLeave($actor, $event)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        return InboxItem::STATUS_PROCESSED;
+    }
+
     /**
      * @param  array<string, mixed>  $activity
      */
@@ -445,7 +512,7 @@ final class InboxActivityProcessor
     {
         $targetUri = $this->objectId($activity['object'] ?? null);
         $target = $targetUri !== null
-            ? ($this->objects->resolveEvent($targetUri) ?? $this->objects->resolvePostOrComment($targetUri))
+            ? ($this->objects->resolveEvent($targetUri) ?? $this->objects->resolveEventComment($targetUri) ?? $this->objects->resolvePostOrComment($targetUri))
             : null;
 
         if ($target === null || $target->actor === null || ! $target->actor->isLocal()) {

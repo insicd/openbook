@@ -3,6 +3,7 @@
 namespace App\Domain\Events;
 
 use App\Domain\Posts\Hashtag;
+use App\Domain\Posts\Mention;
 use App\Domain\Reactions\Like;
 use App\Federation\Actors\Actor;
 use App\Infrastructure\Media\Media;
@@ -144,6 +145,11 @@ class Event extends Model
     public function hashtags(): BelongsToMany
     {
         return $this->belongsToMany(Hashtag::class, 'event_hashtags');
+    }
+
+    public function mentions(): MorphMany
+    {
+        return $this->morphMany(Mention::class, 'mentionable');
     }
 
     public function attachments(): HasMany

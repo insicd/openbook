@@ -4,6 +4,7 @@ namespace App\Application\Services;
 
 use App\Domain\Comments\Comment;
 use App\Domain\Events\Event;
+use App\Domain\Events\EventComment;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Like;
@@ -72,7 +73,7 @@ final class ReactionManager
             return $like;
         });
 
-        if ($like->wasRecentlyCreated && ! $target->actor->isLocal() && ($target instanceof Post || $target instanceof Comment || $target instanceof Event)) {
+        if ($like->wasRecentlyCreated && ! $target->actor->isLocal() && ($target instanceof Post || $target instanceof Comment || $target instanceof Event || $target instanceof EventComment)) {
             $this->delivery->deliverTo($actor, $target->actor, ActivitySerializer::like($like, $target));
         }
 
@@ -100,7 +101,7 @@ final class ReactionManager
             }
         });
 
-        if (! $target->actor->isLocal() && ($target instanceof Post || $target instanceof Comment || $target instanceof Event)) {
+        if (! $target->actor->isLocal() && ($target instanceof Post || $target instanceof Comment || $target instanceof Event || $target instanceof EventComment)) {
             $this->delivery->deliverTo($actor, $target->actor, ActivitySerializer::undoLike($like, $target));
         }
     }

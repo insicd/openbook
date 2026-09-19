@@ -821,6 +821,14 @@ html.ob-compose-modal-open {
   white-space: nowrap;
 }
 
+.ob-inline-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .ob-suggestion:first-of-type {
   border-top: none;
   padding-top: 0;
@@ -1075,6 +1083,8 @@ html.ob-compose-modal-open {
 .ob-field input[type='email'],
 .ob-field input[type='password'],
 .ob-field input[type='url'],
+.ob-field input[type='search'],
+.ob-field input[type='datetime-local'],
 .ob-field textarea,
 .ob-field select {
   width: 100%;
@@ -1108,6 +1118,91 @@ html.ob-compose-modal-open {
   font-size: 0.85rem;
   color: var(--ob-color-danger);
   margin-top: 0.3rem;
+}
+
+.ob-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ob-section-heading h1 {
+  margin-top: 0;
+}
+
+.ob-event-composer {
+  display: grid;
+  gap: 1rem;
+}
+
+.ob-event-composer__intro .ob-back-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.ob-event-composer__section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.ob-event-composer__section-heading .ob-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  color: var(--ob-color-primary);
+  flex: 0 0 auto;
+}
+
+.ob-event-composer__section-heading h2,
+.ob-event-composer__section-heading p {
+  margin: 0;
+}
+
+.ob-event-composer__section-heading p {
+  color: var(--ob-color-text-muted);
+  margin-top: 0.2rem;
+}
+
+.ob-event-composer__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.ob-event-composer__grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ob-event-composer__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ob-event-composer__actions .ob-field__help {
+  margin: 0;
+}
+
+.ob-profile-events__create {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 720px) {
+  .ob-section-heading,
+  .ob-event-composer__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ob-event-composer__grid,
+  .ob-event-composer__grid--three {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ob-checkbox {

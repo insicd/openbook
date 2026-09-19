@@ -2,6 +2,8 @@
 
 namespace App\Domain\Events;
 
+use App\Domain\Posts\Mention;
+use App\Domain\Reactions\Like;
 use App\Federation\Actors\Actor;
 use App\Infrastructure\Media\Media;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -9,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class EventComment extends Model
 {
@@ -35,6 +38,7 @@ class EventComment extends Model
         return [
             'custom_emojis' => 'array',
             'edited_at' => 'datetime',
+            'likes_count' => 'integer',
         ];
     }
 
@@ -58,6 +62,16 @@ class EventComment extends Model
         return $this->belongsTo(Actor::class);
     }
 
+    public function likes(): MorphMany
+    {
+        return $this->morphMany(Like::class, 'likeable');
+    }
+
+    public function mentions(): MorphMany
+    {
+        return $this->morphMany(Mention::class, 'mentionable');
+    }
+
     public function attachments(): HasMany
     {
         return $this->hasMany(EventCommentAttachment::class)->orderBy('position');
@@ -73,5 +87,27 @@ class EventComment extends Model
     public function isPublished(): bool
     {
         return $this->status === self::STATUS_PUBLISHED;
+    }
+
+    public function isRemote(): bool
+    {
+        return $this->actor?->isLocal() === false;
+    }
+
+    /** @param iterable<int, EventComment> $comments */
+    public static function annotateViewerState(iterable $comments, ?Actor $viewer): void
+    {
+        $comments = collect($comments);
+        $likedIds = $viewer === null || $comments->isEmpty()
+            ? collect()
+            : Like::query()
+                ->where('actor_id', $viewer->id)
+                ->where('likeable_type', (new self)->getMorphClass())
+                ->whereIn('likeable_id', $comments->pluck('id'))
+                ->pluck('likeable_id');
+
+        foreach ($comments as $comment) {
+            $comment->setAttribute('liked_by_viewer', $likedIds->contains($comment->id));
+        }
     }
 }

@@ -1,4 +1,9 @@
 <div class="ob-card">
+    @if ($isOwnProfile ?? false)
+        <div class="ob-profile-events__create">
+            <a href="{{ route('events.create') }}" class="ob-btn ob-btn--primary">{{ __('openbook.events.composer.create') }}</a>
+        </div>
+    @endif
     <div class="ob-scope-switch" role="tablist">
         <a href="{{ $eventsUrl }}" class="ob-btn {{ !$eventsArchive ? 'ob-btn--primary' : 'ob-btn--ghost' }}" role="tab" aria-selected="{{ !$eventsArchive ? 'true' : 'false' }}">
             {{ __('openbook.events.upcoming') }}

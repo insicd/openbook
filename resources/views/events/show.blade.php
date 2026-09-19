@@ -112,6 +112,22 @@
             @endif
 
             <div id="event-actions" class="ob-event-detail__links ob-event-detail__actions">
+                @can('update', $event)
+                    <a class="ob-btn ob-btn--ghost" href="{{ route('events.edit', $event) }}">{{ __('openbook.events.edit') }}</a>
+                    @if ($event->status !== \App\Domain\Events\Event::STATUS_CANCELLED)
+                        <form method="POST" action="{{ route('events.cancel', $event) }}" onsubmit="return confirm(@js(__('openbook.events.cancel_confirm')))">
+                            @csrf
+                            @method('PATCH')
+                            <button class="ob-btn ob-btn--ghost" type="submit">{{ __('openbook.events.cancel') }}</button>
+                        </form>
+                    @endif
+                    <form method="POST" action="{{ route('events.destroy', $event) }}" onsubmit="return confirm(@js(__('openbook.events.delete_confirm')))">
+                        @csrf
+                        @method('DELETE')
+                        <button class="ob-btn ob-btn--ghost" type="submit">{{ __('openbook.events.delete') }}</button>
+                    </form>
+                @endcan
+
                 @auth
                     @if ($event->isOpenForInteractions())
                         @if ($viewerLike)
@@ -154,7 +170,7 @@
                 @foreach ($event->links as $link)
                     <a class="ob-btn ob-btn--ghost" href="{{ $link->url }}" rel="noopener noreferrer" target="_blank">{{ $link->name ?: $link->url }}</a>
                 @endforeach
-                @if ($event->url)
+                @if ($event->isRemote() && $event->url)
                     <a class="ob-btn ob-btn--ghost" href="{{ $event->url }}" rel="noopener noreferrer" target="_blank">{{ __('openbook.events.source') }}</a>
                 @endif
 
@@ -187,7 +203,56 @@
         @endif
     </div>
 
+    @if (!$event->isDeleted() && $pendingParticipations->isNotEmpty())
+        <div class="ob-card" id="event-participation-requests">
+            <h2>{{ __('openbook.events.pending_participations') }}</h2>
+            <p class="ob-field__help">{{ __('openbook.events.pending_participations_help') }}</p>
+            @foreach ($pendingParticipations as $participation)
+                <div class="ob-suggestion">
+                    <a href="{{ $participation->actor->profileUrl() }}" class="ob-mini-profile__link">
+                        <x-avatar :actor="$participation->actor" style="width:40px;height:40px" />
+                        <div>
+                            <div class="ob-post__author">{!! $participation->actor->displayNameHtml() !!}</div>
+                            <div class="ob-post__handle">{{ '@'.$participation->actor->handle() }}</div>
+                        </div>
+                    </a>
+                    <div class="ob-inline-actions">
+                        <form method="POST" action="{{ route('events.participations.accept', [$event, $participation]) }}">
+                            @csrf
+                            <button type="submit" class="ob-btn ob-btn--primary ob-btn--small">{{ __('openbook.follow.accept') }}</button>
+                        </form>
+                        <form method="POST" action="{{ route('events.participations.reject', [$event, $participation]) }}">
+                            @csrf
+                            <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.follow.reject') }}</button>
+                        </form>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     @if (!$event->isDeleted())
+        @if ($event->isOpenForInteractions())
+            <div id="commenta-evento">
+                @auth
+                    @include('composer.form', [
+                        'mode' => 'comment',
+                        'formId' => null,
+                        'bodyId' => 'event-comment-body',
+                        'prefix' => 'event-comment',
+                        'action' => route('event-comments.store', $event),
+                        'showLabel' => true,
+                        'bodyLabel' => __('openbook.comments.new_label'),
+                        'rows' => 3,
+                    ])
+                @else
+                    <div class="ob-card">
+                        <p><a href="{{ route('login') }}">{{ __('openbook.comments.login_to_comment') }}</a></p>
+                    </div>
+                @endauth
+            </div>
+        @endif
+
         <div class="ob-card" id="commenti">
             <h2>{{ __('openbook.comments.title', ['count' => $eventCommentsCount]) }}</h2>
 

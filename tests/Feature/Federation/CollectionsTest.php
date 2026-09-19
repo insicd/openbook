@@ -4,6 +4,7 @@ namespace Tests\Feature\Federation;
 
 use App\Application\Services\FollowManager;
 use App\Application\Services\PostComposer;
+use App\Domain\Events\Event;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAccounts;
@@ -41,6 +42,61 @@ class CollectionsTest extends TestCase
         $response->assertJsonPath('type', 'OrderedCollectionPage');
         $response->assertJsonPath('orderedItems.0.type', 'Create');
         $response->assertJsonPath('orderedItems.0.object.id', url("/posts/{$post->id}"));
+    }
+
+    public function test_the_outbox_includes_local_public_and_unlisted_events(): void
+    {
+        $author = $this->createFullAccount('outboxeventi');
+        $event = Event::query()->create([
+            'actor_id' => $author->actor->id,
+            'uri' => url('/eventi/outbox-event'),
+            'url' => url('/eventi/outbox-event'),
+            'name' => 'Evento in outbox',
+            'content' => 'Descrizione evento.',
+            'visibility' => Event::VISIBILITY_UNLISTED,
+            'status' => Event::STATUS_SCHEDULED,
+            'start_at' => now()->addDay(),
+            'published_at' => now(),
+        ]);
+
+        $this->get('/users/outboxeventi/outbox')
+            ->assertOk()
+            ->assertJsonPath('totalItems', 1);
+
+        $this->get('/users/outboxeventi/outbox?page=1')
+            ->assertOk()
+            ->assertJsonPath('orderedItems.0.type', 'Create')
+            ->assertJsonPath('orderedItems.0.object.type', 'Event')
+            ->assertJsonPath('orderedItems.0.object.id', $event->uri);
+    }
+
+    public function test_the_dedicated_events_collection_exposes_local_public_and_unlisted_events(): void
+    {
+        $author = $this->createFullAccount('eventcollection');
+        $event = Event::query()->create([
+            'actor_id' => $author->actor->id,
+            'uri' => url('/eventi/collection-event'),
+            'url' => url('/eventi/collection-event'),
+            'name' => 'Evento nella collection',
+            'content' => 'Descrizione',
+            'visibility' => Event::VISIBILITY_UNLISTED,
+            'status' => Event::STATUS_SCHEDULED,
+            'start_at' => now()->addDay(),
+            'published_at' => now(),
+        ]);
+
+        $this->get('/users/eventcollection/events')
+            ->assertOk()
+            ->assertJsonPath('type', 'OrderedCollection')
+            ->assertJsonPath('totalItems', 1)
+            ->assertJsonPath('first', url('/users/eventcollection/events?page=1'));
+
+        $this->get('/users/eventcollection/events?page=1')
+            ->assertOk()
+            ->assertJsonPath('type', 'OrderedCollectionPage')
+            ->assertJsonPath('orderedItems.0.type', 'Event')
+            ->assertJsonPath('orderedItems.0.id', $event->uri)
+            ->assertJsonPath('orderedItems.0.name', 'Evento nella collection');
     }
 
     public function test_the_followers_collection_lists_accepted_followers(): void

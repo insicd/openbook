@@ -4,6 +4,7 @@ namespace App\Federation\Serialization;
 
 use App\Domain\Comments\Comment;
 use App\Domain\Events\Event;
+use App\Domain\Events\EventComment;
 use App\Domain\Events\EventParticipation;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Announce;
@@ -121,21 +122,24 @@ final class ActivitySerializer
     /**
      * @return array<string, mixed>
      */
-    public static function like(Like $like, Post|Comment|Event $target): array
+    public static function like(Like $like, Post|Comment|Event|EventComment $target): array
     {
         return [
             '@context' => self::CONTEXT,
             'id' => url("/activities/likes/{$like->id}"),
             'type' => 'Like',
             'actor' => $like->actor->activityPubId(),
-            'object' => $target instanceof Event ? $target->uri : NoteSerializer::uriFor($target),
+            'object' => match (true) {
+                $target instanceof Event, $target instanceof EventComment => $target->uri,
+                default => NoteSerializer::uriFor($target),
+            },
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public static function undoLike(Like $like, Post|Comment|Event $target): array
+    public static function undoLike(Like $like, Post|Comment|Event|EventComment $target): array
     {
         return [
             '@context' => self::CONTEXT,
@@ -191,6 +195,40 @@ final class ActivitySerializer
             'actor' => $participation->actor->activityPubId(),
             'object' => $participation->event->uri,
             'to' => [$participation->event->actor->activityPubId()],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public static function acceptEventJoin(EventParticipation $participation): array
+    {
+        return self::eventJoinResponse($participation, 'Accept', 'accetta');
+    }
+
+    /** @return array<string, mixed> */
+    public static function rejectEventJoin(EventParticipation $participation): array
+    {
+        return self::eventJoinResponse($participation, 'Reject', 'rifiuta');
+    }
+
+    /** @return array<string, mixed> */
+    private static function eventJoinResponse(EventParticipation $participation, string $type, string $suffix): array
+    {
+        $participation->loadMissing('actor', 'event.actor');
+        $join = [
+            'id' => $participation->activity_uri,
+            'type' => 'Join',
+            'actor' => $participation->actor->activityPubId(),
+            'object' => $participation->event->uri,
+            'to' => [$participation->event->actor->activityPubId()],
+        ];
+
+        return [
+            '@context' => self::CONTEXT,
+            'id' => $participation->event->uri.'/partecipazioni/'.$participation->id.'/'.$suffix,
+            'type' => $type,
+            'actor' => $participation->event->actor->activityPubId(),
+            'object' => $join,
+            'to' => [$participation->actor->activityPubId()],
         ];
     }
 
@@ -256,8 +294,29 @@ final class ActivitySerializer
     /**
      * @return array<string, mixed>
      */
-    public static function create(Post|Comment $object): array
+    public static function create(Post|Comment|Event|EventComment $object): array
     {
+        if ($object instanceof Event) {
+            $event = EventSerializer::serialize($object);
+
+            return [
+                '@context' => self::CONTEXT,
+                'id' => $event['id'].'/attivita',
+                'type' => 'Create',
+                'actor' => $event['attributedTo'],
+                'published' => $event['published'],
+                'to' => $event['to'] ?? [],
+                'cc' => $event['cc'] ?? [],
+                'object' => $event,
+            ];
+        }
+
+        if ($object instanceof EventComment) {
+            $note = EventCommentSerializer::serialize($object);
+
+            return self::activityForNote('Create', $note);
+        }
+
         $note = $object instanceof Post ? NoteSerializer::forPost($object) : NoteSerializer::forComment($object);
 
         return [
@@ -281,8 +340,29 @@ final class ActivitySerializer
      *
      * @return array<string, mixed>
      */
-    public static function update(Post|Comment $object): array
+    public static function update(Post|Comment|Event|EventComment $object): array
     {
+        if ($object instanceof Event) {
+            $event = EventSerializer::serialize($object);
+
+            return [
+                '@context' => self::CONTEXT,
+                'id' => $event['id'].'/aggiornamenti/'.now()->getTimestampMs(),
+                'type' => 'Update',
+                'actor' => $event['attributedTo'],
+                'published' => $event['updated'] ?? $event['published'],
+                'to' => $event['to'] ?? [],
+                'cc' => $event['cc'] ?? [],
+                'object' => $event,
+            ];
+        }
+
+        if ($object instanceof EventComment) {
+            $note = EventCommentSerializer::serialize($object);
+
+            return self::activityForNote('Update', $note);
+        }
+
         $note = $object instanceof Post ? NoteSerializer::forPost($object) : NoteSerializer::forComment($object);
 
         return [
@@ -327,11 +407,14 @@ final class ActivitySerializer
     /**
      * @return array<string, mixed>
      */
-    public static function delete(Post|Comment $object): array
+    public static function delete(Post|Comment|Event|EventComment $object): array
     {
-        $tombstone = $object instanceof Post
-            ? NoteSerializer::tombstoneForPost($object)
-            : NoteSerializer::tombstoneForComment($object);
+        $tombstone = match (true) {
+            $object instanceof Event => EventSerializer::tombstone($object),
+            $object instanceof EventComment => EventCommentSerializer::tombstone($object),
+            $object instanceof Post => NoteSerializer::tombstoneForPost($object),
+            default => NoteSerializer::tombstoneForComment($object),
+        };
 
         return [
             '@context' => self::CONTEXT,
@@ -340,6 +423,21 @@ final class ActivitySerializer
             'actor' => $object->actor->activityPubId(),
             'to' => [NoteSerializer::PUBLIC_STREAM],
             'object' => $tombstone,
+        ];
+    }
+
+    /** @param array<string, mixed> $note @return array<string, mixed> */
+    private static function activityForNote(string $type, array $note): array
+    {
+        return [
+            '@context' => self::CONTEXT,
+            'id' => $note['id'].($type === 'Create' ? '/attivita' : '/aggiornamenti/'.now()->getTimestampMs()),
+            'type' => $type,
+            'actor' => $note['attributedTo'],
+            'published' => $note['updated'] ?? $note['published'],
+            'to' => $note['to'] ?? [],
+            'cc' => $note['cc'] ?? [],
+            'object' => $note,
         ];
     }
 }

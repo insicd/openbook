@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Application\Services\EventParticipationManager;
 use App\Application\Services\ReactionManager;
 use App\Domain\Events\Event;
+use App\Domain\Events\EventParticipation;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 
 class EventInteractionController extends Controller
 {
@@ -45,6 +47,27 @@ class EventInteractionController extends Controller
         $this->participations->leave(auth()->user()->actor, $event);
 
         return back()->withFragment('event-actions');
+    }
+
+    public function accept(Event $event, EventParticipation $participation): RedirectResponse
+    {
+        $this->decide($event, $participation, true);
+
+        return back()->withFragment('event-participation-requests');
+    }
+
+    public function reject(Event $event, EventParticipation $participation): RedirectResponse
+    {
+        $this->decide($event, $participation, false);
+
+        return back()->withFragment('event-participation-requests');
+    }
+
+    private function decide(Event $event, EventParticipation $participation, bool $accepted): void
+    {
+        Gate::authorize('update', $event);
+        abort_unless($participation->event_id === $event->id, 404);
+        $this->participations->decideIncoming($participation, auth()->user()->actor, $accepted);
     }
 
     private function assertCanInteract(Event $event): void

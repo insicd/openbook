@@ -3,10 +3,16 @@
 namespace Tests\Feature\Events;
 
 use App\Domain\Events\Event;
+use App\Domain\Locations\GeoCity;
 use App\Domain\Posts\Hashtag;
+use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -14,6 +20,155 @@ use Tests\TestCase;
 class EventBrowseTest extends TestCase
 {
     use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
+
+    public function test_event_composer_prototype_is_reserved_to_authenticated_users(): void
+    {
+        $this->get(route('events.create'))->assertRedirect(route('login'));
+
+        $user = $this->createFullAccount('eventcomposer');
+
+        $this->actingAs($user)
+            ->get(route('events.index'))
+            ->assertOk()
+            ->assertSee(route('events.create'));
+
+        $this->actingAs($user)
+            ->get(route('events.create'))
+            ->assertOk()
+            ->assertSeeText(__('openbook.events.composer.title'))
+            ->assertSee('name="visibility" value="public"', false)
+            ->assertSee('id="event-listed" checked', false)
+            ->assertSee('value="Europe/Rome"', false)
+            ->assertDontSee('name="category"', false)
+            ->assertSee('action="'.route('events.store').'"', false);
+    }
+
+    public function test_local_user_can_create_an_unlisted_hybrid_event(): void
+    {
+        Storage::fake('public');
+        config()->set('openbook.locations.catalog_ready', true);
+        $user = $this->createFullAccount('eventauthor');
+        $mentioned = $this->createFullAccount('eventfriend');
+        $city = GeoCity::query()->create([
+            'geoname_id' => 658225,
+            'name' => 'Helsinki',
+            'ascii_name' => 'Helsinki',
+            'latitude' => 60.1695,
+            'longitude' => 24.9354,
+            'latitude_bucket' => 60,
+            'longitude_bucket' => 24,
+            'country_code' => 'FI',
+            'country_name' => 'Finland',
+            'admin1_code' => '01',
+            'admin1_name' => 'Uusimaa',
+            'feature_code' => 'PPLC',
+            'population' => 658864,
+            'catalog_batch' => '847ef4c2-1486-4a4f-a234-345436782f5f',
+        ]);
+
+        $response = $this->actingAs($user)->post(route('events.store'), [
+            'name' => 'Serata punk',
+            'content' => 'Suoniamo con @eventfriend #crust',
+            'cover' => UploadedFile::fake()->image('locandina.jpg', 1200, 800),
+            'cover_alt' => 'Locandina della serata',
+            'sensitive' => '1',
+            'start_at' => '2027-01-10T18:00',
+            'end_at' => '2027-01-10T21:00',
+            'timezone' => 'Europe/Helsinki',
+            'mode' => 'hybrid',
+            'participation_url' => 'https://events.example/join',
+            'location_id' => $city->geoname_id,
+            'location_label' => $city->label(),
+            'venue' => 'Lepakkomies',
+            'address' => 'Helsinginkatu 1',
+            'join_mode' => 'restricted',
+            'visibility' => Event::VISIBILITY_UNLISTED,
+        ]);
+
+        $event = Event::query()->with(['location', 'hashtags', 'mentions', 'media.thumbnail'])->firstOrFail();
+        $response->assertRedirect(route('events.show', $event));
+        $this->assertSame($user->actor->id, $event->actor_id);
+        $this->assertSame(route('events.show', $event), $event->uri);
+        $this->assertSame('2027-01-10 16:00:00', $event->start_at->copy()->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame('Europe/Helsinki', $event->timezone);
+        $this->assertSame(120, $event->utc_offset_minutes);
+        $this->assertTrue($event->sensitive);
+        $this->assertTrue($event->is_online);
+        $this->assertSame('Lepakkomies', $event->location?->name);
+        $this->assertSame('Helsinki', $event->location?->locality);
+        $this->assertSame(['crust'], $event->hashtags->pluck('name')->all());
+        $this->assertSame([$mentioned->actor->id], $event->mentions->pluck('actor_id')->all());
+        $this->assertCount(1, $event->media);
+        Storage::disk('public')->assertExists($event->media->first()->path);
+        $this->actingAs($user)
+            ->get(route('events.show', $event))
+            ->assertOk()
+            ->assertDontSeeText(__('openbook.events.source'));
+
+        $this->get(route('events.show', $event), ['Accept' => 'application/activity+json'])
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/activity+json; charset=utf-8')
+            ->assertJsonPath('type', 'Event')
+            ->assertJsonPath('id', route('events.show', $event))
+            ->assertJsonPath('attributedTo', $user->actor->activityPubId())
+            ->assertJsonPath('startTime', '2027-01-10T18:00:00+02:00')
+            ->assertJsonPath('endTime', '2027-01-10T21:00:00+02:00')
+            ->assertJsonPath('timezone', 'Europe/Helsinki')
+            ->assertJsonPath('location.name', 'Lepakkomies')
+            ->assertJsonPath('location.address.addressLocality', 'Helsinki')
+            ->assertJsonPath('attachment.0.name', 'Locandina della serata')
+            ->assertJsonPath('tag.0.name', '#crust');
+    }
+
+    public function test_event_creation_validates_conditional_location_and_participation_fields(): void
+    {
+        $user = $this->createFullAccount('eventvalidation');
+
+        $this->actingAs($user)->from(route('events.create'))->post(route('events.store'), [
+            'name' => 'Evento incompleto',
+            'content' => 'Descrizione',
+            'start_at' => '2027-01-10T18:00',
+            'timezone' => 'Europe/Rome',
+            'mode' => 'hybrid',
+            'join_mode' => 'external',
+            'visibility' => Event::VISIBILITY_PUBLIC,
+        ])->assertRedirect(route('events.create'))
+            ->assertSessionHasErrors(['location_id', 'participation_url']);
+
+        $this->assertDatabaseCount('events', 0);
+    }
+
+    public function test_event_creation_queues_a_create_activity_for_remote_followers(): void
+    {
+        Queue::fake();
+        $user = $this->createFullAccount('eventpublisher');
+        $follower = $this->createRemoteActor('eventreader', 'reader.example');
+        Follow::query()->create([
+            'follower_id' => $follower->id,
+            'following_id' => $user->actor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $this->actingAs($user)->post(route('events.store'), [
+            'name' => 'Evento federato',
+            'content' => 'Descrizione pubblica #live',
+            'start_at' => '2027-03-20T20:00',
+            'timezone' => 'Europe/Rome',
+            'mode' => 'online',
+            'participation_url' => 'https://events.example/live',
+            'join_mode' => 'free',
+            'visibility' => Event::VISIBILITY_PUBLIC,
+        ])->assertRedirect();
+
+        Queue::assertPushed(DeliverActivityJob::class, function (DeliverActivityJob $job) use ($follower): bool {
+            return $job->inboxUrl === $follower->endpoints->shared_inbox
+                && ($job->activity['type'] ?? null) === 'Create'
+                && ($job->activity['object']['type'] ?? null) === 'Event'
+                && ($job->activity['object']['name'] ?? null) === 'Evento federato';
+        });
+    }
 
     public function test_public_upcoming_events_are_listed_and_past_events_are_archived(): void
     {
@@ -127,6 +282,18 @@ class EventBrowseTest extends TestCase
         $response->assertSeeText('Intestazione evento');
         $renderedText = html_entity_decode(strip_tags($response->getContent()));
         $this->assertSame(1, substr_count($renderedText, "Descrizione completa dell'evento."));
+    }
+
+    public function test_remote_event_detail_links_to_its_original_page(): void
+    {
+        $event = $this->event($this->remoteActor(), [
+            'url' => 'https://events.example/events/original-page',
+        ]);
+
+        $this->get(route('events.show', $event))
+            ->assertOk()
+            ->assertSeeText(__('openbook.events.source'))
+            ->assertSee($event->url, false);
     }
 
     public function test_sensitive_event_hides_media_and_description_until_revealed(): void

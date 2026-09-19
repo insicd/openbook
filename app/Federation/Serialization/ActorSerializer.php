@@ -64,9 +64,13 @@ final class ActorSerializer
         if ($urls !== null) {
             $document['inbox'] = $urls['inbox'];
             $document['outbox'] = $urls['outbox'];
+            $document['events'] = $urls['events'];
             $document['followers'] = $urls['followers'];
             $document['following'] = $urls['following'];
-            $document['endpoints'] = ['sharedInbox' => $urls['shared_inbox']];
+            $document['endpoints'] = [
+                'sharedInbox' => $urls['shared_inbox'],
+                'events' => $urls['events'],
+            ];
         } else {
             $endpoints = $actor->endpoints;
 

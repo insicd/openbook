@@ -5,6 +5,7 @@ namespace App\Domain\Notifications;
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
 use App\Domain\Events\Event;
+use App\Domain\Events\EventComment;
 use App\Domain\Events\EventParticipation;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
@@ -61,6 +62,10 @@ class Notification extends Model
     public const TYPE_EVENT_JOIN_ACCEPTED = 'event_join_accepted';
 
     public const TYPE_EVENT_JOIN_REJECTED = 'event_join_rejected';
+
+    public const TYPE_EVENT_JOIN_REQUEST = 'event_join_request';
+
+    public const TYPE_EVENT_JOINED = 'event_joined';
 
     /**
      * @var list<string>
@@ -300,6 +305,10 @@ class Notification extends Model
 
         if ($target instanceof EventParticipation) {
             return route('events.show', $target->event_id);
+        }
+
+        if ($target instanceof EventComment) {
+            return route('events.show', $target->event_id).'#commento-evento-'.$target->id;
         }
 
         return null;

@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Services\EventComposer;
 use App\Application\Services\QuotedEventResolver;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventComment;
 use App\Domain\Events\EventCommentThread;
 use App\Domain\Events\EventParticipation;
 use App\Federation\Events\RemoteEventRefresher;
+use App\Federation\Serialization\EventSerializer;
+use App\Http\Requests\Events\StoreEventRequest;
+use App\Http\Support\ActivityPubNegotiation;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class EventController extends Controller
 {
@@ -20,6 +26,7 @@ class EventController extends Controller
     public function __construct(
         private readonly RemoteEventRefresher $refresher,
         private readonly QuotedEventResolver $quotedEvents,
+        private readonly EventComposer $eventComposer,
     ) {}
 
     public function index(Request $request): View
@@ -30,6 +37,65 @@ class EventController extends Controller
     public function archive(Request $request): View
     {
         return $this->browse($request, true);
+    }
+
+    public function create(): View
+    {
+        $timezones = collect(\DateTimeZone::listIdentifiers())
+            ->groupBy(fn (string $timezone): string => explode('/', $timezone, 2)[0]);
+
+        return view('events.create', compact('timezones'));
+    }
+
+    public function edit(Event $event): View
+    {
+        Gate::authorize('update', $event);
+        $event->load(['location.city', 'media']);
+
+        return view('events.create', [
+            'event' => $event,
+            'timezones' => collect(\DateTimeZone::listIdentifiers())
+                ->groupBy(fn (string $timezone): string => explode('/', $timezone, 2)[0]),
+        ]);
+    }
+
+    public function store(StoreEventRequest $request): RedirectResponse
+    {
+        $data = $request->validated();
+        $data['cover'] = $request->file('cover');
+        $event = $this->eventComposer->compose($request->user()->actor, $data);
+
+        return redirect()->route('events.show', $event)
+            ->with('status', __('openbook.events.composer.created'));
+    }
+
+    public function update(StoreEventRequest $request, Event $event): RedirectResponse
+    {
+        Gate::authorize('update', $event);
+        $data = $request->validated();
+        $data['cover'] = $request->file('cover');
+        $this->eventComposer->update($request->user()->actor, $event, $data);
+
+        return redirect()->route('events.show', $event)
+            ->with('status', __('openbook.events.composer.updated'));
+    }
+
+    public function cancel(Event $event): RedirectResponse
+    {
+        Gate::authorize('update', $event);
+        $this->eventComposer->cancel(auth()->user()->actor, $event);
+
+        return redirect()->route('events.show', $event)
+            ->with('status', __('openbook.events.cancelled'));
+    }
+
+    public function destroy(Event $event): RedirectResponse
+    {
+        Gate::authorize('delete', $event);
+        $this->eventComposer->delete(auth()->user()->actor, $event);
+
+        return redirect()->route('events.index')
+            ->with('status', __('openbook.events.deleted'));
     }
 
     private function browse(Request $request, bool $archive): View
@@ -114,10 +180,17 @@ class EventController extends Controller
         return view('events.index', compact('events', 'yourEvents', 'archive'));
     }
 
-    public function show(Event $event): View
+    public function show(Request $request, Event $event): View|JsonResponse
     {
-        $viewer = auth()->user()?->actor;
+        $wantsActivityPub = ActivityPubNegotiation::wantsActivityPub($request);
+        $viewer = $wantsActivityPub ? null : auth()->user()?->actor;
         abort_unless(Event::query()->whereKey($event->id)->visibleTo($viewer)->exists(), 404);
+
+        if ($wantsActivityPub) {
+            return ActivityPubNegotiation::response(
+                $event->isDeleted() ? EventSerializer::tombstone($event) : EventSerializer::serialize($event)
+            );
+        }
 
         try {
             $this->refresher->refreshIfStale($event, $viewer);
@@ -134,16 +207,26 @@ class EventController extends Controller
             ->get();
         $commentTree = EventCommentThread::tree($comments);
         $eventCommentsCount = $comments->where('status', EventComment::STATUS_PUBLISHED)->count();
+        EventComment::annotateViewerState($comments, $viewer);
 
         $viewerLike = null;
         $viewerParticipation = null;
+        $pendingParticipations = collect();
 
         if ($viewer !== null) {
             $viewerLike = $event->likes()->where('actor_id', $viewer->id)->first();
             $viewerParticipation = $event->participations()->where('actor_id', $viewer->id)->first();
+
+            if (Gate::allows('update', $event)) {
+                $pendingParticipations = $event->participations()
+                    ->where('status', EventParticipation::STATUS_PENDING)
+                    ->with('actor.user.profile')
+                    ->orderBy('created_at')
+                    ->get();
+            }
         }
 
-        return view('events.show', compact('event', 'viewerLike', 'viewerParticipation', 'commentTree', 'eventCommentsCount'));
+        return view('events.show', compact('event', 'viewerLike', 'viewerParticipation', 'pendingParticipations', 'commentTree', 'eventCommentsCount'));
     }
 
     public function shareToUser(Event $event): RedirectResponse

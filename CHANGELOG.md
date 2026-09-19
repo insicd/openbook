@@ -23,10 +23,17 @@ il [`README`](README.md#roadmap-and-project-status).
   ricevuti tramite `Create` e `Announce`, ne gestisce aggiornamenti,
   cancellazioni e audience e li presenta nella nuova sezione Eventi con
   prossimi appuntamenti, archivio, dettaglio, ricerca e hashtag. Gli utenti
-  possono esprimere interesse (`Like`), inviare o annullare una partecipazione
+  possono creare eventi pubblici o non elencati con cover, luogo fisico o
+  online, timezone, hashtag e partecipazione libera, moderata o gestita su un
+  sito esterno. Creazione, modifica, annullamento e cancellazione producono le
+  corrispondenti attività ActivityPub e gli eventi locali sono esposti sia
+  nell'outbox sia nella collection dedicata dell'Actor. È possibile esprimere
+  interesse (`Like`), inviare o annullare una partecipazione
   (`Join`/`Undo`/`Leave`) e condividere un evento nei messaggi senza ampliarne
-  la visibilità. Sono supportati anche refresh dei contatori, contenuti
-  sensibili, commenti federati in sola lettura e tombstone; il comando
+  la visibilità; gli organizzatori ricevono e gestiscono le richieste di
+  partecipazione. I commenti supportano thread, media, Like, notifiche e
+  federazione come `Note` collegate all'evento. Sono supportati anche refresh
+  dei contatori, contenuti sensibili e tombstone; il comando
   `openbook:reprocess-inbox` permette di rimettere in coda le attività
   precedentemente ignorate dopo un aggiornamento. I profili Actor includono
   un tab Eventi con appuntamenti futuri e archivio; per gli Actor remoti
@@ -34,7 +41,9 @@ il [`README`](README.md#roadmap-and-project-status).
   dedicate Mobilizon o, come fallback, dalla normale outbox ActivityPub. La
   ricerca riconosce anche gli URL di singoli eventi prima del fallback RSS;
   quando una location remota ha coordinate ma dati geografici incompleti,
-  Openbook tenta di completarli tramite il catalogo locale delle citta'.
+  Openbook tenta di completarli tramite il catalogo locale delle citta'. Gli
+  hashtag degli eventi pubblici e non elencati partecipano inoltre al calcolo
+  delle tendenze insieme a quelli dei post.
 - **Anteprime dei post condivisi**: le pagine dei post pubblici espongono
   metadati Open Graph con titolo, estratto e prima immagine o copertina video,
   permettendo alle applicazioni compatibili di generare preview piu' complete.
