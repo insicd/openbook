@@ -37,6 +37,20 @@ class EventBrowseTest extends TestCase
             ->assertDontSee($upcoming->name);
     }
 
+    public function test_event_card_shows_the_locality_before_the_venue_name(): void
+    {
+        $event = $this->event($this->remoteActor(), ['name' => 'Concerto cittadino']);
+        $event->location()->create([
+            'locality' => 'Milano',
+            'name' => 'Teatro Verdi',
+            'source' => 'remote',
+        ]);
+
+        $this->get(route('events.index'))
+            ->assertOk()
+            ->assertSeeText('Milano · Teatro Verdi');
+    }
+
     public function test_unlisted_event_has_a_public_permalink_but_is_not_discoverable(): void
     {
         $event = $this->event($this->remoteActor(), [

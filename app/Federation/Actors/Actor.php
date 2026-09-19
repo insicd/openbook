@@ -54,6 +54,7 @@ use Illuminate\Support\HtmlString;
  * @property int|null $followers_count
  * @property int|null $following_count
  * @property Carbon|null $collections_fetched_at
+ * @property Carbon|null $events_fetched_at
  */
 class Actor extends Model
 {
@@ -99,6 +100,7 @@ class Actor extends Model
         'followers_count',
         'following_count',
         'collections_fetched_at',
+        'events_fetched_at',
     ];
 
     /**
@@ -119,6 +121,7 @@ class Actor extends Model
             'followers_count' => 'integer',
             'following_count' => 'integer',
             'collections_fetched_at' => 'datetime',
+            'events_fetched_at' => 'datetime',
         ];
     }
 

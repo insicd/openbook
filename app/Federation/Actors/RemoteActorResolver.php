@@ -657,6 +657,7 @@ final class RemoteActorResolver
                 [
                     'inbox' => isset($document['inbox']) ? (string) $document['inbox'] : null,
                     'outbox' => isset($document['outbox']) ? (string) $document['outbox'] : null,
+                    'events' => $this->actorCollectionUrl($document, 'events'),
                     'followers' => isset($document['followers']) ? (string) $document['followers'] : null,
                     'following' => isset($document['following']) ? (string) $document['following'] : null,
                     'shared_inbox' => isset($document['endpoints']['sharedInbox']) ? (string) $document['endpoints']['sharedInbox'] : null,
@@ -665,6 +666,20 @@ final class RemoteActorResolver
 
             return $actor->fresh(['key', 'endpoints']);
         });
+    }
+
+    /** @param array<string, mixed> $document */
+    private function actorCollectionUrl(array $document, string $name): ?string
+    {
+        $value = $document[$name] ?? ($document['endpoints'][$name] ?? null);
+
+        if (! is_string($value) || filter_var($value, FILTER_VALIDATE_URL) === false) {
+            return null;
+        }
+
+        $scheme = strtolower((string) parse_url($value, PHP_URL_SCHEME));
+
+        return in_array($scheme, ['http', 'https'], true) ? $value : null;
     }
 
     /**

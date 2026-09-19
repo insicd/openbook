@@ -83,6 +83,7 @@ return [
             'loading' => 'Loading more events...',
             'end' => 'There are no more events to show.',
             'error' => 'Unable to load more events. Try reloading the page.',
+            'next' => 'More events',
         ],
     ],
 
@@ -135,7 +136,9 @@ return [
         'tab_posts' => 'Posts',
         'tab_activity' => 'Activity',
         'tab_photos' => 'Photos and videos',
+        'tab_events' => 'Events',
         'no_photos_yet' => 'No photos to show yet.',
+        'no_events_yet' => 'There are no events to show.',
         'no_activity_yet' => 'There are no comments or shares to show yet.',
         'activity_remote_notice' => 'This timeline only includes comments and shares known to this instance, not the origin server\'s full outbox. Likes are not listed here.',
         'photo_alt' => 'Profile photo',

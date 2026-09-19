@@ -7,7 +7,9 @@
             : config('app.timezone'));
     $startsAt = $event->start_at->copy()->setTimezone($timezone);
     $location = $event->location;
-    $locationLabel = $location?->name ?: $location?->address ?: $location?->locality;
+    $locationName = $location?->name ?: $location?->address;
+    $locationParts = array_values(array_filter([$location?->locality, $locationName]));
+    $locationLabel = implode(' · ', array_unique($locationParts));
 @endphp
 
 <article class="ob-event-card">

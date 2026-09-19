@@ -106,6 +106,7 @@
                 'postsUrl' => route('profile.show', $profileUser->username),
                 'activityUrl' => route('profile.activity', $profileUser->username),
                 'photosUrl' => route('profile.photos', $profileUser->username),
+                'eventsUrl' => route('profile.events', $profileUser->username),
             ])
             @endif
         </div>
@@ -142,10 +143,18 @@
 
     @if (($activeTab ?? 'posts') === 'photos')
         @include('profile._photo_grid', ['media' => $media])
+    @elseif (($activeTab ?? 'posts') === 'events')
+        @include('profile._events', [
+            'events' => $events,
+            'eventsArchive' => $eventsArchive,
+            'eventsUrl' => route('profile.events', $profileUser->username),
+        ])
     @elseif (($activeTab ?? 'posts') === 'activity')
         @include('profile._activity', ['activity' => $activity ?? null])
     @else
-        @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.profile.no_posts_yet')])
+        <div class="ob-profile-posts">
+            @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.profile.no_posts_yet')])
+        </div>
     @endif
     @endif
 @endsection

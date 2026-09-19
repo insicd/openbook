@@ -9,6 +9,7 @@ use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Outbox\RemoteOutboxFetcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
@@ -17,7 +18,7 @@ use Tests\TestCase;
 /**
  * Al primo caricamento (o dopo la scadenza della cache) della pagina
  * profilo di un Actor remoto, {@see RemoteOutboxFetcher} interroga il suo
- * outbox reale per farne comparire almeno i post pubblici piu' recenti,
+ * outbox e collection reali per farne comparire i contenuti pubblici recenti,
  * invece di affidarsi soltanto a cio' che l'inbox ha gia' ricevuto (che per
  * costruzione ignora un autore non ancora seguito da nessun Actor locale,
  * vedi InboxActivityProcessorTest).
@@ -107,6 +108,22 @@ class RemoteOutboxFetcherTest extends TestCase
                 'published' => now()->subHour()->toAtomString(),
                 'to' => ['https://www.w3.org/ns/activitystreams#Public'],
             ], $overrides),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function eventObject(Actor $creator, Actor $organizer, string $suffix, string $name, string $published): array
+    {
+        return [
+            'id' => 'https://'.$organizer->domain.'/events/'.$suffix,
+            'type' => 'Event',
+            'actor' => $creator->uri,
+            'attributedTo' => $organizer->uri,
+            'name' => $name,
+            'content' => '<p>'.$name.'</p>',
+            'startTime' => Carbon::parse($published)->addMonth()->toAtomString(),
+            'published' => Carbon::parse($published)->toAtomString(),
+            'to' => ['https://www.w3.org/ns/activitystreams#Public'],
         ];
     }
 
@@ -277,10 +294,87 @@ class RemoteOutboxFetcherTest extends TestCase
         $viewer = $this->createFullAccount('esploratore7');
         Http::fake();
 
-        app(RemoteOutboxFetcher::class)->fetchRecentPosts($viewer->actor);
+        app(RemoteOutboxFetcher::class)->fetchRecentContent($viewer->actor);
 
         Http::assertNothingSent();
         $this->assertNull($viewer->actor->fresh()->posts_fetched_at);
+    }
+
+    public function test_it_imports_recent_events_from_a_mobilizon_collection_ordered_oldest_first(): void
+    {
+        $group = $this->createRemoteActor('milano', 'ticketzon.example', ['type' => Actor::TYPE_GROUP]);
+        $creator = $this->createRemoteActor('admin', 'ticketzon.example');
+        $eventsUrl = 'https://ticketzon.example/@milano/events';
+        $actorDocument = $this->cachedActorDocument($group);
+        $actorDocument['events'] = $eventsUrl;
+        $actorDocument['endpoints']['events'] = $eventsUrl;
+
+        $old = $this->eventObject($creator, $group, 'old', 'Evento del passato remoto', '2024-03-20T12:00:00Z');
+        $recent = $this->eventObject($creator, $group, 'recent', 'Evento recente', '2026-09-18T12:00:00Z');
+        $latest = $this->eventObject($creator, $group, 'latest', 'Evento nuovissimo', '2026-09-19T12:00:00Z');
+
+        Http::fake([
+            $group->uri => Http::response($actorDocument),
+            $eventsUrl => Http::response([
+                'id' => $eventsUrl,
+                'type' => 'OrderedCollection',
+                'totalItems' => 23,
+                'first' => [
+                    'id' => $eventsUrl.'?page=1',
+                    'type' => 'OrderedCollectionPage',
+                    'partOf' => $eventsUrl,
+                    'next' => $eventsUrl.'?page=2',
+                    'orderedItems' => array_fill(0, 10, $old),
+                ],
+            ]),
+            $eventsUrl.'?page=2' => Http::response([
+                'id' => $eventsUrl.'?page=2',
+                'type' => 'OrderedCollectionPage',
+                'partOf' => $eventsUrl,
+                'orderedItems' => [$recent],
+            ]),
+            $eventsUrl.'?page=3' => Http::response([
+                'id' => $eventsUrl.'?page=3',
+                'type' => 'OrderedCollectionPage',
+                'partOf' => $eventsUrl,
+                'orderedItems' => [$latest],
+            ]),
+            '*' => Http::response([
+                'id' => $group->endpoints->outbox,
+                'type' => 'OrderedCollection',
+                'orderedItems' => [],
+            ]),
+        ]);
+
+        app(RemoteOutboxFetcher::class)->fetchRecentContent($group);
+
+        $this->assertDatabaseHas('events', ['uri' => $recent['id'], 'name' => 'Evento recente']);
+        $this->assertDatabaseHas('events', ['uri' => $latest['id'], 'name' => 'Evento nuovissimo']);
+        $this->assertDatabaseMissing('events', ['uri' => $old['id']]);
+        $this->assertSame($eventsUrl, $group->fresh('endpoints')->endpoints->events);
+        $this->assertNotNull($group->fresh()->events_fetched_at);
+        Http::assertSent(fn ($request): bool => $request->url() === $eventsUrl.'?page=3');
+    }
+
+    public function test_it_imports_public_events_from_the_regular_outbox_as_a_fallback(): void
+    {
+        $group = $this->createRemoteActor('agenda', 'balotta.example', ['type' => Actor::TYPE_GROUP]);
+        $event = $this->eventObject($group, $group, 'assemblea', 'Assemblea pubblica', '2026-09-19T12:00:00Z');
+
+        $this->fakeOutbox($group, [[
+            'id' => $event['id'].'#create',
+            'type' => 'Create',
+            'actor' => $group->uri,
+            'object' => $event,
+        ]]);
+
+        app(RemoteOutboxFetcher::class)->fetchRecentContent($group);
+
+        $this->assertDatabaseHas('events', [
+            'uri' => $event['id'],
+            'actor_id' => $group->id,
+            'name' => 'Assemblea pubblica',
+        ]);
     }
 
     public function test_pixelfed_style_stub_outbox_falls_back_to_atom_feed(): void

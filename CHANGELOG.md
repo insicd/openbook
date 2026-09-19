@@ -28,7 +28,10 @@ il [`README`](README.md#roadmap-and-project-status).
   la visibilità. Sono supportati anche refresh dei contatori, contenuti
   sensibili, commenti federati in sola lettura e tombstone; il comando
   `openbook:reprocess-inbox` permette di rimettere in coda le attività
-  precedentemente ignorate dopo un aggiornamento.
+  precedentemente ignorate dopo un aggiornamento. I profili Actor includono
+  un tab Eventi con appuntamenti futuri e archivio; per gli Actor remoti
+  Openbook importa opportunisticamente gli eventi pubblici dalle collection
+  dedicate Mobilizon o, come fallback, dalla normale outbox ActivityPub.
 - **Anteprime dei post condivisi**: le pagine dei post pubblici espongono
   metadati Open Graph con titolo, estratto e prima immagine o copertina video,
   permettendo alle applicazioni compatibili di generare preview piu' complete.
