@@ -8,8 +8,16 @@
     $startsAt = $event->start_at->copy()->setTimezone($timezone);
     $location = $event->location;
     $locationName = $location?->name ?: $location?->address;
-    $locationParts = array_values(array_filter([$location?->locality, $locationName]));
-    $locationLabel = implode(' · ', array_unique($locationParts));
+    $locationCountry = $location?->country_name ?: $location?->country_code;
+    $locationRegion = $location?->region;
+    $locationRegionCountry = $locationRegion && $locationCountry
+        ? sprintf('%s (%s)', $locationRegion, $locationCountry)
+        : ($locationRegion ?: $locationCountry);
+    $locationLines = array_values(array_unique(array_filter([
+        $locationName,
+        $location?->locality,
+        $locationRegionCountry,
+    ])));
 @endphp
 
 <article class="ob-event-card">
@@ -27,8 +35,15 @@
             @endif
             <div class="ob-event-card__date">{{ $startsAt->translatedFormat('j F Y, H:i') }}</div>
             <h3>{!! \App\Domain\Posts\PostBodyRenderer::renderInlineCustomEmojis($event->name, $event->custom_emojis) !!}</h3>
-            @if ($locationLabel)
-                <div class="ob-event-card__location"><x-icon name="map-pin" /> {{ $locationLabel }}</div>
+            @if ($locationLines)
+                <div class="ob-event-card__location">
+                    <x-icon name="map-pin" />
+                    <span class="ob-event-card__location-lines">
+                        @foreach ($locationLines as $line)
+                            <span>{{ $line }}</span>
+                        @endforeach
+                    </span>
+                </div>
             @elseif ($event->is_online)
                 <div class="ob-event-card__location"><x-icon name="globe" /> {{ __('openbook.events.online') }}</div>
             @endif

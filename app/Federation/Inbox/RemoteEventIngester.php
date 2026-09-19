@@ -2,6 +2,7 @@
 
 namespace App\Federation\Inbox;
 
+use App\Application\Services\NearestCityFinder;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventAnnounce;
 use App\Domain\Events\EventLink;
@@ -18,6 +19,7 @@ final class RemoteEventIngester
     public function __construct(
         private readonly ObjectResolver $objects,
         private readonly RemoteAttachmentIngester $attachments,
+        private readonly NearestCityFinder $nearestCities,
     ) {}
 
     /**
@@ -302,7 +304,42 @@ final class RemoteEventIngester
             return;
         }
 
+        $location = $this->enrichLocationFromCoordinates($location);
+
         $event->location()->updateOrCreate([], $location);
+    }
+
+    /**
+     * Completa soltanto i dati geografici omessi dal server remoto,
+     * mantenendo sempre prioritari quelli dichiarati nell'Event originale.
+     *
+     * @param  array<string, mixed>  $location
+     * @return array<string, mixed>
+     */
+    private function enrichLocationFromCoordinates(array $location): array
+    {
+        if ($location['latitude'] === null
+            || $location['longitude'] === null
+            || ! config('openbook.locations.catalog_ready', false)
+            || ($location['locality'] !== null
+                && $location['country_code'] !== null
+                && $location['country_name'] !== null)) {
+            return $location;
+        }
+
+        $city = $this->nearestCities->find($location['latitude'], $location['longitude']);
+
+        if ($city === null) {
+            return $location;
+        }
+
+        $location['geo_city_id'] = $city->geoname_id;
+        $location['locality'] ??= $city->name;
+        $location['region'] ??= $city->admin1_name;
+        $location['country_code'] ??= $city->country_code;
+        $location['country_name'] ??= $city->country_name;
+
+        return $location;
     }
 
     /** @param array<string, mixed> $document */

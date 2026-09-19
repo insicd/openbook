@@ -31,7 +31,10 @@ il [`README`](README.md#roadmap-and-project-status).
   precedentemente ignorate dopo un aggiornamento. I profili Actor includono
   un tab Eventi con appuntamenti futuri e archivio; per gli Actor remoti
   Openbook importa opportunisticamente gli eventi pubblici dalle collection
-  dedicate Mobilizon o, come fallback, dalla normale outbox ActivityPub.
+  dedicate Mobilizon o, come fallback, dalla normale outbox ActivityPub. La
+  ricerca riconosce anche gli URL di singoli eventi prima del fallback RSS;
+  quando una location remota ha coordinate ma dati geografici incompleti,
+  Openbook tenta di completarli tramite il catalogo locale delle citta'.
 - **Anteprime dei post condivisi**: le pagine dei post pubblici espongono
   metadati Open Graph con titolo, estratto e prima immagine o copertina video,
   permettendo alle applicazioni compatibili di generare preview piu' complete.

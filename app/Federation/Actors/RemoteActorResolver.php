@@ -569,6 +569,27 @@ final class RemoteActorResolver
         return $this->applyRemoteDocument($document, $requestedUri);
     }
 
+    /**
+     * Applica un documento gia' recuperato durante la risoluzione di un URL,
+     * evitando un secondo GET quando il chiamante deve distinguerlo da altri
+     * oggetti ActivityStreams (per esempio un Event).
+     *
+     * @param  array<string, mixed>|null  $document
+     */
+    public function resolveFetchedDocument(?array $document, string $requestedUri): ?Actor
+    {
+        $documentUri = is_string($document['id'] ?? null) ? $document['id'] : null;
+
+        if ($document === null
+            || $this->domainBlocks->isBlockedUrl($requestedUri)
+            || $this->isLocalDomainUri($requestedUri)
+            || ($documentUri !== null && $this->isLocalDomainUri($documentUri))) {
+            return null;
+        }
+
+        return $this->applyFetchedActorDocument($document, $requestedUri);
+    }
+
     private function sameHttpHost(string $left, string $right): bool
     {
         $leftHost = parse_url($left, PHP_URL_HOST);

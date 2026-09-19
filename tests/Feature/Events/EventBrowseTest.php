@@ -37,18 +37,36 @@ class EventBrowseTest extends TestCase
             ->assertDontSee($upcoming->name);
     }
 
-    public function test_event_card_shows_the_locality_before_the_venue_name(): void
+    public function test_event_card_shows_the_structured_location(): void
     {
         $event = $this->event($this->remoteActor(), ['name' => 'Concerto cittadino']);
         $event->location()->create([
             'locality' => 'Milano',
             'name' => 'Teatro Verdi',
+            'region' => 'Lombardia',
+            'country_name' => 'Italia',
             'source' => 'remote',
         ]);
 
         $this->get(route('events.index'))
             ->assertOk()
-            ->assertSeeText('Milano · Teatro Verdi');
+            ->assertSeeTextInOrder(['Teatro Verdi', 'Milano', 'Lombardia (Italia)']);
+    }
+
+    public function test_event_card_uses_the_country_code_when_the_name_is_missing(): void
+    {
+        $event = $this->event($this->remoteActor(), ['name' => 'Concerto internazionale']);
+        $event->location()->create([
+            'name' => 'Sala concerti',
+            'locality' => 'Helsinki',
+            'region' => 'Uusimaa',
+            'country_code' => 'FI',
+            'source' => 'remote',
+        ]);
+
+        $this->get(route('events.index'))
+            ->assertOk()
+            ->assertSeeTextInOrder(['Sala concerti', 'Helsinki', 'Uusimaa (FI)']);
     }
 
     public function test_unlisted_event_has_a_public_permalink_but_is_not_discoverable(): void

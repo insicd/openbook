@@ -4,6 +4,7 @@ namespace Tests\Feature\Federation;
 
 use App\Domain\Events\Event;
 use App\Domain\Events\EventComment;
+use App\Domain\Locations\GeoCity;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxActivityProcessor;
@@ -36,6 +37,40 @@ class EventInboxActivityTest extends TestCase
         $this->assertSame('via San Carlo, 42, Bologna', $event->location->address);
         $this->assertSame('https://balotta.example/media/cover.jpg', $event->media->first()->remote_url);
         $this->assertSame([$agenda->id], $event->attributions->pluck('id')->all());
+    }
+
+    public function test_remote_event_coordinates_fill_missing_city_and_country_from_local_catalog(): void
+    {
+        config()->set('openbook.locations.catalog_ready', true);
+
+        GeoCity::query()->create([
+            'geoname_id' => 3181928,
+            'name' => 'Bologna',
+            'ascii_name' => 'Bologna',
+            'latitude' => 44.4938,
+            'longitude' => 11.3387,
+            'latitude_bucket' => 44,
+            'longitude_bucket' => 11,
+            'country_code' => 'IT',
+            'country_name' => 'Italy',
+            'admin1_code' => '05',
+            'admin1_name' => 'Emilia-Romagna',
+            'feature_code' => 'PPLA',
+            'population' => 394843,
+            'catalog_batch' => '00000000-0000-0000-0000-000000000001',
+        ]);
+
+        $agenda = $this->remoteActor('agenda-geo', 'balotta.example', 'https://balotta.example/federation/u/agenda-geo');
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process($this->balottaCreate($agenda), $agenda));
+
+        $location = Event::query()->with('location')->firstOrFail()->location;
+        $this->assertSame(3181928, $location?->geo_city_id);
+        $this->assertSame('Bologna', $location?->locality);
+        $this->assertSame('Emilia-Romagna', $location?->region);
+        $this->assertSame('IT', $location?->country_code);
+        $this->assertSame('Italy', $location?->country_name);
+        $this->assertSame('via San Carlo, 42, Bologna', $location?->address);
     }
 
     public function test_mobilizon_announce_imports_creator_organizer_links_and_then_merges_create(): void

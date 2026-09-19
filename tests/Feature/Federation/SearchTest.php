@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Federation;
 
+use App\Domain\Events\Event;
 use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -228,5 +229,72 @@ class SearchTest extends TestCase
         $this->assertTrue($actor->isPerson());
         $this->assertSame(0, Actor::query()->where('type', Actor::TYPE_FEED)->count());
         $response->assertRedirect(route('actors.show', $actor));
+    }
+
+    public function test_searching_a_public_event_url_imports_it_before_trying_rss(): void
+    {
+        $viewer = $this->createFullAccount('cercatoreevento');
+        $eventUrl = 'https://events.example/event/concerto';
+        $eventUri = 'https://events.example/federation/events/42';
+        $actorUri = 'https://events.example/federation/users/agenda';
+
+        Http::fake([
+            $eventUrl => Http::response([
+                'id' => $eventUri,
+                'type' => 'Event',
+                'attributedTo' => $actorUri,
+                'name' => 'Concerto federato',
+                'content' => '<p>Una serata rumorosa.</p>',
+                'url' => $eventUrl,
+                'startTime' => now()->addDay()->toAtomString(),
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+            $actorUri => Http::response([
+                'id' => $actorUri,
+                'type' => 'Application',
+                'preferredUsername' => 'agenda',
+                'name' => 'Agenda concerti',
+                'inbox' => $actorUri.'/inbox',
+                'outbox' => $actorUri.'/outbox',
+                'publicKey' => [
+                    'id' => $actorUri.'#main-key',
+                    'owner' => $actorUri,
+                    'publicKeyPem' => '-----BEGIN PUBLIC KEY-----test-----END PUBLIC KEY-----',
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('search.create', ['q' => $eventUrl]));
+
+        $event = Event::query()->where('uri', $eventUri)->firstOrFail();
+        $this->assertSame($actorUri, $event->actor?->uri);
+        $this->assertSame(0, Actor::query()->where('type', Actor::TYPE_FEED)->count());
+        $response->assertRedirect(route('events.show', $event));
+    }
+
+    public function test_searching_a_non_public_event_url_does_not_import_it(): void
+    {
+        $viewer = $this->createFullAccount('cercatoreeventoprivato');
+        $eventUrl = 'https://events.example/event/privato';
+
+        Http::fake([
+            $eventUrl => Http::response([
+                'id' => 'https://events.example/federation/events/private',
+                'type' => 'Event',
+                'attributedTo' => 'https://events.example/federation/users/agenda',
+                'name' => 'Evento privato',
+                'startTime' => now()->addDay()->toAtomString(),
+                'to' => ['https://events.example/federation/users/qualcun-altro'],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $response = $this->actingAs($viewer)
+            ->from(route('search.create'))
+            ->get(route('search.create', ['q' => $eventUrl]));
+
+        $this->assertSame(0, Event::query()->count());
+        $response->assertRedirect(route('search.create'));
+        $response->assertSessionHasErrors('q');
     }
 }

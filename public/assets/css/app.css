@@ -3617,11 +3617,16 @@ a.ob-post__menu-item {
 
 .ob-event-card__location {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.35rem;
   color: var(--ob-color-text-muted);
   font-size: 0.86rem;
   margin-bottom: 0.55rem;
+}
+
+.ob-event-card__location-lines {
+  display: flex;
+  flex-direction: column;
 }
 
 .ob-event-card__location .ob-icon {
