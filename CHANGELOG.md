@@ -19,6 +19,16 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38] - Melancholy Taco
 
 ### Added
+- **Eventi federati ActivityPub**: Openbook importa gli oggetti `Event`
+  ricevuti tramite `Create` e `Announce`, ne gestisce aggiornamenti,
+  cancellazioni e audience e li presenta nella nuova sezione Eventi con
+  prossimi appuntamenti, archivio, dettaglio, ricerca e hashtag. Gli utenti
+  possono esprimere interesse (`Like`), inviare o annullare una partecipazione
+  (`Join`/`Undo`/`Leave`) e condividere un evento nei messaggi senza ampliarne
+  la visibilità. Sono supportati anche refresh dei contatori, contenuti
+  sensibili, commenti federati in sola lettura e tombstone; il comando
+  `openbook:reprocess-inbox` permette di rimettere in coda le attività
+  precedentemente ignorate dopo un aggiornamento.
 - **Anteprime dei post condivisi**: le pagine dei post pubblici espongono
   metadati Open Graph con titolo, estratto e prima immagine o copertina video,
   permettendo alle applicazioni compatibili di generare preview piu' complete.

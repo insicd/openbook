@@ -11,6 +11,8 @@ use App\Application\Services\InstanceSettings;
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
 use App\Domain\Communities\Community;
+use App\Domain\Events\Event;
+use App\Domain\Events\EventParticipation;
 use App\Domain\Moderation\AuditLog;
 use App\Domain\Moderation\DomainBlock;
 use App\Domain\Moderation\Report;
@@ -68,6 +70,8 @@ class AppServiceProvider extends ServiceProvider
             'user' => User::class,
             'actor' => Actor::class,
             'community' => Community::class,
+            'event' => Event::class,
+            'event_participation' => EventParticipation::class,
         ]);
 
         // Registrazione esplicita: i modelli non vivono in App\Models, quindi

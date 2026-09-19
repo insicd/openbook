@@ -23,6 +23,9 @@ final class ConversationListQuery
         'quotedPost.media.thumbnail',
         'quotedPost.hashtags',
         'quotedActor.user.profile',
+        'quotedEvent.actor.user.profile',
+        'quotedEvent.location',
+        'quotedEvent.media.thumbnail',
     ];
 
     public function forActor(Actor $viewer, int $perPage = 30): LengthAwarePaginator
@@ -63,7 +66,7 @@ final class ConversationListQuery
             ->where('conversation_id', $conversation->id)
             ->where('visibility', Post::VISIBILITY_DIRECT)
             ->where('status', Post::STATUS_PUBLISHED)
-            ->with(['actor.user.profile'])
+            ->with(['actor.user.profile', 'quotedEvent'])
             ->orderByDesc('published_at')
             ->first();
     }

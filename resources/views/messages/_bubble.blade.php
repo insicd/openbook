@@ -18,5 +18,7 @@
         @include('messages._quote', ['quotedPost' => $message->quotedPost])
     @elseif ($message->quotedActor)
         @include('messages._profile', ['quotedActor' => $message->quotedActor, 'showFollow' => true])
+    @elseif ($message->quotedEvent)
+        @include('messages._event', ['quotedEvent' => $message->quotedEvent])
     @endif
 </article>

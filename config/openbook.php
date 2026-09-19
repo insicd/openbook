@@ -207,6 +207,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Eventi federati
+    |--------------------------------------------------------------------------
+    |
+    | La durata virtuale viene usata soltanto per classificare gli eventi
+    | privi di endTime; non modifica ne' i dati salvati ne' quelli federati.
+    | Il TTL limita i refresh opportunistici dal dettaglio di eventi remoti.
+    */
+    'events' => [
+        'default_duration_hours' => (int) env('OPENBOOK_EVENT_DEFAULT_DURATION_HOURS', 12),
+        'cache_ttl_hours' => (int) env('OPENBOOK_EVENT_CACHE_TTL_HOURS', 4),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Hashtag in tendenza
     |--------------------------------------------------------------------------
     |

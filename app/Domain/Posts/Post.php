@@ -4,6 +4,7 @@ namespace App\Domain\Posts;
 
 use App\Application\Queries\FeedQuery;
 use App\Domain\Communities\Community;
+use App\Domain\Events\Event;
 use App\Domain\Locations\PostLocation;
 use App\Domain\Messaging\Conversation;
 use App\Domain\Reactions\Announce;
@@ -32,6 +33,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $uri
  * @property string|null $quoted_post_id
  * @property string|null $quoted_actor_id
+ * @property string|null $quoted_event_id
  * @property string|null $title
  * @property string|null $content_warning
  * @property string $body
@@ -50,6 +52,7 @@ use Illuminate\Support\Carbon;
  * @property-read Actor|null $sharedBy vedi {@see self::attachSharedBy()}
  * @property-read Post|null $quotedPost
  * @property-read Actor|null $quotedActor
+ * @property-read Event|null $quotedEvent
  */
 class Post extends Model
 {
@@ -83,6 +86,9 @@ class Post extends Model
         'quotedPost.media.thumbnail',
         'quotedPost.hashtags',
         'quotedPost.location',
+        'quotedEvent.actor.user.profile',
+        'quotedEvent.location',
+        'quotedEvent.media.thumbnail',
     ];
 
     /**
@@ -95,6 +101,7 @@ class Post extends Model
         'uri',
         'quoted_post_id',
         'quoted_actor_id',
+        'quoted_event_id',
         'title',
         'content_warning',
         'body',
@@ -166,6 +173,11 @@ class Post extends Model
     public function quotedActor(): BelongsTo
     {
         return $this->belongsTo(Actor::class, 'quoted_actor_id');
+    }
+
+    public function quotedEvent(): BelongsTo
+    {
+        return $this->belongsTo(Event::class, 'quoted_event_id');
     }
 
     public function attachments(): HasMany

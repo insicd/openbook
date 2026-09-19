@@ -24,6 +24,19 @@ final class RemoteNoteDocumentFetcher
      */
     public function fetch(string $uri, ?Actor $signingActor = null): ?array
     {
+        $document = $this->fetchDocument($uri, $signingActor);
+
+        return $document !== null ? RemotePostObject::unwrap($document) : null;
+    }
+
+    /**
+     * Documento ActivityStreams grezzo, usato quando il tipo dell'oggetto
+     * riferito per URI (post oppure evento) non e' ancora noto.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function fetchDocument(string $uri, ?Actor $signingActor = null): ?array
+    {
         $signingActor ??= $this->fetchSigner->resolve();
 
         try {
@@ -44,6 +57,6 @@ final class RemoteNoteDocumentFetcher
             return null;
         }
 
-        return RemotePostObject::unwrap($document);
+        return $document;
     }
 }

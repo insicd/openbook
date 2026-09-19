@@ -2,6 +2,7 @@
 
 namespace App\Application\Services;
 
+use App\Domain\Events\Event;
 use App\Domain\Messaging\Conversation;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Mention;
@@ -31,6 +32,7 @@ final class MessageComposer
         ?Conversation $conversation = null,
         ?Post $quotedPost = null,
         ?Actor $quotedActor = null,
+        ?Event $quotedEvent = null,
     ): Post {
         $body = trim($body);
 
@@ -42,7 +44,17 @@ final class MessageComposer
             $quotedActor = null;
         }
 
-        if ($body === '' && $quotedPost === null && $quotedActor === null) {
+        if ($quotedEvent !== null && ! Event::query()
+            ->whereKey($quotedEvent->id)
+            ->where('status', '!=', Event::STATUS_DELETED)
+            ->visibleTo($recipient)
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'quoted_event_id' => [__('openbook.messages.errors.event_unavailable')],
+            ]);
+        }
+
+        if ($body === '' && $quotedPost === null && $quotedActor === null && $quotedEvent === null) {
             throw ValidationException::withMessages([
                 'body' => [__('openbook.messages.errors.empty_body')],
             ]);
@@ -58,7 +70,7 @@ final class MessageComposer
 
         abort_unless($conversation->involves($sender) && $conversation->involves($recipient), 403);
 
-        $post = DB::transaction(function () use ($sender, $recipient, $body, $conversation, $quotedPost, $quotedActor) {
+        $post = DB::transaction(function () use ($sender, $recipient, $body, $conversation, $quotedPost, $quotedActor, $quotedEvent) {
             $post = Post::query()->create([
                 'actor_id' => $sender->id,
                 'body' => $body,
@@ -68,6 +80,7 @@ final class MessageComposer
                 'conversation_id' => $conversation->id,
                 'quoted_post_id' => $quotedPost?->id,
                 'quoted_actor_id' => $quotedActor?->id,
+                'quoted_event_id' => $quotedEvent?->id,
             ]);
 
             Mention::query()->firstOrCreate([
@@ -91,7 +104,7 @@ final class MessageComposer
         });
 
         if ($sender->isLocal()) {
-            $post->load(['mentions.actor', 'quotedPost', 'quotedActor']);
+            $post->load(['mentions.actor', 'quotedPost', 'quotedActor', 'quotedEvent']);
             $this->delivery->deliverContent($post, ActivitySerializer::create($post));
         }
 

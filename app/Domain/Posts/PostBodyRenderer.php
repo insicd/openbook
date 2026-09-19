@@ -59,9 +59,17 @@ final class PostBodyRenderer
     }
 
     /** @param array<string, string>|null $customEmojis */
-    public static function render(string $body, ?array $customEmojis = null): HtmlString
-    {
-        return self::renderBody($body, forFederation: false, customEmojis: $customEmojis);
+    public static function render(
+        string $body,
+        ?array $customEmojis = null,
+        ?string $bareMentionDomain = null,
+    ): HtmlString {
+        return self::renderBody(
+            $body,
+            forFederation: false,
+            customEmojis: $customEmojis,
+            bareMentionDomain: $bareMentionDomain,
+        );
     }
 
     /** @param array<string, string>|null $customEmojis */
@@ -114,8 +122,12 @@ final class PostBodyRenderer
     }
 
     /** @param array<string, string>|null $customEmojis */
-    private static function renderBody(string $body, bool $forFederation, ?array $customEmojis = null): HtmlString
-    {
+    private static function renderBody(
+        string $body,
+        bool $forFederation,
+        ?array $customEmojis = null,
+        ?string $bareMentionDomain = null,
+    ): HtmlString {
         if (trim($body) === '') {
             return new HtmlString('');
         }
@@ -126,7 +138,12 @@ final class PostBodyRenderer
             return new HtmlString('');
         }
 
-        return new HtmlString(self::enhanceRenderedHtml($html, $forFederation, $customEmojis));
+        return new HtmlString(self::enhanceRenderedHtml(
+            $html,
+            $forFederation,
+            $customEmojis,
+            self::validMentionDomain($bareMentionDomain),
+        ));
     }
 
     private static function converter(): MarkdownConverter
@@ -158,8 +175,12 @@ final class PostBodyRenderer
     }
 
     /** @param array<string, string>|null $customEmojis */
-    private static function enhanceRenderedHtml(string $html, bool $forFederation = false, ?array $customEmojis = null): string
-    {
+    private static function enhanceRenderedHtml(
+        string $html,
+        bool $forFederation = false,
+        ?array $customEmojis = null,
+        ?string $bareMentionDomain = null,
+    ): string {
         $document = new DOMDocument;
         $previous = libxml_use_internal_errors(true);
 
@@ -179,7 +200,7 @@ final class PostBodyRenderer
 
         self::stripImages($root);
         self::processAnchors($root, $forFederation);
-        self::linkifyTextNodes($root, $forFederation);
+        self::linkifyTextNodes($root, $forFederation, $bareMentionDomain);
 
         if (! $forFederation) {
             self::renderCustomEmojis($root, $customEmojis ?? []);
@@ -345,8 +366,11 @@ final class PostBodyRenderer
         }
     }
 
-    private static function linkifyTextNodes(DOMElement $root, bool $forFederation = false): void
-    {
+    private static function linkifyTextNodes(
+        DOMElement $root,
+        bool $forFederation = false,
+        ?string $bareMentionDomain = null,
+    ): void {
         $xpath = new DOMXPath($root->ownerDocument);
         $textNodes = [];
 
@@ -357,12 +381,15 @@ final class PostBodyRenderer
         }
 
         foreach ($textNodes as $textNode) {
-            self::linkifyTextNode($textNode, $forFederation);
+            self::linkifyTextNode($textNode, $forFederation, $bareMentionDomain);
         }
     }
 
-    private static function linkifyTextNode(DOMText $textNode, bool $forFederation = false): void
-    {
+    private static function linkifyTextNode(
+        DOMText $textNode,
+        bool $forFederation = false,
+        ?string $bareMentionDomain = null,
+    ): void {
         $text = $textNode->wholeText;
 
         if ($text === '' || (! str_contains($text, '#') && ! str_contains($text, '@'))) {
@@ -399,6 +426,10 @@ final class PostBodyRenderer
             if ($hashtag !== '') {
                 $parent->insertBefore(self::createHashtagElement($document, $hashtag, $forFederation), $textNode);
             } elseif ($mention !== '') {
+                if ($bareMentionDomain !== null && substr_count($mention, '@') === 1) {
+                    $mention .= '@'.$bareMentionDomain;
+                }
+
                 $parent->insertBefore(self::createMentionElement($document, $mention, null, $forFederation), $textNode);
             }
 
@@ -635,5 +666,18 @@ final class PostBodyRenderer
         }
 
         return null;
+    }
+
+    private static function validMentionDomain(?string $domain): ?string
+    {
+        if (! is_string($domain)) {
+            return null;
+        }
+
+        $domain = mb_strtolower(rtrim(trim($domain), '.'));
+
+        return filter_var($domain, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false
+            ? $domain
+            : null;
     }
 }

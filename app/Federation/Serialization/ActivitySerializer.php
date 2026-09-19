@@ -3,6 +3,8 @@
 namespace App\Federation\Serialization;
 
 use App\Domain\Comments\Comment;
+use App\Domain\Events\Event;
+use App\Domain\Events\EventParticipation;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Announce;
 use App\Domain\Reactions\Like;
@@ -119,21 +121,21 @@ final class ActivitySerializer
     /**
      * @return array<string, mixed>
      */
-    public static function like(Like $like, Post|Comment $target): array
+    public static function like(Like $like, Post|Comment|Event $target): array
     {
         return [
             '@context' => self::CONTEXT,
             'id' => url("/activities/likes/{$like->id}"),
             'type' => 'Like',
             'actor' => $like->actor->activityPubId(),
-            'object' => NoteSerializer::uriFor($target),
+            'object' => $target instanceof Event ? $target->uri : NoteSerializer::uriFor($target),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public static function undoLike(Like $like, Post|Comment $target): array
+    public static function undoLike(Like $like, Post|Comment|Event $target): array
     {
         return [
             '@context' => self::CONTEXT,
@@ -141,6 +143,54 @@ final class ActivitySerializer
             'type' => 'Undo',
             'actor' => $like->actor->activityPubId(),
             'object' => self::like($like, $target),
+        ];
+    }
+
+    public static function eventJoinActivityUri(EventParticipation $participation): string
+    {
+        return url("/activities/event-joins/{$participation->id}");
+    }
+
+    /** @return array<string, mixed> */
+    public static function joinEvent(EventParticipation $participation): array
+    {
+        return [
+            '@context' => self::CONTEXT,
+            'id' => $participation->activity_uri ?: self::eventJoinActivityUri($participation),
+            'type' => 'Join',
+            'actor' => $participation->actor->activityPubId(),
+            'object' => $participation->event->uri,
+            'to' => [$participation->event->actor->activityPubId()],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public static function undoJoinEvent(EventParticipation $participation): array
+    {
+        $joinUri = $participation->activity_uri ?: self::eventJoinActivityUri($participation);
+
+        return [
+            '@context' => self::CONTEXT,
+            'id' => $joinUri.'/annulla',
+            'type' => 'Undo',
+            'actor' => $participation->actor->activityPubId(),
+            'object' => self::joinEvent($participation),
+            'to' => [$participation->event->actor->activityPubId()],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public static function leaveEvent(EventParticipation $participation): array
+    {
+        $joinUri = $participation->activity_uri ?: self::eventJoinActivityUri($participation);
+
+        return [
+            '@context' => self::CONTEXT,
+            'id' => $joinUri.'/lascia',
+            'type' => 'Leave',
+            'actor' => $participation->actor->activityPubId(),
+            'object' => $participation->event->uri,
+            'to' => [$participation->event->actor->activityPubId()],
         ];
     }
 

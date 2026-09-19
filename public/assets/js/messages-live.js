@@ -91,7 +91,7 @@
             return null;
         }
 
-        return form.querySelector('[name="quoted_post_id"], [name="quoted_actor_id"]');
+        return form.querySelector('[name="quoted_post_id"], [name="quoted_actor_id"], [name="quoted_event_id"]');
     }
 
     function hasQuotedPost() {

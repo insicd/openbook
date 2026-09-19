@@ -4,6 +4,7 @@ namespace App\Application\Queries;
 
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
+use App\Domain\Events\Event;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
@@ -13,8 +14,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 /**
- * Ricerca locale per parole chiave: posta, commenti, persone e hashtag
- * dell'*istanza corrente* (mai contenuti remoti in cache).
+ * Ricerca locale per parole chiave: posta, commenti, persone, hashtag ed
+ * eventi conservati dall'istanza. Post e commenti restano limitati ai
+ * contenuti locali indicizzabili; gli eventi includono anche quelli remoti
+ * ricevuti via ActivityPub, perche' costituiscono il catalogo eventi locale.
  *
  * Volutamente basata su LIKE case-insensitive, senza Elasticsearch ne'
  * indici FULLTEXT: i vincoli di shared hosting di Openbook escludono un
@@ -40,7 +43,8 @@ final class LocalSearchQuery
      *     people: Collection<int, User>,
      *     posts: Collection<int, Post>,
      *     comments: Collection<int, Comment>,
-     *     hashtags: Collection<int, Hashtag>
+     *     hashtags: Collection<int, Hashtag>,
+     *     events: Collection<int, Event>
      * }
      */
     public function search(string $term, ?Actor $viewer, int $limit = 0): array
@@ -59,6 +63,7 @@ final class LocalSearchQuery
             'posts' => $this->posts($pattern, $viewer, $limit),
             'comments' => $this->comments($pattern, $viewer, $limit),
             'hashtags' => $this->hashtags(Hashtag::normalize($term), $limit),
+            'events' => $this->events($pattern, $viewer, $limit),
         ];
     }
 
@@ -110,7 +115,8 @@ final class LocalSearchQuery
      *     people: Collection<int, User>,
      *     posts: Collection<int, Post>,
      *     comments: Collection<int, Comment>,
-     *     hashtags: Collection<int, Hashtag>
+     *     hashtags: Collection<int, Hashtag>,
+     *     events: Collection<int, Event>
      * }
      */
     private function empty(): array
@@ -120,6 +126,7 @@ final class LocalSearchQuery
             'posts' => collect(),
             'comments' => collect(),
             'hashtags' => collect(),
+            'events' => collect(),
         ];
     }
 
@@ -304,6 +311,42 @@ final class LocalSearchQuery
             // Match esatto in cima quando si cerca "#tag" o "tag".
             ->orderByRaw('case when name = ? then 0 else 1 end', [$normalizedTerm])
             ->orderBy('name')
+            ->limit($limit)
+            ->get();
+    }
+
+    /** @return Collection<int, Event> */
+    private function events(string $pattern, ?Actor $viewer, int $limit): Collection
+    {
+        $now = now();
+
+        return Event::query()
+            ->with(['actor.user.profile', 'location', 'media.thumbnail', 'attributions.user.profile'])
+            ->visibleTo($viewer)
+            ->whereIn('status', [
+                Event::STATUS_SCHEDULED,
+                Event::STATUS_CANCELLED,
+                Event::STATUS_TENTATIVE,
+                Event::STATUS_POSTPONED,
+            ])
+            ->where(function (Builder $query) use ($pattern): void {
+                $this->whereContains($query, 'events.name', $pattern);
+                $query->orWhere(fn (Builder $query) => $this->whereContains($query, 'events.summary', $pattern));
+                $query->orWhere(fn (Builder $query) => $this->whereContains($query, 'events.content', $pattern));
+                $query->orWhere(fn (Builder $query) => $this->whereContains($query, 'events.category', $pattern));
+                $query->orWhereHas('location', function (Builder $query) use ($pattern): void {
+                    $this->whereContains($query, 'event_locations.name', $pattern);
+                    $query->orWhere(fn (Builder $query) => $this->whereContains($query, 'event_locations.address', $pattern));
+                    $query->orWhere(fn (Builder $query) => $this->whereContains($query, 'event_locations.locality', $pattern));
+                    $query->orWhere(fn (Builder $query) => $this->whereContains($query, 'event_locations.region', $pattern));
+                    $query->orWhere(fn (Builder $query) => $this->whereContains($query, 'event_locations.country_name', $pattern));
+                });
+                $query->orWhereHas('hashtags', fn (Builder $query) => $this->whereContains($query, 'hashtags.name', $pattern));
+            })
+            ->orderByRaw('case when coalesce(end_at, start_at) >= ? then 0 else 1 end', [$now])
+            ->orderByRaw('case when coalesce(end_at, start_at) >= ? then start_at end asc', [$now])
+            ->orderByRaw('case when coalesce(end_at, start_at) < ? then start_at end desc', [$now])
+            ->orderBy('events.name')
             ->limit($limit)
             ->get();
     }

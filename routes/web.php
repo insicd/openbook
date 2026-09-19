@@ -18,6 +18,8 @@ use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\ConversationController;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\EventInteractionController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\HashtagController;
@@ -61,6 +63,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/home', [FeedController::class, 'index'])->name('feed.index');
     Route::get('/mondo', [WorldController::class, 'index'])->name('world.index');
     Route::get('/mondo/scopri', [WorldController::class, 'discover'])->name('world.discover');
+
+    Route::post('/eventi/{event}/interesse', [EventInteractionController::class, 'interest'])->name('events.interest');
+    Route::delete('/eventi/{event}/interesse', [EventInteractionController::class, 'removeInterest'])->name('events.uninterest');
+    Route::post('/eventi/{event}/partecipa', [EventInteractionController::class, 'join'])->name('events.join');
+    Route::delete('/eventi/{event}/partecipa', [EventInteractionController::class, 'leave'])->name('events.leave');
+    Route::get('/eventi/{event}/condividi-a-utente', [EventController::class, 'shareToUser'])->name('events.share_to_user');
 
     Route::post('/tag/{name}/segui', [HashtagFollowController::class, 'store'])->name('hashtags.follow');
     Route::delete('/tag/{name}/segui', [HashtagFollowController::class, 'destroy'])->name('hashtags.unfollow');
@@ -232,6 +240,10 @@ Route::middleware('auth')->group(function () {
 // Identificatore canonico di un post: HTML oppure, tramite content
 // negotiation, l'oggetto ActivityStreams "Note"/"Tombstone".
 Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
+
+Route::get('/eventi', [EventController::class, 'index'])->name('events.index');
+Route::get('/eventi/passati', [EventController::class, 'archive'])->name('events.archive');
+Route::get('/eventi/{event}', [EventController::class, 'show'])->name('events.show');
 
 // Elenchi di chi ha reagito (stessa visibilita' del post). JSON per il
 // dropdown sulla card, HTML senza JavaScript.

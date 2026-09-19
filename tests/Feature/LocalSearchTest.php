@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Application\Services\CommentComposer;
 use App\Application\Services\PostComposer;
+use App\Domain\Events\Event;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -210,5 +211,61 @@ class LocalSearchTest extends TestCase
         $response->assertOk();
         $response->assertSee('Sconto del 100% solo oggi.', false);
         $response->assertDontSee('Sconto del 100X solo oggi.', false);
+    }
+
+    public function test_search_finds_remote_events_by_text_location_and_hashtag(): void
+    {
+        $viewer = $this->createFullAccount('cercaeventi');
+        $actor = $this->createRemoteActor('agendaeventi');
+        $event = Event::query()->create([
+            'actor_id' => $actor->id,
+            'uri' => 'https://remoto.example/events/jazz',
+            'name' => 'Concerto jazz cosmico',
+            'summary' => 'Una serata di improvvisazione.',
+            'visibility' => Event::VISIBILITY_PUBLIC,
+            'status' => Event::STATUS_SCHEDULED,
+            'start_at' => now()->addDay(),
+        ]);
+        $event->location()->create(['name' => 'Auditorium Galassia', 'source' => 'remote']);
+        $hashtag = Hashtag::query()->create(['name' => 'spacejazz']);
+        $event->hashtags()->attach($hashtag);
+
+        foreach (['cosmico', 'Galassia', 'spacejazz'] as $term) {
+            $this->actingAs($viewer)
+                ->get(route('search.create', ['q' => $term]))
+                ->assertOk()
+                ->assertSee('Concerto jazz cosmico')
+                ->assertSee(__('openbook.events.badge'));
+        }
+    }
+
+    public function test_search_does_not_reveal_private_events_or_tombstones(): void
+    {
+        $viewer = $this->createFullAccount('cercaeventiprivati');
+        $actor = $this->createRemoteActor('agendaprivata');
+
+        Event::query()->create([
+            'actor_id' => $actor->id,
+            'uri' => 'https://remoto.example/events/segreto',
+            'name' => 'Riunione segretissima',
+            'visibility' => Event::VISIBILITY_DIRECT,
+            'status' => Event::STATUS_SCHEDULED,
+            'start_at' => now()->addDay(),
+        ]);
+        Event::query()->create([
+            'actor_id' => $actor->id,
+            'uri' => 'https://remoto.example/events/deleted',
+            'name' => 'Festival segretissimo eliminato',
+            'visibility' => Event::VISIBILITY_PUBLIC,
+            'status' => Event::STATUS_DELETED,
+            'start_at' => now()->addDay(),
+            'deleted_at' => now(),
+        ]);
+
+        $this->actingAs($viewer)
+            ->get(route('search.create', ['q' => 'segretissim']))
+            ->assertOk()
+            ->assertDontSee('Riunione segretissima')
+            ->assertDontSee('Festival segretissimo eliminato');
     }
 }

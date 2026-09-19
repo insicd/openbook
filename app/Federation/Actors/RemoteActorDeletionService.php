@@ -3,11 +3,13 @@
 namespace App\Federation\Actors;
 
 use App\Domain\Comments\Comment;
+use App\Domain\Events\EventComment;
 use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Announce;
 use App\Domain\Reactions\Like;
 use App\Domain\SocialGraph\Follow;
+use App\Federation\Inbox\RemoteEventDeletionService;
 use App\Infrastructure\Media\Media;
 use Illuminate\Support\Facades\DB;
 
@@ -18,6 +20,10 @@ use Illuminate\Support\Facades\DB;
  */
 final class RemoteActorDeletionService
 {
+    public function __construct(
+        private readonly RemoteEventDeletionService $eventDeletion,
+    ) {}
+
     public function delete(Actor $actor): bool
     {
         if ($actor->isLocal()) {
@@ -37,6 +43,8 @@ final class RemoteActorDeletionService
             $authoredCommentIds = Comment::query()
                 ->select('id')
                 ->where('actor_id', $lockedActor->id);
+
+            $this->eventDeletion->deleteActorEvents($lockedActor);
 
             DB::table('post_hashtags')->whereIn('post_id', clone $authoredPostIds)->delete();
             DB::table('post_locations')->whereIn('post_id', clone $authoredPostIds)->delete();
@@ -62,6 +70,14 @@ final class RemoteActorDeletionService
                 'uri' => null,
                 'body' => '',
                 'status' => Comment::STATUS_DELETED,
+            ]);
+
+            EventComment::query()->where('actor_id', $lockedActor->id)->update([
+                'uri' => null,
+                'body' => '',
+                'custom_emojis' => null,
+                'status' => EventComment::STATUS_DELETED,
+                'edited_at' => now(),
             ]);
 
             Media::query()->where('actor_id', $lockedActor->id)->delete();

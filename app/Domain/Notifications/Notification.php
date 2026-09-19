@@ -4,6 +4,8 @@ namespace App\Domain\Notifications;
 
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
+use App\Domain\Events\Event;
+use App\Domain\Events\EventParticipation;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -55,6 +57,10 @@ class Notification extends Model
     public const TYPE_COMMUNITY_POST = 'community_post';
 
     public const TYPE_DIRECT_MESSAGE = 'direct_message';
+
+    public const TYPE_EVENT_JOIN_ACCEPTED = 'event_join_accepted';
+
+    public const TYPE_EVENT_JOIN_REJECTED = 'event_join_rejected';
 
     /**
      * @var list<string>
@@ -276,6 +282,10 @@ class Notification extends Model
             return route('posts.show', $target->post_id).'#commento-'.$target->id;
         }
 
+        if ($target instanceof Event) {
+            return route('events.show', $target);
+        }
+
         if ($target instanceof Follow) {
             $profileActor = in_array($this->type, [self::TYPE_FOLLOW_ACCEPTED, self::TYPE_FOLLOW_REJECTED], true)
                 ? $target->following
@@ -286,6 +296,10 @@ class Notification extends Model
 
         if ($target instanceof Actor && $this->type === self::TYPE_FOLLOW_REJECTED) {
             return $target->profileUrl();
+        }
+
+        if ($target instanceof EventParticipation) {
+            return route('events.show', $target->event_id);
         }
 
         return null;
