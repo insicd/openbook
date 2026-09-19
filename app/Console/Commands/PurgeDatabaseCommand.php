@@ -21,7 +21,7 @@ class PurgeDatabaseCommand extends Command
     protected $signature = 'openbook:purge-database
         {--force : Esegue subito ignorando l\'intervallo minimo tra due pulizie}';
 
-    protected $description = 'Elimina righe operative piu\' vecchie di 24 ore (inbox elaborato, failed_jobs, cache, sessioni).';
+    protected $description = 'Elimina righe operative scadute e pubblicazioni video terminali secondo le rispettive retention.';
 
     public function handle(DatabaseMaintenanceService $maintenance): int
     {
@@ -42,6 +42,7 @@ class PurgeDatabaseCommand extends Command
             $this->info("Pulizia database completata: {$total} righe eliminate.");
             Log::info('openbook.database_purge', [
                 'retention_hours' => DatabaseMaintenanceService::RETENTION_HOURS,
+                'publication_queue_retention_days' => (int) config('openbook.maintenance.publication_queue_retention_days', 7),
                 'deleted' => $deletedByTable,
             ]);
         }

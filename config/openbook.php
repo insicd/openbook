@@ -242,6 +242,12 @@ return [
         'body_excerpt_length' => (int) env('OPENBOOK_FEED_BODY_EXCERPT', 150),
     ],
 
+    'maintenance' => [
+        // Le pubblicazioni completate o fallite restano consultabili per
+        // qualche giorno prima di eliminare righe e staging temporaneo.
+        'publication_queue_retention_days' => (int) env('OPENBOOK_PUBLICATION_QUEUE_RETENTION_DAYS', 7),
+    ],
+
     'notifications' => [
         'per_page' => (int) env('OPENBOOK_NOTIFICATIONS_PER_PAGE', 30),
     ],
