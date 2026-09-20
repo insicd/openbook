@@ -23,14 +23,14 @@ final class RelayConfigurationManager
             throw new InvalidArgumentException(__('openbook.admin.relays.admin_required'));
         }
 
-        if (! in_array($data['protocol'], [Relay::PROTOCOL_MASTODON, Relay::PROTOCOL_ACTOR], true)) {
+        if (! in_array($data['protocol'], Relay::SUPPORTED_PROTOCOLS, true)) {
             throw new InvalidArgumentException(__('openbook.admin.relays.unsupported_protocol'));
         }
 
         $actorUri = null;
         $inboxUrl = null;
 
-        if ($data['protocol'] === Relay::PROTOCOL_ACTOR) {
+        if (in_array($data['protocol'], Relay::ACTOR_PROTOCOLS, true)) {
             $configuredActor = trim($data['inbox_url']);
             $actor = $this->looksLikeHandle($configuredActor)
                 ? $this->actors->resolveByHandle($configuredActor)

@@ -33,6 +33,19 @@ class Relay extends Model
 
     public const PROTOCOL_ACTOR = 'actor';
 
+    public const PROTOCOL_LITEPUB = 'litepub';
+
+    public const SUPPORTED_PROTOCOLS = [
+        self::PROTOCOL_MASTODON,
+        self::PROTOCOL_ACTOR,
+        self::PROTOCOL_LITEPUB,
+    ];
+
+    public const ACTOR_PROTOCOLS = [
+        self::PROTOCOL_ACTOR,
+        self::PROTOCOL_LITEPUB,
+    ];
+
     public const STATE_IDLE = 'idle';
 
     public const STATE_PENDING = 'pending';
@@ -79,5 +92,15 @@ class Relay extends Model
     public function publishesOutgoingActivities(): bool
     {
         return $this->state === self::STATE_ACCEPTED && $this->publish_enabled;
+    }
+
+    public function usesActorHandshake(): bool
+    {
+        return in_array($this->protocol, self::ACTOR_PROTOCOLS, true);
+    }
+
+    public function requiresReciprocalFollow(): bool
+    {
+        return $this->protocol === self::PROTOCOL_LITEPUB;
     }
 }

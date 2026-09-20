@@ -140,20 +140,25 @@ class DeliverActivityJobTest extends TestCase
         $sender = $this->createFullAccount('relayrevocato');
         Http::fake();
 
-        foreach ([
-            [Relay::STATE_IDLE, true],
-            [Relay::STATE_ACCEPTED, false],
-        ] as [$state, $publishEnabled]) {
-            $relay = $this->relay('relay-'.strtolower($state).'-'.(int) $publishEnabled.'.example', $state);
-            $relay->update(['publish_enabled' => $publishEnabled]);
+        foreach (['Create', 'Announce'] as $activityType) {
+            foreach ([
+                [Relay::STATE_IDLE, true],
+                [Relay::STATE_ACCEPTED, false],
+            ] as [$state, $publishEnabled]) {
+                $relay = $this->relay(
+                    'relay-'.strtolower($activityType).'-'.strtolower($state).'-'.(int) $publishEnabled.'.example',
+                    $state,
+                );
+                $relay->update(['publish_enabled' => $publishEnabled]);
 
-            $job = new DeliverActivityJob(
-                $relay->inbox_url,
-                ['type' => 'Create', 'id' => 'https://local.example/activities/'.$relay->id],
-                $sender->actor->id,
-                $relay->id,
-            );
-            app()->call([$job, 'handle']);
+                $job = new DeliverActivityJob(
+                    $relay->inbox_url,
+                    ['type' => $activityType, 'id' => 'https://local.example/activities/'.$relay->id],
+                    $sender->actor->id,
+                    $relay->id,
+                );
+                app()->call([$job, 'handle']);
+            }
         }
 
         Http::assertNothingSent();
@@ -170,7 +175,7 @@ class DeliverActivityJobTest extends TestCase
 
         $job = new DeliverActivityJob(
             $inboxUrl,
-            ['type' => 'Update', 'id' => 'https://local.example/activities/removed'],
+            ['type' => 'Announce', 'id' => 'https://local.example/activities/removed'],
             $sender->actor->id,
             $relayId,
         );

@@ -581,6 +581,18 @@ browsers:
   counters. The Actor exposes paginated `/relay/outbox`, `/relay/followers`,
   and `/relay/following` collections for discovery and backfill.
 
+- **LitePub-compatible relays**: relay hubs used by Pleroma/Akkoma and
+  compatible software can be configured by federated Actor identity or full
+  ActivityPub URI. Openbook performs the Actor Follow handshake, records the
+  reciprocal Follow required for outgoing fan-out, and transports local public
+  content through technical `Announce` activities. The administration page
+  distinguishes an accepted subscription that is still waiting for the
+  reciprocal Follow. Disabling publishing or unsubscribing stops new fan-out
+  immediately, including deliveries that were already queued; the normal
+  visibility, domain-block, deduplication and loop-prevention rules continue to
+  apply. Unlisted, followers-only, direct, remote and private-community content
+  is never published to a LitePub relay.
+
 ### Social federation (Phase 4)
 
 Activities accepted in the inbox (Phase 3) are now **processed**, and relevant

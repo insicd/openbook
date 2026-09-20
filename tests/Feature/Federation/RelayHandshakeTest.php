@@ -6,6 +6,7 @@ use App\Application\Services\InstanceRelayActor;
 use App\Application\Services\RelayHandshakeManager;
 use App\Domain\Accounts\User;
 use App\Domain\Federation\Relay;
+use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\InboxItem;
@@ -97,6 +98,52 @@ class RelayHandshakeTest extends TestCase
         $this->assertSame(Relay::STATE_ACCEPTED, $relay->refresh()->state);
     }
 
+    public function test_litepub_handshake_accepts_the_reciprocal_follow(): void
+    {
+        Queue::fake();
+        $admin = $this->admin('litepubsubscribe');
+        $remote = $this->createRemoteActor('relay', 'litepub.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        $relay = Relay::query()->create([
+            'protocol' => Relay::PROTOCOL_LITEPUB,
+            'actor_uri' => $remote->uri,
+            'inbox_url' => $remote->endpoints->inbox,
+            'inbox_url_hash' => hash('sha256', $remote->endpoints->inbox),
+            'state' => Relay::STATE_IDLE,
+            'receive_enabled' => true,
+            'publish_enabled' => true,
+        ]);
+
+        app(RelayHandshakeManager::class)->subscribe($admin, $relay);
+
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && $job->activity['type'] === 'Follow'
+            && $job->activity['object'] === $remote->uri);
+
+        $serviceActor = app(InstanceRelayActor::class)->getOrCreate();
+        $accept = $this->responseActivity('Accept', $relay->refresh(), $remote, $serviceActor);
+        $accept['object']['object'] = $remote->uri;
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process($accept, $remote));
+
+        Queue::fake();
+        $reciprocalFollow = [
+            'id' => $remote->uri.'/activities/follow-openbook',
+            'type' => 'Follow',
+            'actor' => $remote->uri,
+            'object' => $serviceActor->activityPubId(),
+        ];
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process($reciprocalFollow, $remote));
+        $this->assertDatabaseHas('follows', [
+            'follower_id' => $remote->id,
+            'following_id' => $serviceActor->id,
+            'status' => 'accepted',
+        ]);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Accept'
+            && $job->inboxUrl === $remote->endpoints->shared_inbox);
+    }
+
     public function test_authenticated_accept_and_reject_update_the_matching_relay(): void
     {
         Queue::fake();
@@ -184,6 +231,44 @@ class RelayHandshakeTest extends TestCase
                 && ($job->activity['object']['type'] ?? null) === 'Follow'
                 && ($job->activity['object']['object'] ?? null) === RelayActivitySerializer::PUBLIC_STREAM;
         });
+    }
+
+    public function test_litepub_unsubscribe_removes_the_reciprocal_follow_locally(): void
+    {
+        Queue::fake();
+        $admin = $this->admin('litepubunsubscribe');
+        $serviceActor = app(InstanceRelayActor::class)->getOrCreate();
+        $remote = $this->createRemoteActor('relay', 'litepub-unsubscribe.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        $relay = Relay::query()->create([
+            'protocol' => Relay::PROTOCOL_LITEPUB,
+            'actor_uri' => $remote->uri,
+            'inbox_url' => $remote->endpoints->inbox,
+            'inbox_url_hash' => hash('sha256', $remote->endpoints->inbox),
+            'follow_activity_uri' => RelayActivitySerializer::newFollowActivityUri(),
+            'state' => Relay::STATE_ACCEPTED,
+            'receive_enabled' => true,
+            'publish_enabled' => true,
+            'accepted_at' => now(),
+        ]);
+        Follow::query()->create([
+            'follower_id' => $remote->id,
+            'following_id' => $serviceActor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        app(RelayHandshakeManager::class)->unsubscribe($admin, $relay);
+
+        $this->assertSame(Relay::STATE_IDLE, $relay->refresh()->state);
+        $this->assertDatabaseMissing('follows', [
+            'follower_id' => $remote->id,
+            'following_id' => $serviceActor->id,
+        ]);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && $job->activity['type'] === 'Undo');
     }
 
     private function admin(string $username): User

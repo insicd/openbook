@@ -120,7 +120,7 @@ final class RelayActorController extends Controller
     public function following(Request $request): JsonResponse
     {
         $query = Relay::query()
-            ->where('protocol', Relay::PROTOCOL_ACTOR)
+            ->whereIn('protocol', Relay::ACTOR_PROTOCOLS)
             ->where('state', Relay::STATE_ACCEPTED)
             ->where('receive_enabled', true)
             ->whereNotNull('actor_uri');

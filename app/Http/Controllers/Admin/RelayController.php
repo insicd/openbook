@@ -6,6 +6,7 @@ use App\Application\Services\InstanceRelayActor;
 use App\Application\Services\RelayConfigurationManager;
 use App\Application\Services\RelayHandshakeManager;
 use App\Domain\Federation\Relay;
+use App\Domain\SocialGraph\Follow;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -24,12 +25,31 @@ final class RelayController extends Controller
 
     public function index(): View
     {
+        $relayActor = $this->relayActor->getOrCreate();
+        $relays = Relay::query()->latest()->paginate(40);
+        $litePubActorUris = $relays->getCollection()
+            ->where('protocol', Relay::PROTOCOL_LITEPUB)
+            ->pluck('actor_uri')
+            ->filter()
+            ->values();
+        $reciprocalFollowerUris = Follow::query()
+            ->where('following_id', $relayActor->id)
+            ->where('status', Follow::STATUS_ACCEPTED)
+            ->whereHas('follower', fn ($query) => $query->whereIn('uri', $litePubActorUris))
+            ->with('follower:id,uri')
+            ->get()
+            ->pluck('follower.uri')
+            ->filter()
+            ->flip();
+
         return view('admin.relays.index', [
-            'relays' => Relay::query()->latest()->paginate(40),
-            'relayActor' => $this->relayActor->getOrCreate(),
+            'relays' => $relays,
+            'relayActor' => $relayActor,
+            'reciprocalFollowerUris' => $reciprocalFollowerUris,
             'protocols' => [
                 Relay::PROTOCOL_MASTODON => __('openbook.admin.relays.protocol_mastodon'),
                 Relay::PROTOCOL_ACTOR => __('openbook.admin.relays.protocol_actor'),
+                Relay::PROTOCOL_LITEPUB => __('openbook.admin.relays.protocol_litepub'),
             ],
         ]);
     }
@@ -37,7 +57,7 @@ final class RelayController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'protocol' => ['required', Rule::in([Relay::PROTOCOL_MASTODON, Relay::PROTOCOL_ACTOR])],
+            'protocol' => ['required', Rule::in(Relay::SUPPORTED_PROTOCOLS)],
             'inbox_url' => ['required', 'string', 'max:2048'],
             'receive_enabled' => ['nullable', 'boolean'],
             'publish_enabled' => ['nullable', 'boolean'],

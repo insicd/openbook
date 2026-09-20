@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Application\Services\InstanceRelayActor;
 use App\Domain\Federation\Relay;
+use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -148,6 +150,49 @@ class AdminRelayTest extends TestCase
         $relay = Relay::query()->firstOrFail();
         $this->assertSame($actorUri, $relay->actor_uri);
         $this->assertSame('https://events.example/inbox', $relay->inbox_url);
+    }
+
+    public function test_admin_can_configure_a_litepub_relay_and_see_reciprocal_follow_state(): void
+    {
+        $admin = $this->createFullAccount('litepubrelayowner');
+        $admin->forceFill(['is_admin' => true])->save();
+        $remote = $this->createRemoteActor('relay', 'litepub.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.relays.store'), [
+                'protocol' => Relay::PROTOCOL_LITEPUB,
+                'inbox_url' => $remote->uri,
+                'receive_enabled' => '1',
+                'publish_enabled' => '1',
+            ])
+            ->assertRedirect();
+
+        $relay = Relay::query()->firstOrFail();
+        $this->assertSame(Relay::PROTOCOL_LITEPUB, $relay->protocol);
+        $this->assertSame($remote->uri, $relay->actor_uri);
+        $relay->forceFill(['state' => Relay::STATE_ACCEPTED, 'accepted_at' => now()])->save();
+
+        $this->actingAs($admin)
+            ->get(route('admin.relays.index'))
+            ->assertOk()
+            ->assertSee(__('openbook.admin.relays.state_awaiting_reciprocal'));
+
+        $serviceActor = app(InstanceRelayActor::class)->getOrCreate();
+        Follow::query()->create([
+            'follower_id' => $remote->id,
+            'following_id' => $serviceActor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.relays.index'))
+            ->assertOk()
+            ->assertDontSee(__('openbook.admin.relays.state_awaiting_reciprocal'))
+            ->assertSee(__('openbook.admin.relays.state_accepted'));
     }
 
     public function test_admin_can_update_relay_directions_without_recreating_it(): void

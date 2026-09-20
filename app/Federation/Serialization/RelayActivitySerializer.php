@@ -61,7 +61,7 @@ final class RelayActivitySerializer
 
     private static function followTarget(Relay $relay): string
     {
-        return $relay->protocol === Relay::PROTOCOL_ACTOR && filled($relay->actor_uri)
+        return $relay->usesActorHandshake() && filled($relay->actor_uri)
             ? $relay->actor_uri
             : self::PUBLIC_STREAM;
     }

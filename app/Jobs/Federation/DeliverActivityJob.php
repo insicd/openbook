@@ -198,7 +198,7 @@ final class DeliverActivityJob implements ShouldQueue
 
         if ($domainBlocks->isBlockedUrl($this->inboxUrl)) {
             $reason = 'domain_blocked';
-        } elseif (in_array($this->activity['type'] ?? null, ['Create', 'Update', 'Delete'], true)) {
+        } elseif (in_array($this->activity['type'] ?? null, ['Create', 'Update', 'Delete', 'Announce'], true)) {
             $relay = Relay::query()->find($this->relayId);
 
             if ($relay === null) {

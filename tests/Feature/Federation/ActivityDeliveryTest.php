@@ -451,7 +451,70 @@ class ActivityDeliveryTest extends TestCase
             && ($job->activity['to'][0] ?? null) === url('/relay/followers'));
     }
 
-    public function test_updates_have_a_distinct_actor_relay_announce_and_deletes_keep_the_original_author(): void
+    public function test_litepub_delivery_requires_an_accepted_configuration_and_reciprocal_follow(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('litepubpublisher');
+        $serviceActor = app(InstanceRelayActor::class)->getOrCreate();
+        $activeRelayActor = $this->createRemoteActor('relay', 'litepub-active.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        $pendingRelayActor = $this->createRemoteActor('relay', 'litepub-pending.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        $oneWayRelayActor = $this->createRemoteActor('relay', 'litepub-one-way.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+
+        foreach ([$activeRelayActor, $pendingRelayActor] as $remoteRelay) {
+            Follow::query()->create([
+                'follower_id' => $remoteRelay->id,
+                'following_id' => $serviceActor->id,
+                'status' => Follow::STATUS_ACCEPTED,
+                'requested_at' => now(),
+                'accepted_at' => now(),
+            ]);
+        }
+
+        $activeRelay = $this->relay($activeRelayActor->endpoints->shared_inbox, [
+            'protocol' => Relay::PROTOCOL_LITEPUB,
+            'actor_uri' => $activeRelayActor->uri,
+        ]);
+        $pendingRelay = $this->relay($pendingRelayActor->endpoints->shared_inbox, [
+            'protocol' => Relay::PROTOCOL_LITEPUB,
+            'actor_uri' => $pendingRelayActor->uri,
+            'state' => Relay::STATE_PENDING,
+            'accepted_at' => null,
+        ]);
+        $oneWayRelay = $this->relay($oneWayRelayActor->endpoints->shared_inbox, [
+            'protocol' => Relay::PROTOCOL_LITEPUB,
+            'actor_uri' => $oneWayRelayActor->uri,
+        ]);
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Contenuto pubblico per LitePub.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $objectUri = url('/posts/'.$post->id);
+
+        app(ActivityDelivery::class)->deliverContent($post, [
+            'type' => 'Create',
+            'id' => $objectUri.'/attivita',
+            'object' => ['id' => $objectUri],
+        ]);
+
+        Queue::assertPushed(DeliverActivityJob::class, 1);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $activeRelay->id
+            && $job->inboxUrl === $activeRelayActor->endpoints->shared_inbox
+            && $job->activity['type'] === 'Announce'
+            && $job->signingActorId === $serviceActor->id);
+        Queue::assertNotPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $pendingRelay->id);
+        Queue::assertNotPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $oneWayRelay->id);
+    }
+
+    public function test_litepub_updates_have_a_distinct_announce_and_deletes_keep_the_original_author(): void
     {
         Queue::fake();
         $author = $this->createFullAccount('actorupdates');
@@ -465,6 +528,10 @@ class ActivityDeliveryTest extends TestCase
             'status' => Follow::STATUS_ACCEPTED,
             'requested_at' => now(),
             'accepted_at' => now(),
+        ]);
+        $relay = $this->relay($remoteRelay->endpoints->shared_inbox, [
+            'protocol' => Relay::PROTOCOL_LITEPUB,
+            'actor_uri' => $remoteRelay->uri,
         ]);
         $post = Post::query()->create([
             'actor_id' => $author->actor->id,
@@ -489,9 +556,11 @@ class ActivityDeliveryTest extends TestCase
         Queue::assertPushed(DeliverActivityJob::class, 2);
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Announce'
             && $job->activity['id'] !== url('/relay/activities/announces/'.hash('sha256', $objectUri))
-            && $job->signingActorId === $serviceActor->id);
+            && $job->signingActorId === $serviceActor->id
+            && $job->relayId === $relay->id);
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Delete'
-            && $job->signingActorId === $author->actor->id);
+            && $job->signingActorId === $author->actor->id
+            && $job->relayId === $relay->id);
     }
 
     public function test_unlisted_content_and_disabled_actor_relays_are_not_published(): void

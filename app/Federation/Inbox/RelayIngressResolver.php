@@ -22,7 +22,7 @@ final class RelayIngressResolver
         }
 
         return Relay::query()
-            ->whereIn('protocol', [Relay::PROTOCOL_MASTODON, Relay::PROTOCOL_ACTOR])
+            ->whereIn('protocol', Relay::SUPPORTED_PROTOCOLS)
             ->where('state', Relay::STATE_ACCEPTED)
             ->where('receive_enabled', true)
             ->where('actor_uri', $transportActor->uri)

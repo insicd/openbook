@@ -66,21 +66,23 @@ class RelayReceptionTest extends TestCase
 
     public function test_an_accepted_actor_relay_is_recognized_as_an_authorized_transport(): void
     {
-        $transport = $this->createRemoteActor('relay', 'events.example', [
-            'type' => Actor::TYPE_APPLICATION,
-        ]);
-        $relay = Relay::query()->create([
-            'protocol' => Relay::PROTOCOL_ACTOR,
-            'actor_uri' => $transport->uri,
-            'inbox_url' => $transport->endpoints->inbox,
-            'inbox_url_hash' => hash('sha256', $transport->endpoints->inbox),
-            'state' => Relay::STATE_ACCEPTED,
-            'receive_enabled' => true,
-            'publish_enabled' => false,
-            'accepted_at' => now(),
-        ]);
+        foreach ([Relay::PROTOCOL_ACTOR, Relay::PROTOCOL_LITEPUB] as $index => $protocol) {
+            $transport = $this->createRemoteActor('relay', "transport{$index}.example", [
+                'type' => Actor::TYPE_APPLICATION,
+            ]);
+            $relay = Relay::query()->create([
+                'protocol' => $protocol,
+                'actor_uri' => $transport->uri,
+                'inbox_url' => $transport->endpoints->inbox,
+                'inbox_url_hash' => hash('sha256', $transport->endpoints->inbox),
+                'state' => Relay::STATE_ACCEPTED,
+                'receive_enabled' => true,
+                'publish_enabled' => false,
+                'accepted_at' => now(),
+            ]);
 
-        $this->assertTrue(app(RelayIngressResolver::class)->resolve($transport)?->is($relay));
+            $this->assertTrue(app(RelayIngressResolver::class)->resolve($transport)?->is($relay));
+        }
     }
 
     public function test_a_public_event_received_from_a_relay_is_imported_but_an_unlisted_one_is_not(): void

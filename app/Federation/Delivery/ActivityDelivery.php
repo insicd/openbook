@@ -362,16 +362,21 @@ final class ActivityDelivery
         if ($serviceActor === null || ! $serviceActor->isApplication()) {
             return;
         }
-        $inboxes = $this->actorRelayFollowerInboxes($serviceActor)
-            ->reject(fn (string $inbox): bool => $alreadyAddressed->contains($inbox))
+        $destinations = $this->actorRelayFollowerDestinations($serviceActor)
+            ->reject(fn (array $destination): bool => $alreadyAddressed->contains($destination['inbox_url']))
             ->values();
 
-        if ($inboxes->isEmpty()) {
+        if ($destinations->isEmpty()) {
             return;
         }
 
         if (($activity['type'] ?? null) === 'Delete') {
-            $this->dispatchToInboxes($inboxes, $activity, $object->actor);
+            $destinations->each(fn (array $destination) => $this->dispatchToInboxes(
+                collect([$destination['inbox_url']]),
+                $activity,
+                $object->actor,
+                $destination['relay_id'],
+            ));
 
             return;
         }
@@ -390,7 +395,12 @@ final class ActivityDelivery
             is_string($activity['published'] ?? null) ? $activity['published'] : null,
         );
 
-        $this->dispatchToInboxes($inboxes, $announce, $serviceActor);
+        $destinations->each(fn (array $destination) => $this->dispatchToInboxes(
+            collect([$destination['inbox_url']]),
+            $announce,
+            $serviceActor,
+            $destination['relay_id'],
+        ));
     }
 
     /** @param array<string, mixed> $activity */
@@ -443,14 +453,21 @@ final class ActivityDelivery
             ->values();
     }
 
-    /** @return Collection<int, string> */
-    private function actorRelayFollowerInboxes(Actor $serviceActor): Collection
+    /**
+     * Gli Actor Application possono seguire spontaneamente `/relay`. Quando
+     * esiste anche una configurazione amministrativa, questa prevale: il
+     * fan-out richiede stato accepted e pubblicazione abilitata. Per LitePub
+     * la presenza in `follows` rappresenta inoltre il Follow reciproco.
+     *
+     * @return Collection<int, array{inbox_url: string, relay_id: ?string}>
+     */
+    private function actorRelayFollowerDestinations(Actor $serviceActor): Collection
     {
-        $disabledActorUris = Relay::query()
-            ->where('protocol', Relay::PROTOCOL_ACTOR)
-            ->where('publish_enabled', false)
+        $configuredRelays = Relay::query()
+            ->whereIn('protocol', Relay::ACTOR_PROTOCOLS)
             ->whereNotNull('actor_uri')
-            ->pluck('actor_uri');
+            ->get()
+            ->keyBy('actor_uri');
 
         $followerActorIds = DB::table('follows')
             ->where('following_id', $serviceActor->id)
@@ -466,12 +483,24 @@ final class ActivityDelivery
             ->where('is_local', false)
             ->where('type', Actor::TYPE_APPLICATION)
             ->where('status', Actor::STATUS_ACTIVE)
-            ->when($disabledActorUris->isNotEmpty(), fn ($query) => $query->whereNotIn('uri', $disabledActorUris))
             ->with('endpoints')
             ->get()
-            ->map(fn (Actor $actor) => $actor->endpoints?->shared_inbox ?: $actor->endpoints?->inbox)
-            ->filter()
-            ->unique()
+            ->filter(function (Actor $actor) use ($configuredRelays): bool {
+                $relay = $configuredRelays->get($actor->uri);
+
+                return $relay === null || $relay->publishesOutgoingActivities();
+            })
+            ->map(function (Actor $actor) use ($configuredRelays): array {
+                $relay = $configuredRelays->get($actor->uri);
+
+                return [
+                    'inbox_url' => $actor->endpoints?->shared_inbox ?: $actor->endpoints?->inbox,
+                    'relay_id' => $relay?->id,
+                ];
+            })
+            ->filter(fn (array $destination): bool => filled($destination['inbox_url']))
+            ->sortByDesc(fn (array $destination): bool => $destination['relay_id'] !== null)
+            ->unique('inbox_url')
             ->values();
     }
 

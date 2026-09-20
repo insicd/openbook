@@ -4,6 +4,7 @@ namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
 use App\Domain\Federation\Relay;
+use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Serialization\RelayActivitySerializer;
@@ -23,11 +24,11 @@ final class RelayHandshakeManager
     {
         $this->assertAdmin($admin);
 
-        if (! in_array($relay->protocol, [Relay::PROTOCOL_MASTODON, Relay::PROTOCOL_ACTOR], true)) {
+        if (! in_array($relay->protocol, Relay::SUPPORTED_PROTOCOLS, true)) {
             throw new InvalidArgumentException(__('openbook.admin.relays.unsupported_protocol'));
         }
 
-        if ($relay->protocol === Relay::PROTOCOL_ACTOR && blank($relay->actor_uri)) {
+        if ($relay->usesActorHandshake() && blank($relay->actor_uri)) {
             throw new InvalidArgumentException(__('openbook.admin.relays.actor_unavailable'));
         }
 
@@ -67,8 +68,22 @@ final class RelayHandshakeManager
 
         $actor = $shouldNotify ? $this->instanceRelayActor->getOrCreate() : null;
         $activity = $actor !== null ? RelayActivitySerializer::undoFollow($relay, $actor) : null;
+        $reciprocalFollow = null;
 
-        DB::transaction(function () use ($relay): void {
+        if ($relay->requiresReciprocalFollow() && filled($relay->actor_uri)) {
+            $serviceActor = $actor ?? $this->instanceRelayActor->getOrCreate();
+            $remoteActorId = Actor::query()->where('uri', $relay->actor_uri)->value('id');
+
+            if ($remoteActorId !== null) {
+                $reciprocalFollow = Follow::query()
+                    ->where('follower_id', $remoteActorId)
+                    ->where('following_id', $serviceActor->id)
+                    ->first();
+            }
+        }
+
+        DB::transaction(function () use ($relay, $reciprocalFollow): void {
+            $reciprocalFollow?->delete();
             $relay->forceFill([
                 'state' => Relay::STATE_IDLE,
                 'follow_activity_uri' => null,

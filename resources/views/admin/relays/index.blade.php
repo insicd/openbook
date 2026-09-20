@@ -24,7 +24,7 @@
                 @endforeach
             </select>
         </div>
-        @php($actorRelaySelected = old('protocol', \App\Domain\Federation\Relay::PROTOCOL_MASTODON) === \App\Domain\Federation\Relay::PROTOCOL_ACTOR)
+        @php($actorRelaySelected = in_array(old('protocol', \App\Domain\Federation\Relay::PROTOCOL_MASTODON), \App\Domain\Federation\Relay::ACTOR_PROTOCOLS, true))
         <div class="ob-field" style="margin-top:1rem">
             <label for="inbox_url" id="relay-address-label">{{ __($actorRelaySelected ? 'openbook.admin.relays.actor_address' : 'openbook.admin.relays.mastodon_address') }}</label>
             <input type="text" id="inbox_url" name="inbox_url" value="{{ old('inbox_url') }}" required maxlength="2048" placeholder="{{ __($actorRelaySelected ? 'openbook.admin.relays.actor_placeholder' : 'openbook.admin.relays.mastodon_placeholder') }}">
@@ -41,6 +41,7 @@
     </form>
 
     @forelse ($relays as $relay)
+        @php($awaitingReciprocalFollow = $relay->requiresReciprocalFollow() && $relay->state === \App\Domain\Federation\Relay::STATE_ACCEPTED && ! isset($reciprocalFollowerUris[$relay->actor_uri]))
         <article class="ob-card" style="margin-top:1rem">
             <div class="ob-admin-row">
                 <div>
@@ -48,7 +49,7 @@
                     <p class="ob-field__help" style="margin:0.35rem 0 0"><code>{{ $relay->inbox_url }}</code></p>
                     <p class="ob-field__help" style="margin:0.35rem 0 0">
                         {{ $protocols[$relay->protocol] ?? $relay->protocol }} ·
-                        {{ __('openbook.admin.relays.state_'.$relay->state) }} ·
+                        {{ $awaitingReciprocalFollow ? __('openbook.admin.relays.state_awaiting_reciprocal') : __('openbook.admin.relays.state_'.$relay->state) }} ·
                         {{ $relay->receive_enabled ? __('openbook.admin.relays.receives') : __('openbook.admin.relays.does_not_receive') }} ·
                         {{ $relay->publish_enabled ? __('openbook.admin.relays.publishes') : __('openbook.admin.relays.does_not_publish') }}
                     </p>
@@ -122,6 +123,11 @@
                     label: @json(__('openbook.admin.relays.actor_address')),
                     placeholder: @json(__('openbook.admin.relays.actor_placeholder')),
                     help: @json(__('openbook.admin.relays.actor_address_help')),
+                },
+                litepub: {
+                    label: @json(__('openbook.admin.relays.actor_address')),
+                    placeholder: @json(__('openbook.admin.relays.actor_placeholder')),
+                    help: @json(__('openbook.admin.relays.litepub_address_help')),
                 },
             };
 
