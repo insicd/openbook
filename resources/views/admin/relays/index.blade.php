@@ -25,8 +25,8 @@
             </select>
         </div>
         <div class="ob-field" style="margin-top:1rem">
-            <label for="inbox_url">{{ __('openbook.admin.relays.relay_url') }}</label>
-            <input type="url" id="inbox_url" name="inbox_url" value="{{ old('inbox_url') }}" required maxlength="2048" placeholder="https://relay.example/inbox">
+            <label for="inbox_url">{{ __('openbook.admin.relays.relay_address') }}</label>
+            <input type="text" id="inbox_url" name="inbox_url" value="{{ old('inbox_url') }}" required maxlength="2048" placeholder="{{ __('openbook.admin.relays.relay_placeholder') }}">
             <p class="ob-field__help">{{ __('openbook.admin.relays.relay_url_help') }}</p>
         </div>
         <div class="ob-field" style="margin-top:1rem">

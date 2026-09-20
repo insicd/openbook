@@ -24,11 +24,12 @@ il [`README`](README.md#roadmap-and-project-status).
   il normale handshake `Follow`/`Accept` e controllarne separatamente le due
   direzioni. Oltre agli hub Mastodon sono supportati gli Actor tecnici
   `Application`/`Service` usati come sorgenti d'istanza da software come
-  Mobilizon e Gancio. Openbook espone un Actor tecnico `Application`, conserva
-  la provenienza dei contenuti inoltrati e accetta dal relay soltanto post ed
-  eventi pubblici; post, eventi e relativi commenti pubblici locali vengono
-  consegnati ai relay attivi riutilizzando firma, coda, retry e blocchi di
-  dominio gia' impiegati dalla federazione ordinaria. Gli Actor remoti possono
+  Mobilizon e Gancio, configurabili tramite identità federata o URI ActivityPub
+  completo grazie al discovery WebFinger. Openbook espone un Actor tecnico
+  `Application`, conserva la provenienza dei contenuti inoltrati e accetta dal
+  relay soltanto post ed eventi pubblici; post, eventi e relativi commenti
+  pubblici locali vengono consegnati ai relay attivi riutilizzando firma, coda,
+  retry e blocchi di dominio gia' impiegati dalla federazione ordinaria. Gli Actor remoti possono
   seguire `/relay` per ricevere `Announce` tecnici dei contenuti pubblici; le
   relative collection outbox, followers e following sono esposte senza creare
   boost o contatori sociali fittizi. Stato, ultimi scambi ed errori di consegna

@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Domain\Federation\Relay;
 use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -104,6 +105,49 @@ class AdminRelayTest extends TestCase
         $this->assertSame(Relay::PROTOCOL_ACTOR, $relay->protocol);
         $this->assertSame($remote->uri, $relay->actor_uri);
         $this->assertSame($remote->endpoints->inbox, $relay->inbox_url);
+    }
+
+    public function test_admin_can_discover_an_actor_relay_from_its_federated_identity(): void
+    {
+        $admin = $this->createFullAccount('actorrelayhandle');
+        $admin->forceFill(['is_admin' => true])->save();
+        $actorUri = 'https://events.example/relay';
+
+        Http::fake([
+            'https://events.example/.well-known/webfinger*' => Http::response([
+                'subject' => 'acct:relay@events.example',
+                'links' => [
+                    ['rel' => 'self', 'type' => 'application/activity+json', 'href' => $actorUri],
+                ],
+            ], 200, ['Content-Type' => 'application/jrd+json']),
+            $actorUri => Http::response([
+                'id' => $actorUri,
+                'type' => 'Application',
+                'preferredUsername' => 'relay',
+                'name' => 'Events relay',
+                'inbox' => 'https://events.example/inbox',
+                'outbox' => 'https://events.example/@relay/outbox',
+                'followers' => 'https://events.example/@relay/followers',
+                'following' => 'https://events.example/@relay/following',
+                'publicKey' => [
+                    'id' => $actorUri.'#main-key',
+                    'owner' => $actorUri,
+                    'publicKeyPem' => '-----BEGIN PUBLIC KEY-----test-----END PUBLIC KEY-----',
+                ],
+            ], 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.relays.store'), [
+                'protocol' => Relay::PROTOCOL_ACTOR,
+                'inbox_url' => '@relay@events.example',
+                'receive_enabled' => '1',
+            ])
+            ->assertRedirect();
+
+        $relay = Relay::query()->firstOrFail();
+        $this->assertSame($actorUri, $relay->actor_uri);
+        $this->assertSame('https://events.example/inbox', $relay->inbox_url);
     }
 
     public function test_admin_can_update_relay_directions_without_recreating_it(): void

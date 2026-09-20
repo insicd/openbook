@@ -569,10 +569,11 @@ browsers:
 
 - **Actor-based instance sources**: the same Relay panel can subscribe to a
   remote ActivityPub `Application`/`Service` Actor, as exposed by software such
-  as Mobilizon or Gancio. In this mode the configured value is the Actor URI,
-  not its inbox URL: Openbook resolves and validates the Actor, follows it and
-  imports public objects transported through its `Announce` activities. Remote
-  applications may likewise follow Openbook's technical `/relay` Actor to
+  as Mobilizon or Gancio. In this mode administrators can enter its federated
+  identity (for example `@relay@instance.example`) or its full Actor URI, not
+  the inbox URL: Openbook discovers, resolves and validates the Actor, follows
+  it and imports public objects transported through its `Announce` activities.
+  Remote applications may likewise follow Openbook's technical `/relay` Actor to
   receive `Announce` activities for locally produced public posts, comments,
   events, and event comments. Unlisted, followers-only, direct, remote, and
   private-community content is excluded. Technical subscriptions and

@@ -27,12 +27,14 @@ final class RelayConfigurationManager
             throw new InvalidArgumentException(__('openbook.admin.relays.unsupported_protocol'));
         }
 
-        $configuredUrl = $this->normalizer->normalize($data['inbox_url']);
         $actorUri = null;
-        $inboxUrl = $configuredUrl;
+        $inboxUrl = null;
 
         if ($data['protocol'] === Relay::PROTOCOL_ACTOR) {
-            $actor = $this->actors->resolveByUri($configuredUrl);
+            $configuredActor = trim($data['inbox_url']);
+            $actor = $this->looksLikeHandle($configuredActor)
+                ? $this->actors->resolveByHandle($configuredActor)
+                : $this->actors->resolveByUri($this->normalizer->normalize($configuredActor));
 
             if ($actor !== null && ! $actor->isLocal()) {
                 $actor->loadMissing('endpoints');
@@ -57,6 +59,8 @@ final class RelayConfigurationManager
 
             $actorUri = $actor->activityPubId();
             $inboxUrl = $this->normalizer->normalize($actorInbox);
+        } else {
+            $inboxUrl = $this->normalizer->normalize($data['inbox_url']);
         }
 
         $hash = hash('sha256', $inboxUrl);
@@ -81,6 +85,14 @@ final class RelayConfigurationManager
         ]);
 
         return $relay;
+    }
+
+    private function looksLikeHandle(string $value): bool
+    {
+        $value = ltrim($value, '@');
+
+        return str_starts_with($value, 'acct:')
+            || (! str_contains($value, '://') && substr_count($value, '@') === 1);
     }
 
     public function delete(User $admin, Relay $relay): void
