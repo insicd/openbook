@@ -130,7 +130,10 @@ final class InboxController extends Controller
         // Inbox forwarding: firma HTTP di un altro Actor + LD Signature
         // (Mastodon) oppure refetch same-origin (Primer ActivityPub).
         $isForwarded = $verification->actor === null || ! ActivityPubUri::same($verification->actor->uri, $actorUri);
-        $relay = $targetActor === null && $isForwarded
+        // Un relay Mastodon puo' inoltrare l'attivita' originale oppure
+        // pubblicare un proprio Announce. In entrambi i casi il trasportatore
+        // e' il firmatario HTTP noto della shared inbox.
+        $relay = $targetActor === null
             ? $this->relayIngress->resolve($verification->actor)
             : null;
 

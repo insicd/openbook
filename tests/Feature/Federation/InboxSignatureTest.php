@@ -592,6 +592,39 @@ class InboxSignatureTest extends TestCase
         $this->assertSame('Errore di consegna precedente', $relay->last_error);
     }
 
+    public function test_an_announce_created_and_signed_by_an_accepted_relay_records_its_transport(): void
+    {
+        $relay = Relay::query()->create([
+            'protocol' => Relay::PROTOCOL_MASTODON,
+            'actor_uri' => self::REMOTE_ACTOR_URI,
+            'inbox_url' => 'https://remoto.example/inbox',
+            'inbox_url_hash' => hash('sha256', 'https://remoto.example/inbox'),
+            'state' => Relay::STATE_ACCEPTED,
+            'receive_enabled' => true,
+            'publish_enabled' => true,
+            'accepted_at' => now(),
+        ]);
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => self::REMOTE_ACTOR_URI.'/activity/'.uniqid(),
+            'type' => 'Announce',
+            'actor' => self::REMOTE_ACTOR_URI,
+            'object' => 'https://origin.example/users/alice/statuses/1',
+            'to' => [self::REMOTE_ACTOR_URI.'/followers'],
+        ];
+
+        $parts = $this->signedActivityParts('/inbox', $activity, self::REMOTE_ACTOR_URI, $this->remoteKeyPair);
+        $this->postSigned($parts)->assertStatus(202);
+
+        $this->assertDatabaseHas('inbox_items', [
+            'remote_activity_uri' => $activity['id'],
+            'actor_uri' => self::REMOTE_ACTOR_URI,
+            'relay_id' => $relay->id,
+            'activity_type' => 'Announce',
+            'is_shared' => true,
+        ]);
+    }
+
     public function test_a_forwarded_create_is_accepted_after_same_origin_refetch(): void
     {
         // Inbox forwarding: HTTP firmata dal forwarder, activity.actor = commentatore.
