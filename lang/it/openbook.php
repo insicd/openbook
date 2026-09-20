@@ -422,6 +422,7 @@ return [
         'remote_group_notice' => 'Community remota: i dati e i post mostrati arrivano dal server di origine (ritrasmissioni Announce del Group) e potrebbero non essere aggiornati in tempo reale.',
         'feed_notice' => 'Questo è un feed RSS/Atom seguito in sola lettura: puoi seguirlo nella timeline, ma non puoi rispondere né interagire sul sito di origine da qui.',
         'feed_badge' => 'Feed',
+        'application_badge' => 'Account automatico',
         'feed_website' => 'Sito',
         'feed_source' => 'Sorgente feed',
         'feed_empty' => 'Nessuna voce importata da questo feed per ora.',

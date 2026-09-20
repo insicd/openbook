@@ -422,6 +422,7 @@ return [
         'remote_group_notice' => 'Remote community: profile data and posts come from the origin server (Group Announce relays) and may not be up to date in real time.',
         'feed_notice' => 'This is a read-only RSS/Atom feed contact: you can follow it in your timeline, but you cannot reply or interact with the origin site from here.',
         'feed_badge' => 'Feed',
+        'application_badge' => 'Automated account',
         'feed_website' => 'Website',
         'feed_source' => 'Feed source',
         'feed_empty' => 'No entries imported from this feed yet.',
