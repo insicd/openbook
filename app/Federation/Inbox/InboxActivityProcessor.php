@@ -15,6 +15,7 @@ use App\Domain\Events\EventParticipation;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\RelayActorUrls;
 use App\Federation\Actors\RemoteActorDeletionService;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Delivery\ActivityDelivery;
@@ -110,6 +111,12 @@ final class InboxActivityProcessor
         $target = $this->objects->resolveActor($this->objectId($activity['object'] ?? null) ?? '');
 
         if ($target === null || ! $target->isLocal() || ! $target->isActive()) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        // L'Actor /relay e' un endpoint tecnico: puo' essere seguito solo
+        // da altri Actor applicativi, non da profili utente ordinari.
+        if ($target->uri === RelayActorUrls::all()['uri'] && ! $follower->isApplication()) {
             return InboxItem::STATUS_IGNORED;
         }
 

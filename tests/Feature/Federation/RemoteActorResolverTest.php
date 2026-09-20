@@ -51,6 +51,28 @@ class RemoteActorResolverTest extends TestCase
         $this->assertFalse($actor->indexable);
     }
 
+    #[DataProvider('technicalActorTypes')]
+    public function test_it_preserves_remote_technical_actor_types(string $remoteType): void
+    {
+        Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument([
+            'type' => $remoteType,
+        ]), 200, ['Content-Type' => 'application/activity+json'])]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByUri(self::ACTOR_URI);
+
+        $this->assertNotNull($actor);
+        $this->assertTrue($actor->isApplication());
+    }
+
+    /** @return array<string, array{string}> */
+    public static function technicalActorTypes(): array
+    {
+        return [
+            'application' => ['Application'],
+            'service' => ['Service'],
+        ];
+    }
+
     public function test_it_stores_the_remote_event_collection_endpoint(): void
     {
         $eventsUrl = 'https://remoto.example/@walt/events';

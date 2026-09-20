@@ -73,6 +73,8 @@ final class ActorSerializer
         if ($actor->isLocal() && $actor->isApplication()) {
             $document['inbox'] = $urls['inbox'];
             $document['outbox'] = $urls['outbox'];
+            $document['followers'] = $urls['followers'];
+            $document['following'] = $urls['following'];
             $document['endpoints'] = ['sharedInbox' => $urls['shared_inbox']];
         } elseif ($urls !== null) {
             $document['inbox'] = $urls['inbox'];

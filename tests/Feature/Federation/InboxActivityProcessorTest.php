@@ -4,6 +4,7 @@ namespace Tests\Feature\Federation;
 
 use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\FollowManager;
+use App\Application\Services\InstanceRelayActor;
 use App\Domain\Comments\Comment;
 use App\Domain\Comments\CommentAttachment;
 use App\Domain\Notifications\Notification;
@@ -84,6 +85,55 @@ class InboxActivityProcessorTest extends TestCase
             && $job->activity['type'] === 'Accept'
             && $job->signingActorId === $target->actor->id
             && ($job->activity['to'][0] ?? null) === $remote->uri);
+    }
+
+    public function test_an_application_can_follow_the_local_relay_actor(): void
+    {
+        Queue::fake();
+        $target = app(InstanceRelayActor::class)->getOrCreate();
+        $remote = $this->createRemoteActor('events', 'relay.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        $activity = [
+            'id' => 'https://relay.example/activities/follow-openbook',
+            'type' => 'Follow',
+            'actor' => $remote->uri,
+            'object' => $target->uri,
+        ];
+
+        $status = $this->process($activity, $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('follows', [
+            'follower_id' => $remote->id,
+            'following_id' => $target->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'remote_activity_uri' => $activity['id'],
+        ]);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Accept'
+            && $job->signingActorId === $target->id
+            && $job->inboxUrl === $remote->endpoints->shared_inbox);
+    }
+
+    public function test_a_person_cannot_follow_the_local_relay_actor(): void
+    {
+        Queue::fake();
+        $target = app(InstanceRelayActor::class)->getOrCreate();
+        $remote = $this->createRemoteActor('persona');
+
+        $status = $this->process([
+            'id' => 'https://remoto.example/activities/follow-relay-as-person',
+            'type' => 'Follow',
+            'actor' => $remote->uri,
+            'object' => $target->uri,
+        ], $remote);
+
+        $this->assertSame(InboxItem::STATUS_IGNORED, $status);
+        $this->assertDatabaseMissing('follows', [
+            'follower_id' => $remote->id,
+            'following_id' => $target->id,
+        ]);
+        Queue::assertNothingPushed();
     }
 
     public function test_a_follow_to_a_protected_local_account_stays_pending_without_sending_an_accept(): void

@@ -22,11 +22,7 @@ final class InstanceRelayActor
     public function getOrCreate(): Actor
     {
         $domain = (string) config('openbook.domain');
-        $existing = Actor::query()
-            ->where('is_local', true)
-            ->where('preferred_username', self::USERNAME)
-            ->where('domain', $domain)
-            ->first();
+        $existing = $this->find();
 
         if ($existing !== null) {
             if (! $existing->isApplication()) {
@@ -56,6 +52,15 @@ final class InstanceRelayActor
         });
     }
 
+    public function find(): ?Actor
+    {
+        return Actor::query()
+            ->where('is_local', true)
+            ->where('preferred_username', self::USERNAME)
+            ->where('domain', (string) config('openbook.domain'))
+            ->first();
+    }
+
     private function ensureDependencies(Actor $actor): Actor
     {
         if (! $actor->key()->exists()) {
@@ -74,8 +79,8 @@ final class InstanceRelayActor
             [
                 'inbox' => $urls['inbox'],
                 'outbox' => $urls['outbox'],
-                'followers' => null,
-                'following' => null,
+                'followers' => $urls['followers'],
+                'following' => $urls['following'],
                 'shared_inbox' => $urls['shared_inbox'],
             ],
         );

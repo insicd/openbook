@@ -23,7 +23,7 @@ final class RelayActivitySerializer
             'id' => $activityUri ?? $relay->follow_activity_uri ?? self::newFollowActivityUri(),
             'type' => 'Follow',
             'actor' => $serviceActor->activityPubId(),
-            'object' => self::PUBLIC_STREAM,
+            'object' => self::followTarget($relay),
         ];
     }
 
@@ -39,5 +39,30 @@ final class RelayActivitySerializer
             'actor' => $serviceActor->activityPubId(),
             'object' => self::follow($relay, $serviceActor, $followActivityUri),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    public static function announceObject(
+        Actor $serviceActor,
+        string $objectUri,
+        string $sourceActivityUri,
+        ?string $published = null,
+    ): array {
+        return [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => url('/relay/activities/announces/'.hash('sha256', $sourceActivityUri)),
+            'type' => 'Announce',
+            'actor' => $serviceActor->activityPubId(),
+            'published' => $published ?? now()->toAtomString(),
+            'to' => [url('/relay/followers')],
+            'object' => $objectUri,
+        ];
+    }
+
+    private static function followTarget(Relay $relay): string
+    {
+        return $relay->protocol === Relay::PROTOCOL_ACTOR && filled($relay->actor_uri)
+            ? $relay->actor_uri
+            : self::PUBLIC_STREAM;
     }
 }

@@ -6,11 +6,12 @@ use App\Domain\Federation\Relay;
 use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAccounts;
+use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
 
 class AdminRelayTest extends TestCase
 {
-    use CreatesAccounts, RefreshDatabase;
+    use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
     public function test_admin_page_creates_the_local_application_actor_once(): void
     {
@@ -81,6 +82,28 @@ class AdminRelayTest extends TestCase
         $this->actingAs($admin)->post(route('admin.relays.store'), $payload)->assertRedirect();
         $this->actingAs($admin)->post(route('admin.relays.store'), $payload)->assertSessionHasErrors('inbox_url');
         $this->assertDatabaseCount('relays', 1);
+    }
+
+    public function test_admin_can_configure_an_actor_relay_from_its_actor_uri(): void
+    {
+        $admin = $this->createFullAccount('actorrelayowner');
+        $admin->forceFill(['is_admin' => true])->save();
+        $remote = $this->createRemoteActor('relay', 'events.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.relays.store'), [
+                'protocol' => Relay::PROTOCOL_ACTOR,
+                'inbox_url' => $remote->uri,
+                'receive_enabled' => '1',
+            ])
+            ->assertRedirect();
+
+        $relay = Relay::query()->firstOrFail();
+        $this->assertSame(Relay::PROTOCOL_ACTOR, $relay->protocol);
+        $this->assertSame($remote->uri, $relay->actor_uri);
+        $this->assertSame($remote->endpoints->inbox, $relay->inbox_url);
     }
 
     public function test_admin_can_update_relay_directions_without_recreating_it(): void

@@ -3,6 +3,7 @@
 namespace App\Federation\Delivery;
 
 use App\Application\Services\DomainBlockManager;
+use App\Application\Services\InstanceRelayActor;
 use App\Domain\Comments\Comment;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventComment;
@@ -11,6 +12,7 @@ use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
+use App\Federation\Serialization\RelayActivitySerializer;
 use App\Infrastructure\Security\LinkedData\LinkedDataSignature;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Support\Collection;
@@ -34,6 +36,7 @@ final class ActivityDelivery
 {
     public function __construct(
         private readonly LinkedDataSignature $linkedDataSignatures,
+        private readonly InstanceRelayActor $instanceRelayActor,
     ) {}
 
     /**
@@ -317,17 +320,91 @@ final class ActivityDelivery
             return;
         }
 
-        Relay::query()
+        $mastodonRelays = Relay::query()
+            // Gli Actor relay pubblicano Announce tecnici: verranno aggiunti
+            // dal flusso dedicato, non devono ricevere il payload Mastodon.
+            ->where('protocol', Relay::PROTOCOL_MASTODON)
             ->where('state', Relay::STATE_ACCEPTED)
             ->where('publish_enabled', true)
-            ->get(['id', 'inbox_url'])
-            ->each(function (Relay $relay) use ($activity, $alreadyAddressed, $object): void {
-                if ($alreadyAddressed->contains($relay->inbox_url)) {
-                    return;
-                }
+            ->get(['id', 'inbox_url']);
 
-                $this->dispatchToInboxes(collect([$relay->inbox_url]), $activity, $object->actor, $relay->id);
-            });
+        $mastodonRelays->each(function (Relay $relay) use ($activity, $alreadyAddressed, $object): void {
+            if ($alreadyAddressed->contains($relay->inbox_url)) {
+                return;
+            }
+
+            $this->dispatchToInboxes(collect([$relay->inbox_url]), $activity, $object->actor, $relay->id);
+        });
+
+        $this->dispatchContentToActorRelayFollowers(
+            $object,
+            $activity,
+            $alreadyAddressed->concat($mastodonRelays->pluck('inbox_url'))->unique()->values(),
+        );
+    }
+
+    /**
+     * Gli Actor relay seguono l'Actor tecnico dell'istanza e ricevono un
+     * Announce per Create/Update. I Delete devono invece restare firmati
+     * dall'autore dell'oggetto, affinche' il destinatario possa verificarne
+     * l'ownership anche quando l'oggetto non e' piu' dereferenziabile.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  Collection<int, string>  $alreadyAddressed
+     */
+    private function dispatchContentToActorRelayFollowers(
+        Post|Comment|Event|EventComment $object,
+        array $activity,
+        Collection $alreadyAddressed,
+    ): void {
+        $serviceActor = $this->instanceRelayActor->find();
+
+        if ($serviceActor === null || ! $serviceActor->isApplication()) {
+            return;
+        }
+        $inboxes = $this->actorRelayFollowerInboxes($serviceActor)
+            ->reject(fn (string $inbox): bool => $alreadyAddressed->contains($inbox))
+            ->values();
+
+        if ($inboxes->isEmpty()) {
+            return;
+        }
+
+        if (($activity['type'] ?? null) === 'Delete') {
+            $this->dispatchToInboxes($inboxes, $activity, $object->actor);
+
+            return;
+        }
+
+        $objectUri = $this->activityObjectUri($activity);
+        $activityUri = is_string($activity['id'] ?? null) ? $activity['id'] : null;
+
+        if ($objectUri === null || $activityUri === null) {
+            return;
+        }
+
+        $announce = RelayActivitySerializer::announceObject(
+            $serviceActor,
+            $objectUri,
+            ($activity['type'] ?? null) === 'Create' ? $objectUri : $activityUri,
+            is_string($activity['published'] ?? null) ? $activity['published'] : null,
+        );
+
+        $this->dispatchToInboxes($inboxes, $announce, $serviceActor);
+    }
+
+    /** @param array<string, mixed> $activity */
+    private function activityObjectUri(array $activity): ?string
+    {
+        $object = $activity['object'] ?? null;
+
+        if (is_string($object) && $object !== '') {
+            return $object;
+        }
+
+        return is_array($object) && is_string($object['id'] ?? null) && $object['id'] !== ''
+            ? $object['id']
+            : null;
     }
 
     private function isPublicContent(Post|Comment|Event|EventComment $object): bool
@@ -358,6 +435,38 @@ final class ActivityDelivery
             ->whereIn('id', $followerActorIds)
             ->where('is_local', false)
             ->where('status', Actor::STATUS_ACTIVE)
+            ->with('endpoints')
+            ->get()
+            ->map(fn (Actor $actor) => $actor->endpoints?->shared_inbox ?: $actor->endpoints?->inbox)
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    /** @return Collection<int, string> */
+    private function actorRelayFollowerInboxes(Actor $serviceActor): Collection
+    {
+        $disabledActorUris = Relay::query()
+            ->where('protocol', Relay::PROTOCOL_ACTOR)
+            ->where('publish_enabled', false)
+            ->whereNotNull('actor_uri')
+            ->pluck('actor_uri');
+
+        $followerActorIds = DB::table('follows')
+            ->where('following_id', $serviceActor->id)
+            ->where('status', Follow::STATUS_ACCEPTED)
+            ->pluck('follower_id');
+
+        if ($followerActorIds->isEmpty()) {
+            return collect();
+        }
+
+        return Actor::query()
+            ->whereIn('id', $followerActorIds)
+            ->where('is_local', false)
+            ->where('type', Actor::TYPE_APPLICATION)
+            ->where('status', Actor::STATUS_ACTIVE)
+            ->when($disabledActorUris->isNotEmpty(), fn ($query) => $query->whereNotIn('uri', $disabledActorUris))
             ->with('endpoints')
             ->get()
             ->map(fn (Actor $actor) => $actor->endpoints?->shared_inbox ?: $actor->endpoints?->inbox)

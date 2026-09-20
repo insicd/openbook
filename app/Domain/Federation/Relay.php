@@ -31,6 +31,8 @@ class Relay extends Model
 
     public const PROTOCOL_MASTODON = 'mastodon';
 
+    public const PROTOCOL_ACTOR = 'actor';
+
     public const STATE_IDLE = 'idle';
 
     public const STATE_PENDING = 'pending';

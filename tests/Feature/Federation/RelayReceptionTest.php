@@ -10,6 +10,7 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\InboxItem;
+use App\Federation\Inbox\RelayIngressResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
@@ -60,6 +61,25 @@ class RelayReceptionTest extends TestCase
 
         $this->assertSame(InboxItem::STATUS_IGNORED, $this->process($activity, $author, $relay));
         $this->assertDatabaseMissing('posts', ['uri' => $activity['object']['id']]);
+    }
+
+    public function test_an_accepted_actor_relay_is_recognized_as_an_authorized_transport(): void
+    {
+        $transport = $this->createRemoteActor('relay', 'events.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        $relay = Relay::query()->create([
+            'protocol' => Relay::PROTOCOL_ACTOR,
+            'actor_uri' => $transport->uri,
+            'inbox_url' => $transport->endpoints->inbox,
+            'inbox_url_hash' => hash('sha256', $transport->endpoints->inbox),
+            'state' => Relay::STATE_ACCEPTED,
+            'receive_enabled' => true,
+            'publish_enabled' => false,
+            'accepted_at' => now(),
+        ]);
+
+        $this->assertTrue(app(RelayIngressResolver::class)->resolve($transport)?->is($relay));
     }
 
     public function test_a_public_event_received_from_a_relay_is_imported_but_an_unlisted_one_is_not(): void

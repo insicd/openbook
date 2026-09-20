@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Federation;
 
+use App\Application\Services\InstanceRelayActor;
 use App\Domain\Comments\Comment;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventComment;
@@ -9,6 +10,7 @@ use App\Domain\Federation\Relay;
 use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
+use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -210,6 +212,9 @@ class ActivityDeliveryTest extends TestCase
         Queue::fake();
         $author = $this->createFullAccount('relaypublisher');
         $relay = $this->relay('https://relay.example/inbox');
+        $actorRelay = $this->relay('https://events.example/relay/inbox', [
+            'protocol' => Relay::PROTOCOL_ACTOR,
+        ]);
         $this->relay('https://receive-only.example/inbox', ['publish_enabled' => false]);
         $this->relay('https://pending.example/inbox', ['state' => Relay::STATE_PENDING]);
         $post = Post::query()->create([
@@ -237,6 +242,7 @@ class ActivityDeliveryTest extends TestCase
             && $job->activity['id'] === 'post-create');
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
             && $job->activity['id'] === 'event-update');
+        Queue::assertNotPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $actorRelay->id);
     }
 
     public function test_comments_on_public_posts_and_events_are_delivered_to_relays(): void
@@ -404,6 +410,168 @@ class ActivityDeliveryTest extends TestCase
         Queue::assertPushed(DeliverActivityJob::class, 1);
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
             && $job->activity['type'] === 'Delete');
+    }
+
+    public function test_public_content_is_announced_to_application_followers_of_the_relay_actor(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('actorsource');
+        $serviceActor = app(InstanceRelayActor::class)->getOrCreate();
+        $remoteRelay = $this->createRemoteActor('events', 'actor-relay.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        Follow::query()->create([
+            'follower_id' => $remoteRelay->id,
+            'following_id' => $serviceActor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Contenuto pubblico per Actor relay.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $objectUri = url('/posts/'.$post->id);
+
+        app(ActivityDelivery::class)->deliverContent($post, [
+            'type' => 'Create',
+            'id' => $objectUri.'/attivita',
+            'object' => ['id' => $objectUri],
+        ]);
+
+        Queue::assertPushed(DeliverActivityJob::class, 1);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $remoteRelay->endpoints->shared_inbox
+            && $job->signingActorId === $serviceActor->id
+            && $job->activity['type'] === 'Announce'
+            && $job->activity['actor'] === url('/relay')
+            && $job->activity['object'] === $objectUri
+            && ($job->activity['to'][0] ?? null) === url('/relay/followers'));
+    }
+
+    public function test_updates_have_a_distinct_actor_relay_announce_and_deletes_keep_the_original_author(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('actorupdates');
+        $serviceActor = app(InstanceRelayActor::class)->getOrCreate();
+        $remoteRelay = $this->createRemoteActor('events', 'updates-relay.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        Follow::query()->create([
+            'follower_id' => $remoteRelay->id,
+            'following_id' => $serviceActor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Contenuto aggiornato.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $objectUri = url('/posts/'.$post->id);
+
+        app(ActivityDelivery::class)->deliverContent($post, [
+            'type' => 'Update',
+            'id' => $objectUri.'/attivita/update/1',
+            'object' => ['id' => $objectUri],
+        ]);
+        app(ActivityDelivery::class)->deliverContent($post, [
+            'type' => 'Delete',
+            'id' => $objectUri.'/attivita/delete',
+            'object' => $objectUri,
+        ]);
+
+        Queue::assertPushed(DeliverActivityJob::class, 2);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Announce'
+            && $job->activity['id'] !== url('/relay/activities/announces/'.hash('sha256', $objectUri))
+            && $job->signingActorId === $serviceActor->id);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Delete'
+            && $job->signingActorId === $author->actor->id);
+    }
+
+    public function test_unlisted_content_and_disabled_actor_relays_are_not_published(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('actordisabled');
+        $serviceActor = app(InstanceRelayActor::class)->getOrCreate();
+        $remoteRelay = $this->createRemoteActor('events', 'disabled-relay.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        Follow::query()->create([
+            'follower_id' => $remoteRelay->id,
+            'following_id' => $serviceActor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+        $this->relay($remoteRelay->endpoints->shared_inbox, [
+            'protocol' => Relay::PROTOCOL_ACTOR,
+            'actor_uri' => $remoteRelay->uri,
+            'publish_enabled' => false,
+        ]);
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Contenuto pubblico disabilitato.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        app(ActivityDelivery::class)->deliverContent($post, [
+            'type' => 'Create',
+            'id' => 'https://openbook.test/activities/disabled',
+            'object' => ['id' => url('/posts/'.$post->id)],
+        ]);
+        $post->update(['visibility' => Post::VISIBILITY_UNLISTED]);
+        app(ActivityDelivery::class)->deliverContent($post->fresh(), [
+            'type' => 'Create',
+            'id' => 'https://openbook.test/activities/unlisted',
+            'object' => ['id' => url('/posts/'.$post->id)],
+        ]);
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_actor_relay_delivery_is_deduplicated_against_a_normal_follower_inbox(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('actordedupe');
+        $serviceActor = app(InstanceRelayActor::class)->getOrCreate();
+        $remoteRelay = $this->createRemoteActor('events', 'same-inbox.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+
+        foreach ([$author->actor, $serviceActor] as $target) {
+            Follow::query()->create([
+                'follower_id' => $remoteRelay->id,
+                'following_id' => $target->id,
+                'status' => Follow::STATUS_ACCEPTED,
+                'requested_at' => now(),
+                'accepted_at' => now(),
+            ]);
+        }
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Una consegna per la stessa inbox.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        app(ActivityDelivery::class)->deliverContent($post, [
+            'type' => 'Create',
+            'id' => 'https://openbook.test/activities/deduplicated-actor-relay',
+            'object' => ['id' => url('/posts/'.$post->id)],
+        ]);
+
+        Queue::assertPushed(DeliverActivityJob::class, 1);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Create'
+            && $job->signingActorId === $author->actor->id);
     }
 
     /** @param array<string, mixed> $overrides */

@@ -4,6 +4,7 @@ namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
 use App\Domain\Federation\Relay;
+use App\Federation\Actors\RemoteActorResolver;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -11,6 +12,7 @@ final class RelayConfigurationManager
 {
     public function __construct(
         private readonly RelayEndpointNormalizer $normalizer,
+        private readonly RemoteActorResolver $actors,
         private readonly AuditLogger $auditLogger,
     ) {}
 
@@ -21,11 +23,42 @@ final class RelayConfigurationManager
             throw new InvalidArgumentException(__('openbook.admin.relays.admin_required'));
         }
 
-        if ($data['protocol'] !== Relay::PROTOCOL_MASTODON) {
+        if (! in_array($data['protocol'], [Relay::PROTOCOL_MASTODON, Relay::PROTOCOL_ACTOR], true)) {
             throw new InvalidArgumentException(__('openbook.admin.relays.unsupported_protocol'));
         }
 
-        $inboxUrl = $this->normalizer->normalize($data['inbox_url']);
+        $configuredUrl = $this->normalizer->normalize($data['inbox_url']);
+        $actorUri = null;
+        $inboxUrl = $configuredUrl;
+
+        if ($data['protocol'] === Relay::PROTOCOL_ACTOR) {
+            $actor = $this->actors->resolveByUri($configuredUrl);
+
+            if ($actor !== null && ! $actor->isLocal()) {
+                $actor->loadMissing('endpoints');
+
+                // Actor tecnici gia' presenti in cache prima del supporto
+                // Application possono essere stati classificati Person.
+                if (! $actor->isApplication() || blank($actor->endpoints?->inbox)) {
+                    $actor = $this->actors->refresh($actor) ?? $actor;
+                }
+            }
+
+            if ($actor === null || $actor->isLocal() || ! $actor->isApplication()) {
+                throw new InvalidArgumentException(__('openbook.admin.relays.actor_unavailable'));
+            }
+
+            $actor->loadMissing('endpoints');
+            $actorInbox = $actor->endpoints?->inbox;
+
+            if (! is_string($actorInbox) || $actorInbox === '') {
+                throw new InvalidArgumentException(__('openbook.admin.relays.actor_inbox_missing'));
+            }
+
+            $actorUri = $actor->activityPubId();
+            $inboxUrl = $this->normalizer->normalize($actorInbox);
+        }
+
         $hash = hash('sha256', $inboxUrl);
 
         if (Relay::query()->where('inbox_url_hash', $hash)->exists()) {
@@ -33,7 +66,8 @@ final class RelayConfigurationManager
         }
 
         $relay = Relay::query()->create([
-            'protocol' => Relay::PROTOCOL_MASTODON,
+            'protocol' => $data['protocol'],
+            'actor_uri' => $actorUri,
             'inbox_url' => $inboxUrl,
             'inbox_url_hash' => $hash,
             'state' => Relay::STATE_IDLE,

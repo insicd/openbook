@@ -39,6 +39,12 @@ Route::get('/relay', [RelayActorController::class, 'show'])
 Route::get('/relay/outbox', [RelayActorController::class, 'outbox'])
     ->middleware('throttle:120,1')
     ->name('relay.outbox');
+Route::get('/relay/followers', [RelayActorController::class, 'followers'])
+    ->middleware('throttle:120,1')
+    ->name('relay.followers');
+Route::get('/relay/following', [RelayActorController::class, 'following'])
+    ->middleware('throttle:120,1')
+    ->name('relay.following');
 
 Route::post('/users/{username}/inbox', [InboxController::class, 'forUser'])
     ->where('username', '[A-Za-z0-9_]+')

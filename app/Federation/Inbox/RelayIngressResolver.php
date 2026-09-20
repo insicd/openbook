@@ -6,7 +6,7 @@ use App\Application\Services\DomainBlockManager;
 use App\Domain\Federation\Relay;
 use App\Federation\Actors\Actor;
 
-/** Identifica un trasportatore HTTP come relay Mastodon gia' autorizzato. */
+/** Identifica un trasportatore HTTP come relay gia' autorizzato. */
 final class RelayIngressResolver
 {
     public function __construct(
@@ -22,7 +22,7 @@ final class RelayIngressResolver
         }
 
         return Relay::query()
-            ->where('protocol', Relay::PROTOCOL_MASTODON)
+            ->whereIn('protocol', [Relay::PROTOCOL_MASTODON, Relay::PROTOCOL_ACTOR])
             ->where('state', Relay::STATE_ACCEPTED)
             ->where('receive_enabled', true)
             ->where('actor_uri', $transportActor->uri)

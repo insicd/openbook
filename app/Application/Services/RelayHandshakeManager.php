@@ -23,8 +23,12 @@ final class RelayHandshakeManager
     {
         $this->assertAdmin($admin);
 
-        if ($relay->protocol !== Relay::PROTOCOL_MASTODON) {
+        if (! in_array($relay->protocol, [Relay::PROTOCOL_MASTODON, Relay::PROTOCOL_ACTOR], true)) {
             throw new InvalidArgumentException(__('openbook.admin.relays.unsupported_protocol'));
+        }
+
+        if ($relay->protocol === Relay::PROTOCOL_ACTOR && blank($relay->actor_uri)) {
+            throw new InvalidArgumentException(__('openbook.admin.relays.actor_unavailable'));
         }
 
         if ($relay->state === Relay::STATE_ACCEPTED) {

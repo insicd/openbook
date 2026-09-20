@@ -567,6 +567,19 @@ browsers:
   The worker can safely run alongside `openbook:cron`, but must be restarted
   after each deployment so that it loads the updated application code.
 
+- **Actor-based instance sources**: the same Relay panel can subscribe to a
+  remote ActivityPub `Application`/`Service` Actor, as exposed by software such
+  as Mobilizon or Gancio. In this mode the configured value is the Actor URI,
+  not its inbox URL: Openbook resolves and validates the Actor, follows it and
+  imports public objects transported through its `Announce` activities. Remote
+  applications may likewise follow Openbook's technical `/relay` Actor to
+  receive `Announce` activities for locally produced public posts, comments,
+  events, and event comments. Unlisted, followers-only, direct, remote, and
+  private-community content is excluded. Technical subscriptions and
+  announcements do not create user notifications, social boosts, or reaction
+  counters. The Actor exposes paginated `/relay/outbox`, `/relay/followers`,
+  and `/relay/following` collections for discovery and backfill.
+
 ### Social federation (Phase 4)
 
 Activities accepted in the inbox (Phase 3) are now **processed**, and relevant

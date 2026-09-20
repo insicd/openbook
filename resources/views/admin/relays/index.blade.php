@@ -25,9 +25,9 @@
             </select>
         </div>
         <div class="ob-field" style="margin-top:1rem">
-            <label for="inbox_url">{{ __('openbook.admin.relays.inbox_url') }}</label>
+            <label for="inbox_url">{{ __('openbook.admin.relays.relay_url') }}</label>
             <input type="url" id="inbox_url" name="inbox_url" value="{{ old('inbox_url') }}" required maxlength="2048" placeholder="https://relay.example/inbox">
-            <p class="ob-field__help">{{ __('openbook.admin.relays.inbox_help') }}</p>
+            <p class="ob-field__help">{{ __('openbook.admin.relays.relay_url_help') }}</p>
         </div>
         <div class="ob-field" style="margin-top:1rem">
             <label><input type="checkbox" name="receive_enabled" value="1" @checked(old('receive_enabled', true))> {{ __('openbook.admin.relays.receive_enabled') }}</label>
@@ -46,7 +46,7 @@
                     <strong>{{ parse_url($relay->inbox_url, PHP_URL_HOST) }}</strong>
                     <p class="ob-field__help" style="margin:0.35rem 0 0"><code>{{ $relay->inbox_url }}</code></p>
                     <p class="ob-field__help" style="margin:0.35rem 0 0">
-                        {{ __('openbook.admin.relays.protocol_mastodon') }} ·
+                        {{ $protocols[$relay->protocol] ?? $relay->protocol }} ·
                         {{ __('openbook.admin.relays.state_'.$relay->state) }} ·
                         {{ $relay->receive_enabled ? __('openbook.admin.relays.receives') : __('openbook.admin.relays.does_not_receive') }} ·
                         {{ $relay->publish_enabled ? __('openbook.admin.relays.publishes') : __('openbook.admin.relays.does_not_publish') }}

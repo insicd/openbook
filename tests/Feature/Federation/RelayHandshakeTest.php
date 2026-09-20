@@ -62,6 +62,41 @@ class RelayHandshakeTest extends TestCase
         $this->assertNotSame($firstActivityUri, $relay->refresh()->follow_activity_uri);
     }
 
+    public function test_actor_relay_follow_targets_the_remote_actor(): void
+    {
+        Queue::fake();
+        $admin = $this->admin('actorrelaysubscribe');
+        $remote = $this->createRemoteActor('relay', 'events.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        $relay = Relay::query()->create([
+            'protocol' => Relay::PROTOCOL_ACTOR,
+            'actor_uri' => $remote->uri,
+            'inbox_url' => $remote->endpoints->inbox,
+            'inbox_url_hash' => hash('sha256', $remote->endpoints->inbox),
+            'state' => Relay::STATE_IDLE,
+            'receive_enabled' => true,
+            'publish_enabled' => false,
+        ]);
+
+        app(RelayHandshakeManager::class)->subscribe($admin, $relay);
+
+        Queue::assertPushed(DeliverActivityJob::class, function (DeliverActivityJob $job) use ($relay, $remote): bool {
+            return $job->relayId === $relay->id
+                && $job->inboxUrl === $remote->endpoints->inbox
+                && $job->activity['type'] === 'Follow'
+                && $job->activity['actor'] === url('/relay')
+                && $job->activity['object'] === $remote->uri;
+        });
+
+        $serviceActor = app(InstanceRelayActor::class)->getOrCreate();
+        $accept = $this->responseActivity('Accept', $relay->refresh(), $remote, $serviceActor);
+        $accept['object']['object'] = $remote->uri;
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process($accept, $remote));
+        $this->assertSame(Relay::STATE_ACCEPTED, $relay->refresh()->state);
+    }
+
     public function test_authenticated_accept_and_reject_update_the_matching_relay(): void
     {
         Queue::fake();

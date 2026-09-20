@@ -27,14 +27,17 @@ final class RelayController extends Controller
         return view('admin.relays.index', [
             'relays' => Relay::query()->latest()->paginate(40),
             'relayActor' => $this->relayActor->getOrCreate(),
-            'protocols' => [Relay::PROTOCOL_MASTODON => __('openbook.admin.relays.protocol_mastodon')],
+            'protocols' => [
+                Relay::PROTOCOL_MASTODON => __('openbook.admin.relays.protocol_mastodon'),
+                Relay::PROTOCOL_ACTOR => __('openbook.admin.relays.protocol_actor'),
+            ],
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'protocol' => ['required', Rule::in([Relay::PROTOCOL_MASTODON])],
+            'protocol' => ['required', Rule::in([Relay::PROTOCOL_MASTODON, Relay::PROTOCOL_ACTOR])],
             'inbox_url' => ['required', 'string', 'max:2048'],
             'receive_enabled' => ['nullable', 'boolean'],
             'publish_enabled' => ['nullable', 'boolean'],
