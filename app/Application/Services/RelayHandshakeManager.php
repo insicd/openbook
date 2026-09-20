@@ -111,7 +111,7 @@ final class RelayHandshakeManager
             return false;
         }
 
-        if (is_array($activity['object'] ?? null) && ! $this->embeddedFollowMatches($activity['object'])) {
+        if (is_array($activity['object'] ?? null) && ! $this->embeddedFollowMatches($activity['object'], $remoteActor)) {
             return false;
         }
 
@@ -146,7 +146,7 @@ final class RelayHandshakeManager
     }
 
     /** @param array<string, mixed> $follow */
-    private function embeddedFollowMatches(array $follow): bool
+    private function embeddedFollowMatches(array $follow, Actor $remoteActor): bool
     {
         if (($follow['type'] ?? null) !== 'Follow') {
             return false;
@@ -157,7 +157,9 @@ final class RelayHandshakeManager
 
         return $actorUri !== null
             && ActivityPubUri::same($actorUri, $this->instanceRelayActor->getOrCreate()->activityPubId())
-            && $objectUri === RelayActivitySerializer::PUBLIC_STREAM;
+            && $objectUri !== null
+            && ($objectUri === RelayActivitySerializer::PUBLIC_STREAM
+                || ActivityPubUri::same($objectUri, $remoteActor->activityPubId()));
     }
 
     private function objectId(mixed $value): ?string

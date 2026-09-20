@@ -91,6 +91,24 @@ class RelayHandshakeTest extends TestCase
         $this->assertNull($rejectedRelay->accepted_at);
     }
 
+    public function test_accept_allows_a_relay_normalized_follow_object(): void
+    {
+        Queue::fake();
+        $admin = $this->admin('relaynormalized');
+        $relay = $this->relay('relay-normalized.example');
+        $manager = app(RelayHandshakeManager::class);
+        $manager->subscribe($admin, $relay);
+
+        $remoteActor = $this->createRemoteActor('relay', 'relay-normalized.example');
+        $serviceActor = app(InstanceRelayActor::class)->getOrCreate();
+        $accept = $this->responseActivity('Accept', $relay->refresh(), $remoteActor, $serviceActor);
+        $accept['object']['object'] = $remoteActor->uri;
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process($accept, $remoteActor));
+        $this->assertSame(Relay::STATE_ACCEPTED, $relay->refresh()->state);
+        $this->assertSame($remoteActor->uri, $relay->actor_uri);
+    }
+
     public function test_response_from_an_unrelated_host_is_ignored(): void
     {
         Queue::fake();
