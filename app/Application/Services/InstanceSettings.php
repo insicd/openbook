@@ -56,6 +56,10 @@ final class InstanceSettings
 
     public const KEY_SHOW_HOME_STAFF = 'show_home_staff';
 
+    public const KEY_WORLD_HIDE_CONTENT_WARNINGS = 'world_hide_content_warnings';
+
+    public const KEY_FORCED_CONTENT_WARNING_HASHTAGS = 'forced_content_warning_hashtags';
+
     public const KEY_INSTANCE_ICON_DIR = 'instance_icon_dir';
 
     public const KEY_CUSTOM_CSS = 'custom_css';
@@ -63,6 +67,8 @@ final class InstanceSettings
     public const KEY_LOCATIONS_CATALOG_READY = GeoNamesCityImporter::READY_SETTING_KEY;
 
     public const CUSTOM_CSS_MAX_LENGTH = 50000;
+
+    public const FORCED_CONTENT_WARNING_HASHTAGS_MAX = 100;
 
     /**
      * Favicon di default (SVG inline) usata finche' l'amministratore non
@@ -107,6 +113,8 @@ final class InstanceSettings
         $this->applyIntSetting(self::KEY_VIDEO_MAX_DIMENSION, 'openbook.video.max_dimension');
         $this->applyIntSetting(self::KEY_VIDEO_MAX_FRAME_RATE, 'openbook.video.max_frame_rate');
         $this->applyIntSetting(self::KEY_TRENDING_DAYS, 'openbook.hashtags.trending_days');
+        Config::set('openbook.moderation.hide_content_warnings_from_world', $this->worldHidesContentWarnings());
+        Config::set('openbook.moderation.forced_content_warning_hashtags', $this->forcedContentWarningHashtags());
         Config::set('openbook.locations.catalog_ready', $this->locationsCatalogReady());
     }
 
@@ -220,6 +228,22 @@ final class InstanceSettings
         return filter_var($stored, FILTER_VALIDATE_BOOLEAN);
     }
 
+    public function worldHidesContentWarnings(): bool
+    {
+        return SystemSetting::getBool(self::KEY_WORLD_HIDE_CONTENT_WARNINGS, false);
+    }
+
+    /** @return list<string> */
+    public function forcedContentWarningHashtags(): array
+    {
+        $decoded = json_decode((string) SystemSetting::get(
+            self::KEY_FORCED_CONTENT_WARNING_HASHTAGS,
+            '[]',
+        ), true);
+
+        return is_array($decoded) ? $this->normalizeHashtags($decoded) : [];
+    }
+
     public function iconDirectory(): ?string
     {
         $directory = SystemSetting::get(self::KEY_INSTANCE_ICON_DIR);
@@ -295,6 +319,8 @@ final class InstanceSettings
      *     video_max_dimension: int,
      *     video_max_frame_rate: int,
      *     trending_days: int,
+     *     world_hide_content_warnings?: bool,
+     *     forced_content_warning_hashtags?: string,
      *     instance_icon_dir?: string|null
      * }  $data
      */
@@ -314,6 +340,10 @@ final class InstanceSettings
         $videoFfmpegPath = trim($data['video_ffmpeg_path']);
         $videoFfprobePath = trim($data['video_ffprobe_path']);
         $trendingDays = max(1, (int) ($data['trending_days'] ?? $this->trendingDays()));
+        $worldHideContentWarnings = (bool) ($data['world_hide_content_warnings'] ?? false);
+        $forcedContentWarningHashtags = $this->normalizeHashtags(
+            preg_split('/[\s,;]+/u', (string) ($data['forced_content_warning_hashtags'] ?? '')) ?: [],
+        );
 
         SystemSetting::put(self::KEY_SITE_NAME, $siteName);
         SystemSetting::put(self::KEY_SITE_DESCRIPTION, $siteDescription);
@@ -334,6 +364,11 @@ final class InstanceSettings
         SystemSetting::put(self::KEY_VIDEO_MAX_DIMENSION, (string) $data['video_max_dimension']);
         SystemSetting::put(self::KEY_VIDEO_MAX_FRAME_RATE, (string) $data['video_max_frame_rate']);
         SystemSetting::put(self::KEY_TRENDING_DAYS, (string) $trendingDays);
+        SystemSetting::putBool(self::KEY_WORLD_HIDE_CONTENT_WARNINGS, $worldHideContentWarnings);
+        SystemSetting::put(
+            self::KEY_FORCED_CONTENT_WARNING_HASHTAGS,
+            json_encode($forcedContentWarningHashtags, JSON_THROW_ON_ERROR),
+        );
 
         if (array_key_exists('instance_icon_dir', $data)) {
             SystemSetting::put(self::KEY_INSTANCE_ICON_DIR, $data['instance_icon_dir']);
@@ -354,6 +389,8 @@ final class InstanceSettings
         Config::set('openbook.video.max_dimension', (int) $data['video_max_dimension']);
         Config::set('openbook.video.max_frame_rate', (int) $data['video_max_frame_rate']);
         Config::set('openbook.hashtags.trending_days', $trendingDays);
+        Config::set('openbook.moderation.hide_content_warnings_from_world', $worldHideContentWarnings);
+        Config::set('openbook.moderation.forced_content_warning_hashtags', $forcedContentWarningHashtags);
 
         if ($actor !== null) {
             $this->auditLogger->log($actor, 'settings.update', null, [
@@ -362,6 +399,8 @@ final class InstanceSettings
                 'registration_open' => $registrationOpen,
                 'show_home_staff' => $showHomeStaff,
                 'trending_days' => $trendingDays,
+                'world_hide_content_warnings' => $worldHideContentWarnings,
+                'forced_content_warning_hashtags_count' => count($forcedContentWarningHashtags),
                 'video_enabled' => $videoEnabled,
                 'has_custom_icons' => $this->hasCustomIcons(),
             ]);
@@ -397,5 +436,21 @@ final class InstanceSettings
         }
 
         return $fallback;
+    }
+
+    /**
+     * @param  array<int, mixed>  $hashtags
+     * @return list<string>
+     */
+    private function normalizeHashtags(array $hashtags): array
+    {
+        return collect($hashtags)
+            ->filter(fn (mixed $hashtag): bool => is_string($hashtag))
+            ->map(fn (string $hashtag): string => mb_strtolower(ltrim(trim($hashtag), '#')))
+            ->filter(fn (string $hashtag): bool => $hashtag !== '' && preg_match('/^[\pL\pN_]+$/u', $hashtag) === 1)
+            ->unique()
+            ->take(self::FORCED_CONTENT_WARNING_HASHTAGS_MAX)
+            ->values()
+            ->all();
     }
 }

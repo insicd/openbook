@@ -140,9 +140,10 @@
             <h2 class="ob-post__title">{{ $post->title }}</h2>
         @endif
 
-        @if ($post->hasContentWarning())
+        @php($contentWarning = $post->effectiveContentWarning())
+        @if ($contentWarning !== null)
             <details class="ob-post__cw">
-                <summary>{{ __('openbook.posts.content_warning_label') }}: {{ $post->content_warning }}</summary>
+                <summary>{{ __('openbook.posts.content_warning_label') }}: {{ $contentWarning }}</summary>
                 @include('posts._revealed', [
                     'post' => $post,
                     'embedDepth' => $embedDepth,

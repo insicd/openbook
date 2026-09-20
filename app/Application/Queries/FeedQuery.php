@@ -318,7 +318,21 @@ final class FeedQuery
                 $query->whereNull('community_id')
                     ->orWhereHas('community', fn ($community) => $community->where('is_private', false));
             })
-            ->whereHas('actor', fn ($query) => $query->where('is_local', false))
+            ->whereHas('actor', fn ($query) => $query->where('is_local', false));
+
+        if ((bool) config('openbook.moderation.hide_content_warnings_from_world', false)) {
+            $query->where(fn ($query) => $query
+                ->whereNull('content_warning')
+                ->orWhere('content_warning', ''));
+
+            $forcedHashtags = config('openbook.moderation.forced_content_warning_hashtags', []);
+
+            if (is_array($forcedHashtags) && $forcedHashtags !== []) {
+                $query->whereDoesntHave('hashtags', fn ($query) => $query->whereIn('name', $forcedHashtags));
+            }
+        }
+
+        $query
             ->orderByDesc('published_at')
             ->orderByDesc(self::TIEBREAKER_COLUMN);
 

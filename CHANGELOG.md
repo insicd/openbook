@@ -19,6 +19,11 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38] - Melancholy Taco
 
 ### Added
+- **Moderazione della timeline Mondo**: dal pannello amministrativo è possibile
+  escludere i post dotati di content warning e configurare fino a 100 hashtag
+  che applicano localmente un avviso generico anche quando il post originale
+  non lo dichiara. La policy è retroattiva, non modifica gli oggetti ActivityPub
+  in uscita e lascia i contenuti accessibili nelle altre sezioni dietro al CW.
 - **Relay ActivityPub Mastodon, Actor-based e LitePub**: il pannello amministrativo
   permette di configurare relay in ingresso e in uscita, sottoscriverli tramite
   il normale handshake `Follow`/`Accept` e controllarne separatamente le due

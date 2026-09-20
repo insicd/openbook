@@ -236,7 +236,26 @@ class Post extends Model
 
     public function hasContentWarning(): bool
     {
-        return filled($this->content_warning);
+        return $this->effectiveContentWarning() !== null;
+    }
+
+    public function effectiveContentWarning(): ?string
+    {
+        if (filled($this->content_warning)) {
+            return $this->content_warning;
+        }
+
+        $forcedHashtags = config('openbook.moderation.forced_content_warning_hashtags', []);
+
+        if (! is_array($forcedHashtags) || $forcedHashtags === []) {
+            return null;
+        }
+
+        $matches = $this->relationLoaded('hashtags')
+            ? $this->hashtags->contains(fn ($hashtag): bool => in_array(mb_strtolower($hashtag->name), $forcedHashtags, true))
+            : $this->hashtags()->whereIn('name', $forcedHashtags)->exists();
+
+        return $matches ? __('openbook.posts.forced_content_warning') : null;
     }
 
     public function wasEdited(): bool
