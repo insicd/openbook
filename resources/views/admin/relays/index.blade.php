@@ -24,10 +24,11 @@
                 @endforeach
             </select>
         </div>
+        @php($actorRelaySelected = old('protocol', \App\Domain\Federation\Relay::PROTOCOL_MASTODON) === \App\Domain\Federation\Relay::PROTOCOL_ACTOR)
         <div class="ob-field" style="margin-top:1rem">
-            <label for="inbox_url">{{ __('openbook.admin.relays.relay_address') }}</label>
-            <input type="text" id="inbox_url" name="inbox_url" value="{{ old('inbox_url') }}" required maxlength="2048" placeholder="{{ __('openbook.admin.relays.relay_placeholder') }}">
-            <p class="ob-field__help">{{ __('openbook.admin.relays.relay_url_help') }}</p>
+            <label for="inbox_url" id="relay-address-label">{{ __($actorRelaySelected ? 'openbook.admin.relays.actor_address' : 'openbook.admin.relays.mastodon_address') }}</label>
+            <input type="text" id="inbox_url" name="inbox_url" value="{{ old('inbox_url') }}" required maxlength="2048" placeholder="{{ __($actorRelaySelected ? 'openbook.admin.relays.actor_placeholder' : 'openbook.admin.relays.mastodon_placeholder') }}">
+            <p class="ob-field__help" id="relay-address-help">{{ __($actorRelaySelected ? 'openbook.admin.relays.actor_address_help' : 'openbook.admin.relays.mastodon_address_help') }}</p>
         </div>
         <div class="ob-field" style="margin-top:1rem">
             <label><input type="checkbox" name="receive_enabled" value="1" @checked(old('receive_enabled', true))> {{ __('openbook.admin.relays.receive_enabled') }}</label>
@@ -104,4 +105,35 @@
     @endforelse
 
     <div style="margin-top:1.5rem">{{ $relays->links() }}</div>
+
+    <script>
+        (function () {
+            const protocol = document.getElementById('protocol');
+            const input = document.getElementById('inbox_url');
+            const label = document.getElementById('relay-address-label');
+            const help = document.getElementById('relay-address-help');
+            const fields = {
+                mastodon: {
+                    label: @json(__('openbook.admin.relays.mastodon_address')),
+                    placeholder: @json(__('openbook.admin.relays.mastodon_placeholder')),
+                    help: @json(__('openbook.admin.relays.mastodon_address_help')),
+                },
+                actor: {
+                    label: @json(__('openbook.admin.relays.actor_address')),
+                    placeholder: @json(__('openbook.admin.relays.actor_placeholder')),
+                    help: @json(__('openbook.admin.relays.actor_address_help')),
+                },
+            };
+
+            function updateAddressField() {
+                const field = fields[protocol.value] || fields.mastodon;
+                label.textContent = field.label;
+                input.placeholder = field.placeholder;
+                help.textContent = field.help;
+            }
+
+            protocol.addEventListener('change', updateAddressField);
+            updateAddressField();
+        }());
+    </script>
 @endsection
