@@ -20,6 +20,8 @@ final class InstanceSettings
 {
     public const KEY_SITE_NAME = 'site_name';
 
+    public const KEY_SITE_DESCRIPTION = 'site_description';
+
     public const KEY_REGISTRATION_OPEN = 'registration_open';
 
     public const KEY_INSTANCE_RULES = 'instance_rules';
@@ -111,6 +113,11 @@ final class InstanceSettings
     public function siteName(): string
     {
         return SystemSetting::get(self::KEY_SITE_NAME) ?: (string) config('app.name');
+    }
+
+    public function siteDescription(): string
+    {
+        return trim((string) (SystemSetting::get(self::KEY_SITE_DESCRIPTION) ?? ''));
     }
 
     public function registrationOpen(): bool
@@ -270,6 +277,7 @@ final class InstanceSettings
     /**
      * @param  array{
      *     site_name: string,
+     *     site_description?: string,
      *     registration_open: bool,
      *     show_home_staff: bool,
      *     instance_rules?: string,
@@ -293,6 +301,7 @@ final class InstanceSettings
     public function update(array $data, ?User $actor = null): void
     {
         $siteName = trim($data['site_name']);
+        $siteDescription = trim((string) ($data['site_description'] ?? ''));
         $registrationOpen = (bool) $data['registration_open'];
         $showHomeStaff = (bool) $data['show_home_staff'];
         $rules = (string) ($data['instance_rules'] ?? '');
@@ -307,6 +316,7 @@ final class InstanceSettings
         $trendingDays = max(1, (int) ($data['trending_days'] ?? $this->trendingDays()));
 
         SystemSetting::put(self::KEY_SITE_NAME, $siteName);
+        SystemSetting::put(self::KEY_SITE_DESCRIPTION, $siteDescription);
         SystemSetting::putBool(self::KEY_REGISTRATION_OPEN, $registrationOpen);
         SystemSetting::putBool(self::KEY_SHOW_HOME_STAFF, $showHomeStaff);
         SystemSetting::put(self::KEY_INSTANCE_RULES, $rules);
@@ -348,6 +358,7 @@ final class InstanceSettings
         if ($actor !== null) {
             $this->auditLogger->log($actor, 'settings.update', null, [
                 'site_name' => $siteName,
+                'has_site_description' => $siteDescription !== '',
                 'registration_open' => $registrationOpen,
                 'show_home_staff' => $showHomeStaff,
                 'trending_days' => $trendingDays,

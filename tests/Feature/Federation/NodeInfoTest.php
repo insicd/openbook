@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Federation;
 
+use App\Application\Services\InstanceSettings;
+use App\Infrastructure\Database\SystemSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
@@ -47,6 +49,21 @@ class NodeInfoTest extends TestCase
             sprintf('Openbook/%s (+%s)', config('openbook.version'), config('app.url')),
             config('openbook.federation.user_agent'),
         );
+    }
+
+    public function test_nodeinfo_exposes_configured_public_instance_metadata(): void
+    {
+        SystemSetting::put(InstanceSettings::KEY_SITE_NAME, 'Example Social');
+        SystemSetting::put(InstanceSettings::KEY_SITE_DESCRIPTION, 'A friendly Openbook instance.');
+        $iconDirectory = 'instance-icons/00000000-0000-0000-0000-000000000001';
+        SystemSetting::put(InstanceSettings::KEY_INSTANCE_ICON_DIR, $iconDirectory);
+
+        $response = $this->get('/nodeinfo/2.1');
+
+        $response->assertOk();
+        $response->assertJsonPath('metadata.nodeName', 'Example Social');
+        $response->assertJsonPath('metadata.nodeDescription', 'A friendly Openbook instance.');
+        $response->assertJsonPath('metadata.nodeIcon', url('/storage/'.$iconDirectory.'/favicon-32.png'));
     }
 
     public function test_federation_discovery_endpoints_allow_cross_origin_reads(): void

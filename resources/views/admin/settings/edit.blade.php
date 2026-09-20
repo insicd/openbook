@@ -16,6 +16,12 @@
         </div>
 
         <div class="ob-field" style="margin-top:1rem">
+            <label for="site_description">{{ __('openbook.admin.settings.site_description') }}</label>
+            <textarea id="site_description" name="site_description" rows="3" maxlength="500">{{ old('site_description', $siteDescription) }}</textarea>
+            <p class="ob-field__help">{{ __('openbook.admin.settings.site_description_help') }}</p>
+        </div>
+
+        <div class="ob-field" style="margin-top:1rem">
             <label for="favicon">{{ __('openbook.admin.settings.favicon') }}</label>
             <div class="ob-settings-avatar-picker">
                 <img

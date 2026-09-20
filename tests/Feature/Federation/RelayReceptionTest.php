@@ -30,6 +30,10 @@ class RelayReceptionTest extends TestCase
 
         $post = Post::query()->where('uri', $activity['object']['id'])->firstOrFail();
         $hashtag = Hashtag::query()->where('name', 'relaytest')->firstOrFail();
+        $this->assertSame(0, $post->announces_count);
+        $this->assertDatabaseMissing('announces', [
+            'post_id' => $post->id,
+        ]);
         $this->assertTrue(app(FeedQuery::class)->world()->getCollection()->contains('id', $post->id));
         $this->assertFalse(app(FeedQuery::class)->forActor($viewer->actor)->getCollection()->contains('id', $post->id));
 
@@ -70,6 +74,10 @@ class RelayReceptionTest extends TestCase
         $this->assertDatabaseHas('events', [
             'uri' => $public['object']['id'],
             'visibility' => Event::VISIBILITY_PUBLIC,
+        ]);
+        $event = Event::query()->where('uri', $public['object']['id'])->firstOrFail();
+        $this->assertDatabaseMissing('event_announces', [
+            'event_id' => $event->id,
         ]);
         $this->assertDatabaseMissing('events', ['uri' => $unlisted['object']['id']]);
     }

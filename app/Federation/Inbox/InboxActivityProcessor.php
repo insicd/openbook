@@ -564,7 +564,11 @@ final class InboxActivityProcessor
                 return InboxItem::STATUS_IGNORED;
             }
 
-            $this->eventIngester->recordAnnounce($event, $actor, $activity);
+            // L'Announce del relay e' solo il contenitore di trasporto: non
+            // rappresenta una condivisione sociale effettuata dal relay.
+            if (! $fromRelay) {
+                $this->eventIngester->recordAnnounce($event, $actor, $activity);
+            }
 
             return InboxItem::STATUS_PROCESSED;
         }
@@ -592,7 +596,9 @@ final class InboxActivityProcessor
                     return InboxItem::STATUS_IGNORED;
                 }
 
-                $this->eventIngester->recordAnnounce($event, $actor, $activity);
+                if (! $fromRelay) {
+                    $this->eventIngester->recordAnnounce($event, $actor, $activity);
+                }
 
                 return InboxItem::STATUS_PROCESSED;
             }
@@ -627,6 +633,12 @@ final class InboxActivityProcessor
         // chi Annuncia e' seguito da almeno un Actor locale.
         if (! $fromRelay && ! $post->actor->isLocal() && ! $this->hasLocalFollower($actor)) {
             return InboxItem::STATUS_IGNORED;
+        }
+
+        // I relay usano Announce come busta di trasporto. Il post e' ormai
+        // importato, ma il relay non deve risultare come autore di un boost.
+        if ($fromRelay) {
+            return InboxItem::STATUS_PROCESSED;
         }
 
         $occurredAt = null;

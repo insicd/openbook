@@ -27,7 +27,9 @@ il [`README`](README.md#roadmap-and-project-status).
   eventi pubblici; post, eventi e relativi commenti pubblici locali vengono
   consegnati ai relay attivi riutilizzando firma, coda, retry e blocchi di
   dominio gia' impiegati dalla federazione ordinaria. Stato, ultimi scambi ed
-  errori di consegna sono visibili nel pannello di controllo.
+  errori di consegna sono visibili nel pannello di controllo. Nome,
+  descrizione pubblica e icona dell'istanza sono inoltre esposti nei metadati
+  NodeInfo per migliorare la presentazione nei servizi federati.
 - **Eventi federati ActivityPub**: Openbook importa gli oggetti `Event`
   ricevuti tramite `Create` e `Announce`, ne gestisce aggiornamenti,
   cancellazioni e audience e li presenta nella nuova sezione Eventi con
@@ -90,6 +92,9 @@ il [`README`](README.md#roadmap-and-project-status).
   home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
 
 ### Fixed
+- Relay ActivityPub: gli `Announce` usati come contenitori di trasporto
+  importano post ed eventi senza essere registrati come condivisioni sociali
+  e senza alterarne i relativi contatori.
 - Manutenzione database: la pulizia periodica rimuove dalla coda di
   pubblicazione i lavori video conclusi o falliti oltre la retention
   configurata, insieme agli allegati di staging e alle eventuali directory

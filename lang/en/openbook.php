@@ -735,6 +735,8 @@ return [
             'title' => 'Instance settings',
             'intro' => 'Basic settings, rules and limits: stored in the database. Domain, database, mail and federation keys stay in the .env file (edit manually).',
             'site_name' => 'Instance name',
+            'site_description' => 'Instance description',
+            'site_description_help' => 'Short public description also exposed through NodeInfo to fediverse services.',
             'favicon' => 'Favicon and app icons',
             'favicon_help' => 'Square image (PNG, JPEG, WebP or GIF), at least 512×512 pixels. From this file Openbook generates the browser favicon, the Apple Touch icon (iOS) and the Android icons used to add the site to the home screen.',
             'favicon_remove' => 'Remove the custom icon and restore the default',

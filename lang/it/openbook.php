@@ -735,6 +735,8 @@ return [
             'title' => 'Impostazioni istanza',
             'intro' => 'Impostazioni di base, regole e limiti: salvate nel database. Dominio, database, posta e chiavi di federazione restano nel file .env (modifica manuale).',
             'site_name' => 'Nome dell\'istanza',
+            'site_description' => 'Descrizione dell\'istanza',
+            'site_description_help' => 'Breve descrizione pubblica esposta anche tramite NodeInfo ai servizi del fediverso.',
             'favicon' => 'Favicon e icone app',
             'favicon_help' => 'Immagine quadrata (PNG, JPEG, WebP o GIF), almeno 512x512 pixel. Da questo file vengono generate la favicon del browser, l\'icona Apple Touch (iOS) e le icone Android per «Aggiungi alla schermata Home».',
             'favicon_remove' => 'Rimuovi l\'icona personalizzata e torna a quella predefinita',
