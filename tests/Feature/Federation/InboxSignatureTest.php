@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Federation;
 
+use App\Domain\Federation\Relay;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\ActorKey;
@@ -527,6 +528,68 @@ class InboxSignatureTest extends TestCase
             'activity_type' => 'Create',
         ]);
         Http::assertNotSent(fn ($request) => $request->url() === $activityId);
+    }
+
+    public function test_a_forwarded_activity_signed_by_an_accepted_relay_records_its_transport(): void
+    {
+        $commenterUri = 'https://autore.example/users/alice';
+        $commenterKey = (new RsaKeyPairGenerator)->generate(2048);
+        $commenter = Actor::query()->create([
+            'type' => Actor::TYPE_PERSON,
+            'is_local' => false,
+            'preferred_username' => 'alice',
+            'domain' => 'autore.example',
+            'uri' => $commenterUri,
+            'name' => 'Alice',
+            'status' => Actor::STATUS_ACTIVE,
+            'last_fetched_at' => now(),
+        ]);
+        ActorKey::query()->create([
+            'actor_id' => $commenter->id,
+            'public_key' => $commenterKey->publicKey,
+            'private_key' => $commenterKey->privateKey,
+        ]);
+        $commenter->load('key');
+
+        $relay = Relay::query()->create([
+            'protocol' => Relay::PROTOCOL_MASTODON,
+            'actor_uri' => self::REMOTE_ACTOR_URI,
+            'inbox_url' => 'https://remoto.example/inbox',
+            'inbox_url_hash' => hash('sha256', 'https://remoto.example/inbox'),
+            'state' => Relay::STATE_ACCEPTED,
+            'receive_enabled' => true,
+            'publish_enabled' => true,
+            'accepted_at' => now(),
+            'last_failure_at' => now()->subMinute(),
+            'last_error' => 'Errore di consegna precedente',
+        ]);
+
+        $activity = app(LinkedDataSignature::class)->sign([
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $commenterUri.'/statuses/relay/activity',
+            'type' => 'Create',
+            'actor' => $commenterUri,
+            'object' => [
+                'id' => $commenterUri.'/statuses/relay',
+                'type' => 'Note',
+                'attributedTo' => $commenterUri,
+                'content' => '<p>Dal relay</p>',
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ], $commenter);
+
+        $parts = $this->signedActivityParts('/inbox', $activity, self::REMOTE_ACTOR_URI, $this->remoteKeyPair);
+        $this->postSigned($parts)->assertStatus(202);
+
+        $this->assertDatabaseHas('inbox_items', [
+            'remote_activity_uri' => $activity['id'],
+            'actor_uri' => $commenterUri,
+            'relay_id' => $relay->id,
+            'is_shared' => true,
+        ]);
+        $this->assertNotNull($relay->refresh()->last_success_at);
+        $this->assertNotNull($relay->last_failure_at);
+        $this->assertSame('Errore di consegna precedente', $relay->last_error);
     }
 
     public function test_a_forwarded_create_is_accepted_after_same_origin_refetch(): void

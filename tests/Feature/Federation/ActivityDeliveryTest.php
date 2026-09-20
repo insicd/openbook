@@ -2,7 +2,10 @@
 
 namespace Tests\Feature\Federation;
 
+use App\Domain\Comments\Comment;
 use App\Domain\Events\Event;
+use App\Domain\Events\EventComment;
+use App\Domain\Federation\Relay;
 use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
@@ -139,7 +142,7 @@ class ActivityDeliveryTest extends TestCase
         Queue::fake();
         $author = $this->createFullAccount('autorepubblico');
         $follower = $this->createRemoteActor('seguacepubblico');
-        $repliedTo = $this->createRemoteActor('citato');
+        $repliedTo = $this->createRemoteActor('citato', 'citato.example');
 
         Follow::query()->create([
             'follower_id' => $follower->id,
@@ -200,5 +203,223 @@ class ActivityDeliveryTest extends TestCase
         Queue::assertPushed(DeliverActivityJob::class, 2);
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $follower->endpoints->shared_inbox);
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $mentioned->endpoints->shared_inbox);
+    }
+
+    public function test_public_posts_and_events_are_delivered_to_publish_enabled_relays(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('relaypublisher');
+        $relay = $this->relay('https://relay.example/inbox');
+        $this->relay('https://receive-only.example/inbox', ['publish_enabled' => false]);
+        $this->relay('https://pending.example/inbox', ['state' => Relay::STATE_PENDING]);
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Post pubblico per il relay.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $event = Event::query()->create([
+            'actor_id' => $author->actor->id,
+            'uri' => url('/eventi/relay-publish'),
+            'name' => 'Evento pubblico per il relay',
+            'visibility' => Event::VISIBILITY_PUBLIC,
+            'status' => Event::STATUS_SCHEDULED,
+            'start_at' => now()->addDay(),
+            'published_at' => now(),
+        ]);
+
+        app(ActivityDelivery::class)->deliverContent($post, ['type' => 'Create', 'id' => 'post-create']);
+        app(ActivityDelivery::class)->deliverContent($event, ['type' => 'Update', 'id' => 'event-update']);
+
+        Queue::assertPushed(DeliverActivityJob::class, 2);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && $job->activity['id'] === 'post-create');
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && $job->activity['id'] === 'event-update');
+    }
+
+    public function test_comments_on_public_posts_and_events_are_delivered_to_relays(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('relaycommenter');
+        $relay = $this->relay('https://relay.example/inbox');
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Post pubblico commentabile.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $comment = Comment::query()->create([
+            'post_id' => $post->id,
+            'actor_id' => $author->actor->id,
+            'body' => 'Risposta pubblica.',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+        $event = Event::query()->create([
+            'actor_id' => $author->actor->id,
+            'uri' => url('/eventi/relay-comment'),
+            'name' => 'Evento pubblico commentabile',
+            'visibility' => Event::VISIBILITY_PUBLIC,
+            'status' => Event::STATUS_SCHEDULED,
+            'start_at' => now()->addDay(),
+            'published_at' => now(),
+        ]);
+        $eventComment = EventComment::query()->create([
+            'event_id' => $event->id,
+            'actor_id' => $author->actor->id,
+            'uri' => url('/commenti-eventi/relay-comment'),
+            'body' => 'Risposta pubblica all evento.',
+            'status' => EventComment::STATUS_PUBLISHED,
+        ]);
+
+        app(ActivityDelivery::class)->deliverContent($comment, ['type' => 'Create', 'id' => 'comment-create']);
+        app(ActivityDelivery::class)->deliverContent($eventComment, ['type' => 'Delete', 'id' => 'event-comment-delete']);
+
+        Queue::assertPushed(DeliverActivityJob::class, 2);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && $job->activity['id'] === 'comment-create');
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && $job->activity['id'] === 'event-comment-delete');
+    }
+
+    public function test_comments_on_non_public_content_are_not_delivered_to_relays(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('relayprivatecommenter');
+        $this->relay('https://relay.example/inbox');
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Post non elencato commentabile.',
+            'visibility' => Post::VISIBILITY_UNLISTED,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $comment = Comment::query()->create([
+            'post_id' => $post->id,
+            'actor_id' => $author->actor->id,
+            'body' => 'Risposta non pubblica.',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+        $event = Event::query()->create([
+            'actor_id' => $author->actor->id,
+            'uri' => url('/eventi/relay-unlisted-comment'),
+            'name' => 'Evento non elencato commentabile',
+            'visibility' => Event::VISIBILITY_UNLISTED,
+            'status' => Event::STATUS_SCHEDULED,
+            'start_at' => now()->addDay(),
+            'published_at' => now(),
+        ]);
+        $eventComment = EventComment::query()->create([
+            'event_id' => $event->id,
+            'actor_id' => $author->actor->id,
+            'uri' => url('/commenti-eventi/relay-unlisted-comment'),
+            'body' => 'Risposta non pubblica all evento.',
+            'status' => EventComment::STATUS_PUBLISHED,
+        ]);
+
+        app(ActivityDelivery::class)->deliverContent($comment, ['type' => 'Create', 'id' => 'private-comment']);
+        app(ActivityDelivery::class)->deliverContent($eventComment, ['type' => 'Create', 'id' => 'private-event-comment']);
+
+        Queue::assertNotPushed(DeliverActivityJob::class);
+    }
+
+    public function test_non_public_remote_and_non_content_activities_are_not_published_to_relays(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('relayprivate');
+        $remote = $this->createRemoteActor('relayauthor', 'remote.example');
+        $this->relay('https://relay.example/inbox');
+        $unlisted = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Post non elencato.',
+            'visibility' => Post::VISIBILITY_UNLISTED,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $remotePost = Post::query()->create([
+            'actor_id' => $remote->id,
+            'uri' => $remote->uri.'/statuses/1',
+            'body' => 'Post remoto.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        app(ActivityDelivery::class)->deliverContent($unlisted, ['type' => 'Create', 'id' => 'unlisted']);
+        app(ActivityDelivery::class)->deliverContent($remotePost, ['type' => 'Create', 'id' => 'remote']);
+        $unlisted->update(['visibility' => Post::VISIBILITY_PUBLIC]);
+        app(ActivityDelivery::class)->deliverContent($unlisted->fresh(), ['type' => 'Like', 'id' => 'like']);
+
+        Queue::assertNotPushed(DeliverActivityJob::class);
+    }
+
+    public function test_relay_delivery_is_deduplicated_against_an_existing_follower_inbox(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('relaydedupe');
+        $follower = $this->createRemoteActor('relaypeer', 'relay.example');
+        $relay = $this->relay($follower->endpoints->shared_inbox);
+        Follow::query()->create([
+            'follower_id' => $follower->id,
+            'following_id' => $author->actor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Una sola consegna.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        app(ActivityDelivery::class)->deliverContent($post, ['type' => 'Create', 'id' => 'dedupe']);
+
+        Queue::assertPushed(DeliverActivityJob::class, 1);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $relay->inbox_url);
+    }
+
+    public function test_an_explicit_delete_withdraws_content_that_is_no_longer_public(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('relaywithdraw');
+        $relay = $this->relay('https://relay.example/inbox');
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Ora non elencato.',
+            'visibility' => Post::VISIBILITY_UNLISTED,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        app(ActivityDelivery::class)->deliverContent(
+            $post,
+            ['type' => 'Update', 'id' => 'normal-update'],
+            relayActivity: ['type' => 'Delete', 'id' => 'relay-delete'],
+        );
+
+        Queue::assertPushed(DeliverActivityJob::class, 1);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && $job->activity['type'] === 'Delete');
+    }
+
+    /** @param array<string, mixed> $overrides */
+    private function relay(string $inboxUrl, array $overrides = []): Relay
+    {
+        $host = parse_url($inboxUrl, PHP_URL_HOST);
+
+        return Relay::query()->create(array_merge([
+            'protocol' => Relay::PROTOCOL_MASTODON,
+            'actor_uri' => 'https://'.$host.'/actor',
+            'inbox_url' => $inboxUrl,
+            'inbox_url_hash' => hash('sha256', $inboxUrl),
+            'state' => Relay::STATE_ACCEPTED,
+            'receive_enabled' => true,
+            'publish_enabled' => true,
+            'accepted_at' => now(),
+        ], $overrides));
     }
 }

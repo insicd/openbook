@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Federation;
 
+use App\Domain\Federation\Relay;
+use App\Domain\Moderation\DomainBlock;
 use App\Infrastructure\Security\HttpSignatureSigner;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -90,5 +92,139 @@ class DeliverActivityJobTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         app()->call([$job, 'handle']);
+    }
+
+    public function test_successful_relay_delivery_updates_its_diagnostics(): void
+    {
+        $sender = $this->createFullAccount('relayfirmatario');
+        $relay = $this->relay('relay-success.example', Relay::STATE_PENDING);
+
+        Http::fake([$relay->inbox_url => Http::response('', 202)]);
+
+        $job = new DeliverActivityJob(
+            $relay->inbox_url,
+            ['type' => 'Follow'],
+            $sender->actor->id,
+            $relay->id,
+        );
+        app()->call([$job, 'handle']);
+
+        $relay->refresh();
+        $this->assertSame(Relay::STATE_PENDING, $relay->state);
+        $this->assertNotNull($relay->last_success_at);
+        $this->assertNull($relay->last_failure_at);
+        $this->assertNull($relay->last_error);
+    }
+
+    public function test_exhausted_relay_follow_delivery_marks_the_subscription_as_failed(): void
+    {
+        $sender = $this->createFullAccount('relayfallito');
+        $relay = $this->relay('relay-failed.example', Relay::STATE_PENDING);
+        $job = new DeliverActivityJob(
+            $relay->inbox_url,
+            ['type' => 'Follow'],
+            $sender->actor->id,
+            $relay->id,
+        );
+
+        $job->failed(new \RuntimeException('Relay non raggiungibile'));
+
+        $relay->refresh();
+        $this->assertSame(Relay::STATE_FAILED, $relay->state);
+        $this->assertNotNull($relay->last_failure_at);
+        $this->assertSame('Relay non raggiungibile', $relay->last_error);
+    }
+
+    public function test_queued_content_is_skipped_when_the_relay_is_no_longer_publishable(): void
+    {
+        $sender = $this->createFullAccount('relayrevocato');
+        Http::fake();
+
+        foreach ([
+            [Relay::STATE_IDLE, true],
+            [Relay::STATE_ACCEPTED, false],
+        ] as [$state, $publishEnabled]) {
+            $relay = $this->relay('relay-'.strtolower($state).'-'.(int) $publishEnabled.'.example', $state);
+            $relay->update(['publish_enabled' => $publishEnabled]);
+
+            $job = new DeliverActivityJob(
+                $relay->inbox_url,
+                ['type' => 'Create', 'id' => 'https://local.example/activities/'.$relay->id],
+                $sender->actor->id,
+                $relay->id,
+            );
+            app()->call([$job, 'handle']);
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_queued_content_is_skipped_when_the_relay_was_removed(): void
+    {
+        $sender = $this->createFullAccount('relayrimosso');
+        $relay = $this->relay('relay-removed.example', Relay::STATE_ACCEPTED);
+        $relayId = $relay->id;
+        $inboxUrl = $relay->inbox_url;
+        $relay->delete();
+        Http::fake();
+
+        $job = new DeliverActivityJob(
+            $inboxUrl,
+            ['type' => 'Update', 'id' => 'https://local.example/activities/removed'],
+            $sender->actor->id,
+            $relayId,
+        );
+        app()->call([$job, 'handle']);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_queued_relay_delivery_is_skipped_when_its_domain_is_blocked(): void
+    {
+        $sender = $this->createFullAccount('relaybloccato');
+        $relay = $this->relay('relay-blocked.example', Relay::STATE_ACCEPTED);
+        DomainBlock::query()->create(['domain' => 'relay-blocked.example']);
+        Http::fake();
+
+        $job = new DeliverActivityJob(
+            $relay->inbox_url,
+            ['type' => 'Create', 'id' => 'https://local.example/activities/blocked'],
+            $sender->actor->id,
+            $relay->id,
+        );
+        app()->call([$job, 'handle']);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_unsubscribe_can_still_run_after_the_relay_becomes_idle(): void
+    {
+        $sender = $this->createFullAccount('relayunsubscribe');
+        $relay = $this->relay('relay-undo.example', Relay::STATE_IDLE);
+        Http::fake([$relay->inbox_url => Http::response('', 202)]);
+
+        $job = new DeliverActivityJob(
+            $relay->inbox_url,
+            ['type' => 'Undo', 'id' => 'https://local.example/activities/undo'],
+            $sender->actor->id,
+            $relay->id,
+        );
+        app()->call([$job, 'handle']);
+
+        Http::assertSentCount(1);
+    }
+
+    private function relay(string $host, string $state): Relay
+    {
+        $url = 'https://'.$host.'/inbox';
+
+        return Relay::query()->create([
+            'protocol' => Relay::PROTOCOL_MASTODON,
+            'inbox_url' => $url,
+            'inbox_url_hash' => hash('sha256', $url),
+            'state' => $state,
+            'receive_enabled' => true,
+            'publish_enabled' => true,
+        ]);
     }
 }

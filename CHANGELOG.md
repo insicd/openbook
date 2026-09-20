@@ -19,6 +19,15 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38] - Melancholy Taco
 
 ### Added
+- **Relay ActivityPub compatibili con Mastodon**: il pannello amministrativo
+  permette di configurare relay in ingresso e in uscita, sottoscriverli tramite
+  il normale handshake `Follow`/`Accept` e controllarne separatamente le due
+  direzioni. Openbook espone un Actor tecnico `Application`, conserva la
+  provenienza dei contenuti inoltrati e accetta dal relay soltanto post ed
+  eventi pubblici; post, eventi e relativi commenti pubblici locali vengono
+  consegnati ai relay attivi riutilizzando firma, coda, retry e blocchi di
+  dominio gia' impiegati dalla federazione ordinaria. Stato, ultimi scambi ed
+  errori di consegna sono visibili nel pannello di controllo.
 - **Eventi federati ActivityPub**: Openbook importa gli oggetti `Event`
   ricevuti tramite `Create` e `Announce`, ne gestisce aggiornamenti,
   cancellazioni e audience e li presenta nella nuova sezione Eventi con

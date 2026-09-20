@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Federation;
 
+use App\Application\Services\InstanceRelayActor;
 use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Actors\LocalActorUrls;
 use App\Http\Controllers\Controller;
@@ -17,6 +18,7 @@ final class WebFingerController extends Controller
 {
     public function __construct(
         private readonly LocalActorResolver $localActors,
+        private readonly InstanceRelayActor $relayActor,
     ) {}
 
     public function show(Request $request): JsonResponse
@@ -33,10 +35,26 @@ final class WebFingerController extends Controller
             throw new NotFoundHttpException;
         }
 
-        $actor = $this->localActors->findByUsername($username);
+        $actor = $username === InstanceRelayActor::USERNAME
+            ? $this->relayActor->getOrCreate()
+            : $this->localActors->findByUsername($username);
 
         if ($actor === null || ! $actor->isActive()) {
             throw new NotFoundHttpException;
+        }
+
+        if ($actor->isApplication()) {
+            $actorUri = $actor->activityPubId();
+
+            return response()->json([
+                'subject' => 'acct:'.$actor->handle(),
+                'aliases' => [$actorUri],
+                'links' => [[
+                    'rel' => 'self',
+                    'type' => 'application/activity+json',
+                    'href' => $actorUri,
+                ]],
+            ], 200, ['Content-Type' => 'application/jrd+json; charset=utf-8']);
         }
 
         $urls = LocalActorUrls::forUsername($actor->preferred_username, $actor->isGroup());

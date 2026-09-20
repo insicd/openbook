@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DatabaseMaintenanceController as AdminDatabaseMaintenanceController;
 use App\Http\Controllers\Admin\DomainBlockController as AdminDomainBlockController;
 use App\Http\Controllers\Admin\QueueController as AdminQueueController;
+use App\Http\Controllers\Admin\RelayController as AdminRelayController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\UpdateController as AdminUpdateController;
@@ -236,6 +237,13 @@ Route::middleware('auth')->group(function () {
             Route::get('/domini', [AdminDomainBlockController::class, 'index'])->name('domain_blocks.index');
             Route::post('/domini', [AdminDomainBlockController::class, 'store'])->name('domain_blocks.store');
             Route::delete('/domini/{domainBlock}', [AdminDomainBlockController::class, 'destroy'])->name('domain_blocks.destroy');
+
+            Route::get('/relay', [AdminRelayController::class, 'index'])->name('relays.index');
+            Route::post('/relay', [AdminRelayController::class, 'store'])->name('relays.store');
+            Route::patch('/relay/{relay}', [AdminRelayController::class, 'update'])->name('relays.update');
+            Route::post('/relay/{relay}/sottoscrivi', [AdminRelayController::class, 'subscribe'])->name('relays.subscribe');
+            Route::delete('/relay/{relay}/sottoscrivi', [AdminRelayController::class, 'unsubscribe'])->name('relays.unsubscribe');
+            Route::delete('/relay/{relay}', [AdminRelayController::class, 'destroy'])->name('relays.destroy');
 
             Route::get('/coda', [AdminQueueController::class, 'index'])->name('queue.index');
             Route::post('/coda/falliti/{uuid}/riprova', [AdminQueueController::class, 'retryFailed'])->name('queue.retry');

@@ -2,6 +2,8 @@
 
 namespace App\Jobs\Federation;
 
+use App\Application\Services\DomainBlockManager;
+use App\Domain\Federation\Relay;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Infrastructure\Security\Http\SafeHttpClient;
@@ -46,6 +48,7 @@ final class DeliverActivityJob implements ShouldQueue
         public readonly string $inboxUrl,
         public readonly array $activity,
         public readonly string $signingActorId,
+        public readonly ?string $relayId = null,
     ) {
         $this->onQueue('delivery');
 
@@ -57,8 +60,12 @@ final class DeliverActivityJob implements ShouldQueue
         );
     }
 
-    public function handle(SafeHttpClient $client): void
+    public function handle(SafeHttpClient $client, DomainBlockManager $domainBlocks): void
     {
+        if ($this->shouldSkipRelayDelivery($domainBlocks)) {
+            return;
+        }
+
         $actor = Actor::query()->with('key')->find($this->signingActorId);
 
         if ($actor === null || $actor->key === null || ! $actor->key->hasPrivateKey()) {
@@ -111,6 +118,8 @@ final class DeliverActivityJob implements ShouldQueue
             'http_status' => $response->status,
         ]);
 
+        $this->markRelayDeliverySucceeded();
+
         $this->scheduleOutgoingFollowConfirmation();
     }
 
@@ -147,5 +156,72 @@ final class DeliverActivityJob implements ShouldQueue
             'activity_id' => $this->activity['id'] ?? null,
             'error' => $exception?->getMessage(),
         ]);
+
+        if ($this->relayId !== null) {
+            $relay = Relay::query()->find($this->relayId);
+
+            if ($relay !== null) {
+                $updates = [
+                    'last_failure_at' => now(),
+                    'last_error' => mb_substr($exception?->getMessage() ?? 'Consegna fallita.', 0, 1000),
+                ];
+
+                if (($this->activity['type'] ?? null) === 'Follow' && $relay->state === Relay::STATE_PENDING) {
+                    $updates['state'] = Relay::STATE_FAILED;
+                }
+
+                $relay->forceFill($updates)->save();
+            }
+        }
+    }
+
+    private function markRelayDeliverySucceeded(): void
+    {
+        if ($this->relayId === null) {
+            return;
+        }
+
+        Relay::query()->whereKey($this->relayId)->update([
+            'last_success_at' => now(),
+            'last_failure_at' => null,
+            'last_error' => null,
+        ]);
+    }
+
+    private function shouldSkipRelayDelivery(DomainBlockManager $domainBlocks): bool
+    {
+        if ($this->relayId === null) {
+            return false;
+        }
+
+        $reason = null;
+
+        if ($domainBlocks->isBlockedUrl($this->inboxUrl)) {
+            $reason = 'domain_blocked';
+        } elseif (in_array($this->activity['type'] ?? null, ['Create', 'Update', 'Delete'], true)) {
+            $relay = Relay::query()->find($this->relayId);
+
+            if ($relay === null) {
+                $reason = 'relay_removed';
+            } elseif (! $relay->publishesOutgoingActivities()) {
+                $reason = $relay->state === Relay::STATE_ACCEPTED
+                    ? 'relay_publish_disabled'
+                    : 'relay_inactive';
+            }
+        }
+
+        if ($reason === null) {
+            return false;
+        }
+
+        Log::channel('single')->info('federation.delivery_skipped', [
+            'reason' => $reason,
+            'relay_id' => $this->relayId,
+            'inbox' => $this->inboxUrl,
+            'activity_type' => $this->activity['type'] ?? null,
+            'activity_id' => $this->activity['id'] ?? null,
+        ]);
+
+        return true;
     }
 }

@@ -546,6 +546,17 @@ browsers:
   IP (`CURLOPT_RESOLVE`). The same protection also applies to **outgoing**
   delivery requests (`SafeHttpClient::post()`), which never follow a redirect
   (the HTTP signature is computed on the exact destination URL).
+- **Mastodon-compatible relays**: administrators can configure relay inboxes
+  from **Control panel → Relays**, explicitly enable receiving and/or
+  publishing, and start or stop the subscription. Once accepted, Openbook
+  accepts public activities transported by that relay and adds its inbox to
+  the delivery fan-out for local public posts, comments, events, and event
+  comments. Relay traffic uses the normal ActivityPub queues, signatures,
+  retry/backoff policy, domain blocks, and duplicate protection; no additional
+  worker or cron entry is required. The administration page reports the last
+  successful exchange and the latest terminal delivery error. Relays can
+  generate a high volume of public content, so enabling one is always an
+  explicit instance-administrator decision.
 
 ### Social federation (Phase 4)
 

@@ -76,6 +76,7 @@ final class ContentParser
             $actors = $actors->concat(
                 Actor::query()
                     ->where('is_local', true)
+                    ->where('type', '!=', Actor::TYPE_APPLICATION)
                     ->where('status', Actor::STATUS_ACTIVE)
                     ->whereIn('preferred_username', $localUsernames)
                     ->get()

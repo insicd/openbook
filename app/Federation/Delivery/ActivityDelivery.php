@@ -6,6 +6,7 @@ use App\Application\Services\DomainBlockManager;
 use App\Domain\Comments\Comment;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventComment;
+use App\Domain\Federation\Relay;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -58,22 +59,7 @@ final class ActivityDelivery
             return;
         }
 
-        $target->loadMissing('endpoints');
-
-        // Come il fan-out ai follower: preferisci sharedInbox quando presente
-        // (Lemmy/Mastodon la usano spesso al posto dell'inbox personale).
-        $inbox = $target->endpoints?->shared_inbox ?: $target->endpoints?->inbox;
-
-        // Actor remoto in cache senza endpoint (fetch parziale / vecchio):
-        // ritenta un refresh prima di abbandonare il Follow.
-        if (blank($inbox)) {
-            $refreshed = app(RemoteActorResolver::class)->refresh($target);
-
-            if ($refreshed !== null) {
-                $target = $refreshed;
-                $inbox = $target->endpoints?->shared_inbox ?: $target->endpoints?->inbox;
-            }
-        }
+        $inbox = $this->remoteActorInbox($target);
 
         if (blank($inbox)) {
             Log::channel('single')->warning('federation.delivery_skipped', [
@@ -87,6 +73,17 @@ final class ActivityDelivery
         }
 
         $this->dispatchToInboxes(collect([$inbox]), $activity, $signingActor);
+    }
+
+    /**
+     * Consegna a un endpoint amministrativamente configurato che non e'
+     * necessariamente rappresentato da un Actor remoto in cache (relay).
+     *
+     * @param  array<string, mixed>  $activity
+     */
+    public function deliverToInbox(Actor $signingActor, string $inboxUrl, array $activity, ?string $relayId = null): void
+    {
+        $this->dispatchToInboxes(collect([$inboxUrl]), $activity, $signingActor, $relayId);
     }
 
     /**
@@ -126,8 +123,12 @@ final class ActivityDelivery
      * @param  array<string, mixed>  $activity
      * @param  list<?Actor>  $extraDirectTargets
      */
-    public function deliverContent(Post|Comment|Event|EventComment $object, array $activity, array $extraDirectTargets = []): void
-    {
+    public function deliverContent(
+        Post|Comment|Event|EventComment $object,
+        array $activity,
+        array $extraDirectTargets = [],
+        ?array $relayActivity = null,
+    ): void {
         $author = $object->actor;
 
         if (! $author->isLocal()) {
@@ -140,13 +141,19 @@ final class ActivityDelivery
             }
 
             $object->loadMissing('mentions.actor');
-            $this->deliverToFollowers($author, $activity);
-
-            collect($extraDirectTargets)
+            $directTargets = collect($extraDirectTargets)
                 ->concat($object->mentions->pluck('actor'))
                 ->filter(fn (?Actor $target) => $target !== null && ! $target->isLocal() && $target->id !== $author->id)
-                ->unique('id')
-                ->each(fn (Actor $target) => $this->deliverTo($author, $target, $activity));
+                ->unique('id');
+            $normalInboxes = $this->remoteContentInboxes($author, $directTargets);
+
+            $this->dispatchToInboxes($normalInboxes, $activity, $author);
+            $this->dispatchContentToRelays(
+                $object,
+                $relayActivity ?? $activity,
+                $normalInboxes,
+                force: $relayActivity !== null,
+            );
 
             return;
         }
@@ -158,12 +165,17 @@ final class ActivityDelivery
                 return;
             }
 
-            $this->deliverToFollowers($author, $activity);
-            collect($extraDirectTargets)
+            $directTargets = collect($extraDirectTargets)
                 ->concat($object->mentions->pluck('actor'))
                 ->filter(fn (?Actor $target) => $target !== null && ! $target->isLocal() && $target->id !== $author->id)
-                ->unique('id')
-                ->each(fn (Actor $target) => $this->deliverTo($author, $target, $activity));
+                ->unique('id');
+            $normalInboxes = $this->remoteContentInboxes($author, $directTargets);
+
+            $this->dispatchToInboxes($normalInboxes, $activity, $author);
+
+            if ($object->event->visibility === Event::VISIBILITY_PUBLIC) {
+                $this->dispatchContentToRelays($object, $activity, $normalInboxes);
+            }
 
             return;
         }
@@ -209,17 +221,19 @@ final class ActivityDelivery
 
         if ($visibility === Post::VISIBILITY_DIRECT) {
             $mentionedActors = $object->mentions->map(fn ($mention) => $mention->actor)->filter();
-
-            collect($extraDirectTargets)
+            $normalInboxes = $this->remoteActorInboxes(collect($extraDirectTargets)
                 ->filter()
                 ->concat($mentionedActors)
-                ->unique('id')
-                ->each(fn (Actor $target) => $this->deliverTo($author, $target, $activity));
+                ->unique('id'));
+
+            $this->dispatchToInboxes($normalInboxes, $activity, $author);
+
+            if ($relayActivity !== null) {
+                $this->dispatchContentToRelays($object, $relayActivity, $normalInboxes, force: true);
+            }
 
             return;
         }
-
-        $this->deliverToFollowers($author, $activity);
 
         // FEP-1b12: il Create deve raggiungere l'inbox del Group remoto
         // (locale il ritrasmette il Group stesso con Announce).
@@ -227,11 +241,103 @@ final class ActivityDelivery
             ->map(fn ($mention) => $mention->actor)
             ->filter(fn (?Actor $target) => $target !== null && $target->isGroup() && ! $target->isLocal());
 
-        collect($extraDirectTargets)
+        $directTargets = collect($extraDirectTargets)
             ->concat($remoteGroupMentions)
             ->filter(fn (?Actor $target) => $target !== null && ! $target->isLocal() && $target->id !== $author->id)
-            ->unique('id')
-            ->each(fn (Actor $target) => $this->deliverTo($author, $target, $activity));
+            ->unique('id');
+        $normalInboxes = $this->remoteContentInboxes($author, $directTargets);
+
+        $this->dispatchToInboxes($normalInboxes, $activity, $author);
+
+        if (($object instanceof Post || $object instanceof Comment)
+            && ($relayActivity !== null || $visibility === Post::VISIBILITY_PUBLIC)) {
+            $this->dispatchContentToRelays($object, $relayActivity ?? $activity, $normalInboxes, force: $relayActivity !== null);
+        }
+    }
+
+    /**
+     * @param  Collection<int, Actor>  $actors
+     * @return Collection<int, string>
+     */
+    private function remoteActorInboxes(Collection $actors): Collection
+    {
+        return $actors
+            ->map(fn (Actor $actor) => $this->remoteActorInbox($actor))
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, Actor>  $directTargets
+     * @return Collection<int, string>
+     */
+    private function remoteContentInboxes(Actor $author, Collection $directTargets): Collection
+    {
+        return $this->remoteFollowerInboxes($author)
+            ->concat($this->remoteActorInboxes($directTargets))
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    private function remoteActorInbox(Actor $target): ?string
+    {
+        if ($target->isLocal()) {
+            return null;
+        }
+
+        $target->loadMissing('endpoints');
+        $inbox = $target->endpoints?->shared_inbox ?: $target->endpoints?->inbox;
+
+        if (blank($inbox)) {
+            $refreshed = app(RemoteActorResolver::class)->refresh($target);
+
+            if ($refreshed !== null) {
+                $inbox = $refreshed->endpoints?->shared_inbox ?: $refreshed->endpoints?->inbox;
+            }
+        }
+
+        return filled($inbox) ? (string) $inbox : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $activity
+     * @param  Collection<int, string>  $alreadyAddressed
+     */
+    private function dispatchContentToRelays(
+        Post|Comment|Event|EventComment $object,
+        array $activity,
+        Collection $alreadyAddressed,
+        bool $force = false,
+    ): void {
+        if (! $object->actor->isLocal()
+            || ! in_array($activity['type'] ?? null, ['Create', 'Update', 'Delete'], true)
+            || (! $force && ! $this->isPublicContent($object))) {
+            return;
+        }
+
+        Relay::query()
+            ->where('state', Relay::STATE_ACCEPTED)
+            ->where('publish_enabled', true)
+            ->get(['id', 'inbox_url'])
+            ->each(function (Relay $relay) use ($activity, $alreadyAddressed, $object): void {
+                if ($alreadyAddressed->contains($relay->inbox_url)) {
+                    return;
+                }
+
+                $this->dispatchToInboxes(collect([$relay->inbox_url]), $activity, $object->actor, $relay->id);
+            });
+    }
+
+    private function isPublicContent(Post|Comment|Event|EventComment $object): bool
+    {
+        return match (true) {
+            $object instanceof Event => $object->visibility === Event::VISIBILITY_PUBLIC,
+            $object instanceof EventComment => $object->event->visibility === Event::VISIBILITY_PUBLIC,
+            $object instanceof Comment => $object->post->visibility === Post::VISIBILITY_PUBLIC,
+            default => $object->visibility === Post::VISIBILITY_PUBLIC,
+        };
     }
 
     /**
@@ -264,7 +370,7 @@ final class ActivityDelivery
      * @param  Collection<int, string>  $inboxUrls
      * @param  array<string, mixed>  $activity
      */
-    private function dispatchToInboxes(Collection $inboxUrls, array $activity, Actor $signingActor): void
+    private function dispatchToInboxes(Collection $inboxUrls, array $activity, Actor $signingActor, ?string $relayId = null): void
     {
         if (! $signingActor->isLocal() || $inboxUrls->isEmpty()) {
             return;
@@ -298,7 +404,7 @@ final class ActivityDelivery
                 continue;
             }
 
-            DeliverActivityJob::dispatch($inboxUrl, $activity, $signingActor->id)->afterCommit();
+            DeliverActivityJob::dispatch($inboxUrl, $activity, $signingActor->id, $relayId)->afterCommit();
 
             Log::channel('single')->info('federation.delivery_queued', [
                 'inbox' => $inboxUrl,

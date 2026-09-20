@@ -6,6 +6,7 @@ use App\Http\Controllers\Federation\FollowingController;
 use App\Http\Controllers\Federation\InboxController;
 use App\Http\Controllers\Federation\NodeInfoController;
 use App\Http\Controllers\Federation\OutboxController;
+use App\Http\Controllers\Federation\RelayActorController;
 use App\Http\Controllers\Federation\WebFingerController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +32,13 @@ Route::get('/.well-known/nodeinfo', [NodeInfoController::class, 'discovery'])
 Route::get('/nodeinfo/2.1', [NodeInfoController::class, 'show'])
     ->middleware('throttle:120,1')
     ->name('nodeinfo.show');
+
+Route::get('/relay', [RelayActorController::class, 'show'])
+    ->middleware('throttle:120,1')
+    ->name('relay.actor');
+Route::get('/relay/outbox', [RelayActorController::class, 'outbox'])
+    ->middleware('throttle:120,1')
+    ->name('relay.outbox');
 
 Route::post('/users/{username}/inbox', [InboxController::class, 'forUser'])
     ->where('username', '[A-Za-z0-9_]+')

@@ -2,6 +2,7 @@
 
 namespace App\Federation\Inbox;
 
+use App\Domain\Federation\Relay;
 use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property string $id
  * @property string|null $target_actor_id
+ * @property string|null $relay_id
  * @property bool $is_shared
  * @property string $remote_activity_uri
  * @property string $activity_type
@@ -42,6 +44,7 @@ class InboxItem extends Model
      */
     protected $fillable = [
         'target_actor_id',
+        'relay_id',
         'is_shared',
         'remote_activity_uri',
         'activity_type',
@@ -71,5 +74,10 @@ class InboxItem extends Model
     public function targetActor(): BelongsTo
     {
         return $this->belongsTo(Actor::class, 'target_actor_id');
+    }
+
+    public function relay(): BelongsTo
+    {
+        return $this->belongsTo(Relay::class);
     }
 }

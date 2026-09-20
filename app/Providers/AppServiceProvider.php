@@ -14,6 +14,7 @@ use App\Domain\Communities\Community;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventComment;
 use App\Domain\Events\EventParticipation;
+use App\Domain\Federation\Relay;
 use App\Domain\Moderation\AuditLog;
 use App\Domain\Moderation\DomainBlock;
 use App\Domain\Moderation\Report;
@@ -76,6 +77,7 @@ class AppServiceProvider extends ServiceProvider
             'event' => Event::class,
             'event_participation' => EventParticipation::class,
             'event_comment' => EventComment::class,
+            'relay' => Relay::class,
         ]);
 
         // Registrazione esplicita: i modelli non vivono in App\Models, quindi

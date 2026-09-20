@@ -5,6 +5,7 @@ namespace App\Federation\Serialization;
 use App\Domain\Posts\PostBodyRenderer;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorUrls;
+use App\Federation\Actors\RelayActorUrls;
 
 /**
  * Traduce un Actor locale nel documento ActivityStreams "Person" (o "Group")
@@ -28,7 +29,11 @@ final class ActorSerializer
 
         $profile = $actor->user?->profile;
 
-        if ($actor->isLocal()) {
+        if ($actor->isLocal() && $actor->isApplication()) {
+            $urls = RelayActorUrls::all();
+            $id = $urls['uri'];
+            $pageUrl = $urls['uri'];
+        } elseif ($actor->isLocal()) {
             $urls = LocalActorUrls::forUsername($actor->preferred_username, $actor->isGroup());
             $id = $urls['uri'];
             $pageUrl = $urls['profile'];
@@ -50,7 +55,11 @@ final class ActorSerializer
                 ],
             ],
             'id' => $id,
-            'type' => $actor->type === Actor::TYPE_GROUP ? 'Group' : 'Person',
+            'type' => match ($actor->type) {
+                Actor::TYPE_GROUP => 'Group',
+                Actor::TYPE_APPLICATION => 'Application',
+                default => 'Person',
+            },
             'preferredUsername' => $actor->preferred_username,
             'name' => $actor->name ?: $actor->preferred_username,
             'summary' => self::renderSummary($profile?->bio ?? $actor->summary),
@@ -61,7 +70,11 @@ final class ActorSerializer
             'published' => optional($actor->created_at)->toAtomString() ?? now()->toAtomString(),
         ];
 
-        if ($urls !== null) {
+        if ($actor->isLocal() && $actor->isApplication()) {
+            $document['inbox'] = $urls['inbox'];
+            $document['outbox'] = $urls['outbox'];
+            $document['endpoints'] = ['sharedInbox' => $urls['shared_inbox']];
+        } elseif ($urls !== null) {
             $document['inbox'] = $urls['inbox'];
             $document['outbox'] = $urls['outbox'];
             $document['events'] = $urls['events'];

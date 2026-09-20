@@ -3,6 +3,7 @@
 namespace Tests\Feature\Events;
 
 use App\Domain\Events\Event;
+use App\Domain\Federation\Relay;
 use App\Domain\Posts\Mention;
 use App\Domain\SocialGraph\Follow;
 use App\Infrastructure\Media\Media;
@@ -24,6 +25,7 @@ class EventManagementTest extends TestCase
         Queue::fake();
         $owner = $this->createFullAccount('eventeditor');
         $follower = $this->followFromRemoteActor($owner->actor->id);
+        $relay = $this->acceptedRelay();
         $event = $this->localEvent($owner->actor->id);
 
         $this->actingAs($owner)
@@ -47,6 +49,8 @@ class EventManagementTest extends TestCase
                 && ($job->activity['object']['type'] ?? null) === 'Event'
                 && ($job->activity['object']['name'] ?? null) === 'Concerto aggiornato';
         });
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && ($job->activity['type'] ?? null) === 'Delete');
     }
 
     public function test_update_reaches_a_remote_actor_even_when_the_mention_is_removed(): void
@@ -172,6 +176,22 @@ class EventManagementTest extends TestCase
             $this->actingAs($other)->patch(route('events.cancel', $event))->assertForbidden();
             $this->actingAs($other)->delete(route('events.destroy', $event))->assertForbidden();
         }
+    }
+
+    private function acceptedRelay(): Relay
+    {
+        $url = 'https://relay.example/inbox';
+
+        return Relay::query()->create([
+            'protocol' => Relay::PROTOCOL_MASTODON,
+            'actor_uri' => 'https://relay.example/actor',
+            'inbox_url' => $url,
+            'inbox_url_hash' => hash('sha256', $url),
+            'state' => Relay::STATE_ACCEPTED,
+            'receive_enabled' => true,
+            'publish_enabled' => true,
+            'accepted_at' => now(),
+        ]);
     }
 
     /** @param array<string, mixed> $overrides */

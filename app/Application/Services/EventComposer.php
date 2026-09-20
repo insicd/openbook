@@ -108,6 +108,7 @@ final class EventComposer
     {
         $this->ensureOwner($author, $event);
         $event->loadMissing('mentions.actor');
+        $previousVisibility = $event->visibility;
         $previousMentionTargets = $event->mentions->pluck('actor')->filter()->values()->all();
         $storedFiles = [];
         $replacedMedia = collect();
@@ -163,7 +164,17 @@ final class EventComposer
         }
 
         $replacedMedia->each(fn (Media $media) => $this->deleteMediaIfOrphaned($media));
-        $this->delivery->deliverContent($event, ActivitySerializer::update($event), $previousMentionTargets);
+        $relayActivity = match (true) {
+            $previousVisibility !== Event::VISIBILITY_PUBLIC && $event->visibility === Event::VISIBILITY_PUBLIC => ActivitySerializer::create($event),
+            $previousVisibility === Event::VISIBILITY_PUBLIC && $event->visibility !== Event::VISIBILITY_PUBLIC => ActivitySerializer::delete($event),
+            default => null,
+        };
+        $this->delivery->deliverContent(
+            $event,
+            ActivitySerializer::update($event),
+            $previousMentionTargets,
+            $relayActivity,
+        );
 
         return $event;
     }
