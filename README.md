@@ -556,7 +556,16 @@ browsers:
   worker or cron entry is required. The administration page reports the last
   successful exchange and the latest terminal delivery error. Relays can
   generate a high volume of public content, so enabling one is always an
-  explicit instance-administrator decision.
+  explicit instance-administrator decision. The normal periodic cron remains
+  sufficient for small installations; with a busy relay, a permanent inbox
+  worker is recommended to prevent backlog:
+
+  ```bash
+  php /path/to/openbook/artisan queue:work --queue=inbox --sleep=1
+  ```
+
+  The worker can safely run alongside `openbook:cron`, but must be restarted
+  after each deployment so that it loads the updated application code.
 
 ### Social federation (Phase 4)
 
