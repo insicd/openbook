@@ -4,6 +4,7 @@ namespace App\Federation\Inbox;
 
 use App\Application\Services\AnnounceManager;
 use App\Application\Services\CommentSoftDeleter;
+use App\Application\Services\DomainBlockManager;
 use App\Application\Services\EventParticipationManager;
 use App\Application\Services\FollowManager;
 use App\Application\Services\ReactionManager;
@@ -63,6 +64,7 @@ final class InboxActivityProcessor
         private readonly EventParticipationManager $eventParticipations,
         private readonly RemoteEventCommentIngester $eventComments,
         private readonly RelayHandshakeManager $relayHandshakes,
+        private readonly DomainBlockManager $domainBlocks,
     ) {}
 
     public function process(InboxItem $item): string
@@ -80,6 +82,15 @@ final class InboxActivityProcessor
         $signer = $this->objects->resolveActor($item->actor_uri);
 
         if ($signer === null || $signer->isLocal()) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        if ($this->domainBlocks->isBlockedUrl($signer->uri)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        if (in_array($item->activity_type, ['Create', 'Update', 'Announce'], true)
+            && $this->hasBlockedContentOrigin($activity['object'] ?? null)) {
             return InboxItem::STATUS_IGNORED;
         }
 
@@ -585,6 +596,11 @@ final class InboxActivityProcessor
 
             if ($event === null && $this->objects->resolvePost($activity['object']) === null) {
                 $document = $this->noteDocumentFetcher->fetchDocument($activity['object'], $inboxTarget);
+
+                if ($this->hasBlockedContentOrigin($document)) {
+                    return InboxItem::STATUS_IGNORED;
+                }
+
                 $eventDocument = $document !== null ? RemoteEventObject::unwrap($document) : null;
 
                 if ($eventDocument !== null) {
@@ -708,6 +724,10 @@ final class InboxActivityProcessor
         }
 
         if ($note === null || ! RemotePostObject::isPostable($note['type'] ?? null)) {
+            return null;
+        }
+
+        if ($this->hasBlockedContentOrigin($note)) {
             return null;
         }
 
@@ -851,6 +871,11 @@ final class InboxActivityProcessor
         $object = is_string($rawObject)
             ? $this->noteDocumentFetcher->fetchDocument($rawObject, $inboxTarget)
             : $rawObject;
+
+        if ($this->hasBlockedContentOrigin($object)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
         $type = is_array($object) ? ($object['type'] ?? null) : null;
 
         if (is_array($object) && RemotePostObject::isPostable($type)) {
@@ -907,6 +932,11 @@ final class InboxActivityProcessor
         $resolvedDocument = is_string($object)
             ? $this->noteDocumentFetcher->fetchDocument($object, $inboxTarget)
             : (is_array($object) ? $object : null);
+
+        if ($this->hasBlockedContentOrigin($resolvedDocument)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
         $eventDocument = $resolvedDocument !== null ? RemoteEventObject::unwrap($resolvedDocument) : null;
 
         if ($eventDocument !== null) {
@@ -1570,6 +1600,38 @@ final class InboxActivityProcessor
         }
 
         return false;
+    }
+
+    /**
+     * Impedisce a un trasportatore autorizzato di aggirare i blocchi di
+     * dominio incorporando o referenziando contenuti di un'origine bloccata.
+     */
+    private function hasBlockedContentOrigin(mixed $value): bool
+    {
+        if (is_string($value)) {
+            return $value !== '' && $this->domainBlocks->isBlockedUrl($value);
+        }
+
+        if (! is_array($value)) {
+            return false;
+        }
+
+        foreach (['id', 'actor'] as $field) {
+            foreach (RemotePostObject::actorUris($value[$field] ?? null) as $uri) {
+                if ($this->domainBlocks->isBlockedUrl($uri)) {
+                    return true;
+                }
+            }
+        }
+
+        foreach (RemotePostObject::actorUris($value['attributedTo'] ?? null) as $uri) {
+            if ($this->domainBlocks->isBlockedUrl($uri)) {
+                return true;
+            }
+        }
+
+        return array_key_exists('object', $value)
+            && $this->hasBlockedContentOrigin($value['object']);
     }
 
     /**

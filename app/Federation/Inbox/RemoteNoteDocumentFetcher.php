@@ -2,6 +2,7 @@
 
 namespace App\Federation\Inbox;
 
+use App\Application\Services\DomainBlockManager;
 use App\Federation\Actors\Actor;
 use App\Federation\Fetch\FederationFetchSigner;
 use App\Infrastructure\Security\Http\SafeHttpClient;
@@ -17,6 +18,7 @@ final class RemoteNoteDocumentFetcher
     public function __construct(
         private readonly SafeHttpClient $httpClient,
         private readonly FederationFetchSigner $fetchSigner,
+        private readonly DomainBlockManager $domainBlocks,
     ) {}
 
     /**
@@ -37,6 +39,10 @@ final class RemoteNoteDocumentFetcher
      */
     public function fetchDocument(string $uri, ?Actor $signingActor = null): ?array
     {
+        if ($this->domainBlocks->isBlockedUrl($uri)) {
+            return null;
+        }
+
         $signingActor ??= $this->fetchSigner->resolve();
 
         try {

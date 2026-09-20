@@ -3,6 +3,7 @@
 namespace Tests\Feature\Federation;
 
 use App\Application\Services\CommunityRegistrar;
+use App\Application\Services\DomainBlockManager;
 use App\Application\Services\FollowManager;
 use App\Application\Services\InstanceRelayActor;
 use App\Domain\Comments\Comment;
@@ -771,6 +772,30 @@ class InboxActivityProcessorTest extends TestCase
             [':blobcat:' => 'https://remoto.example/emoji/blobcat.png'],
             Post::query()->where('uri', $noteUri)->firstOrFail()->custom_emojis,
         );
+    }
+
+    public function test_a_direct_create_from_an_already_cached_blocked_actor_is_ignored(): void
+    {
+        $admin = $this->createFullAccount('domainadmin', ['is_admin' => true]);
+        $remote = $this->createRemoteActor('blockedauthor', 'blocked.example');
+        app(DomainBlockManager::class)->block($admin, 'blocked.example');
+        $noteUri = $remote->uri.'/posts/new';
+        $activity = [
+            'id' => $noteUri.'/activity',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>Non deve essere salvato.</p>',
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ];
+
+        $this->assertSame(InboxItem::STATUS_IGNORED, $this->process($activity, $remote));
+        $this->assertDatabaseMissing('posts', ['uri' => $noteUri]);
     }
 
     public function test_a_remote_quote_post_with_quote_url_embeds_the_cited_post(): void

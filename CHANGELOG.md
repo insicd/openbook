@@ -97,6 +97,11 @@ il [`README`](README.md#roadmap-and-project-status).
   home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
 
 ### Fixed
+- Blocchi di dominio federati: nuovi post, commenti ed eventi provenienti da
+  un dominio bloccato vengono ignorati anche se inoltrati da un relay
+  autorizzato o se il relativo Actor era già presente nella cache locale. Il
+  controllo copre firmatario, URI dell'oggetto, attribuzioni e fetch remote,
+  senza cancellare retroattivamente i contenuti già importati.
 - Relay ActivityPub: gli `Announce` usati come contenitori di trasporto
   importano post ed eventi senza essere registrati come condivisioni sociali
   e senza alterarne i relativi contatori.

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Federation;
 
 use App\Application\Queries\FeedQuery;
+use App\Application\Services\DomainBlockManager;
 use App\Domain\Events\Event;
 use App\Domain\Federation\Relay;
 use App\Domain\Posts\Hashtag;
@@ -102,6 +103,59 @@ class RelayReceptionTest extends TestCase
         $this->assertDatabaseMissing('events', ['uri' => $unlisted['object']['id']]);
     }
 
+    public function test_a_mastodon_relay_cannot_import_content_from_a_blocked_domain(): void
+    {
+        $author = $this->createRemoteActor('blockedrelay', 'blocked.example');
+        $activity = $this->postActivity($author, public: true);
+        $this->blockDomain('blocked.example');
+
+        $this->assertSame(InboxItem::STATUS_IGNORED, $this->process($activity, $author, $this->relay()));
+        $this->assertDatabaseMissing('posts', ['uri' => $activity['object']['id']]);
+    }
+
+    public function test_an_actor_relay_cannot_import_a_reference_or_embedded_author_from_a_blocked_domain(): void
+    {
+        $transport = $this->createRemoteActor('relay', 'events.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        $relay = Relay::query()->create([
+            'protocol' => Relay::PROTOCOL_ACTOR,
+            'actor_uri' => $transport->uri,
+            'inbox_url' => $transport->endpoints->inbox,
+            'inbox_url_hash' => hash('sha256', $transport->endpoints->inbox),
+            'state' => Relay::STATE_ACCEPTED,
+            'receive_enabled' => true,
+            'publish_enabled' => false,
+            'accepted_at' => now(),
+        ]);
+        $this->blockDomain('blocked.example');
+
+        $referenced = [
+            'id' => $transport->uri.'/activities/reference',
+            'type' => 'Announce',
+            'actor' => $transport->uri,
+            'object' => 'https://blocked.example/users/alice/statuses/1',
+        ];
+        $embedded = [
+            'id' => $transport->uri.'/activities/embedded',
+            'type' => 'Announce',
+            'actor' => $transport->uri,
+            'object' => [
+                'id' => 'https://mirror.example/notes/1',
+                'type' => 'Note',
+                'attributedTo' => 'https://blocked.example/users/alice',
+                'content' => '<p>Non importare.</p>',
+                'published' => now()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ];
+
+        $this->assertSame(InboxItem::STATUS_IGNORED, $this->process($referenced, $transport, $relay));
+        $this->assertSame(InboxItem::STATUS_IGNORED, $this->process($embedded, $transport, $relay));
+        $this->assertDatabaseMissing('posts', ['uri' => $referenced['object']]);
+        $this->assertDatabaseMissing('posts', ['uri' => $embedded['object']['id']]);
+    }
+
     private function relay(): Relay
     {
         $url = 'https://relay.example/inbox';
@@ -115,6 +169,15 @@ class RelayReceptionTest extends TestCase
             'publish_enabled' => true,
             'accepted_at' => now(),
         ]);
+    }
+
+    private function blockDomain(string $domain): void
+    {
+        $admin = $this->createFullAccount('blockadmin'.str_replace('.', '', $domain), [
+            'is_admin' => true,
+        ]);
+
+        app(DomainBlockManager::class)->block($admin, $domain);
     }
 
     /** @return array<string, mixed> */
