@@ -31,6 +31,7 @@ ActivityPub identity, delivery/receipt of activities via a MySQL queue.
   - [Social federation (Phase 4)](#social-federation-phase-4)
   - [Community (Phase 5)](#community-phase-5)
   - [Interoperability and remote media (Phase 6)](#interoperability-and-remote-media-phase-6)
+  - [Federated events](#federated-events)
   - [Profile customization and account settings](#profile-customization-and-account-settings)
 - [Tests](#tests)
 - [Cron and periodic tasks](#cron-and-periodic-tasks)
@@ -347,6 +348,8 @@ All Openbook-specific settings are centralized in
 | `OPENBOOK_MEDIA_MAX_SIZE_KB` / `OPENBOOK_MEDIA_MAX_ATTACHMENTS` | Maximum size (KB) and maximum number of images attachable to a post. |
 | `OPENBOOK_POST_MAX_LENGTH` | Maximum length (characters) of a post's text. |
 | `OPENBOOK_COMMENT_MAX_DEPTH` | Comment nesting levels treated as "normal" in configuration (the actual structure has no hard limit, see [Known limitations](#known-limitations)). |
+| `OPENBOOK_EVENT_DEFAULT_DURATION_HOURS` | Visual duration assumed when a remote event has no `endTime` (default 12 hours; stored and federated dates are not changed). |
+| `OPENBOOK_EVENT_CACHE_TTL_HOURS` | Minimum interval between opportunistic refreshes of the same remote event from its origin (default 4 hours). |
 | `OPENBOOK_SEARCH_MIN_LENGTH` / `OPENBOOK_SEARCH_PER_SECTION` | Minimum query length and maximum results per section in local search. |
 | `DB_PERSISTENT` | If `true`, reuse PDO MySQL/MariaDB connections across requests. Recommended on hosting with a limit on new connections per second (e.g. Hostinger: error `2002 Operation not permitted`). |
 | `OPENBOOK_FEED_PER_PAGE` | Number of posts per page in the personal feed, the local feed, and profile/hashtag pages. |
@@ -410,13 +413,14 @@ app/
     Profiles/
     Posts/           # Posts, attachments, hashtags, mentions, text rendering
     Comments/        # Comments (top-level and nested replies)
+    Events/          # Federated events, locations, RSVP and comment threads
     Reactions/        # Likes and shares (Like/Announce at the local level)
     SocialGraph/      # Follows between Actors (local and remote)
     Notifications/    # Local notifications (not federated)
   Federation/        # Everything related to ActivityPub
     Actors/           # Actors (local and remote), RemoteActorResolver (fetch + WebFinger)
     Inbox/            # Raw InboxItem + InboxActivityProcessor (semantic processing)
-    Resolution/       # ObjectResolver: ActivityPub URI -> local Actor/Post/Comment
+    Resolution/       # ObjectResolver: ActivityPub URI -> local Actor/content
     Delivery/         # ActivityDelivery: fan-out of outgoing activities to remote inboxes
     Serialization/    # ActorSerializer, NoteSerializer, CollectionSerializer, ActivitySerializer
   Jobs/
@@ -673,6 +677,50 @@ has enabled sharing to the Fediverse). The World section suggests remote
 accounts to discover and, beyond the first 5, the full list at `/mondo/scopri`
 with infinite scroll. SSRF, domain blocks, and HTTP signatures remain the
 baseline security constraints.
+
+### Federated events
+
+Openbook recognizes ActivityStreams `Event` objects received through signed
+`Create` and `Announce` activities and keeps them separate from timeline
+posts. The public **Events** section (`/eventi`) provides upcoming and past
+event lists, local detail pages, location and time-zone information, media,
+hashtags, search results, remote counters, and federated comment
+threads. Visibility follows the event audience: public and unlisted events can
+be opened by link, while followers-only and direct events require a recorded
+local recipient. Deleted events remain as tombstones instead of becoming an
+ambiguous 404 for users who were allowed to see them.
+
+Authenticated users can create public or unlisted events from the Events
+section or from their profile. The composer supports a cover image, Markdown
+description, explicit time zone, physical/online/hybrid location, hashtags,
+mentions, and open, moderated, or external participation. Local events can be
+edited, cancelled, or deleted; Openbook publishes the corresponding
+`Create(Event)`, `Update(Event)`, and `Delete(Event)` activities and exposes
+them in both the Actor outbox and its dedicated `events` collection.
+
+Users can send `Like`/`Undo(Like)` as an expression of interest and, where
+supported by the origin, `Join`, `Undo(Join)`, or `Leave` for an RSVP. Local
+organizers receive notifications for new participants and can accept or reject
+moderated requests. Event comments and nested replies are federated as `Note`
+objects whose `inReplyTo` points to the Event or parent comment; comments also
+support attachments, likes, notifications, and tombstone deletion. An event
+can be shared in a private Openbook conversation only when the recipient
+already belongs to its audience; sharing never grants access to restricted
+content. Events marked `sensitive` keep descriptions and media behind an
+explicit reveal control. Hashtags used by recent public/unlisted events also
+contribute to the trending ranking alongside post hashtags.
+
+No additional worker is required: event activities use the existing inbox and
+delivery queues processed by `openbook:cron`. After deploying support for a
+new inbox object type, an administrator may retry retained rows previously
+classified as `ignored` with:
+
+```bash
+php artisan openbook:reprocess-inbox
+```
+
+The command requeues every retained ignored inbox item and remains safe to run
+more than once; unsupported activities simply return to the ignored state.
 
 Not yet part of the mature product: a real recipient system for direct
 messages (beyond mentions), and advanced federation-debug tools (beyond the

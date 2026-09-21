@@ -11,6 +11,9 @@ use App\Application\Services\InstanceSettings;
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
 use App\Domain\Communities\Community;
+use App\Domain\Events\Event;
+use App\Domain\Events\EventComment;
+use App\Domain\Events\EventParticipation;
 use App\Domain\Moderation\AuditLog;
 use App\Domain\Moderation\DomainBlock;
 use App\Domain\Moderation\Report;
@@ -24,6 +27,8 @@ use App\Infrastructure\Security\Http\DnsResolver;
 use App\Infrastructure\Security\Http\SystemDnsResolver;
 use App\Policies\CommentPolicy;
 use App\Policies\CommunityPolicy;
+use App\Policies\EventCommentPolicy;
+use App\Policies\EventPolicy;
 use App\Policies\PostPolicy;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
@@ -68,6 +73,9 @@ class AppServiceProvider extends ServiceProvider
             'user' => User::class,
             'actor' => Actor::class,
             'community' => Community::class,
+            'event' => Event::class,
+            'event_participation' => EventParticipation::class,
+            'event_comment' => EventComment::class,
         ]);
 
         // Registrazione esplicita: i modelli non vivono in App\Models, quindi
@@ -76,6 +84,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Post::class, PostPolicy::class);
         Gate::policy(Comment::class, CommentPolicy::class);
         Gate::policy(Community::class, CommunityPolicy::class);
+        Gate::policy(Event::class, EventPolicy::class);
+        Gate::policy(EventComment::class, EventCommentPolicy::class);
 
         Gate::define('accessAdminPanel', fn ($user) => $user->isStaff());
         Gate::define('moderate', fn ($user) => $user->canModerate());

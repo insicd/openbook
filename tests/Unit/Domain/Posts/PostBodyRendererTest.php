@@ -274,6 +274,33 @@ class PostBodyRendererTest extends TestCase
         $this->assertStringContainsString('>@bob@social.example</a>', $html);
     }
 
+    public function test_bare_remote_mentions_can_inherit_a_rendering_context_domain(): void
+    {
+        $remote = $this->createRemoteActor('archiv_potsdam', 'berlin.askapunk.de');
+
+        $html = (string) PostBodyRenderer::render(
+            'Live at @archiv_potsdam, info https://berlin.askapunk.de/@archiv_potsdam and @guest@other.example',
+            bareMentionDomain: 'berlin.askapunk.de',
+        );
+
+        $this->assertStringContainsString('href="'.e($remote->profileUrl()).'"', $html);
+        $this->assertStringContainsString('>@archiv_potsdam@berlin.askapunk.de</a>', $html);
+        $this->assertStringContainsString('href="https://berlin.askapunk.de/@archiv_potsdam"', $html);
+        $this->assertStringContainsString('>@guest@other.example</a>', $html);
+        $this->assertStringNotContainsString('@guest@other.example@berlin.askapunk.de', $html);
+    }
+
+    public function test_invalid_context_domain_does_not_change_a_bare_mention(): void
+    {
+        $html = (string) PostBodyRenderer::render(
+            'Ciao @alice',
+            bareMentionDomain: 'not a host',
+        );
+
+        $this->assertStringContainsString('>@alice</a>', $html);
+        $this->assertStringNotContainsString('@alice@not a host', $html);
+    }
+
     public function test_federation_html_mentions_use_activitypub_ids_not_local_actor_pages(): void
     {
         $remote = $this->createRemoteActor('nuke', 'openb.app');

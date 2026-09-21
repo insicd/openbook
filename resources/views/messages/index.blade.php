@@ -3,10 +3,13 @@
 @php
     $quotedPost = $quotedPost ?? null;
     $quotedActor = $quotedActor ?? null;
-    $isSharing = $quotedPost !== null || $quotedActor !== null;
+    $quotedEvent = $quotedEvent ?? null;
+    $isSharing = $quotedPost !== null || $quotedActor !== null || $quotedEvent !== null;
     $shareQuery = $quotedPost !== null
         ? ['quote' => $quotedPost->id]
-        : ($quotedActor !== null ? ['share' => $quotedActor->id] : []);
+        : ($quotedActor !== null
+            ? ['share' => $quotedActor->id]
+            : ($quotedEvent !== null ? ['event' => $quotedEvent->id] : []));
 @endphp
 
 @section('title', __('openbook.messages.title').' - '.config('app.name'))
@@ -36,6 +39,14 @@
                 <a href="{{ route('messages.index') }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
             </div>
             @include('messages._profile', ['quotedActor' => $quotedActor, 'showFollow' => false])
+        @elseif ($quotedEvent)
+            <p class="ob-message-new__intro">{{ __('openbook.messages.share_event_intro') }}</p>
+            <div class="ob-composer__quote-banner">
+                <x-icon name="calendar" />
+                <span>{{ __('openbook.messages.sharing_event', ['name' => $quotedEvent->name]) }}</span>
+                <a href="{{ route('messages.index') }}" class="ob-composer__quote-cancel">{{ __('openbook.composer.quote_cancel') }}</a>
+            </div>
+            @include('messages._event', ['quotedEvent' => $quotedEvent])
         @endif
         <form method="POST" action="{{ route('messages.start') }}" class="ob-message-new__form" id="ob-message-new-form">
             @csrf
@@ -43,6 +54,8 @@
                 <input type="hidden" name="quote" value="{{ $quotedPost->id }}">
             @elseif ($quotedActor)
                 <input type="hidden" name="share" value="{{ $quotedActor->id }}">
+            @elseif ($quotedEvent)
+                <input type="hidden" name="event" value="{{ $quotedEvent->id }}">
             @endif
             <div class="ob-field ob-message-new__field">
                 <label for="ob-message-recipient">{{ __('openbook.messages.recipient_label') }}</label>
@@ -91,6 +104,8 @@
                                 {{ __('openbook.messages.shared_post_preview') }}
                             @elseif ($preview->quoted_actor_id)
                                 {{ __('openbook.messages.shared_profile_preview') }}
+                            @elseif ($preview->quoted_event_id)
+                                {{ __('openbook.messages.shared_event_preview') }}
                             @endif
                         </div>
                     @endif

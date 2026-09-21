@@ -31,7 +31,8 @@
             $hasAny = $results['people']->isNotEmpty()
                 || $results['posts']->isNotEmpty()
                 || $results['comments']->isNotEmpty()
-                || $results['hashtags']->isNotEmpty();
+                || $results['hashtags']->isNotEmpty()
+                || $results['events']->isNotEmpty();
         @endphp
 
         @unless ($hasAny)
@@ -85,6 +86,17 @@
             @foreach ($results['posts'] as $post)
                 @include('posts._card', ['post' => $post])
             @endforeach
+        @endif
+
+        @if ($results['events']->isNotEmpty())
+            <div class="ob-card">
+                <h2 class="ob-side-widget__title">{{ __('openbook.search.events') }}</h2>
+                <div class="ob-event-grid">
+                    @foreach ($results['events'] as $event)
+                        @include('events._card', ['event' => $event, 'showTypeBadge' => true])
+                    @endforeach
+                </div>
+            </div>
         @endif
 
         @if ($results['comments']->isNotEmpty())

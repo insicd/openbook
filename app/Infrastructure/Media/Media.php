@@ -3,6 +3,8 @@
 namespace App\Infrastructure\Media;
 
 use App\Domain\Comments\Comment;
+use App\Domain\Events\Event;
+use App\Domain\Events\EventComment;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -73,6 +75,16 @@ class Media extends Model
     public function comments(): BelongsToMany
     {
         return $this->belongsToMany(Comment::class, 'comment_attachments');
+    }
+
+    public function events(): BelongsToMany
+    {
+        return $this->belongsToMany(Event::class, 'event_attachments');
+    }
+
+    public function eventComments(): BelongsToMany
+    {
+        return $this->belongsToMany(EventComment::class, 'event_comment_attachments');
     }
 
     public function thumbnail(): HasOne

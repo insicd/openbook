@@ -23,6 +23,9 @@ final class ConversationMessagePresenter
             'quotedPost.media.thumbnail',
             'quotedPost.hashtags',
             'quotedActor.user.profile',
+            'quotedEvent.actor.user.profile',
+            'quotedEvent.location',
+            'quotedEvent.media.thumbnail',
         ]);
 
         $quoteHtml = '';
@@ -34,6 +37,8 @@ final class ConversationMessagePresenter
                 'quotedActor' => $message->quotedActor,
                 'showFollow' => true,
             ])->render();
+        } elseif ($message->quotedEvent !== null) {
+            $quoteHtml = view('messages._event', ['quotedEvent' => $message->quotedEvent])->render();
         }
 
         return [

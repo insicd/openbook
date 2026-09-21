@@ -4,6 +4,10 @@ namespace App\Federation\Inbox;
 
 use App\Domain\Comments\Comment;
 use App\Domain\Comments\CommentAttachment;
+use App\Domain\Events\Event;
+use App\Domain\Events\EventAttachment;
+use App\Domain\Events\EventComment;
+use App\Domain\Events\EventCommentAttachment;
 use App\Domain\Posts\Post;
 use App\Domain\Posts\PostAttachment;
 use App\Federation\Actors\Actor;
@@ -20,14 +24,16 @@ final class RemoteAttachmentIngester
     /**
      * @param  array<string, mixed>  $document
      */
-    public function sync(Post|Comment $content, Actor $author, array $document): void
+    public function sync(Post|Comment|Event|EventComment $content, Actor $author, array $document): void
     {
         if ($author->isLocal()) {
             return;
         }
 
         $descriptors = array_slice(
-            RemotePostObject::mediaAttachments($document),
+            $content instanceof Event
+                ? RemotePostObject::imageAttachments($document)
+                : RemotePostObject::mediaAttachments($document),
             0,
             max(0, (int) config('openbook.media.max_attachments_per_post')),
         );
@@ -44,6 +50,8 @@ final class RemoteAttachmentIngester
                     ->whereNotNull('remote_url')
                     ->whereDoesntHave('posts')
                     ->whereDoesntHave('comments')
+                    ->whereDoesntHave('events')
+                    ->whereDoesntHave('eventComments')
                     ->delete();
             }
 
@@ -80,10 +88,30 @@ final class RemoteAttachmentIngester
                             'position' => $position,
                         ],
                     );
-                } else {
+                } elseif ($content instanceof Comment) {
                     CommentAttachment::query()->updateOrCreate(
                         [
                             'comment_id' => $content->id,
+                            'media_id' => $media->id,
+                        ],
+                        [
+                            'position' => $position,
+                        ],
+                    );
+                } elseif ($content instanceof Event) {
+                    EventAttachment::query()->updateOrCreate(
+                        [
+                            'event_id' => $content->id,
+                            'media_id' => $media->id,
+                        ],
+                        [
+                            'position' => $position,
+                        ],
+                    );
+                } else {
+                    EventCommentAttachment::query()->updateOrCreate(
+                        [
+                            'event_comment_id' => $content->id,
                             'media_id' => $media->id,
                         ],
                         [

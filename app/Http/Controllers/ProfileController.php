@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\ActorActivityQuery;
+use App\Application\Queries\ActorEventsQuery;
 use App\Application\Queries\ActorMediaQuery;
 use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
@@ -31,6 +32,7 @@ class ProfileController extends Controller
         private readonly FeedQuery $feedQuery,
         private readonly ActorMediaQuery $mediaQuery,
         private readonly ActorActivityQuery $activityQuery,
+        private readonly ActorEventsQuery $eventsQuery,
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
         private readonly LocalActorResolver $localActors,
@@ -64,6 +66,11 @@ class ProfileController extends Controller
     public function activity(Request $request, string $username): View|RedirectResponse
     {
         return $this->renderPersonProfile($request, $username, 'activity');
+    }
+
+    public function events(Request $request, string $username): View|RedirectResponse
+    {
+        return $this->renderPersonProfile($request, $username, 'events');
     }
 
     public function followers(User $user): View
@@ -170,6 +177,8 @@ class ProfileController extends Controller
         $posts = null;
         $media = null;
         $activity = null;
+        $events = null;
+        $eventsArchive = $request->boolean('archivio');
 
         if ($profileSuspended) {
             // Nessun contenuto sotto le tab: il profilo resta solo l'avviso.
@@ -177,6 +186,8 @@ class ProfileController extends Controller
             $media = $this->mediaQuery->forActor($user->actor, $viewerActor);
         } elseif ($activeTab === 'activity') {
             $activity = $this->activityQuery->forActor($user->actor, $viewerActor, $request);
+        } elseif ($activeTab === 'events') {
+            $events = $this->eventsQuery->forActor($user->actor, $viewerActor, $eventsArchive);
         } else {
             $posts = $this->feedQuery->forProfile(
                 $user->actor,
@@ -193,6 +204,8 @@ class ProfileController extends Controller
             'posts' => $posts,
             'media' => $media,
             'activity' => $activity,
+            'events' => $events,
+            'eventsArchive' => $eventsArchive,
             'followersCount' => $followersCount,
             'followingCount' => $followingCount,
             'communitiesCount' => $communitiesCount,

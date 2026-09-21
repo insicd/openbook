@@ -4,6 +4,8 @@ namespace App\Federation\Delivery;
 
 use App\Application\Services\DomainBlockManager;
 use App\Domain\Comments\Comment;
+use App\Domain\Events\Event;
+use App\Domain\Events\EventComment;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -124,11 +126,45 @@ final class ActivityDelivery
      * @param  array<string, mixed>  $activity
      * @param  list<?Actor>  $extraDirectTargets
      */
-    public function deliverContent(Post|Comment $object, array $activity, array $extraDirectTargets = []): void
+    public function deliverContent(Post|Comment|Event|EventComment $object, array $activity, array $extraDirectTargets = []): void
     {
         $author = $object->actor;
 
         if (! $author->isLocal()) {
+            return;
+        }
+
+        if ($object instanceof Event) {
+            if (! in_array($object->visibility, [Event::VISIBILITY_PUBLIC, Event::VISIBILITY_UNLISTED], true)) {
+                return;
+            }
+
+            $object->loadMissing('mentions.actor');
+            $this->deliverToFollowers($author, $activity);
+
+            collect($extraDirectTargets)
+                ->concat($object->mentions->pluck('actor'))
+                ->filter(fn (?Actor $target) => $target !== null && ! $target->isLocal() && $target->id !== $author->id)
+                ->unique('id')
+                ->each(fn (Actor $target) => $this->deliverTo($author, $target, $activity));
+
+            return;
+        }
+
+        if ($object instanceof EventComment) {
+            $object->loadMissing('event', 'mentions.actor');
+
+            if (! in_array($object->event->visibility, [Event::VISIBILITY_PUBLIC, Event::VISIBILITY_UNLISTED], true)) {
+                return;
+            }
+
+            $this->deliverToFollowers($author, $activity);
+            collect($extraDirectTargets)
+                ->concat($object->mentions->pluck('actor'))
+                ->filter(fn (?Actor $target) => $target !== null && ! $target->isLocal() && $target->id !== $author->id)
+                ->unique('id')
+                ->each(fn (Actor $target) => $this->deliverTo($author, $target, $activity));
+
             return;
         }
 

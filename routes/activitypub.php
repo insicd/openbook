@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Federation\EventsCollectionController;
 use App\Http\Controllers\Federation\FollowersController;
 use App\Http\Controllers\Federation\FollowingController;
 use App\Http\Controllers\Federation\InboxController;
@@ -42,6 +43,10 @@ Route::post('/inbox', [InboxController::class, 'shared'])
 Route::get('/users/{username}/outbox', [OutboxController::class, 'show'])
     ->where('username', '[A-Za-z0-9_]+')
     ->name('outbox.show');
+
+Route::get('/users/{username}/events', [EventsCollectionController::class, 'show'])
+    ->where('username', '[A-Za-z0-9_]+')
+    ->name('events.collection');
 
 Route::get('/users/{username}/followers', [FollowersController::class, 'show'])
     ->where('username', '[A-Za-z0-9_]+')

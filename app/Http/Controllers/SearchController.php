@@ -6,13 +6,17 @@ use App\Application\Queries\LocalSearchQuery;
 use App\Domain\Feeds\FeedActorRegistrar;
 use App\Domain\Feeds\FeedDiscoverer;
 use App\Domain\Feeds\FeedImporter;
+use App\Domain\Posts\Hashtag;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Actors\RemoteActorResolver;
+use App\Federation\Events\RemoteEventUrlResolver;
+use App\Federation\Inbox\RemoteNoteDocumentFetcher;
 use App\Http\Support\FederatedHandleParser;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
@@ -34,6 +38,8 @@ class SearchController extends Controller
 {
     public function __construct(
         private readonly RemoteActorResolver $resolver,
+        private readonly RemoteEventUrlResolver $eventResolver,
+        private readonly RemoteNoteDocumentFetcher $activityPubDocuments,
         private readonly LocalActorResolver $localActors,
         private readonly LocalSearchQuery $localSearch,
         private readonly FeedDiscoverer $feedDiscoverer,
@@ -61,7 +67,7 @@ class SearchController extends Controller
         }
 
         if ($this->looksLikeHttpUrl($query)) {
-            return $this->resolveHttpUrl($query);
+            return $this->resolveHttpUrl($query, $request->user()?->actor);
         }
 
         $handle = $this->extractHandle($query);
@@ -88,8 +94,21 @@ class SearchController extends Controller
         return preg_match('#^https?://#i', $query) === 1;
     }
 
-    private function resolveHttpUrl(string $url): RedirectResponse
+    private function resolveHttpUrl(string $url, ?Actor $viewer): RedirectResponse
     {
+        $document = $this->activityPubDocuments->fetchDocument($url, $viewer);
+        $actor = $this->resolver->resolveFetchedDocument($document, $url);
+
+        if ($actor !== null) {
+            return redirect()->to($actor->profileUrl());
+        }
+
+        $event = $this->eventResolver->resolveFetchedDocument($document, $viewer);
+
+        if ($event !== null) {
+            return redirect()->route('events.show', $event);
+        }
+
         $actor = $this->resolveActivityPubFromUrl($url);
 
         if ($actor !== null) {
@@ -122,21 +141,11 @@ class SearchController extends Controller
     }
 
     /**
-     * Un URL di profilo Mastodon/Lemmy/ecc. espone spesso anche un RSS:
-     * va risolto come Actor ActivityPub, non come feed.
+     * Fallback per URL HTML di profili Mastodon/Lemmy/ecc.: prova il loro
+     * handle oppure il link alternate ActivityPub prima del feed RSS.
      */
     private function resolveActivityPubFromUrl(string $url): ?Actor
     {
-        try {
-            $actor = $this->resolver->resolveByUri($url);
-
-            if ($actor !== null) {
-                return $actor;
-            }
-        } catch (Throwable $exception) {
-            report($exception);
-        }
-
         $handle = FederatedHandleParser::parse($url);
 
         if ($handle !== null && $this->shouldResolveHandleFromUrl($url, $handle)) {
@@ -194,7 +203,7 @@ class SearchController extends Controller
     /**
      * Query esplicita da hashtag (`#…`): un solo tag trovato → apri quel tag.
      *
-     * @param  \Illuminate\Support\Collection<int, \App\Domain\Posts\Hashtag>  $hashtags
+     * @param  Collection<int, Hashtag>  $hashtags
      */
     private function shouldOpenSoleHashtag(string $query, $hashtags): bool
     {

@@ -27,7 +27,7 @@ final class NoteSerializer
      */
     public static function forPost(Post $post): array
     {
-        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor', 'quotedPost', 'quotedActor', 'community.actor', 'location']);
+        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor', 'quotedPost', 'quotedActor', 'quotedEvent', 'community.actor', 'location']);
 
         $actor = $post->actor;
         $uri = self::postUri($post);
@@ -45,6 +45,11 @@ final class NoteSerializer
             // cosi' il destinatario puo' seguire da Openbook.
             $profileUrl = $post->quotedActor->profileUrl();
             $content .= '<p><a href="'.e($profileUrl).'">'.e($profileUrl).'</a></p>';
+        }
+
+        if ($post->quotedEvent !== null) {
+            $eventUrl = route('events.show', $post->quotedEvent);
+            $content .= '<p><a href="'.e($eventUrl).'">'.e($eventUrl).'</a></p>';
         }
 
         $groupActors = self::groupActorsForPost($post);

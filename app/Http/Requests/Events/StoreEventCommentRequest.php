@@ -1,0 +1,30 @@
+<?php
+
+namespace App\Http\Requests\Events;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreEventCommentRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /** @return array<string, mixed> */
+    public function rules(): array
+    {
+        $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
+        $maxKb = (int) config('openbook.media.max_size_kb');
+        $allowedMimes = implode(',', (array) config('openbook.media.allowed_mime_types'));
+
+        return [
+            'body' => ['required', 'string', 'max:'.(int) config('openbook.comments.max_length', 2000)],
+            'parent_comment_id' => ['nullable', 'uuid', 'exists:event_comments,id'],
+            'images' => ['nullable', 'array', 'max:'.$maxAttachments],
+            'images.*' => ['file', 'mimetypes:'.$allowedMimes, 'max:'.$maxKb],
+            'alt_texts' => ['nullable', 'array'],
+            'alt_texts.*' => ['nullable', 'string', 'max:1000'],
+        ];
+    }
+}

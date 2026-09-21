@@ -85,6 +85,7 @@
                 </div>
             @else
                 <nav class="ob-nav" aria-label="Navigazione principale">
+                    <a href="{{ route('events.index') }}" class="ob-nav__link">{{ __('openbook.nav.events') }}</a>
                     <a href="{{ route('login') }}" class="ob-nav__link">{{ __('openbook.nav.login') }}</a>
                     <a href="{{ route('register') }}" class="ob-btn ob-btn--primary">{{ __('openbook.nav.register') }}</a>
                 </nav>

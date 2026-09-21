@@ -4,6 +4,9 @@ namespace App\Federation\Actors;
 
 use App\Domain\Accounts\User;
 use App\Domain\Communities\Community;
+use App\Domain\Events\Event;
+use App\Domain\Events\EventAnnounce;
+use App\Domain\Events\EventParticipation;
 use App\Domain\Feeds\FeedSource;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
@@ -51,6 +54,7 @@ use Illuminate\Support\HtmlString;
  * @property int|null $followers_count
  * @property int|null $following_count
  * @property Carbon|null $collections_fetched_at
+ * @property Carbon|null $events_fetched_at
  */
 class Actor extends Model
 {
@@ -96,6 +100,7 @@ class Actor extends Model
         'followers_count',
         'following_count',
         'collections_fetched_at',
+        'events_fetched_at',
     ];
 
     /**
@@ -116,6 +121,7 @@ class Actor extends Model
             'followers_count' => 'integer',
             'following_count' => 'integer',
             'collections_fetched_at' => 'datetime',
+            'events_fetched_at' => 'datetime',
         ];
     }
 
@@ -147,6 +153,35 @@ class Actor extends Model
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class);
+    }
+
+    /** Eventi per i quali questo Actor e' il creator noto della Create. */
+    public function events(): HasMany
+    {
+        return $this->hasMany(Event::class);
+    }
+
+    /** Eventi che attribuiscono all'Actor un ruolo organizzativo/gestionale. */
+    public function attributedEvents(): BelongsToMany
+    {
+        return $this->belongsToMany(Event::class, 'event_attributions')
+            ->withPivot('position');
+    }
+
+    /** Eventi non pubblici consegnati esplicitamente a questo Actor locale. */
+    public function receivedEvents(): BelongsToMany
+    {
+        return $this->belongsToMany(Event::class, 'event_recipients');
+    }
+
+    public function eventAnnounces(): HasMany
+    {
+        return $this->hasMany(EventAnnounce::class);
+    }
+
+    public function eventParticipations(): HasMany
+    {
+        return $this->hasMany(EventParticipation::class);
     }
 
     /**

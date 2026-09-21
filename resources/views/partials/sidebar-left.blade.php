@@ -24,6 +24,9 @@
     <a href="{{ route('communities.index') }}" class="ob-side-nav__link {{ request()->routeIs('communities.*') ? 'is-active' : '' }}">
         <x-icon name="people" /> {{ __('openbook.nav.communities') }}
     </a>
+    <a href="{{ route('events.index') }}" class="ob-side-nav__link {{ request()->routeIs('events.*') ? 'is-active' : '' }}">
+        <x-icon name="calendar" /> {{ __('openbook.nav.events') }}
+    </a>
     <a href="{{ route('hashtags.index') }}" class="ob-side-nav__link {{ request()->routeIs('hashtags.*') ? 'is-active' : '' }}">
         <x-icon name="hash" /> {{ __('openbook.nav.trending') }}
     </a>

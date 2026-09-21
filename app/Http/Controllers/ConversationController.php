@@ -10,8 +10,10 @@ use App\Application\Services\DirectMessagePolicy;
 use App\Application\Services\MessageComposer;
 use App\Application\Services\MessageRecipientResolver;
 use App\Application\Services\QuotedActorResolver;
+use App\Application\Services\QuotedEventResolver;
 use App\Application\Services\QuotedPostResolver;
 use App\Domain\Accounts\User;
+use App\Domain\Events\Event;
 use App\Domain\Messaging\Conversation;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
@@ -37,6 +39,7 @@ class ConversationController extends Controller
         private readonly MessageRecipientResolver $recipientResolver,
         private readonly QuotedPostResolver $quotedPostResolver,
         private readonly QuotedActorResolver $quotedActorResolver,
+        private readonly QuotedEventResolver $quotedEventResolver,
     ) {}
 
     public function index(Request $request): View
@@ -59,6 +62,7 @@ class ConversationController extends Controller
             'viewer' => $viewer,
             'quotedPost' => $this->quotedPostFromRequest($request),
             'quotedActor' => $this->quotedActorFromRequest($request),
+            'quotedEvent' => $this->quotedEventFromRequest($request),
         ]);
     }
 
@@ -84,6 +88,7 @@ class ConversationController extends Controller
             'canSend' => $canSend,
             'quotedPost' => $this->quotedPostFromRequest($request),
             'quotedActor' => $this->quotedActorFromRequest($request),
+            'quotedEvent' => $this->quotedEventFromRequest($request),
         ]);
     }
 
@@ -170,6 +175,12 @@ class ConversationController extends Controller
             return ['share' => $actor->id];
         }
 
+        $event = $this->quotedEventFromRequest($request);
+
+        if ($event !== null) {
+            return ['event' => $event->id];
+        }
+
         return [];
     }
 
@@ -194,6 +205,16 @@ class ConversationController extends Controller
         $id = $request->query('share') ?? $request->input('share') ?? $request->input('quoted_actor_id');
 
         return $this->quotedActorResolver->resolveForShare(
+            $request->user()?->actor,
+            is_string($id) ? $id : null,
+        );
+    }
+
+    private function quotedEventFromRequest(Request $request): ?Event
+    {
+        $id = $request->query('event') ?? $request->input('event') ?? $request->input('quoted_event_id');
+
+        return $this->quotedEventResolver->resolveForShare(
             $request->user()?->actor,
             is_string($id) ? $id : null,
         );
@@ -230,6 +251,11 @@ class ConversationController extends Controller
             $viewer,
             is_string($quotedActorId) ? $quotedActorId : null,
         );
+        $quotedEventId = $request->validated('quoted_event_id') ?? null;
+        $quotedEvent = $this->quotedEventResolver->resolveForShare(
+            $viewer,
+            is_string($quotedEventId) ? $quotedEventId : null,
+        );
 
         $post = $this->messageComposer->send(
             $viewer,
@@ -238,6 +264,7 @@ class ConversationController extends Controller
             $conversation,
             $quoted,
             $quotedActor,
+            $quotedEvent,
         );
 
         $post->load([
@@ -247,6 +274,9 @@ class ConversationController extends Controller
             'quotedPost.media.thumbnail',
             'quotedPost.hashtags',
             'quotedActor.user.profile',
+            'quotedEvent.actor.user.profile',
+            'quotedEvent.location',
+            'quotedEvent.media.thumbnail',
         ]);
 
         if ($request->expectsJson()) {

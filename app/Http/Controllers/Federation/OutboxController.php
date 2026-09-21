@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers\Federation;
 
+use App\Domain\Events\Event;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\LocalActorResolver;
+use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\CollectionSerializer;
-use App\Federation\Serialization\NoteSerializer;
 use App\Http\Controllers\Controller;
 use App\Http\Support\ActivityPubNegotiation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Outbox pubblico di un Actor locale (Person o Group).
@@ -46,7 +48,12 @@ final class OutboxController extends Controller
             $query->where('actor_id', $actor->id);
         }
 
-        $totalItems = (clone $query)->count();
+        $eventQuery = Event::query()
+            ->where('actor_id', $actor->id)
+            ->whereIn('visibility', [Event::VISIBILITY_PUBLIC, Event::VISIBILITY_UNLISTED])
+            ->where('status', '!=', Event::STATUS_DELETED);
+
+        $totalItems = (clone $query)->count() + (clone $eventQuery)->count();
 
         $page = $request->query('page');
 
@@ -59,24 +66,39 @@ final class OutboxController extends Controller
         $perPage = (int) config('openbook.feed.per_page', 20);
         $pageNumber = max(1, (int) $page);
 
-        $posts = (clone $query)
+        $postItems = (clone $query)->select([
+            'id',
+            'published_at',
+            DB::raw("'post' as item_type"),
+        ]);
+        $eventItems = (clone $eventQuery)->select([
+            'id',
+            'published_at',
+            DB::raw("'event' as item_type"),
+        ]);
+        $rows = DB::query()
+            ->fromSub($postItems->unionAll($eventItems), 'outbox_items')
             ->orderByDesc('published_at')
+            ->orderByDesc('id')
             ->forPage($pageNumber, $perPage)
             ->get();
+        $posts = Post::query()
+            ->with(['actor.endpoints', 'media.thumbnail', 'hashtags', 'mentions.actor', 'quotedPost', 'quotedActor', 'quotedEvent', 'community.actor', 'location'])
+            ->whereIn('id', $rows->where('item_type', 'post')->pluck('id'))
+            ->get()
+            ->keyBy('id');
+        $events = Event::query()
+            ->with(['actor.endpoints', 'location', 'media.thumbnail', 'hashtags', 'mentions.actor'])
+            ->whereIn('id', $rows->where('item_type', 'event')->pluck('id'))
+            ->get()
+            ->keyBy('id');
+        $items = $rows->map(function (object $row) use ($posts, $events): ?array {
+            $object = $row->item_type === 'event'
+                ? $events->get($row->id)
+                : $posts->get($row->id);
 
-        $items = $posts->map(function (Post $post) use ($actor) {
-            $note = NoteSerializer::forPost($post);
-
-            return [
-                'id' => $note['id'].'/activity',
-                'type' => 'Create',
-                'actor' => $actor->activityPubId(),
-                'published' => $note['published'],
-                'to' => $note['to'] ?? [],
-                'cc' => $note['cc'] ?? [],
-                'object' => $note,
-            ];
-        })->values()->all();
+            return $object !== null ? ActivitySerializer::create($object) : null;
+        })->filter()->values()->all();
 
         $hasMore = ($pageNumber * $perPage) < $totalItems;
 

@@ -3,6 +3,8 @@
 namespace App\Federation\Resolution;
 
 use App\Domain\Comments\Comment;
+use App\Domain\Events\Event;
+use App\Domain\Events\EventComment;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
@@ -101,6 +103,35 @@ final class ObjectResolver
                 if ($normalized !== $uri) {
                     $query->orWhere('uri', $uri.'/');
                 }
+            })
+            ->first();
+    }
+
+    public function resolveEvent(string $uri): ?Event
+    {
+        $normalized = ActivityPubUri::normalize($uri);
+
+        return Event::query()
+            ->where(function ($query) use ($uri, $normalized): void {
+                $query->where('uri', $uri)
+                    ->orWhere('uri', $normalized);
+
+                if ($normalized !== $uri) {
+                    $query->orWhere('uri', $uri.'/');
+                }
+            })
+            ->first();
+    }
+
+    public function resolveEventComment(string $uri): ?EventComment
+    {
+        $normalized = ActivityPubUri::normalize($uri);
+
+        return EventComment::query()
+            ->where(function ($query) use ($uri, $normalized): void {
+                $query->where('uri', $uri)
+                    ->orWhere('uri', $normalized)
+                    ->orWhere('uri', $normalized.'/');
             })
             ->first();
     }

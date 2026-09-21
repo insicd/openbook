@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Application\Services\ReactionManager;
 use App\Domain\Comments\Comment;
+use App\Domain\Events\EventComment;
 use App\Domain\Posts\Post;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -43,7 +44,23 @@ class LikeController extends Controller
         return $this->respond($request, $comment->fresh(), liked: false, fragment: 'commento-'.$comment->id);
     }
 
-    private function respond(Request $request, Post|Comment $target, bool $liked, string $fragment): RedirectResponse|JsonResponse
+    public function likeEventComment(Request $request, EventComment $comment): RedirectResponse|JsonResponse
+    {
+        $this->authorizeVisibleEventComment($request, $comment);
+        $this->reactions->like(auth()->user()->actor, $comment);
+
+        return $this->respond($request, $comment->fresh(), liked: true, fragment: 'commento-evento-'.$comment->id);
+    }
+
+    public function unlikeEventComment(Request $request, EventComment $comment): RedirectResponse|JsonResponse
+    {
+        $this->authorizeVisibleEventComment($request, $comment);
+        $this->reactions->unlike(auth()->user()->actor, $comment);
+
+        return $this->respond($request, $comment->fresh(), liked: false, fragment: 'commento-evento-'.$comment->id);
+    }
+
+    private function respond(Request $request, Post|Comment|EventComment $target, bool $liked, string $fragment): RedirectResponse|JsonResponse
     {
         $count = (int) $target->likes_count;
 
@@ -58,5 +75,14 @@ class LikeController extends Controller
         }
 
         return back()->withFragment($fragment);
+    }
+
+    private function authorizeVisibleEventComment(Request $request, EventComment $comment): void
+    {
+        abort_unless(
+            $comment->isPublished()
+            && $comment->event()->visibleTo($request->user()->actor)->exists(),
+            404,
+        );
     }
 }

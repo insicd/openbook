@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Federation;
 
+use App\Domain\Events\Event;
 use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
@@ -162,5 +163,42 @@ class ActivityDeliveryTest extends TestCase
         Queue::assertPushed(DeliverActivityJob::class, 2);
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $follower->endpoints->shared_inbox);
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === ($repliedTo->endpoints->shared_inbox ?: $repliedTo->endpoints->inbox));
+    }
+
+    public function test_a_public_event_is_delivered_to_followers_and_remote_mentions(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('eventowner');
+        $follower = $this->createRemoteActor('eventfollower', 'followers.example');
+        $mentioned = $this->createRemoteActor('eventguest', 'mentions.example');
+
+        Follow::query()->create([
+            'follower_id' => $follower->id,
+            'following_id' => $author->actor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $event = Event::query()->create([
+            'actor_id' => $author->actor->id,
+            'uri' => url('/eventi/delivery-test'),
+            'name' => 'Evento pubblico',
+            'visibility' => Event::VISIBILITY_PUBLIC,
+            'status' => Event::STATUS_SCHEDULED,
+            'start_at' => now()->addDay(),
+            'published_at' => now(),
+        ]);
+        Mention::query()->create([
+            'mentionable_type' => $event->getMorphClass(),
+            'mentionable_id' => $event->id,
+            'actor_id' => $mentioned->id,
+        ]);
+
+        app(ActivityDelivery::class)->deliverContent($event, ['type' => 'Create', 'id' => 'event-create']);
+
+        Queue::assertPushed(DeliverActivityJob::class, 2);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $follower->endpoints->shared_inbox);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $mentioned->endpoints->shared_inbox);
     }
 }

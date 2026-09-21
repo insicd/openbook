@@ -4,9 +4,13 @@ namespace App\Federation\Inbox;
 
 use App\Application\Services\AnnounceManager;
 use App\Application\Services\CommentSoftDeleter;
+use App\Application\Services\EventParticipationManager;
 use App\Application\Services\FollowManager;
 use App\Application\Services\ReactionManager;
 use App\Domain\Comments\Comment;
+use App\Domain\Events\Event;
+use App\Domain\Events\EventAnnounce;
+use App\Domain\Events\EventParticipation;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -52,6 +56,10 @@ final class InboxActivityProcessor
         private readonly RemoteNoteDocumentFetcher $noteDocumentFetcher,
         private readonly CommentSoftDeleter $commentSoftDeleter,
         private readonly RemoteActorDeletionService $remoteActorDeletion,
+        private readonly RemoteEventIngester $eventIngester,
+        private readonly RemoteEventDeletionService $eventDeletion,
+        private readonly EventParticipationManager $eventParticipations,
+        private readonly RemoteEventCommentIngester $eventComments,
     ) {}
 
     public function process(InboxItem $item): string
@@ -84,7 +92,9 @@ final class InboxActivityProcessor
             'Update' => $this->handleUpdate($activity, $signer, $inboxTarget),
             'Delete' => $this->handleDelete($activity, $signer),
             'Like' => $this->handleLike($activity, $signer),
-            'Announce' => $this->handleAnnounce($activity, $signer),
+            'Join' => $this->handleEventJoin($activity, $signer),
+            'Leave' => $this->handleEventLeave($activity, $signer),
+            'Announce' => $this->handleAnnounce($activity, $signer, $inboxTarget),
             default => InboxItem::STATUS_IGNORED,
         };
     }
@@ -122,6 +132,14 @@ final class InboxActivityProcessor
      */
     private function handleAccept(array $activity, Actor $remoteTarget): string
     {
+        $participation = $this->resolveOutgoingEventParticipation($activity['object'] ?? null, $remoteTarget);
+
+        if ($participation !== null) {
+            $this->eventParticipations->respond($participation, $remoteTarget, true);
+
+            return InboxItem::STATUS_PROCESSED;
+        }
+
         $follow = $this->resolveOutgoingFollow($activity['object'] ?? null, $remoteTarget);
 
         if ($follow === null) {
@@ -142,6 +160,14 @@ final class InboxActivityProcessor
      */
     private function handleReject(array $activity, Actor $remoteTarget): string
     {
+        $participation = $this->resolveOutgoingEventParticipation($activity['object'] ?? null, $remoteTarget);
+
+        if ($participation !== null) {
+            $this->eventParticipations->respond($participation, $remoteTarget, false);
+
+            return InboxItem::STATUS_PROCESSED;
+        }
+
         $follow = $this->resolveOutgoingFollow($activity['object'] ?? null, $remoteTarget);
 
         if ($follow === null) {
@@ -155,6 +181,38 @@ final class InboxActivityProcessor
         }
 
         return InboxItem::STATUS_PROCESSED;
+    }
+
+    private function resolveOutgoingEventParticipation(mixed $object, Actor $remoteActor): ?EventParticipation
+    {
+        $activityUri = $this->objectId($object);
+        $participation = $activityUri !== null
+            ? EventParticipation::query()->where('activity_uri', $activityUri)->first()
+            : null;
+
+        if ($participation === null && is_array($object) && ($object['type'] ?? null) === 'Join') {
+            $localActor = $this->resolveLocalActorByUri($this->actorUri($object['actor'] ?? null));
+            $eventUri = $this->objectId($object['object'] ?? null);
+
+            if ($localActor !== null && $eventUri !== null) {
+                $participation = EventParticipation::query()
+                    ->where('actor_id', $localActor->id)
+                    ->whereHas('event', fn ($query) => $query->where('uri', $eventUri))
+                    ->first();
+            }
+        }
+
+        if ($participation === null) {
+            return null;
+        }
+
+        $participation->loadMissing('actor', 'event.attributions');
+
+        if (! $participation->actor->isLocal() || ! $this->eventIngester->canManage($participation->event, $remoteActor)) {
+            return null;
+        }
+
+        return $participation;
     }
 
     /**
@@ -278,6 +336,7 @@ final class InboxActivityProcessor
             'Follow' => $this->handleUndoFollow($object, $actor),
             'Like' => $this->handleUndoLike($object, $actor),
             'Announce' => $this->handleUndoAnnounce($object, $actor),
+            'Join' => $this->handleUndoEventJoin($object, $actor),
             default => $this->handleUndoByReference($object, $actor),
         };
     }
@@ -294,6 +353,26 @@ final class InboxActivityProcessor
 
         if ($objectId === null) {
             return InboxItem::STATUS_IGNORED;
+        }
+
+        $eventAnnounce = EventAnnounce::query()
+            ->where('actor_id', $actor->id)
+            ->where('uri', $objectId)
+            ->first();
+
+        if ($eventAnnounce !== null) {
+            $eventAnnounce->delete();
+
+            return InboxItem::STATUS_PROCESSED;
+        }
+
+        $participation = EventParticipation::query()
+            ->where('actor_id', $actor->id)
+            ->where('activity_uri', $objectId)
+            ->first();
+
+        if ($participation !== null && $this->eventParticipations->receiveLeave($actor, $participation->event, $objectId)) {
+            return InboxItem::STATUS_PROCESSED;
         }
 
         $follow = Follow::query()
@@ -333,7 +412,9 @@ final class InboxActivityProcessor
     private function handleUndoLike(array $embeddedLike, Actor $actor): string
     {
         $targetUri = $this->objectId($embeddedLike['object'] ?? null);
-        $target = $targetUri !== null ? $this->objects->resolvePostOrComment($targetUri) : null;
+        $target = $targetUri !== null
+            ? ($this->objects->resolveEvent($targetUri) ?? $this->objects->resolveEventComment($targetUri) ?? $this->objects->resolvePostOrComment($targetUri))
+            : null;
 
         if ($target === null || $target->actor === null || ! $target->actor->isLocal()) {
             return InboxItem::STATUS_IGNORED;
@@ -350,6 +431,14 @@ final class InboxActivityProcessor
     private function handleUndoAnnounce(array $embeddedAnnounce, Actor $actor): string
     {
         $targetUri = $this->objectId($embeddedAnnounce['object'] ?? null);
+        $event = $targetUri !== null ? $this->objects->resolveEvent($targetUri) : null;
+
+        if ($event !== null) {
+            $this->eventIngester->undoAnnounce($event, $actor);
+
+            return InboxItem::STATUS_PROCESSED;
+        }
+
         $post = $targetUri !== null ? $this->objects->resolvePost($targetUri) : null;
 
         if ($post === null) {
@@ -361,13 +450,70 @@ final class InboxActivityProcessor
         return InboxItem::STATUS_PROCESSED;
     }
 
+    /** @param array<string, mixed> $embeddedJoin */
+    private function handleUndoEventJoin(array $embeddedJoin, Actor $actor): string
+    {
+        if ($this->actorUri($embeddedJoin['actor'] ?? null) !== $this->normalizeUri($actor->activityPubId())) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $eventUri = $this->objectId($embeddedJoin['object'] ?? null);
+        $event = $eventUri !== null ? $this->objects->resolveEvent($eventUri) : null;
+        $activityUri = $this->objectId($embeddedJoin);
+
+        if ($event === null || ! $this->eventParticipations->receiveLeave($actor, $event, $activityUri)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        return InboxItem::STATUS_PROCESSED;
+    }
+
+    /** @param array<string, mixed> $activity */
+    private function handleEventJoin(array $activity, Actor $actor): string
+    {
+        if ($this->actorUri($activity['actor'] ?? null) !== $this->normalizeUri($actor->activityPubId())) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $eventUri = $this->objectId($activity['object'] ?? null);
+        $event = $eventUri !== null ? $this->objects->resolveEvent($eventUri) : null;
+        $activityUri = $this->objectId($activity);
+
+        if ($event === null || $activityUri === null || $event->isRemote()) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        return $this->eventParticipations->receiveJoin($actor, $event, $activityUri) !== null
+            ? InboxItem::STATUS_PROCESSED
+            : InboxItem::STATUS_IGNORED;
+    }
+
+    /** @param array<string, mixed> $activity */
+    private function handleEventLeave(array $activity, Actor $actor): string
+    {
+        if ($this->actorUri($activity['actor'] ?? null) !== $this->normalizeUri($actor->activityPubId())) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $eventUri = $this->objectId($activity['object'] ?? null);
+        $event = $eventUri !== null ? $this->objects->resolveEvent($eventUri) : null;
+
+        if ($event === null || $event->isRemote() || ! $this->eventParticipations->receiveLeave($actor, $event)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        return InboxItem::STATUS_PROCESSED;
+    }
+
     /**
      * @param  array<string, mixed>  $activity
      */
     private function handleLike(array $activity, Actor $actor): string
     {
         $targetUri = $this->objectId($activity['object'] ?? null);
-        $target = $targetUri !== null ? $this->objects->resolvePostOrComment($targetUri) : null;
+        $target = $targetUri !== null
+            ? ($this->objects->resolveEvent($targetUri) ?? $this->objects->resolveEventComment($targetUri) ?? $this->objects->resolvePostOrComment($targetUri))
+            : null;
 
         if ($target === null || $target->actor === null || ! $target->actor->isLocal()) {
             return InboxItem::STATUS_IGNORED;
@@ -387,9 +533,50 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $activity
      */
-    private function handleAnnounce(array $activity, Actor $actor): string
+    private function handleAnnounce(array $activity, Actor $actor, ?Actor $inboxTarget = null): string
     {
+        $fetchedAnnouncedNote = null;
+        $eventDocument = is_array($activity['object'] ?? null)
+            ? RemoteEventObject::unwrap($activity['object'])
+            : null;
+
+        if ($eventDocument !== null) {
+            $eventDocument = $this->mergeActivityAudience($activity, $eventDocument);
+            $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget);
+
+            if ($event === null) {
+                return InboxItem::STATUS_IGNORED;
+            }
+
+            $this->eventIngester->recordAnnounce($event, $actor, $activity);
+
+            return InboxItem::STATUS_PROCESSED;
+        }
+
+        if (is_string($activity['object'] ?? null)) {
+            $event = $this->objects->resolveEvent($activity['object']);
+
+            if ($event === null && $this->objects->resolvePost($activity['object']) === null) {
+                $document = $this->noteDocumentFetcher->fetchDocument($activity['object'], $inboxTarget);
+                $eventDocument = $document !== null ? RemoteEventObject::unwrap($document) : null;
+
+                if ($eventDocument !== null) {
+                    $eventDocument = $this->mergeActivityAudience($activity, $eventDocument);
+                    $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget);
+                } elseif ($document !== null) {
+                    $fetchedAnnouncedNote = RemotePostObject::unwrap($document);
+                }
+            }
+
+            if ($event !== null) {
+                $this->eventIngester->recordAnnounce($event, $actor, $activity);
+
+                return InboxItem::STATUS_PROCESSED;
+            }
+        }
+
         [$targetUri, $embeddedNote] = $this->announceObject($activity['object'] ?? null);
+        $embeddedNote ??= $fetchedAnnouncedNote;
 
         $post = $targetUri !== null ? $this->objects->resolvePost($targetUri) : null;
 
@@ -553,6 +740,30 @@ final class InboxActivityProcessor
                 : InboxItem::STATUS_IGNORED;
         }
 
+        $event = $this->objects->resolveEvent($objectId);
+
+        if ($event !== null) {
+            if (! $this->eventIngester->canManage($event, $actor)) {
+                return InboxItem::STATUS_IGNORED;
+            }
+
+            $this->eventDeletion->delete($event);
+
+            return InboxItem::STATUS_PROCESSED;
+        }
+
+        $eventComment = $this->objects->resolveEventComment($objectId);
+
+        if ($eventComment !== null) {
+            if ($eventComment->actor_id !== $actor->id) {
+                return InboxItem::STATUS_IGNORED;
+            }
+
+            $this->eventComments->delete($eventComment);
+
+            return InboxItem::STATUS_PROCESSED;
+        }
+
         $target = $this->objects->resolvePostOrComment($objectId);
 
         if ($target === null || $target->actor_id !== $actor->id) {
@@ -586,11 +797,22 @@ final class InboxActivityProcessor
      */
     private function handleUpdate(array $activity, Actor $signer, ?Actor $inboxTarget = null): string
     {
-        $object = $activity['object'] ?? null;
+        $rawObject = $activity['object'] ?? null;
+        $object = is_string($rawObject)
+            ? $this->noteDocumentFetcher->fetchDocument($rawObject, $inboxTarget)
+            : $rawObject;
         $type = is_array($object) ? ($object['type'] ?? null) : null;
 
         if (is_array($object) && RemotePostObject::isPostable($type)) {
             return $this->handleCreateOrUpdate($activity, $signer, $inboxTarget);
+        }
+
+        if (is_array($object) && RemoteEventObject::isEvent($type)) {
+            $document = $this->mergeActivityAudience($activity, $object);
+
+            return $this->eventIngester->ingest($document, $signer, 'Update', $inboxTarget) !== null
+                ? InboxItem::STATUS_PROCESSED
+                : InboxItem::STATUS_IGNORED;
         }
 
         return match ($type) {
@@ -627,7 +849,21 @@ final class InboxActivityProcessor
      */
     private function handleCreateOrUpdate(array $activity, Actor $actor, ?Actor $inboxTarget = null): string
     {
-        $note = $this->resolveCreateObject($activity['object'] ?? null);
+        $object = $activity['object'] ?? null;
+        $resolvedDocument = is_string($object)
+            ? $this->noteDocumentFetcher->fetchDocument($object, $inboxTarget)
+            : (is_array($object) ? $object : null);
+        $eventDocument = $resolvedDocument !== null ? RemoteEventObject::unwrap($resolvedDocument) : null;
+
+        if ($eventDocument !== null) {
+            $eventDocument = $this->mergeActivityAudience($activity, $eventDocument);
+
+            return $this->eventIngester->ingest($eventDocument, $actor, 'Create', $inboxTarget) !== null
+                ? InboxItem::STATUS_PROCESSED
+                : InboxItem::STATUS_IGNORED;
+        }
+
+        $note = $this->resolveCreateObject($resolvedDocument ?? $object);
 
         if ($note === null || ! RemotePostObject::isPostable($note['type'] ?? null)) {
             return InboxItem::STATUS_IGNORED;
@@ -658,6 +894,9 @@ final class InboxActivityProcessor
         $inReplyTo = RemotePostObject::inReplyToTarget($note);
         $parentPost = null;
         $parentComment = null;
+        $parentEvent = null;
+        $parentEventComment = null;
+        $existingEventComment = $this->objects->resolveEventComment($noteUri);
 
         if ($inReplyTo !== null) {
             // I commenti federati sono Note; Article/Video/Page con inReplyTo
@@ -666,14 +905,55 @@ final class InboxActivityProcessor
                 return InboxItem::STATUS_IGNORED;
             }
 
-            $parentComment = $this->objects->resolveComment($inReplyTo);
-            $parentPost = $parentComment !== null ? null : $this->objects->resolvePost($inReplyTo);
+            $parentEventComment = $this->objects->resolveEventComment($inReplyTo);
 
-            if ($parentComment === null && $parentPost === null) {
+            if ($parentEventComment !== null) {
+                $parentEvent = $parentEventComment->event;
+            } else {
+                $parentEvent = $this->objects->resolveEvent($inReplyTo);
+            }
+
+            if ($parentEvent === null) {
+                $parentComment = $this->objects->resolveComment($inReplyTo);
+                $parentPost = $parentComment !== null ? null : $this->objects->resolvePost($inReplyTo);
+            }
+
+            if ($parentEvent === null && $parentComment === null && $parentPost === null) {
                 if (! RemotePostObject::isExplicitDirectMessage($note)) {
                     return InboxItem::STATUS_IGNORED;
                 }
             }
+        }
+
+        if ($existingEventComment !== null) {
+            if ($existingEventComment->actor_id !== $author->id) {
+                return InboxItem::STATUS_IGNORED;
+            }
+
+            $existingEventComment->loadMissing('event', 'parent');
+            $parentEvent = $existingEventComment->event;
+            $parentEventComment = $existingEventComment->parent;
+        }
+
+        if ($parentEvent !== null) {
+            if (! $this->canStoreEventComment($note, $parentEvent, $inboxTarget)) {
+                return InboxItem::STATUS_IGNORED;
+            }
+
+            $body = RemotePostObject::body($note);
+
+            return DB::transaction(function () use ($note, $noteUri, $author, $body, $parentEvent, $parentEventComment) {
+                $this->eventComments->ingest(
+                    $note,
+                    $noteUri,
+                    $author,
+                    $body,
+                    $parentEvent,
+                    $parentEventComment,
+                );
+
+                return InboxItem::STATUS_PROCESSED;
+            });
         }
 
         if (! $this->isRelevant($author, $note, $parentPost, $parentComment, $inboxTarget)) {
@@ -1029,6 +1309,26 @@ final class InboxActivityProcessor
         }
 
         return $this->mentionsLocalActor($note) || $this->addressesLocalActor($note);
+    }
+
+    /** @param array<string, mixed> $note */
+    private function canStoreEventComment(array $note, Event $event, ?Actor $inboxTarget): bool
+    {
+        if ($event->isDeleted()) {
+            return false;
+        }
+
+        if (! Event::query()->whereKey($event->id)->visibleTo($inboxTarget)->exists()) {
+            return false;
+        }
+
+        $visibility = $this->noteUpserter->visibilityFromAudience($note);
+
+        // I commenti non hanno una audience locale propria: accettiamo solo
+        // Note pubbliche/non elencate e lasciamo che sia il grant dell'evento
+        // a stabilire chi puo' vederle. Una risposta diretta non deve mai
+        // diventare visibile agli altri destinatari dello stesso evento.
+        return in_array($visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED], true);
     }
 
     /**

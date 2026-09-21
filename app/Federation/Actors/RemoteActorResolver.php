@@ -569,6 +569,27 @@ final class RemoteActorResolver
         return $this->applyRemoteDocument($document, $requestedUri);
     }
 
+    /**
+     * Applica un documento gia' recuperato durante la risoluzione di un URL,
+     * evitando un secondo GET quando il chiamante deve distinguerlo da altri
+     * oggetti ActivityStreams (per esempio un Event).
+     *
+     * @param  array<string, mixed>|null  $document
+     */
+    public function resolveFetchedDocument(?array $document, string $requestedUri): ?Actor
+    {
+        $documentUri = is_string($document['id'] ?? null) ? $document['id'] : null;
+
+        if ($document === null
+            || $this->domainBlocks->isBlockedUrl($requestedUri)
+            || $this->isLocalDomainUri($requestedUri)
+            || ($documentUri !== null && $this->isLocalDomainUri($documentUri))) {
+            return null;
+        }
+
+        return $this->applyFetchedActorDocument($document, $requestedUri);
+    }
+
     private function sameHttpHost(string $left, string $right): bool
     {
         $leftHost = parse_url($left, PHP_URL_HOST);
@@ -657,6 +678,7 @@ final class RemoteActorResolver
                 [
                     'inbox' => isset($document['inbox']) ? (string) $document['inbox'] : null,
                     'outbox' => isset($document['outbox']) ? (string) $document['outbox'] : null,
+                    'events' => $this->actorCollectionUrl($document, 'events'),
                     'followers' => isset($document['followers']) ? (string) $document['followers'] : null,
                     'following' => isset($document['following']) ? (string) $document['following'] : null,
                     'shared_inbox' => isset($document['endpoints']['sharedInbox']) ? (string) $document['endpoints']['sharedInbox'] : null,
@@ -665,6 +687,20 @@ final class RemoteActorResolver
 
             return $actor->fresh(['key', 'endpoints']);
         });
+    }
+
+    /** @param array<string, mixed> $document */
+    private function actorCollectionUrl(array $document, string $name): ?string
+    {
+        $value = $document[$name] ?? ($document['endpoints'][$name] ?? null);
+
+        if (! is_string($value) || filter_var($value, FILTER_VALIDATE_URL) === false) {
+            return null;
+        }
+
+        $scheme = strtolower((string) parse_url($value, PHP_URL_SCHEME));
+
+        return in_array($scheme, ['http', 'https'], true) ? $value : null;
     }
 
     /**

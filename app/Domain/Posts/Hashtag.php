@@ -2,6 +2,7 @@
 
 namespace App\Domain\Posts;
 
+use App\Domain\Events\Event;
 use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,11 @@ class Hashtag extends Model
     public function posts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_hashtags');
+    }
+
+    public function events(): BelongsToMany
+    {
+        return $this->belongsToMany(Event::class, 'event_hashtags');
     }
 
     public function followers(): BelongsToMany

@@ -14,7 +14,7 @@ namespace App\Federation\Actors;
 final class LocalActorUrls
 {
     /**
-     * @return array{uri: string, profile: string, inbox: string, outbox: string, followers: string, following: string, shared_inbox: string}
+     * @return array{uri: string, profile: string, inbox: string, outbox: string, events: string, followers: string, following: string, shared_inbox: string}
      */
     public static function forUsername(string $username, bool $isGroup = false): array
     {
@@ -23,6 +23,7 @@ final class LocalActorUrls
             'profile' => $isGroup ? url('/c/'.$username) : url('/@'.$username),
             'inbox' => url("/users/{$username}/inbox"),
             'outbox' => url("/users/{$username}/outbox"),
+            'events' => url("/users/{$username}/events"),
             'followers' => url("/users/{$username}/followers"),
             'following' => url("/users/{$username}/following"),
             'shared_inbox' => url('/inbox'),

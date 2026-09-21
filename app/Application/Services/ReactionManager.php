@@ -3,6 +3,8 @@
 namespace App\Application\Services;
 
 use App\Domain\Comments\Comment;
+use App\Domain\Events\Event;
+use App\Domain\Events\EventComment;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Like;
@@ -60,14 +62,18 @@ final class ReactionManager
                 'likeable_id' => $target->getKey(),
             ]);
 
-            $target->increment('likes_count');
+            if ($target instanceof Event && $target->likes_count === null) {
+                $target->forceFill(['likes_count' => 1])->save();
+            } else {
+                $target->increment('likes_count');
+            }
 
             $this->notificationCreator->notify($target->actor, Notification::TYPE_LIKE, $actor, $target);
 
             return $like;
         });
 
-        if ($like->wasRecentlyCreated && ! $target->actor->isLocal() && ($target instanceof Post || $target instanceof Comment)) {
+        if ($like->wasRecentlyCreated && ! $target->actor->isLocal() && ($target instanceof Post || $target instanceof Comment || $target instanceof Event || $target instanceof EventComment)) {
             $this->delivery->deliverTo($actor, $target->actor, ActivitySerializer::like($like, $target));
         }
 
@@ -88,10 +94,14 @@ final class ReactionManager
 
         DB::transaction(function () use ($like, $target) {
             $like->delete();
-            $target->decrement('likes_count');
+            if ($target instanceof Event) {
+                $target->forceFill(['likes_count' => max(0, (int) $target->likes_count - 1)])->save();
+            } else {
+                $target->decrement('likes_count');
+            }
         });
 
-        if (! $target->actor->isLocal() && ($target instanceof Post || $target instanceof Comment)) {
+        if (! $target->actor->isLocal() && ($target instanceof Post || $target instanceof Comment || $target instanceof Event || $target instanceof EventComment)) {
             $this->delivery->deliverTo($actor, $target->actor, ActivitySerializer::undoLike($like, $target));
         }
     }

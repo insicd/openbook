@@ -51,6 +51,23 @@ class RemoteActorResolverTest extends TestCase
         $this->assertFalse($actor->indexable);
     }
 
+    public function test_it_stores_the_remote_event_collection_endpoint(): void
+    {
+        $eventsUrl = 'https://remoto.example/@walt/events';
+        Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument([
+            'events' => $eventsUrl,
+            'endpoints' => [
+                'sharedInbox' => 'https://remoto.example/inbox',
+                'events' => $eventsUrl,
+            ],
+        ]))]);
+
+        $actor = app(RemoteActorResolver::class)->resolveByUri(self::ACTOR_URI);
+
+        $this->assertNotNull($actor);
+        $this->assertSame($eventsUrl, $actor->endpoints->events);
+    }
+
     public function test_it_stores_custom_emojis_declared_by_the_remote_actor(): void
     {
         Http::fake([self::ACTOR_URI => Http::response($this->fakeActorDocument([

@@ -41,11 +41,13 @@ class ActorContentNegotiationTest extends TestCase
             'url' => url('/@apuser'),
             'inbox' => url('/users/apuser/inbox'),
             'outbox' => url('/users/apuser/outbox'),
+            'events' => url('/users/apuser/events'),
             'followers' => url('/users/apuser/followers'),
             'following' => url('/users/apuser/following'),
         ]);
 
         $response->assertJsonPath('publicKey.owner', url('/users/apuser'));
+        $response->assertJsonPath('endpoints.events', url('/users/apuser/events'));
         $response->assertJsonPath('publicKey.id', url('/users/apuser').'#main-key');
         $response->assertJsonPath('discoverable', true);
         $response->assertJsonPath('indexable', false);
