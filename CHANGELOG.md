@@ -16,7 +16,7 @@ Il footer mostra anche il nome in codice (`config('openbook.release_label')`).
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 il [`README`](README.md#roadmap-and-project-status).
 
-## [26.38] - Melancholy Taco
+## [26.38.rc1]
 
 ### Added
 - **Moderazione della timeline Mondo**: dal pannello amministrativo è possibile
@@ -72,6 +72,24 @@ il [`README`](README.md#roadmap-and-project-status).
   Openbook tenta di completarli tramite il catalogo locale delle citta'. Gli
   hashtag degli eventi pubblici e non elencati partecipano inoltre al calcolo
   delle tendenze insieme a quelli dei post.
+
+### Fixed
+- Blocchi di dominio federati: nuovi post, commenti ed eventi provenienti da
+  un dominio bloccato vengono ignorati anche se inoltrati da un relay
+  autorizzato o se il relativo Actor era già presente nella cache locale. Il
+  controllo copre firmatario, URI dell'oggetto, attribuzioni e fetch remote,
+  senza cancellare retroattivamente i contenuti già importati.
+- Relay ActivityPub: gli `Announce` usati come contenitori di trasporto
+  importano post ed eventi senza essere registrati come condivisioni sociali
+  e senza alterarne i relativi contatori.
+- Manutenzione database: la pulizia periodica rimuove dalla coda di
+  pubblicazione i lavori video conclusi o falliti oltre la retention
+  configurata, insieme agli allegati di staging e alle eventuali directory
+  temporanee residue, senza toccare post e media gia' pubblicati.
+
+## [26.38] - Melancholy Taco
+
+### Added
 - **Anteprime dei post condivisi**: le pagine dei post pubblici espongono
   metadati Open Graph con titolo, estratto e prima immagine o copertina video,
   permettendo alle applicazioni compatibili di generare preview piu' complete.
@@ -109,18 +127,6 @@ il [`README`](README.md#roadmap-and-project-status).
   home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
 
 ### Fixed
-- Blocchi di dominio federati: nuovi post, commenti ed eventi provenienti da
-  un dominio bloccato vengono ignorati anche se inoltrati da un relay
-  autorizzato o se il relativo Actor era già presente nella cache locale. Il
-  controllo copre firmatario, URI dell'oggetto, attribuzioni e fetch remote,
-  senza cancellare retroattivamente i contenuti già importati.
-- Relay ActivityPub: gli `Announce` usati come contenitori di trasporto
-  importano post ed eventi senza essere registrati come condivisioni sociali
-  e senza alterarne i relativi contatori.
-- Manutenzione database: la pulizia periodica rimuove dalla coda di
-  pubblicazione i lavori video conclusi o falliti oltre la retention
-  configurata, insieme agli allegati di staging e alle eventuali directory
-  temporanee residue, senza toccare post e media gia' pubblicati.
 - Custom emoji federate: i nomi degli Actor ora renderizzano correttamente le
   emoji anche in notifiche, attivita', commenti, messaggi, segnalazioni e liste
   delle reazioni; nei contesti solo testuali gli shortcode dichiarati vengono

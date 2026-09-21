@@ -550,13 +550,17 @@ essere consumati da altri server e non da browser:
   l'accettazione, Openbook importa le attivita' pubbliche trasportate dal relay e
   aggiunge la sua inbox al fan-out di post, commenti, eventi e commenti agli
   eventi pubblici locali. Il traffico riusa code, firme, retry, blocchi di
-  dominio e deduplicazione della federazione ordinaria. I relay trafficati
-  possono generare molte inbox: in quel caso e' consigliato un worker residente,
-  da riavviare dopo ogni deploy:
+  dominio e deduplicazione della federazione ordinaria. Con relay trafficati
+  sono consigliati due worker residenti separati, cosi' l'elaborazione in
+  ingresso e le consegne remote lente non si bloccano a vicenda:
 
   ```bash
   php /percorso/openbook/artisan queue:work --queue=inbox --sleep=1
+  php /percorso/openbook/artisan queue:work --queue=delivery --sleep=1
   ```
+
+  I worker possono convivere con `openbook:cron`, ma vanno riavviati dopo ogni
+  deploy affinche' carichino il codice aggiornato.
 
 - **Sorgenti d'istanza basate su Actor**: lo stesso pannello puo' seguire un
   Actor remoto `Application`/`Service`, come quelli esposti da Mobilizon o

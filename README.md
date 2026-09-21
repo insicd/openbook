@@ -557,15 +557,17 @@ browsers:
   successful exchange and the latest terminal delivery error. Relays can
   generate a high volume of public content, so enabling one is always an
   explicit instance-administrator decision. The normal periodic cron remains
-  sufficient for small installations; with a busy relay, a permanent inbox
-  worker is recommended to prevent backlog:
+  sufficient for small installations; with a busy relay, separate permanent
+  workers are recommended so that incoming processing and slow remote
+  deliveries cannot block each other:
 
   ```bash
   php /path/to/openbook/artisan queue:work --queue=inbox --sleep=1
+  php /path/to/openbook/artisan queue:work --queue=delivery --sleep=1
   ```
 
-  The worker can safely run alongside `openbook:cron`, but must be restarted
-  after each deployment so that it loads the updated application code.
+  The workers can safely run alongside `openbook:cron`, but must be restarted
+  after each deployment so that they load the updated application code.
 
 - **Actor-based instance sources**: the same Relay panel can subscribe to a
   remote ActivityPub `Application`/`Service` Actor, as exposed by software such
