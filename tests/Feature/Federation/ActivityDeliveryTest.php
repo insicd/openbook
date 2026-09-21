@@ -245,6 +245,61 @@ class ActivityDeliveryTest extends TestCase
         Queue::assertNotPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $actorRelay->id);
     }
 
+    public function test_public_announces_and_their_undo_are_delivered_to_mastodon_relays(): void
+    {
+        Queue::fake();
+        $sharer = $this->createFullAccount('relaysharer');
+        $author = $this->createFullAccount('relayauthor');
+        $relay = $this->relay('https://relay.example/inbox');
+        $this->relay('https://receive-only.example/inbox', ['publish_enabled' => false]);
+        $this->relay('https://pending.example/inbox', ['state' => Relay::STATE_PENDING]);
+        $this->relay('https://actor-relay.example/inbox', ['protocol' => Relay::PROTOCOL_ACTOR]);
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Post pubblico condiviso.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        app(ActivityDelivery::class)->deliverAnnounce($sharer->actor, $post, [
+            'type' => 'Announce',
+            'id' => 'public-announce',
+        ]);
+        app(ActivityDelivery::class)->deliverAnnounce($sharer->actor, $post, [
+            'type' => 'Undo',
+            'id' => 'public-announce-undo',
+        ]);
+
+        Queue::assertPushed(DeliverActivityJob::class, 2);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && $job->activity['id'] === 'public-announce');
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && $job->activity['id'] === 'public-announce-undo');
+    }
+
+    public function test_non_public_announces_are_not_delivered_to_relays(): void
+    {
+        Queue::fake();
+        $sharer = $this->createFullAccount('privatesharer');
+        $author = $this->createFullAccount('privateauthor');
+        $this->relay('https://relay.example/inbox');
+        $post = Post::query()->create([
+            'actor_id' => $author->actor->id,
+            'body' => 'Post non pubblico condiviso.',
+            'visibility' => Post::VISIBILITY_FOLLOWERS,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        app(ActivityDelivery::class)->deliverAnnounce($sharer->actor, $post, [
+            'type' => 'Announce',
+            'id' => 'private-announce',
+        ]);
+
+        Queue::assertNothingPushed();
+    }
+
     public function test_comments_on_public_posts_and_events_are_delivered_to_relays(): void
     {
         Queue::fake();

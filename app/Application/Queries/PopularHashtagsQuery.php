@@ -37,11 +37,21 @@ final class PopularHashtagsQuery
             ->whereIn('events.visibility', [Event::VISIBILITY_PUBLIC, Event::VISIBILITY_UNLISTED])
             ->where('events.published_at', '>=', $threshold);
 
-        return Hashtag::query()
+        $query = Hashtag::query()
             ->select('hashtags.*')
             ->selectRaw('count(*) as usage_count')
             ->joinSub($postUses->unionAll($eventUses), 'hashtag_uses', 'hashtag_uses.hashtag_id', '=', 'hashtags.id')
-            ->where('hashtags.name', '!=', '')
+            ->where('hashtags.name', '!=', '');
+
+        if ((bool) config('openbook.moderation.hide_content_warnings_from_world', false)) {
+            $forcedHashtags = config('openbook.moderation.forced_content_warning_hashtags', []);
+
+            if (is_array($forcedHashtags) && $forcedHashtags !== []) {
+                $query->whereNotIn('hashtags.name', $forcedHashtags);
+            }
+        }
+
+        return $query
             ->groupBy('hashtags.id', 'hashtags.name', 'hashtags.created_at', 'hashtags.updated_at')
             ->orderByDesc('usage_count')
             ->orderBy('hashtags.name')

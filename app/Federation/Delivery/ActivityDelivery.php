@@ -97,9 +97,10 @@ final class ActivityDelivery
      *
      * @param  array<string, mixed>  $activity
      */
-    public function deliverAnnounce(Actor $sharer, Actor $originalAuthor, array $activity): void
+    public function deliverAnnounce(Actor $sharer, Post $post, array $activity): void
     {
         $inboxes = $this->remoteFollowerInboxes($sharer);
+        $originalAuthor = $post->actor;
 
         if (! $originalAuthor->isLocal() && $originalAuthor->id !== $sharer->id) {
             $authorInbox = $originalAuthor->endpoints?->shared_inbox
@@ -111,6 +112,10 @@ final class ActivityDelivery
         }
 
         $this->dispatchToInboxes($inboxes, $activity, $sharer);
+
+        if ($this->isPublicContent($post) && ! $post->isInPrivateCommunity()) {
+            $this->dispatchToMastodonRelays($sharer, $activity, $inboxes);
+        }
     }
 
     /**
@@ -320,7 +325,30 @@ final class ActivityDelivery
             return;
         }
 
-        $mastodonRelays = Relay::query()
+        $mastodonRelayInboxes = $this->dispatchToMastodonRelays($object->actor, $activity, $alreadyAddressed);
+
+        $this->dispatchContentToActorRelayFollowers(
+            $object,
+            $activity,
+            $alreadyAddressed->concat($mastodonRelayInboxes)->unique()->values(),
+        );
+    }
+
+    /**
+     * I relay Mastodon-like ricevono direttamente l'attivita' firmata
+     * dall'Actor locale. La selezione e la deduplicazione sono condivise
+     * tra contenuti e boost, inclusi i relativi Undo.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  Collection<int, string>  $alreadyAddressed
+     * @return Collection<int, string>
+     */
+    private function dispatchToMastodonRelays(
+        Actor $signingActor,
+        array $activity,
+        Collection $alreadyAddressed,
+    ): Collection {
+        $relays = Relay::query()
             // Gli Actor relay pubblicano Announce tecnici: verranno aggiunti
             // dal flusso dedicato, non devono ricevere il payload Mastodon.
             ->where('protocol', Relay::PROTOCOL_MASTODON)
@@ -328,19 +356,15 @@ final class ActivityDelivery
             ->where('publish_enabled', true)
             ->get(['id', 'inbox_url']);
 
-        $mastodonRelays->each(function (Relay $relay) use ($activity, $alreadyAddressed, $object): void {
+        $relays->each(function (Relay $relay) use ($activity, $alreadyAddressed, $signingActor): void {
             if ($alreadyAddressed->contains($relay->inbox_url)) {
                 return;
             }
 
-            $this->dispatchToInboxes(collect([$relay->inbox_url]), $activity, $object->actor, $relay->id);
+            $this->dispatchToInboxes(collect([$relay->inbox_url]), $activity, $signingActor, $relay->id);
         });
 
-        $this->dispatchContentToActorRelayFollowers(
-            $object,
-            $activity,
-            $alreadyAddressed->concat($mastodonRelays->pluck('inbox_url'))->unique()->values(),
-        );
+        return $relays->pluck('inbox_url')->filter()->unique()->values();
     }
 
     /**

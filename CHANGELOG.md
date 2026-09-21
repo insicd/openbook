@@ -24,6 +24,8 @@ il [`README`](README.md#roadmap-and-project-status).
   che applicano localmente un avviso generico anche quando il post originale
   non lo dichiara. La policy è retroattiva, non modifica gli oggetti ActivityPub
   in uscita e lascia i contenuti accessibili nelle altre sezioni dietro al CW.
+  Quando l'esclusione da Mondo è attiva, gli hashtag configurati vengono
+  nascosti anche dalla pagina e dal box laterale delle tendenze.
 - **Relay ActivityPub Mastodon, Actor-based e LitePub**: il pannello amministrativo
   permette di configurare relay in ingresso e in uscita, sottoscriverli tramite
   il normale handshake `Follow`/`Accept` e controllarne separatamente le due
@@ -35,7 +37,9 @@ il [`README`](README.md#roadmap-and-project-status).
   `Application`, conserva la provenienza dei contenuti inoltrati e accetta dal
   relay soltanto post ed eventi pubblici; post, eventi e relativi commenti
   pubblici locali vengono consegnati ai relay attivi riutilizzando firma, coda,
-  retry e blocchi di dominio gia' impiegati dalla federazione ordinaria. Gli
+  retry e blocchi di dominio gia' impiegati dalla federazione ordinaria. Anche
+  i boost pubblici e i relativi annullamenti vengono distribuiti agli hub
+  Mastodon-like abilitati, mantenendo l'identita' dell'Actor che condivide. Gli
   Actor remoti possono seguire `/relay` per ricevere `Announce` tecnici dei
   contenuti pubblici; le
   relative collection outbox, followers e following sono esposte senza creare

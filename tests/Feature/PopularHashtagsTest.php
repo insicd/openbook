@@ -206,6 +206,39 @@ class PopularHashtagsTest extends TestCase
         $this->assertSame(['valido'], $names->all());
     }
 
+    public function test_forced_content_warning_hashtags_are_hidden_from_trending_when_world_filtering_is_enabled(): void
+    {
+        config()->set('openbook.moderation.hide_content_warnings_from_world', true);
+        config()->set('openbook.moderation.forced_content_warning_hashtags', ['nudes']);
+        $alice = $this->createFullAccount('trendmoderation');
+        $this->publishPost($alice, 'Contenuto #nudes');
+        $this->publishPost($alice, 'Contenuto #innocuo');
+
+        $this->assertSame(['innocuo'], app(PopularHashtagsQuery::class)->top()->pluck('name')->all());
+
+        $this->actingAs($alice)
+            ->get(route('hashtags.index'))
+            ->assertOk()
+            ->assertSee(route('hashtags.show', 'innocuo'), false)
+            ->assertDontSee(route('hashtags.show', 'nudes'), false);
+
+        $this->actingAs($alice)
+            ->get(route('notifications.index'))
+            ->assertOk()
+            ->assertSee(route('hashtags.show', 'innocuo'), false)
+            ->assertDontSee(route('hashtags.show', 'nudes'), false);
+    }
+
+    public function test_forced_content_warning_hashtags_remain_in_trending_when_world_filtering_is_disabled(): void
+    {
+        config()->set('openbook.moderation.hide_content_warnings_from_world', false);
+        config()->set('openbook.moderation.forced_content_warning_hashtags', ['nudes']);
+        $alice = $this->createFullAccount('trendmoderationoff');
+        $this->publishPost($alice, 'Contenuto #nudes');
+
+        $this->assertSame(['nudes'], app(PopularHashtagsQuery::class)->top()->pluck('name')->all());
+    }
+
     public function test_it_ignores_hashtags_outside_the_default_seven_day_window(): void
     {
         $alice = $this->createFullAccount('alice');
