@@ -31,6 +31,7 @@ use Illuminate\Support\Carbon;
  * @property string $actor_id
  * @property string|null $conversation_id
  * @property string|null $uri
+ * @property string|null $source_uri guid o permalink dell'articolo per i post importati da RSS/Atom
  * @property string|null $quoted_post_id
  * @property string|null $quoted_actor_id
  * @property string|null $quoted_event_id
@@ -99,6 +100,7 @@ class Post extends Model
         'community_id',
         'conversation_id',
         'uri',
+        'source_uri',
         'quoted_post_id',
         'quoted_actor_id',
         'quoted_event_id',
@@ -226,8 +228,9 @@ class Post extends Model
     /**
      * Un post "remoto" e' una copia in cache locale di una Note creata da un
      * Actor remoto (arrivata via inbox): riconoscibile perche' possiede un
-     * "uri" ActivityPub esplicito, a differenza dei post locali il cui
-     * identificatore canonico e' sempre derivato da "/posts/{id}".
+     * "uri" ActivityPub esplicito, a differenza dei post locali (e delle
+     * voci RSS) il cui identificatore canonico e' sempre derivato da
+     * "/posts/{id}".
      */
     public function isRemote(): bool
     {

@@ -3,6 +3,7 @@
 namespace App\Federation\Serialization;
 
 use App\Domain\Comments\Comment;
+use App\Domain\Feeds\FeedActorIdentity;
 use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Domain\Posts\PostBodyRenderer;
@@ -32,6 +33,11 @@ final class NoteSerializer
         $actor = $post->actor;
         $uri = self::postUri($post);
         $content = self::renderContent($post->body, $post->title);
+
+        if ($actor !== null && $actor->isFeed()) {
+            $actor = app(FeedActorIdentity::class)->ensure($actor);
+            $post->setRelation('actor', $actor);
+        }
 
         if ($post->quotedPost !== null) {
             $quotedUri = self::postUri($post->quotedPost);

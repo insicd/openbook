@@ -54,7 +54,35 @@ final class ObjectResolver
                 ->first();
         }
 
+        $feedActor = $this->localFeedActorFromUri($uri);
+
+        if ($feedActor !== null) {
+            return $feedActor;
+        }
+
         return $this->remoteActorResolver->resolveByUri($uri);
+    }
+
+    private function localFeedActorFromUri(string $uri): ?Actor
+    {
+        $host = parse_url($uri, PHP_URL_HOST);
+        $domain = (string) config('openbook.domain');
+
+        if (! is_string($host) || strcasecmp($host, $domain) !== 0) {
+            return null;
+        }
+
+        $path = rawurldecode((string) parse_url($uri, PHP_URL_PATH));
+
+        if (preg_match('#^/(?:feeds|attori)/([0-9a-fA-F-]{36})$#', $path, $matches) !== 1) {
+            return null;
+        }
+
+        return Actor::query()
+            ->whereKey($matches[1])
+            ->where('type', Actor::TYPE_FEED)
+            ->where('status', Actor::STATUS_ACTIVE)
+            ->first();
     }
 
     private function localActorUsernameFromUri(string $uri): ?string

@@ -101,7 +101,7 @@ final class ActivityDelivery
     {
         $inboxes = $this->remoteFollowerInboxes($sharer);
 
-        if (! $originalAuthor->isLocal() && $originalAuthor->id !== $sharer->id) {
+        if (! $originalAuthor->isLocal() && ! $originalAuthor->isFeed() && $originalAuthor->id !== $sharer->id) {
             $authorInbox = $originalAuthor->endpoints?->shared_inbox
                 ?: $originalAuthor->endpoints?->inbox;
 

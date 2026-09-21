@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Federation\EventsCollectionController;
+use App\Http\Controllers\Federation\FeedActorFederationController;
 use App\Http\Controllers\Federation\FollowersController;
 use App\Http\Controllers\Federation\FollowingController;
 use App\Http\Controllers\Federation\InboxController;
@@ -55,3 +56,16 @@ Route::get('/users/{username}/followers', [FollowersController::class, 'show'])
 Route::get('/users/{username}/following', [FollowingController::class, 'show'])
     ->where('username', '[A-Za-z0-9_]+')
     ->name('following.show');
+
+Route::get('/feeds/{actor}', [FeedActorFederationController::class, 'show'])
+    ->where('actor', '[0-9a-fA-F-]{36}')
+    ->name('feeds.actor');
+Route::get('/feeds/{actor}/outbox', [FeedActorFederationController::class, 'outbox'])
+    ->where('actor', '[0-9a-fA-F-]{36}')
+    ->name('feeds.outbox');
+Route::get('/feeds/{actor}/followers', [FeedActorFederationController::class, 'followers'])
+    ->where('actor', '[0-9a-fA-F-]{36}')
+    ->name('feeds.followers');
+Route::get('/feeds/{actor}/following', [FeedActorFederationController::class, 'following'])
+    ->where('actor', '[0-9a-fA-F-]{36}')
+    ->name('feeds.following');

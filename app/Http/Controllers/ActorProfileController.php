@@ -22,12 +22,10 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * Pagina profilo per un Actor *remoto* in cache locale: a differenza di
- * "/@{username}" (identificatore canonico degli Actor locali, anche per la
- * negoziazione ActivityPub) questa e' una pagina puramente di comodo per la
- * navigazione dell'interfaccia. Un Actor remoto non ha mai un identificatore
- * canonico su questa istanza: chi volesse il documento ActivityPub originale
- * deve recuperarlo dal suo "uri" reale, sul server di appartenenza.
+ * Pagina profilo per un Actor *remoto* in cache locale o per un contatto
+ * RSS/Atom. A differenza di "/@{username}" (identificatore canonico degli
+ * Actor Person/Group locali) questa e' una pagina di comodo per
+ * l'interfaccia. Il documento ActivityPub di un feed vive su "/feeds/{id}".
  */
 class ActorProfileController extends Controller
 {

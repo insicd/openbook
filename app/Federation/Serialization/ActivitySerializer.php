@@ -238,7 +238,11 @@ final class ActivitySerializer
     public static function announce(Announce $announce, Post $post): array
     {
         $sharer = $announce->actor;
-        $post->loadMissing('community.actor');
+        $post->loadMissing('community.actor', 'actor');
+
+        $object = $post->actor?->isFeed()
+            ? NoteSerializer::forPost($post)
+            : NoteSerializer::uriFor($post);
 
         if ($post->community?->is_private) {
             $followersUri = $sharer->isLocal()
@@ -256,7 +260,7 @@ final class ActivitySerializer
                     $post->actor->activityPubId(),
                     $post->community->actor?->activityPubId(),
                 ])),
-                'object' => NoteSerializer::uriFor($post),
+                'object' => $object,
             ];
         }
 
@@ -273,7 +277,7 @@ final class ActivitySerializer
                     : $sharer->endpoints?->followers,
                 $post->actor->activityPubId(),
             ]))),
-            'object' => NoteSerializer::uriFor($post),
+            'object' => $object,
         ];
     }
 
