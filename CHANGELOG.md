@@ -86,6 +86,10 @@ il [`README`](README.md#roadmap-and-project-status).
   pubblicazione i lavori video conclusi o falliti oltre la retention
   configurata, insieme agli allegati di staging e alle eventuali directory
   temporanee residue, senza toccare post e media gia' pubblicati.
+- Condivisione di un post RSS/Atom: l'Announce federato espone una Note
+  locale (`GET /posts/{id}`) con titolo e contenuto del feed, attribuita a
+  un Actor proxy (`GET /feeds/{id}`), invece dell'URL dell'articolo. Le
+  altre istanze possono cosi' mostrare il post completo, non solo un link.
 
 ## [26.38] - Melancholy Taco
 

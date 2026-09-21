@@ -17,6 +17,7 @@ final class FeedImporter
     public function __construct(
         private readonly FeedDiscoverer $discoverer,
         private readonly FeedDocumentParser $parser,
+        private readonly FeedActorIdentity $identity,
     ) {}
 
     /**
@@ -33,6 +34,8 @@ final class FeedImporter
         if ($source === null) {
             return 0;
         }
+
+        $this->identity->ensure($actor);
 
         $limit = $limit > 0 ? $limit : (int) config('openbook.feeds.import_limit', 40);
         $body = $rawBody;
@@ -118,7 +121,13 @@ final class FeedImporter
 
     private function upsertEntry(Actor $actor, FeedEntry $entry): bool
     {
-        $existing = Post::query()->where('uri', $entry->uri)->first();
+        $sourceUri = mb_substr($entry->uri, 0, 768);
+        $existing = Post::query()
+            ->where(function ($query) use ($sourceUri): void {
+                $query->where('source_uri', $sourceUri)
+                    ->orWhere('uri', $sourceUri);
+            })
+            ->first();
 
         if ($existing !== null) {
             return false;
@@ -130,7 +139,8 @@ final class FeedImporter
 
         Post::query()->create([
             'actor_id' => $actor->id,
-            'uri' => $entry->uri,
+            'uri' => null,
+            'source_uri' => $sourceUri,
             'title' => mb_substr($entry->title, 0, 255),
             'body' => mb_substr($entry->body, 0, 50000),
             'visibility' => Post::VISIBILITY_PUBLIC,

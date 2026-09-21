@@ -86,13 +86,21 @@ HTML;
             'q' => self::FEED_URL,
         ]));
 
-        $actor = Actor::query()->where('uri', self::FEED_URL)->firstOrFail();
+        $actor = Actor::query()->whereHas('feedSource', function ($query) {
+            $query->where('feed_url', self::FEED_URL);
+        })->with(['key', 'endpoints', 'feedSource'])->firstOrFail();
         $this->assertTrue($actor->isFeed());
         $this->assertFalse($actor->is_local);
         $this->assertSame('Blog di Esempio', $actor->name);
         $this->assertNotNull($actor->feedSource);
         $this->assertSame(self::FEED_URL, $actor->feedSource->feed_url);
         $this->assertSame(2, Post::query()->where('actor_id', $actor->id)->count());
+        $this->assertSame(0, Post::query()->where('actor_id', $actor->id)->whereNotNull('uri')->count());
+        $this->assertTrue(Post::query()->where('source_uri', 'https://blog.example/posts/1')->exists());
+        $this->assertSame(url('/feeds/'.$actor->id), $actor->uri);
+        $this->assertSame((string) config('openbook.domain'), $actor->domain);
+        $this->assertNotNull($actor->key);
+        $this->assertNotNull($actor->endpoints);
         $response->assertRedirect(route('actors.show', $actor));
     }
 
@@ -123,7 +131,9 @@ HTML;
         ]);
 
         $this->actingAs($viewer)->get(route('search.create', ['q' => self::FEED_URL]));
-        $actor = Actor::query()->where('uri', self::FEED_URL)->firstOrFail();
+        $actor = Actor::query()->whereHas('feedSource', function ($query) {
+            $query->where('feed_url', self::FEED_URL);
+        })->firstOrFail();
 
         Http::fake(); // nessuna consegna AP attesa
 
@@ -154,7 +164,9 @@ HTML;
         ]);
 
         $this->actingAs($viewer)->get(route('search.create', ['q' => self::FEED_URL]));
-        $actor = Actor::query()->where('uri', self::FEED_URL)->firstOrFail();
+        $actor = Actor::query()->whereHas('feedSource', function ($query) {
+            $query->where('feed_url', self::FEED_URL);
+        })->firstOrFail();
         app(FollowManager::class)->follow($viewer->actor, $actor);
 
         $actor->feedSource->update(['last_fetched_at' => now()->subHours(2)]);
@@ -162,7 +174,7 @@ HTML;
         $this->artisan('openbook:fetch-feeds', ['--limit' => 5, '--max-time' => 20])
             ->assertSuccessful();
 
-        $this->assertTrue(Post::query()->where('uri', 'https://blog.example/posts/3')->exists());
+        $this->assertTrue(Post::query()->where('source_uri', 'https://blog.example/posts/3')->exists());
         $this->assertSame(3, Post::query()->where('actor_id', $actor->id)->count());
     }
 
@@ -175,7 +187,9 @@ HTML;
         ]);
 
         $this->actingAs($viewer)->get(route('search.create', ['q' => self::FEED_URL]));
-        $actor = Actor::query()->where('uri', self::FEED_URL)->firstOrFail();
+        $actor = Actor::query()->whereHas('feedSource', function ($query) {
+            $query->where('feed_url', self::FEED_URL);
+        })->firstOrFail();
 
         $response = $this->actingAs($viewer)->get(route('actors.show', $actor));
         $response->assertOk();

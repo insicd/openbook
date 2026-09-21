@@ -13,6 +13,7 @@ final class FeedActorRegistrar
 {
     public function __construct(
         private readonly FeedDiscoverer $discoverer,
+        private readonly FeedActorIdentity $identity,
     ) {}
 
     public function resolveFromUrl(string $url): Actor
@@ -47,13 +48,14 @@ final class FeedActorRegistrar
 
             $host = $this->hostFromUrl($discovered->siteUrl ?: $discovered->feedUrl);
             $username = $this->uniqueUsername($host, $discovered->feedUrl);
+            $domain = (string) config('openbook.domain');
 
             $actor = Actor::query()->create([
                 'user_id' => null,
                 'type' => Actor::TYPE_FEED,
                 'is_local' => false,
                 'preferred_username' => $username,
-                'domain' => $host,
+                'domain' => $domain,
                 'uri' => $discovered->feedUrl,
                 'name' => mb_substr($discovered->title, 0, 255),
                 'summary' => $discovered->summary !== null
@@ -62,6 +64,8 @@ final class FeedActorRegistrar
                 'icon_url' => $discovered->iconUrl,
                 'image_url' => null,
                 'manually_approves_followers' => false,
+                'discoverable' => false,
+                'indexable' => false,
                 'status' => Actor::STATUS_ACTIVE,
                 'last_fetched_at' => now(),
             ]);
@@ -79,7 +83,9 @@ final class FeedActorRegistrar
                 'last_error' => null,
             ]);
 
-            return $actor->fresh(['feedSource']) ?? $actor;
+            $this->identity->ensure($actor);
+
+            return $actor->fresh(['feedSource', 'key', 'endpoints']) ?? $actor;
         });
     }
 
@@ -91,10 +97,11 @@ final class FeedActorRegistrar
                 ? mb_substr(strip_tags($discovered->summary), 0, 5000)
                 : $actor->summary,
             'icon_url' => $discovered->iconUrl ?: $actor->icon_url,
-            'uri' => $discovered->feedUrl,
             'last_fetched_at' => now(),
             'status' => Actor::STATUS_ACTIVE,
         ])->save();
+
+        $this->identity->ensure($actor);
 
         $source->fill([
             'actor_id' => $actor->id,
@@ -131,9 +138,14 @@ final class FeedActorRegistrar
 
         $n = 0;
 
+        $domain = (string) config('openbook.domain');
+
         while (Actor::query()
             ->where('preferred_username', $candidate)
-            ->where('domain', $host)
+            ->where(function ($query) use ($domain): void {
+                $query->where('domain', $domain)
+                    ->orWhere('is_local', true);
+            })
             ->exists()) {
             $n++;
             $candidate = $base.'-'.$suffix.$n;

@@ -2,6 +2,8 @@
 
 namespace App\Federation\Serialization;
 
+use App\Domain\Feeds\FeedActorIdentity;
+use App\Domain\Feeds\FeedActorUrls;
 use App\Domain\Posts\PostBodyRenderer;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorUrls;
@@ -25,7 +27,7 @@ final class ActorSerializer
      */
     public static function serialize(Actor $actor): array
     {
-        $actor->loadMissing(['key', 'endpoints', 'user.profile', 'user.settings']);
+        $actor->loadMissing(['key', 'endpoints', 'user.profile', 'user.settings', 'feedSource']);
 
         $profile = $actor->user?->profile;
 
@@ -33,6 +35,11 @@ final class ActorSerializer
             $urls = RelayActorUrls::all();
             $id = $urls['uri'];
             $pageUrl = $urls['uri'];
+        } elseif ($actor->isFeed()) {
+            $actor = app(FeedActorIdentity::class)->ensure($actor);
+            $urls = FeedActorUrls::for($actor);
+            $id = $urls['uri'];
+            $pageUrl = $actor->feedSource?->site_url ?: $urls['profile'];
         } elseif ($actor->isLocal()) {
             $urls = LocalActorUrls::forUsername($actor->preferred_username, $actor->isGroup());
             $id = $urls['uri'];
@@ -65,17 +72,19 @@ final class ActorSerializer
             'summary' => self::renderSummary($profile?->bio ?? $actor->summary),
             'url' => $pageUrl,
             'manuallyApprovesFollowers' => $actor->manually_approves_followers,
-            'discoverable' => self::discoverableFlag($actor),
-            'indexable' => self::indexableFlag($actor),
+            'discoverable' => $actor->isFeed() ? false : self::discoverableFlag($actor),
+            'indexable' => $actor->isFeed() ? false : self::indexableFlag($actor),
             'published' => optional($actor->created_at)->toAtomString() ?? now()->toAtomString(),
         ];
 
-        if ($actor->isLocal() && $actor->isApplication()) {
+        if ($urls !== null && ($actor->isFeed() || ($actor->isLocal() && $actor->isApplication()))) {
             $document['inbox'] = $urls['inbox'];
             $document['outbox'] = $urls['outbox'];
             $document['followers'] = $urls['followers'];
             $document['following'] = $urls['following'];
-            $document['endpoints'] = ['sharedInbox' => $urls['shared_inbox']];
+            $document['endpoints'] = [
+                'sharedInbox' => $urls['shared_inbox'],
+            ];
         } elseif ($urls !== null) {
             $document['inbox'] = $urls['inbox'];
             $document['outbox'] = $urls['outbox'];

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Federation;
 
 use App\Application\Services\InstanceRelayActor;
+use App\Domain\Feeds\FeedActorUrls;
+use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Actors\LocalActorUrls;
 use App\Http\Controllers\Controller;
@@ -12,7 +14,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Implementa /.well-known/webfinger per la scoperta degli Actor locali
- * (Person e Group / community).
+ * (Person, Group / community e proxy RSS/Atom).
  */
 final class WebFingerController extends Controller
 {
@@ -37,7 +39,7 @@ final class WebFingerController extends Controller
 
         $actor = $username === InstanceRelayActor::USERNAME
             ? $this->relayActor->getOrCreate()
-            : $this->localActors->findByUsername($username);
+            : $this->findActor($username);
 
         if ($actor === null || ! $actor->isActive()) {
             throw new NotFoundHttpException;
@@ -54,6 +56,31 @@ final class WebFingerController extends Controller
                     'type' => 'application/activity+json',
                     'href' => $actorUri,
                 ]],
+            ], 200, ['Content-Type' => 'application/jrd+json; charset=utf-8']);
+        }
+
+        if ($actor->isFeed()) {
+            $urls = FeedActorUrls::for($actor);
+
+            return response()->json([
+                'subject' => 'acct:'.$actor->handle(),
+                'aliases' => array_values(array_unique([
+                    $urls['uri'],
+                    $urls['profile'],
+                    $actor->uri,
+                ])),
+                'links' => [
+                    [
+                        'rel' => 'self',
+                        'type' => 'application/activity+json',
+                        'href' => $urls['uri'],
+                    ],
+                    [
+                        'rel' => 'http://webfinger.net/rel/profile-page',
+                        'type' => 'text/html',
+                        'href' => $urls['profile'],
+                    ],
+                ],
             ], 200, ['Content-Type' => 'application/jrd+json; charset=utf-8']);
         }
 
@@ -79,6 +106,24 @@ final class WebFingerController extends Controller
                 ],
             ],
         ], 200, ['Content-Type' => 'application/jrd+json; charset=utf-8']);
+    }
+
+    private function findActor(string $username): ?Actor
+    {
+        $local = $this->localActors->findByUsername($username);
+
+        if ($local !== null) {
+            return $local;
+        }
+
+        $domain = (string) config('openbook.domain');
+
+        return Actor::query()
+            ->where('type', Actor::TYPE_FEED)
+            ->where('preferred_username', mb_strtolower($username))
+            ->where('domain', $domain)
+            ->where('status', Actor::STATUS_ACTIVE)
+            ->first();
     }
 
     private function extractLocalUsername(string $resource): ?string
@@ -115,6 +160,16 @@ final class WebFingerController extends Controller
 
             if (preg_match('#^/c/([A-Za-z0-9_]+)$#', $path, $matches) === 1) {
                 return mb_strtolower($matches[1]);
+            }
+
+            if (preg_match('#^/feeds/([0-9a-fA-F-]{36})$#', $path, $matches) === 1) {
+                $feed = Actor::query()
+                    ->whereKey($matches[1])
+                    ->where('type', Actor::TYPE_FEED)
+                    ->where('status', Actor::STATUS_ACTIVE)
+                    ->first();
+
+                return $feed?->preferred_username;
             }
         }
 
