@@ -3,16 +3,18 @@
 namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
+use App\Domain\Posts\PendingPostPublication;
 use App\Federation\Inbox\InboxItem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Statistiche e pulizia sicura di tabelle operative che crescono nel tempo
- * (inbox grezzo, job falliti, cache/sessioni). Conserva sempre le righe
- * delle ultime {@see RETENTION_HOURS} ore; non tocca dati di dominio
- * (post, utenti, federazione).
+ * (inbox grezzo, job falliti, cache/sessioni e coda pubblicazioni). Ogni
+ * famiglia applica la propria retention; non tocca post, utenti o media
+ * pubblicati.
  */
 final class DatabaseMaintenanceService
 {
@@ -52,7 +54,10 @@ final class DatabaseMaintenanceService
                 'key' => $definition['key'],
                 'table' => $table,
                 'label' => __($definition['label_key']),
-                'description' => __($definition['description_key'], ['hours' => self::RETENTION_HOURS]),
+                'description' => __($definition['description_key'], [
+                    'hours' => self::RETENTION_HOURS,
+                    'days' => $this->publicationQueueRetentionDays(),
+                ]),
                 'available' => true,
                 'row_count' => (int) DB::table($table)->count(),
                 'size_bytes' => $sizeBytes,
@@ -82,6 +87,7 @@ final class DatabaseMaintenanceService
         if ($actor !== null && array_sum($deleted) > 0) {
             $this->auditLogger->log($actor, 'database.purge', null, [
                 'retention_hours' => self::RETENTION_HOURS,
+                'publication_queue_retention_days' => $this->publicationQueueRetentionDays(),
                 'deleted' => $deleted,
             ]);
         }
@@ -104,6 +110,7 @@ final class DatabaseMaintenanceService
             'cache_locks' => $this->purgeCacheLocks(),
             'sessions' => $this->purgeSessions(),
             'password_reset_tokens' => $this->purgePasswordResetTokens(),
+            'post_publication_queue' => $this->purgePostPublicationQueue(),
             default => 0,
         };
 
@@ -111,6 +118,7 @@ final class DatabaseMaintenanceService
             $this->auditLogger->log($actor, 'database.purge', null, [
                 'table' => $key,
                 'retention_hours' => self::RETENTION_HOURS,
+                'publication_queue_retention_days' => $this->publicationQueueRetentionDays(),
                 'deleted' => $deleted,
             ]);
         }
@@ -133,6 +141,7 @@ final class DatabaseMaintenanceService
             'cache_locks' => $this->cacheLocksPurgeableQuery()->count(),
             'sessions' => $this->sessionsPurgeableQuery()->count(),
             'password_reset_tokens' => $this->passwordResetTokensPurgeableQuery()->count(),
+            'post_publication_queue' => $this->postPublicationQueuePurgeableQuery()->count(),
             default => 0,
         };
     }
@@ -178,6 +187,12 @@ final class DatabaseMaintenanceService
                 'table' => 'password_reset_tokens',
                 'label_key' => 'openbook.admin.database.tables.password_reset_tokens',
                 'description_key' => 'openbook.admin.database.tables.password_reset_tokens_help',
+            ],
+            [
+                'key' => 'post_publication_queue',
+                'table' => 'post_publication_queue',
+                'label_key' => 'openbook.admin.database.tables.post_publication_queue',
+                'description_key' => 'openbook.admin.database.tables.post_publication_queue_help',
             ],
         ];
     }
@@ -269,6 +284,63 @@ final class DatabaseMaintenanceService
                 $query->where('created_at', '<', $this->cutoff())
                     ->orWhereNull('created_at');
             });
+    }
+
+    private function purgePostPublicationQueue(): int
+    {
+        $deleted = 0;
+        $cutoff = $this->publicationQueueCutoff();
+
+        $this->postPublicationQueuePurgeableQuery()
+            ->orderBy('id')
+            ->chunkById(100, function ($publications) use (&$deleted, $cutoff): void {
+                foreach ($publications as $publication) {
+                    $directory = 'post-publication/'.$publication->id;
+
+                    try {
+                        $disk = Storage::disk('local');
+
+                        if ($disk->directoryExists($directory) && ! $disk->deleteDirectory($directory)) {
+                            continue;
+                        }
+                    } catch (\Throwable $exception) {
+                        report($exception);
+
+                        continue;
+                    }
+
+                    $deleted += PendingPostPublication::query()
+                        ->whereKey($publication->id)
+                        ->whereIn('status', [
+                            PendingPostPublication::STATUS_PUBLISHED,
+                            PendingPostPublication::STATUS_FAILED,
+                        ])
+                        ->where('updated_at', '<', $cutoff)
+                        ->delete();
+                }
+            });
+
+        return $deleted;
+    }
+
+    private function postPublicationQueuePurgeableQuery()
+    {
+        return PendingPostPublication::query()
+            ->whereIn('status', [
+                PendingPostPublication::STATUS_PUBLISHED,
+                PendingPostPublication::STATUS_FAILED,
+            ])
+            ->where('updated_at', '<', $this->publicationQueueCutoff());
+    }
+
+    private function publicationQueueCutoff(): Carbon
+    {
+        return now()->subDays($this->publicationQueueRetentionDays());
+    }
+
+    private function publicationQueueRetentionDays(): int
+    {
+        return max(1, (int) config('openbook.maintenance.publication_queue_retention_days', 7));
     }
 
     private function tableSizeBytes(string $table): int

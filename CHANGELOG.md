@@ -56,6 +56,10 @@ il [`README`](README.md#roadmap-and-project-status).
   home mostra i lavori in attesa/falliti e permette all'autore di eliminarli.
 
 ### Fixed
+- Manutenzione database: la pulizia periodica rimuove dalla coda di
+  pubblicazione i lavori video conclusi o falliti oltre la retention
+  configurata, insieme agli allegati di staging e alle eventuali directory
+  temporanee residue, senza toccare post e media gia' pubblicati.
 - Custom emoji federate: i nomi degli Actor ora renderizzano correttamente le
   emoji anche in notifiche, attivita', commenti, messaggi, segnalazioni e liste
   delle reazioni; nei contesti solo testuali gli shortcode dichiarati vengono
