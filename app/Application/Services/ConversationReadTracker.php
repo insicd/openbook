@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class ConversationReadTracker
 {
-    public function markRead(Conversation $conversation, Actor $viewer): void
+    public function markRead(Conversation $conversation, Actor $viewer, ?Carbon $readAt = null): void
     {
         $userId = $viewer->user_id;
 
@@ -29,7 +29,7 @@ final class ConversationReadTracker
                 'user_id' => $userId,
             ],
             [
-                'last_read_at' => now(),
+                'last_read_at' => $readAt ?? now(),
             ],
         );
     }
