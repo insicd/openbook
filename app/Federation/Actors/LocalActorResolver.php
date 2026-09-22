@@ -11,6 +11,7 @@ final class LocalActorResolver
     {
         return Actor::query()
             ->where('is_local', true)
+            ->where('type', '!=', Actor::TYPE_APPLICATION)
             ->where('preferred_username', mb_strtolower($username))
             ->where('status', Actor::STATUS_ACTIVE)
             ->with(['endpoints', 'key', 'user.profile'])
@@ -25,6 +26,7 @@ final class LocalActorResolver
     {
         return Actor::query()
             ->where('is_local', true)
+            ->where('type', '!=', Actor::TYPE_APPLICATION)
             ->where('preferred_username', mb_strtolower($username))
             ->whereIn('status', [Actor::STATUS_ACTIVE, Actor::STATUS_SUSPENDED])
             ->with(['endpoints', 'key', 'user.profile'])

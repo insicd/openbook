@@ -7,9 +7,11 @@ use App\Application\Queries\PopularRemoteActorsQuery;
 use App\Application\Services\FollowManager;
 use App\Application\Services\PostComposer;
 use App\Domain\Accounts\User;
+use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Federation\Serialization\NoteSerializer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\CreatesAccounts;
@@ -71,6 +73,52 @@ class WorldTest extends TestCase
         $world = app(FeedQuery::class)->world();
 
         $this->assertFalse($world->getCollection()->pluck('id')->contains($followersOnlyPost->id));
+    }
+
+    public function test_the_world_feed_can_exclude_posts_with_content_warnings(): void
+    {
+        config()->set('openbook.moderation.hide_content_warnings_from_world', true);
+        $remote = $this->createRemoteActor('worldcw');
+        $normal = $this->cacheRemotePost($remote);
+        $sensitive = $this->cacheRemotePost($remote, ['content_warning' => 'Nudità']);
+
+        $ids = app(FeedQuery::class)->world()->getCollection()->pluck('id');
+
+        $this->assertTrue($ids->contains($normal->id));
+        $this->assertFalse($ids->contains($sensitive->id));
+    }
+
+    public function test_forced_hashtags_apply_a_local_warning_and_follow_the_world_setting(): void
+    {
+        config()->set('openbook.moderation.hide_content_warnings_from_world', false);
+        config()->set('openbook.moderation.forced_content_warning_hashtags', ['nudes']);
+        $remote = $this->createRemoteActor('worldforcedcw');
+        $post = $this->cacheRemotePost($remote);
+        $hashtag = Hashtag::query()->create(['name' => 'nudes']);
+        $post->hashtags()->attach($hashtag->id);
+        $post->load('hashtags');
+
+        $this->assertTrue($post->hasContentWarning());
+        $this->assertSame(__('openbook.posts.forced_content_warning'), $post->effectiveContentWarning());
+        $this->assertTrue(app(FeedQuery::class)->world()->getCollection()->contains('id', $post->id));
+
+        config()->set('openbook.moderation.hide_content_warnings_from_world', true);
+
+        $this->assertFalse(app(FeedQuery::class)->world()->getCollection()->contains('id', $post->id));
+    }
+
+    public function test_a_forced_local_warning_does_not_modify_the_activitypub_object(): void
+    {
+        config()->set('openbook.moderation.forced_content_warning_hashtags', ['nudes']);
+        $author = $this->createFullAccount('localforcedcw');
+        $post = $this->publishLocalPost($author, 'Testo locale #nudes')->load('hashtags');
+
+        $this->assertTrue($post->hasContentWarning());
+
+        $note = NoteSerializer::forPost($post);
+
+        $this->assertFalse($note['sensitive']);
+        $this->assertArrayNotHasKey('summary', $note);
     }
 
     public function test_a_guest_cannot_view_the_world_page(): void

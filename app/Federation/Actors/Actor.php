@@ -66,6 +66,8 @@ class Actor extends Model
 
     public const TYPE_FEED = 'feed';
 
+    public const TYPE_APPLICATION = 'application';
+
     public const STATUS_ACTIVE = 'active';
 
     public const STATUS_SUSPENDED = 'suspended';
@@ -228,6 +230,11 @@ class Actor extends Model
         return $this->type === self::TYPE_FEED;
     }
 
+    public function isApplication(): bool
+    {
+        return $this->type === self::TYPE_APPLICATION;
+    }
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
@@ -269,11 +276,15 @@ class Actor extends Model
 
     /**
      * Identificatore ActivityPub da usare in attivita', firme HTTP e documenti.
-     * Per gli attori locali e' sempre "/users/{username}" (APP_URL), anche se
-     * la colonna "uri" in database e' ancora un alias legacy ("/@...").
+     * Per Person e Group locali e' sempre "/users/{username}" (APP_URL),
+     * mentre l'Actor tecnico Application usa l'URI stabile "/relay".
      */
     public function activityPubId(): string
     {
+        if ($this->isLocal() && $this->isApplication()) {
+            return RelayActorUrls::all()['uri'];
+        }
+
         if ($this->isLocal()) {
             return LocalActorUrls::forUsername($this->preferred_username, $this->isGroup())['uri'];
         }

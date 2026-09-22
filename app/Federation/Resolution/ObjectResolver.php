@@ -2,6 +2,7 @@
 
 namespace App\Federation\Resolution;
 
+use App\Application\Services\DomainBlockManager;
 use App\Domain\Comments\Comment;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventComment;
@@ -31,10 +32,15 @@ final class ObjectResolver
 {
     public function __construct(
         private readonly RemoteActorResolver $remoteActorResolver,
+        private readonly DomainBlockManager $domainBlocks,
     ) {}
 
     public function resolveActor(string $uri): ?Actor
     {
+        if ($this->domainBlocks->isBlockedUrl($uri)) {
+            return null;
+        }
+
         $actor = Actor::query()->where('uri', $uri)->first();
 
         if ($actor !== null) {

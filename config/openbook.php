@@ -231,6 +231,11 @@ return [
         'trending_days' => (int) env('OPENBOOK_TRENDING_DAYS', 7),
     ],
 
+    'moderation' => [
+        'hide_content_warnings_from_world' => false,
+        'forced_content_warning_hashtags' => [],
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Feed

@@ -544,6 +544,45 @@ essere consumati da altri server e non da browser:
   stessa protezione si applica anche alle richieste **in uscita** di consegna
   (`SafeHttpClient::post()`), che inoltre non seguono mai un redirect (la firma HTTP
   e' calcolata sull'URL esatto di destinazione).
+- **Relay compatibili con Mastodon**: gli amministratori possono configurare le
+  inbox dei relay da **Pannello di controllo → Relay**, abilitare separatamente
+  ricezione e pubblicazione e avviare o interrompere la sottoscrizione. Dopo
+  l'accettazione, Openbook importa le attivita' pubbliche trasportate dal relay e
+  aggiunge la sua inbox al fan-out di post, commenti, eventi e commenti agli
+  eventi pubblici locali. Il traffico riusa code, firme, retry, blocchi di
+  dominio e deduplicazione della federazione ordinaria. Con relay trafficati
+  sono consigliati due worker residenti separati, cosi' l'elaborazione in
+  ingresso e le consegne remote lente non si bloccano a vicenda:
+
+  ```bash
+  php /percorso/openbook/artisan queue:work --queue=inbox --sleep=1
+  php /percorso/openbook/artisan queue:work --queue=delivery --sleep=1
+  ```
+
+  I worker possono convivere con `openbook:cron`, ma vanno riavviati dopo ogni
+  deploy affinche' carichino il codice aggiornato.
+
+- **Sorgenti d'istanza basate su Actor**: lo stesso pannello puo' seguire un
+  Actor remoto `Application`/`Service`, come quelli esposti da Mobilizon o
+  Gancio, partendo dall'identita' federata (per esempio
+  `@relay@istanza.example`) o dall'URI ActivityPub completo. Openbook scopre e
+  valida l'Actor e importa gli oggetti pubblici trasportati tramite `Announce`.
+  Le applicazioni remote possono a loro volta seguire l'Actor tecnico `/relay`
+  di Openbook per ricevere gli `Announce` di post, commenti ed eventi pubblici
+  locali. Le collection `/relay/outbox`, `/relay/followers` e
+  `/relay/following` sono esposte per discovery e backfill.
+
+- **Relay compatibili con LitePub**: gli hub usati da Pleroma/Akkoma e software
+  compatibili si configurano tramite identita' federata dell'Actor o URI
+  ActivityPub completo. Openbook esegue il Follow dell'Actor, registra il Follow
+  reciproco necessario alla pubblicazione e inoltra i contenuti pubblici locali
+  tramite `Announce` tecnici. Il pannello distingue una sottoscrizione accettata
+  che attende ancora il Follow reciproco. Disabilitare la pubblicazione o
+  annullare la sottoscrizione interrompe subito il fan-out, anche per consegne
+  gia' in coda; restano applicate le normali regole di visibilita', blocco
+  domini, deduplicazione e prevenzione dei loop. Contenuti non elencati,
+  followers-only, diretti, remoti o di community private non vengono mai
+  pubblicati verso un relay LitePub.
 
 ### Federazione sociale (Fase 4)
 

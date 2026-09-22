@@ -631,6 +631,7 @@ final class PostBodyRenderer
         if ($domain === null || $domain === $localDomain) {
             $local = Actor::query()
                 ->where('is_local', true)
+                ->where('type', '!=', Actor::TYPE_APPLICATION)
                 ->where('preferred_username', $username)
                 ->where('status', Actor::STATUS_ACTIVE)
                 ->first();

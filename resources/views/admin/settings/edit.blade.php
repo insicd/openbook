@@ -16,6 +16,12 @@
         </div>
 
         <div class="ob-field" style="margin-top:1rem">
+            <label for="site_description">{{ __('openbook.admin.settings.site_description') }}</label>
+            <textarea id="site_description" name="site_description" rows="3" maxlength="500">{{ old('site_description', $siteDescription) }}</textarea>
+            <p class="ob-field__help">{{ __('openbook.admin.settings.site_description_help') }}</p>
+        </div>
+
+        <div class="ob-field" style="margin-top:1rem">
             <label for="favicon">{{ __('openbook.admin.settings.favicon') }}</label>
             <div class="ob-settings-avatar-picker">
                 <img
@@ -157,6 +163,22 @@
             <label for="trending_days">{{ __('openbook.admin.settings.trending_days') }}</label>
             <input type="number" id="trending_days" name="trending_days" value="{{ old('trending_days', $trendingDays) }}" required min="1" max="365">
             <p class="ob-field__help">{{ __('openbook.admin.settings.trending_days_help') }}</p>
+        </div>
+
+        <h2 style="margin-top:1.5rem;font-size:1.1rem">{{ __('openbook.admin.settings.world_moderation_title') }}</h2>
+
+        <div class="ob-field" style="margin-top:1rem">
+            <label style="display:flex;align-items:center;gap:0.5rem;font-weight:500">
+                <input type="checkbox" name="world_hide_content_warnings" value="1" @checked(old('world_hide_content_warnings', $worldHideContentWarnings))>
+                {{ __('openbook.admin.settings.world_hide_content_warnings') }}
+            </label>
+            <p class="ob-field__help">{{ __('openbook.admin.settings.world_hide_content_warnings_help') }}</p>
+        </div>
+
+        <div class="ob-field" style="margin-top:1rem">
+            <label for="forced_content_warning_hashtags">{{ __('openbook.admin.settings.forced_content_warning_hashtags') }}</label>
+            <textarea id="forced_content_warning_hashtags" name="forced_content_warning_hashtags" rows="5" maxlength="4000" placeholder="nudes&#10;porno">{{ old('forced_content_warning_hashtags', $forcedContentWarningHashtags) }}</textarea>
+            <p class="ob-field__help">{{ __('openbook.admin.settings.forced_content_warning_hashtags_help') }}</p>
         </div>
 
         <button type="submit" class="ob-btn ob-btn--primary" style="margin-top:1.25rem">{{ __('openbook.admin.settings.save') }}</button>

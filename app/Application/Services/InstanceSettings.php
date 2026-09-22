@@ -20,6 +20,8 @@ final class InstanceSettings
 {
     public const KEY_SITE_NAME = 'site_name';
 
+    public const KEY_SITE_DESCRIPTION = 'site_description';
+
     public const KEY_REGISTRATION_OPEN = 'registration_open';
 
     public const KEY_INSTANCE_RULES = 'instance_rules';
@@ -54,6 +56,10 @@ final class InstanceSettings
 
     public const KEY_SHOW_HOME_STAFF = 'show_home_staff';
 
+    public const KEY_WORLD_HIDE_CONTENT_WARNINGS = 'world_hide_content_warnings';
+
+    public const KEY_FORCED_CONTENT_WARNING_HASHTAGS = 'forced_content_warning_hashtags';
+
     public const KEY_INSTANCE_ICON_DIR = 'instance_icon_dir';
 
     public const KEY_CUSTOM_CSS = 'custom_css';
@@ -61,6 +67,8 @@ final class InstanceSettings
     public const KEY_LOCATIONS_CATALOG_READY = GeoNamesCityImporter::READY_SETTING_KEY;
 
     public const CUSTOM_CSS_MAX_LENGTH = 50000;
+
+    public const FORCED_CONTENT_WARNING_HASHTAGS_MAX = 100;
 
     /**
      * Favicon di default (SVG inline) usata finche' l'amministratore non
@@ -105,12 +113,19 @@ final class InstanceSettings
         $this->applyIntSetting(self::KEY_VIDEO_MAX_DIMENSION, 'openbook.video.max_dimension');
         $this->applyIntSetting(self::KEY_VIDEO_MAX_FRAME_RATE, 'openbook.video.max_frame_rate');
         $this->applyIntSetting(self::KEY_TRENDING_DAYS, 'openbook.hashtags.trending_days');
+        Config::set('openbook.moderation.hide_content_warnings_from_world', $this->worldHidesContentWarnings());
+        Config::set('openbook.moderation.forced_content_warning_hashtags', $this->forcedContentWarningHashtags());
         Config::set('openbook.locations.catalog_ready', $this->locationsCatalogReady());
     }
 
     public function siteName(): string
     {
         return SystemSetting::get(self::KEY_SITE_NAME) ?: (string) config('app.name');
+    }
+
+    public function siteDescription(): string
+    {
+        return trim((string) (SystemSetting::get(self::KEY_SITE_DESCRIPTION) ?? ''));
     }
 
     public function registrationOpen(): bool
@@ -213,6 +228,22 @@ final class InstanceSettings
         return filter_var($stored, FILTER_VALIDATE_BOOLEAN);
     }
 
+    public function worldHidesContentWarnings(): bool
+    {
+        return SystemSetting::getBool(self::KEY_WORLD_HIDE_CONTENT_WARNINGS, false);
+    }
+
+    /** @return list<string> */
+    public function forcedContentWarningHashtags(): array
+    {
+        $decoded = json_decode((string) SystemSetting::get(
+            self::KEY_FORCED_CONTENT_WARNING_HASHTAGS,
+            '[]',
+        ), true);
+
+        return is_array($decoded) ? $this->normalizeHashtags($decoded) : [];
+    }
+
     public function iconDirectory(): ?string
     {
         $directory = SystemSetting::get(self::KEY_INSTANCE_ICON_DIR);
@@ -270,6 +301,7 @@ final class InstanceSettings
     /**
      * @param  array{
      *     site_name: string,
+     *     site_description?: string,
      *     registration_open: bool,
      *     show_home_staff: bool,
      *     instance_rules?: string,
@@ -287,12 +319,15 @@ final class InstanceSettings
      *     video_max_dimension: int,
      *     video_max_frame_rate: int,
      *     trending_days: int,
+     *     world_hide_content_warnings?: bool,
+     *     forced_content_warning_hashtags?: string,
      *     instance_icon_dir?: string|null
      * }  $data
      */
     public function update(array $data, ?User $actor = null): void
     {
         $siteName = trim($data['site_name']);
+        $siteDescription = trim((string) ($data['site_description'] ?? ''));
         $registrationOpen = (bool) $data['registration_open'];
         $showHomeStaff = (bool) $data['show_home_staff'];
         $rules = (string) ($data['instance_rules'] ?? '');
@@ -305,8 +340,13 @@ final class InstanceSettings
         $videoFfmpegPath = trim($data['video_ffmpeg_path']);
         $videoFfprobePath = trim($data['video_ffprobe_path']);
         $trendingDays = max(1, (int) ($data['trending_days'] ?? $this->trendingDays()));
+        $worldHideContentWarnings = (bool) ($data['world_hide_content_warnings'] ?? false);
+        $forcedContentWarningHashtags = $this->normalizeHashtags(
+            preg_split('/[\s,;]+/u', (string) ($data['forced_content_warning_hashtags'] ?? '')) ?: [],
+        );
 
         SystemSetting::put(self::KEY_SITE_NAME, $siteName);
+        SystemSetting::put(self::KEY_SITE_DESCRIPTION, $siteDescription);
         SystemSetting::putBool(self::KEY_REGISTRATION_OPEN, $registrationOpen);
         SystemSetting::putBool(self::KEY_SHOW_HOME_STAFF, $showHomeStaff);
         SystemSetting::put(self::KEY_INSTANCE_RULES, $rules);
@@ -324,6 +364,11 @@ final class InstanceSettings
         SystemSetting::put(self::KEY_VIDEO_MAX_DIMENSION, (string) $data['video_max_dimension']);
         SystemSetting::put(self::KEY_VIDEO_MAX_FRAME_RATE, (string) $data['video_max_frame_rate']);
         SystemSetting::put(self::KEY_TRENDING_DAYS, (string) $trendingDays);
+        SystemSetting::putBool(self::KEY_WORLD_HIDE_CONTENT_WARNINGS, $worldHideContentWarnings);
+        SystemSetting::put(
+            self::KEY_FORCED_CONTENT_WARNING_HASHTAGS,
+            json_encode($forcedContentWarningHashtags, JSON_THROW_ON_ERROR),
+        );
 
         if (array_key_exists('instance_icon_dir', $data)) {
             SystemSetting::put(self::KEY_INSTANCE_ICON_DIR, $data['instance_icon_dir']);
@@ -344,13 +389,18 @@ final class InstanceSettings
         Config::set('openbook.video.max_dimension', (int) $data['video_max_dimension']);
         Config::set('openbook.video.max_frame_rate', (int) $data['video_max_frame_rate']);
         Config::set('openbook.hashtags.trending_days', $trendingDays);
+        Config::set('openbook.moderation.hide_content_warnings_from_world', $worldHideContentWarnings);
+        Config::set('openbook.moderation.forced_content_warning_hashtags', $forcedContentWarningHashtags);
 
         if ($actor !== null) {
             $this->auditLogger->log($actor, 'settings.update', null, [
                 'site_name' => $siteName,
+                'has_site_description' => $siteDescription !== '',
                 'registration_open' => $registrationOpen,
                 'show_home_staff' => $showHomeStaff,
                 'trending_days' => $trendingDays,
+                'world_hide_content_warnings' => $worldHideContentWarnings,
+                'forced_content_warning_hashtags_count' => count($forcedContentWarningHashtags),
                 'video_enabled' => $videoEnabled,
                 'has_custom_icons' => $this->hasCustomIcons(),
             ]);
@@ -386,5 +436,21 @@ final class InstanceSettings
         }
 
         return $fallback;
+    }
+
+    /**
+     * @param  array<int, mixed>  $hashtags
+     * @return list<string>
+     */
+    private function normalizeHashtags(array $hashtags): array
+    {
+        return collect($hashtags)
+            ->filter(fn (mixed $hashtag): bool => is_string($hashtag))
+            ->map(fn (string $hashtag): string => mb_strtolower(ltrim(trim($hashtag), '#')))
+            ->filter(fn (string $hashtag): bool => $hashtag !== '' && preg_match('/^[\pL\pN_]+$/u', $hashtag) === 1)
+            ->unique()
+            ->take(self::FORCED_CONTENT_WARNING_HASHTAGS_MAX)
+            ->values()
+            ->all();
     }
 }

@@ -47,6 +47,9 @@
                 <a href="{{ route('admin.domain_blocks.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.domain_blocks.*') ? 'is-active' : '' }}">
                     <x-icon name="globe" /> {{ __('openbook.admin.nav.domain_blocks') }}
                 </a>
+                <a href="{{ route('admin.relays.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.relays.*') ? 'is-active' : '' }}">
+                    <x-icon name="share" /> {{ __('openbook.admin.nav.relays') }}
+                </a>
                 <a href="{{ route('admin.queue.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.queue.*') ? 'is-active' : '' }}">
                     <x-icon name="warning" /> {{ __('openbook.admin.nav.queue') }}
                 </a>

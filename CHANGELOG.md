@@ -19,6 +19,34 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38.rc1]
 
 ### Added
+- **Moderazione della timeline Mondo**: dal pannello amministrativo è possibile
+  escludere i post dotati di content warning e configurare fino a 100 hashtag
+  che applicano localmente un avviso generico anche quando il post originale
+  non lo dichiara. La policy è retroattiva, non modifica gli oggetti ActivityPub
+  in uscita e lascia i contenuti accessibili nelle altre sezioni dietro al CW.
+  Quando l'esclusione da Mondo è attiva, gli hashtag configurati vengono
+  nascosti anche dalla pagina e dal box laterale delle tendenze.
+- **Relay ActivityPub Mastodon, Actor-based e LitePub**: il pannello amministrativo
+  permette di configurare relay in ingresso e in uscita, sottoscriverli tramite
+  il normale handshake `Follow`/`Accept` e controllarne separatamente le due
+  direzioni. Oltre agli hub Mastodon sono supportati gli Actor tecnici
+  `Application`/`Service` usati come sorgenti d'istanza da software come
+  Mobilizon e Gancio, configurabili tramite identità federata o URI ActivityPub
+  completo grazie al discovery WebFinger, e gli hub LitePub compatibili con
+  Pleroma/Akkoma tramite Follow reciproco. Openbook espone un Actor tecnico
+  `Application`, conserva la provenienza dei contenuti inoltrati e accetta dal
+  relay soltanto post ed eventi pubblici; post, eventi e relativi commenti
+  pubblici locali vengono consegnati ai relay attivi riutilizzando firma, coda,
+  retry e blocchi di dominio gia' impiegati dalla federazione ordinaria. Anche
+  i boost pubblici e i relativi annullamenti vengono distribuiti agli hub
+  Mastodon-like abilitati, mantenendo l'identita' dell'Actor che condivide. Gli
+  Actor remoti possono seguire `/relay` per ricevere `Announce` tecnici dei
+  contenuti pubblici; le
+  relative collection outbox, followers e following sono esposte senza creare
+  boost o contatori sociali fittizi. Stato, ultimi scambi ed errori di consegna
+  sono visibili nel pannello di controllo. Nome,
+  descrizione pubblica e icona dell'istanza sono inoltre esposti nei metadati
+  NodeInfo per migliorare la presentazione nei servizi federati.
 - **Eventi federati ActivityPub**: Openbook importa gli oggetti `Event`
   ricevuti tramite `Create` e `Announce`, ne gestisce aggiornamenti,
   cancellazioni e audience e li presenta nella nuova sezione Eventi con
@@ -46,6 +74,14 @@ il [`README`](README.md#roadmap-and-project-status).
   delle tendenze insieme a quelli dei post.
 
 ### Fixed
+- Blocchi di dominio federati: nuovi post, commenti ed eventi provenienti da
+  un dominio bloccato vengono ignorati anche se inoltrati da un relay
+  autorizzato o se il relativo Actor era già presente nella cache locale. Il
+  controllo copre firmatario, URI dell'oggetto, attribuzioni e fetch remote,
+  senza cancellare retroattivamente i contenuti già importati.
+- Relay ActivityPub: gli `Announce` usati come contenitori di trasporto
+  importano post ed eventi senza essere registrati come condivisioni sociali
+  e senza alterarne i relativi contatori.
 - Manutenzione database: la pulizia periodica rimuove dalla coda di
   pubblicazione i lavori video conclusi o falliti oltre la retention
   configurata, insieme agli allegati di staging e alle eventuali directory

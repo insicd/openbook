@@ -30,7 +30,7 @@ final class AnnounceManager
 
     /**
      * @param  Carbon|null  $occurredAt  Timestamp dell'Announce (es. published
-     *                                    del post in un backfill outbox); default now().
+     *                                   del post in un backfill outbox); default now().
      */
     public function announce(
         Actor $actor,
@@ -83,7 +83,7 @@ final class AnnounceManager
         });
 
         if ($announce->wasRecentlyCreated && $actor->isLocal()) {
-            $this->delivery->deliverAnnounce($actor, $post->actor, ActivitySerializer::announce($announce, $post));
+            $this->delivery->deliverAnnounce($actor, $post, ActivitySerializer::announce($announce, $post));
         }
 
         return $announce;
@@ -113,7 +113,7 @@ final class AnnounceManager
             });
 
             if ($actor->isLocal()) {
-                $this->delivery->deliverAnnounce($actor, $post->actor, ActivitySerializer::undoAnnounce($announce, $post));
+                $this->delivery->deliverAnnounce($actor, $post, ActivitySerializer::undoAnnounce($announce, $post));
             }
 
             return;
@@ -125,7 +125,7 @@ final class AnnounceManager
         });
 
         if ($actor->isLocal()) {
-            $this->delivery->deliverAnnounce($actor, $post->actor, ActivitySerializer::undoAnnounce($announce, $post));
+            $this->delivery->deliverAnnounce($actor, $post, ActivitySerializer::undoAnnounce($announce, $post));
         }
     }
 

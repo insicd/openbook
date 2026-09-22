@@ -39,6 +39,8 @@
                 <span class="ob-badge">{{ __('openbook.actors.feed_badge') }}</span>
             @elseif ($isGroup)
                 <span class="ob-badge">{{ __('openbook.communities.remote_badge') }}</span>
+            @elseif ($profileActor->isApplication())
+                <span class="ob-badge">{{ __('openbook.actors.application_badge') }}</span>
             @endif
 
             @if ($profileActor->manually_approves_followers)

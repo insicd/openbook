@@ -48,6 +48,20 @@ class ActorProfileTest extends TestCase
         $response->assertSee('@peter@remoto.example');
     }
 
+    public function test_it_labels_a_remote_application_as_an_automated_account(): void
+    {
+        Http::fake(['*' => Http::response('', 404)]);
+        $viewer = $this->createFullAccount('visitatoreapp');
+        $remote = $this->createRemoteActor('agenda', overrides: [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+
+        $this->actingAs($viewer)
+            ->get(route('actors.show', $remote))
+            ->assertOk()
+            ->assertSee(__('openbook.actors.application_badge'));
+    }
+
     public function test_it_shows_remote_follower_counts_and_join_date(): void
     {
         Http::fake(['*' => Http::response('', 404)]);

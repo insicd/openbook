@@ -7,6 +7,7 @@ use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Inbox\ForwardedActivityAuthenticator;
 use App\Federation\Inbox\InboxItem;
+use App\Federation\Inbox\RelayIngressResolver;
 use App\Federation\Resolution\ObjectResolver;
 use App\Federation\Support\ActivityPubUri;
 use App\Http\Controllers\Controller;
@@ -33,6 +34,7 @@ final class InboxController extends Controller
         private readonly DomainBlockManager $domainBlocks,
         private readonly LocalActorResolver $localActors,
         private readonly ForwardedActivityAuthenticator $forwardedActivities,
+        private readonly RelayIngressResolver $relayIngress,
         private readonly ObjectResolver $objects,
     ) {}
 
@@ -127,7 +129,15 @@ final class InboxController extends Controller
         // Consegna diretta: firmatario HTTP = activity.actor.
         // Inbox forwarding: firma HTTP di un altro Actor + LD Signature
         // (Mastodon) oppure refetch same-origin (Primer ActivityPub).
-        if ($verification->actor === null || ! ActivityPubUri::same($verification->actor->uri, $actorUri)) {
+        $isForwarded = $verification->actor === null || ! ActivityPubUri::same($verification->actor->uri, $actorUri);
+        // Un relay Mastodon puo' inoltrare l'attivita' originale oppure
+        // pubblicare un proprio Announce. In entrambi i casi il trasportatore
+        // e' il firmatario HTTP noto della shared inbox.
+        $relay = $targetActor === null
+            ? $this->relayIngress->resolve($verification->actor)
+            : null;
+
+        if ($isForwarded) {
             $authenticated = $this->forwardedActivities->authenticate($activity, $actorUri);
 
             if ($authenticated === null) {
@@ -144,6 +154,7 @@ final class InboxController extends Controller
                 'signed_by' => $verification->actor?->uri,
                 'claimed_actor' => $actorUri,
                 'activity_id' => $authenticated['id'] ?? $activity['id'],
+                'relay_id' => $relay?->id,
             ]);
 
             $activity = $authenticated;
@@ -157,6 +168,10 @@ final class InboxController extends Controller
             $actorUri = $verification->actor->uri;
         }
 
+        if ($relay !== null) {
+            $relay->forceFill(['last_success_at' => now()])->save();
+        }
+
         if (InboxItem::query()->where('remote_activity_uri', $activity['id'])->exists()) {
             // Idempotente: una ri-consegna della stessa attivita' non e' un errore.
             return response()->json(['status' => 'accepted'], 202);
@@ -165,6 +180,7 @@ final class InboxController extends Controller
         try {
             $item = InboxItem::query()->create([
                 'target_actor_id' => $targetActor?->id,
+                'relay_id' => $relay?->id,
                 'is_shared' => $targetActor === null,
                 'remote_activity_uri' => $activity['id'],
                 'activity_type' => $activity['type'],

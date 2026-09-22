@@ -629,7 +629,11 @@ final class RemoteActorResolver
             $host = (string) (parse_url($uri, PHP_URL_HOST) ?: '');
 
             $attributes = [
-                'type' => ($document['type'] ?? null) === 'Group' ? Actor::TYPE_GROUP : Actor::TYPE_PERSON,
+                'type' => match ($document['type'] ?? null) {
+                    'Group' => Actor::TYPE_GROUP,
+                    'Application', 'Service' => Actor::TYPE_APPLICATION,
+                    default => Actor::TYPE_PERSON,
+                },
                 'is_local' => false,
                 'preferred_username' => $this->normalizeRemotePreferredUsername(
                     isset($document['preferredUsername']) ? (string) $document['preferredUsername'] : null,

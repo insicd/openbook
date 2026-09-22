@@ -69,7 +69,7 @@ final class NoteSerializer
             'content' => $content,
             'url' => $uri,
             'published' => $post->published_at->toAtomString(),
-            'sensitive' => $post->hasContentWarning(),
+            'sensitive' => filled($post->content_warning),
         ];
 
         if (filled($post->title)) {
@@ -82,7 +82,7 @@ final class NoteSerializer
             $note['quoteUrl'] = self::postUri($post->quotedPost);
         }
 
-        if ($post->hasContentWarning()) {
+        if (filled($post->content_warning)) {
             $note['summary'] = e((string) $post->content_warning);
         }
 

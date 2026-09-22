@@ -4,10 +4,13 @@ namespace Tests\Feature\Posts;
 
 use App\Application\Services\MessageComposer;
 use App\Application\Services\PostComposer;
+use App\Domain\Federation\Relay;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
+use App\Jobs\Federation\DeliverActivityJob;
 use App\Policies\PostPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -119,6 +122,37 @@ class EditPostTest extends TestCase
         $this->assertTrue($post->wasEdited());
     }
 
+    public function test_visibility_changes_create_or_withdraw_the_post_on_relays(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('relayvisibility');
+        $relay = $this->acceptedRelay();
+        $post = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Inizialmente pubblico.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+        Queue::fake();
+
+        app(PostComposer::class)->update($author->actor, $post, [
+            'body' => 'Ora non elencato.',
+            'visibility' => Post::VISIBILITY_UNLISTED,
+        ]);
+
+        Queue::assertPushed(DeliverActivityJob::class, 1);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && ($job->activity['type'] ?? null) === 'Delete');
+
+        Queue::fake();
+        app(PostComposer::class)->update($author->actor, $post->fresh(), [
+            'body' => 'Nuovamente pubblico.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        Queue::assertPushed(DeliverActivityJob::class, 1);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->relayId === $relay->id
+            && ($job->activity['type'] ?? null) === 'Create');
+    }
+
     public function test_hashtags_are_resynced_on_update(): void
     {
         $author = $this->createFullAccount('tagmodifica');
@@ -135,6 +169,22 @@ class EditPostTest extends TestCase
         ])->assertRedirect(route('posts.show', $post));
 
         $this->assertSame(['vento'], $post->fresh()->hashtags()->pluck('name')->all());
+    }
+
+    private function acceptedRelay(): Relay
+    {
+        $url = 'https://relay.example/inbox';
+
+        return Relay::query()->create([
+            'protocol' => Relay::PROTOCOL_MASTODON,
+            'actor_uri' => 'https://relay.example/actor',
+            'inbox_url' => $url,
+            'inbox_url_hash' => hash('sha256', $url),
+            'state' => Relay::STATE_ACCEPTED,
+            'receive_enabled' => true,
+            'publish_enabled' => true,
+            'accepted_at' => now(),
+        ]);
     }
 
     public function test_a_new_local_mention_is_notified_once(): void

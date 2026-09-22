@@ -7,6 +7,7 @@ use App\Domain\Feeds\FeedActorUrls;
 use App\Domain\Posts\PostBodyRenderer;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorUrls;
+use App\Federation\Actors\RelayActorUrls;
 
 /**
  * Traduce un Actor locale nel documento ActivityStreams "Person" (o "Group")
@@ -30,7 +31,11 @@ final class ActorSerializer
 
         $profile = $actor->user?->profile;
 
-        if ($actor->isFeed()) {
+        if ($actor->isLocal() && $actor->isApplication()) {
+            $urls = RelayActorUrls::all();
+            $id = $urls['uri'];
+            $pageUrl = $urls['uri'];
+        } elseif ($actor->isFeed()) {
             $actor = app(FeedActorIdentity::class)->ensure($actor);
             $urls = FeedActorUrls::for($actor);
             $id = $urls['uri'];
@@ -57,7 +62,11 @@ final class ActorSerializer
                 ],
             ],
             'id' => $id,
-            'type' => $actor->type === Actor::TYPE_GROUP ? 'Group' : 'Person',
+            'type' => match ($actor->type) {
+                Actor::TYPE_GROUP => 'Group',
+                Actor::TYPE_APPLICATION => 'Application',
+                default => 'Person',
+            },
             'preferredUsername' => $actor->preferred_username,
             'name' => $actor->name ?: $actor->preferred_username,
             'summary' => self::renderSummary($profile?->bio ?? $actor->summary),
@@ -68,7 +77,7 @@ final class ActorSerializer
             'published' => optional($actor->created_at)->toAtomString() ?? now()->toAtomString(),
         ];
 
-        if ($urls !== null && $actor->isFeed()) {
+        if ($urls !== null && ($actor->isFeed() || ($actor->isLocal() && $actor->isApplication()))) {
             $document['inbox'] = $urls['inbox'];
             $document['outbox'] = $urls['outbox'];
             $document['followers'] = $urls['followers'];

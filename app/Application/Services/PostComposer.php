@@ -183,6 +183,7 @@ final class PostComposer
         }
 
         $post->loadMissing(['media', 'mentions.actor', 'community.actor']);
+        $previousVisibility = $post->visibility;
 
         $images = $data['images'] ?? [];
         $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
@@ -230,7 +231,17 @@ final class PostComposer
                 ->first(fn (?Actor $actor) => $actor !== null && $actor->isGroup() && ! $actor->isLocal());
 
             $extraTargets = $addressedGroup !== null ? [$addressedGroup] : [];
-            $this->delivery->deliverContent($post, ActivitySerializer::update($post), $extraTargets);
+            $relayActivity = match (true) {
+                $previousVisibility !== Post::VISIBILITY_PUBLIC && $post->visibility === Post::VISIBILITY_PUBLIC => ActivitySerializer::create($post),
+                $previousVisibility === Post::VISIBILITY_PUBLIC && $post->visibility !== Post::VISIBILITY_PUBLIC => ActivitySerializer::delete($post),
+                default => null,
+            };
+            $this->delivery->deliverContent(
+                $post,
+                ActivitySerializer::update($post),
+                $extraTargets,
+                $relayActivity,
+            );
         }
 
         return $post;

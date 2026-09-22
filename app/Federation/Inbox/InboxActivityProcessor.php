@@ -4,9 +4,11 @@ namespace App\Federation\Inbox;
 
 use App\Application\Services\AnnounceManager;
 use App\Application\Services\CommentSoftDeleter;
+use App\Application\Services\DomainBlockManager;
 use App\Application\Services\EventParticipationManager;
 use App\Application\Services\FollowManager;
 use App\Application\Services\ReactionManager;
+use App\Application\Services\RelayHandshakeManager;
 use App\Domain\Comments\Comment;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventAnnounce;
@@ -14,6 +16,7 @@ use App\Domain\Events\EventParticipation;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\RelayActorUrls;
 use App\Federation\Actors\RemoteActorDeletionService;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Delivery\ActivityDelivery;
@@ -60,6 +63,8 @@ final class InboxActivityProcessor
         private readonly RemoteEventDeletionService $eventDeletion,
         private readonly EventParticipationManager $eventParticipations,
         private readonly RemoteEventCommentIngester $eventComments,
+        private readonly RelayHandshakeManager $relayHandshakes,
+        private readonly DomainBlockManager $domainBlocks,
     ) {}
 
     public function process(InboxItem $item): string
@@ -80,21 +85,31 @@ final class InboxActivityProcessor
             return InboxItem::STATUS_IGNORED;
         }
 
-        $item->loadMissing('targetActor');
+        if ($this->domainBlocks->isBlockedUrl($signer->uri)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        if (in_array($item->activity_type, ['Create', 'Update', 'Announce'], true)
+            && $this->hasBlockedContentOrigin($activity['object'] ?? null)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $item->loadMissing('targetActor', 'relay');
         $inboxTarget = $item->targetActor;
+        $fromRelay = $item->relay?->acceptsIncomingActivities() === true;
 
         return match ($item->activity_type) {
             'Follow' => $this->handleFollow($activity, $signer),
             'Accept' => $this->handleAccept($activity, $signer),
             'Reject' => $this->handleReject($activity, $signer),
             'Undo' => $this->handleUndo($activity, $signer),
-            'Create' => $this->handleCreateOrUpdate($activity, $signer, $inboxTarget),
-            'Update' => $this->handleUpdate($activity, $signer, $inboxTarget),
+            'Create' => $this->handleCreateOrUpdate($activity, $signer, $inboxTarget, $fromRelay),
+            'Update' => $this->handleUpdate($activity, $signer, $inboxTarget, $fromRelay),
             'Delete' => $this->handleDelete($activity, $signer),
             'Like' => $this->handleLike($activity, $signer),
             'Join' => $this->handleEventJoin($activity, $signer),
             'Leave' => $this->handleEventLeave($activity, $signer),
-            'Announce' => $this->handleAnnounce($activity, $signer, $inboxTarget),
+            'Announce' => $this->handleAnnounce($activity, $signer, $inboxTarget, $fromRelay),
             default => InboxItem::STATUS_IGNORED,
         };
     }
@@ -107,6 +122,12 @@ final class InboxActivityProcessor
         $target = $this->objects->resolveActor($this->objectId($activity['object'] ?? null) ?? '');
 
         if ($target === null || ! $target->isLocal() || ! $target->isActive()) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        // L'Actor /relay e' un endpoint tecnico: puo' essere seguito solo
+        // da altri Actor applicativi, non da profili utente ordinari.
+        if ($target->uri === RelayActorUrls::all()['uri'] && ! $follower->isApplication()) {
             return InboxItem::STATUS_IGNORED;
         }
 
@@ -132,6 +153,10 @@ final class InboxActivityProcessor
      */
     private function handleAccept(array $activity, Actor $remoteTarget): string
     {
+        if ($this->relayHandshakes->receiveResponse($activity, $remoteTarget, true)) {
+            return InboxItem::STATUS_PROCESSED;
+        }
+
         $participation = $this->resolveOutgoingEventParticipation($activity['object'] ?? null, $remoteTarget);
 
         if ($participation !== null) {
@@ -160,6 +185,10 @@ final class InboxActivityProcessor
      */
     private function handleReject(array $activity, Actor $remoteTarget): string
     {
+        if ($this->relayHandshakes->receiveResponse($activity, $remoteTarget, false)) {
+            return InboxItem::STATUS_PROCESSED;
+        }
+
         $participation = $this->resolveOutgoingEventParticipation($activity['object'] ?? null, $remoteTarget);
 
         if ($participation !== null) {
@@ -533,7 +562,7 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $activity
      */
-    private function handleAnnounce(array $activity, Actor $actor, ?Actor $inboxTarget = null): string
+    private function handleAnnounce(array $activity, Actor $actor, ?Actor $inboxTarget = null, bool $fromRelay = false): string
     {
         $fetchedAnnouncedNote = null;
         $eventDocument = is_array($activity['object'] ?? null)
@@ -542,13 +571,22 @@ final class InboxActivityProcessor
 
         if ($eventDocument !== null) {
             $eventDocument = $this->mergeActivityAudience($activity, $eventDocument);
+
+            if ($fromRelay && RemoteEventObject::visibility($eventDocument) !== Event::VISIBILITY_PUBLIC) {
+                return InboxItem::STATUS_IGNORED;
+            }
+
             $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget);
 
             if ($event === null) {
                 return InboxItem::STATUS_IGNORED;
             }
 
-            $this->eventIngester->recordAnnounce($event, $actor, $activity);
+            // L'Announce del relay e' solo il contenitore di trasporto: non
+            // rappresenta una condivisione sociale effettuata dal relay.
+            if (! $fromRelay) {
+                $this->eventIngester->recordAnnounce($event, $actor, $activity);
+            }
 
             return InboxItem::STATUS_PROCESSED;
         }
@@ -558,18 +596,32 @@ final class InboxActivityProcessor
 
             if ($event === null && $this->objects->resolvePost($activity['object']) === null) {
                 $document = $this->noteDocumentFetcher->fetchDocument($activity['object'], $inboxTarget);
+
+                if ($this->hasBlockedContentOrigin($document)) {
+                    return InboxItem::STATUS_IGNORED;
+                }
+
                 $eventDocument = $document !== null ? RemoteEventObject::unwrap($document) : null;
 
                 if ($eventDocument !== null) {
                     $eventDocument = $this->mergeActivityAudience($activity, $eventDocument);
-                    $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget);
+
+                    if (! $fromRelay || RemoteEventObject::visibility($eventDocument) === Event::VISIBILITY_PUBLIC) {
+                        $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget);
+                    }
                 } elseif ($document !== null) {
                     $fetchedAnnouncedNote = RemotePostObject::unwrap($document);
                 }
             }
 
             if ($event !== null) {
-                $this->eventIngester->recordAnnounce($event, $actor, $activity);
+                if ($fromRelay && $event->visibility !== Event::VISIBILITY_PUBLIC) {
+                    return InboxItem::STATUS_IGNORED;
+                }
+
+                if (! $fromRelay) {
+                    $this->eventIngester->recordAnnounce($event, $actor, $activity);
+                }
 
                 return InboxItem::STATUS_PROCESSED;
             }
@@ -583,11 +635,11 @@ final class InboxActivityProcessor
         // Post sconosciuto: fetch/upsert solo se chi Annuncia e' seguito in
         // locale (altrimenti non comparirebbe nel feed e occuperebbe solo spazio).
         if ($post === null) {
-            if (! $this->hasLocalFollower($actor)) {
+            if (! $fromRelay && ! $this->hasLocalFollower($actor)) {
                 return InboxItem::STATUS_IGNORED;
             }
 
-            $post = $this->resolveAnnouncedRemotePost($targetUri, $embeddedNote);
+            $post = $this->resolveAnnouncedRemotePost($targetUri, $embeddedNote, $fromRelay);
         }
 
         if ($post === null) {
@@ -596,10 +648,20 @@ final class InboxActivityProcessor
 
         $post->loadMissing('actor');
 
+        if ($fromRelay && $post->visibility !== Post::VISIBILITY_PUBLIC) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
         // Rilevanza: post di autore locale (boost del nostro contenuto) oppure
         // chi Annuncia e' seguito da almeno un Actor locale.
-        if (! $post->actor->isLocal() && ! $this->hasLocalFollower($actor)) {
+        if (! $fromRelay && ! $post->actor->isLocal() && ! $this->hasLocalFollower($actor)) {
             return InboxItem::STATUS_IGNORED;
+        }
+
+        // I relay usano Announce come busta di trasporto. Il post e' ormai
+        // importato, ma il relay non deve risultare come autore di un boost.
+        if ($fromRelay) {
+            return InboxItem::STATUS_PROCESSED;
         }
 
         $occurredAt = null;
@@ -653,7 +715,7 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>|null  $embeddedNote
      */
-    private function resolveAnnouncedRemotePost(?string $targetUri, ?array $embeddedNote): ?Post
+    private function resolveAnnouncedRemotePost(?string $targetUri, ?array $embeddedNote, bool $requirePublic = false): ?Post
     {
         $note = $embeddedNote;
 
@@ -662,6 +724,14 @@ final class InboxActivityProcessor
         }
 
         if ($note === null || ! RemotePostObject::isPostable($note['type'] ?? null)) {
+            return null;
+        }
+
+        if ($this->hasBlockedContentOrigin($note)) {
+            return null;
+        }
+
+        if ($requirePublic && $this->noteUpserter->visibilityFromAudience($note) !== Post::VISIBILITY_PUBLIC) {
             return null;
         }
 
@@ -795,20 +865,29 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $activity
      */
-    private function handleUpdate(array $activity, Actor $signer, ?Actor $inboxTarget = null): string
+    private function handleUpdate(array $activity, Actor $signer, ?Actor $inboxTarget = null, bool $fromRelay = false): string
     {
         $rawObject = $activity['object'] ?? null;
         $object = is_string($rawObject)
             ? $this->noteDocumentFetcher->fetchDocument($rawObject, $inboxTarget)
             : $rawObject;
+
+        if ($this->hasBlockedContentOrigin($object)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
         $type = is_array($object) ? ($object['type'] ?? null) : null;
 
         if (is_array($object) && RemotePostObject::isPostable($type)) {
-            return $this->handleCreateOrUpdate($activity, $signer, $inboxTarget);
+            return $this->handleCreateOrUpdate($activity, $signer, $inboxTarget, $fromRelay);
         }
 
         if (is_array($object) && RemoteEventObject::isEvent($type)) {
             $document = $this->mergeActivityAudience($activity, $object);
+
+            if ($fromRelay && RemoteEventObject::visibility($document) !== Event::VISIBILITY_PUBLIC) {
+                return InboxItem::STATUS_IGNORED;
+            }
 
             return $this->eventIngester->ingest($document, $signer, 'Update', $inboxTarget) !== null
                 ? InboxItem::STATUS_PROCESSED
@@ -847,16 +926,25 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $activity
      */
-    private function handleCreateOrUpdate(array $activity, Actor $actor, ?Actor $inboxTarget = null): string
+    private function handleCreateOrUpdate(array $activity, Actor $actor, ?Actor $inboxTarget = null, bool $fromRelay = false): string
     {
         $object = $activity['object'] ?? null;
         $resolvedDocument = is_string($object)
             ? $this->noteDocumentFetcher->fetchDocument($object, $inboxTarget)
             : (is_array($object) ? $object : null);
+
+        if ($this->hasBlockedContentOrigin($resolvedDocument)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
         $eventDocument = $resolvedDocument !== null ? RemoteEventObject::unwrap($resolvedDocument) : null;
 
         if ($eventDocument !== null) {
             $eventDocument = $this->mergeActivityAudience($activity, $eventDocument);
+
+            if ($fromRelay && RemoteEventObject::visibility($eventDocument) !== Event::VISIBILITY_PUBLIC) {
+                return InboxItem::STATUS_IGNORED;
+            }
 
             return $this->eventIngester->ingest($eventDocument, $actor, 'Create', $inboxTarget) !== null
                 ? InboxItem::STATUS_PROCESSED
@@ -873,6 +961,10 @@ final class InboxActivityProcessor
         $note = $this->applyPersonalInboxTargetAudience($note, $inboxTarget);
         $note = $this->preserveDirectMessageMetadata($activity, $note);
         $note = $this->ensureNoteContent($activity, $note);
+
+        if ($fromRelay && $this->noteUpserter->visibilityFromAudience($note) !== Post::VISIBILITY_PUBLIC) {
+            return InboxItem::STATUS_IGNORED;
+        }
 
         $noteUri = $note['id'] ?? null;
 
@@ -956,7 +1048,7 @@ final class InboxActivityProcessor
             });
         }
 
-        if (! $this->isRelevant($author, $note, $parentPost, $parentComment, $inboxTarget)) {
+        if (! $this->isRelevant($author, $note, $parentPost, $parentComment, $inboxTarget, $fromRelay)) {
             return InboxItem::STATUS_IGNORED;
         }
 
@@ -1286,8 +1378,12 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $note
      */
-    private function isRelevant(Actor $author, array $note, ?Post $parentPost, ?Comment $parentComment, ?Actor $inboxTarget = null): bool
+    private function isRelevant(Actor $author, array $note, ?Post $parentPost, ?Comment $parentComment, ?Actor $inboxTarget = null, bool $fromRelay = false): bool
     {
+        if ($fromRelay) {
+            return $this->noteUpserter->visibilityFromAudience($note) === Post::VISIBILITY_PUBLIC;
+        }
+
         if ($parentPost !== null || $parentComment !== null) {
             return true;
         }
@@ -1504,6 +1600,38 @@ final class InboxActivityProcessor
         }
 
         return false;
+    }
+
+    /**
+     * Impedisce a un trasportatore autorizzato di aggirare i blocchi di
+     * dominio incorporando o referenziando contenuti di un'origine bloccata.
+     */
+    private function hasBlockedContentOrigin(mixed $value): bool
+    {
+        if (is_string($value)) {
+            return $value !== '' && $this->domainBlocks->isBlockedUrl($value);
+        }
+
+        if (! is_array($value)) {
+            return false;
+        }
+
+        foreach (['id', 'actor'] as $field) {
+            foreach (RemotePostObject::actorUris($value[$field] ?? null) as $uri) {
+                if ($this->domainBlocks->isBlockedUrl($uri)) {
+                    return true;
+                }
+            }
+        }
+
+        foreach (RemotePostObject::actorUris($value['attributedTo'] ?? null) as $uri) {
+            if ($this->domainBlocks->isBlockedUrl($uri)) {
+                return true;
+            }
+        }
+
+        return array_key_exists('object', $value)
+            && $this->hasBlockedContentOrigin($value['object']);
     }
 
     /**

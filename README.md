@@ -546,6 +546,54 @@ browsers:
   IP (`CURLOPT_RESOLVE`). The same protection also applies to **outgoing**
   delivery requests (`SafeHttpClient::post()`), which never follow a redirect
   (the HTTP signature is computed on the exact destination URL).
+- **Mastodon-compatible relays**: administrators can configure relay inboxes
+  from **Control panel → Relays**, explicitly enable receiving and/or
+  publishing, and start or stop the subscription. Once accepted, Openbook
+  accepts public activities transported by that relay and adds its inbox to
+  the delivery fan-out for local public posts, comments, events, and event
+  comments. Relay traffic uses the normal ActivityPub queues, signatures,
+  retry/backoff policy, domain blocks, and duplicate protection; no additional
+  worker or cron entry is required. The administration page reports the last
+  successful exchange and the latest terminal delivery error. Relays can
+  generate a high volume of public content, so enabling one is always an
+  explicit instance-administrator decision. The normal periodic cron remains
+  sufficient for small installations; with a busy relay, separate permanent
+  workers are recommended so that incoming processing and slow remote
+  deliveries cannot block each other:
+
+  ```bash
+  php /path/to/openbook/artisan queue:work --queue=inbox --sleep=1
+  php /path/to/openbook/artisan queue:work --queue=delivery --sleep=1
+  ```
+
+  The workers can safely run alongside `openbook:cron`, but must be restarted
+  after each deployment so that they load the updated application code.
+
+- **Actor-based instance sources**: the same Relay panel can subscribe to a
+  remote ActivityPub `Application`/`Service` Actor, as exposed by software such
+  as Mobilizon or Gancio. In this mode administrators can enter its federated
+  identity (for example `@relay@instance.example`) or its full Actor URI, not
+  the inbox URL: Openbook discovers, resolves and validates the Actor, follows
+  it and imports public objects transported through its `Announce` activities.
+  Remote applications may likewise follow Openbook's technical `/relay` Actor to
+  receive `Announce` activities for locally produced public posts, comments,
+  events, and event comments. Unlisted, followers-only, direct, remote, and
+  private-community content is excluded. Technical subscriptions and
+  announcements do not create user notifications, social boosts, or reaction
+  counters. The Actor exposes paginated `/relay/outbox`, `/relay/followers`,
+  and `/relay/following` collections for discovery and backfill.
+
+- **LitePub-compatible relays**: relay hubs used by Pleroma/Akkoma and
+  compatible software can be configured by federated Actor identity or full
+  ActivityPub URI. Openbook performs the Actor Follow handshake, records the
+  reciprocal Follow required for outgoing fan-out, and transports local public
+  content through technical `Announce` activities. The administration page
+  distinguishes an accepted subscription that is still waiting for the
+  reciprocal Follow. Disabling publishing or unsubscribing stops new fan-out
+  immediately, including deliveries that were already queued; the normal
+  visibility, domain-block, deduplication and loop-prevention rules continue to
+  apply. Unlisted, followers-only, direct, remote and private-community content
+  is never published to a LitePub relay.
 
 ### Social federation (Phase 4)
 

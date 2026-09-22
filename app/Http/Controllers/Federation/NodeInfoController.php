@@ -31,6 +31,7 @@ final class NodeInfoController extends Controller
 
     public function show(): JsonResponse
     {
+        $settings = app(InstanceSettings::class);
         $totalUsers = User::query()->where('status', User::STATUS_ACTIVE)->count();
 
         $activeMonth = User::query()
@@ -56,7 +57,7 @@ final class NodeInfoController extends Controller
                 'inbound' => [],
                 'outbound' => [],
             ],
-            'openRegistrations' => app(InstanceSettings::class)->registrationOpen(),
+            'openRegistrations' => $settings->registrationOpen(),
             'usage' => [
                 'users' => [
                     'total' => $totalUsers,
@@ -66,13 +67,27 @@ final class NodeInfoController extends Controller
                 'localPosts' => Post::query()->where('status', Post::STATUS_PUBLISHED)->count(),
                 'localComments' => Comment::query()->where('status', Comment::STATUS_PUBLISHED)->count(),
             ],
-            'metadata' => [
-                'nodeName' => config('app.name'),
-            ],
+            'metadata' => $this->metadata($settings),
         ];
 
         return response()->json($document, 200, [
             'Content-Type' => 'application/json; profile="http://nodeinfo.diaspora.software/ns/schema/2.1#"',
         ]);
+    }
+
+    /** @return array<string, string> */
+    private function metadata(InstanceSettings $settings): array
+    {
+        $metadata = ['nodeName' => $settings->siteName()];
+
+        if ($settings->siteDescription() !== '') {
+            $metadata['nodeDescription'] = $settings->siteDescription();
+        }
+
+        if ($settings->faviconUrl() !== null) {
+            $metadata['nodeIcon'] = url($settings->faviconUrl());
+        }
+
+        return $metadata;
     }
 }

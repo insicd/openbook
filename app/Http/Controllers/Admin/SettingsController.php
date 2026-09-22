@@ -20,6 +20,7 @@ final class SettingsController extends Controller
 
         return view('admin.settings.edit', [
             'siteName' => $settings->siteName(),
+            'siteDescription' => $settings->siteDescription(),
             'registrationOpen' => $settings->registrationOpen(),
             'showHomeStaff' => $settings->showHomeStaff(),
             'instanceRules' => $settings->instanceRules(),
@@ -36,6 +37,8 @@ final class SettingsController extends Controller
                 ? app(VideoCapability::class)->inspect($settings->videoFfmpegPath(), $settings->videoFfprobePath())
                 : null,
             'trendingDays' => $settings->trendingDays(),
+            'worldHideContentWarnings' => $settings->worldHidesContentWarnings(),
+            'forcedContentWarningHashtags' => implode("\n", $settings->forcedContentWarningHashtags()),
             'faviconUrl' => $settings->faviconUrl(),
         ]);
     }
@@ -49,6 +52,7 @@ final class SettingsController extends Controller
 
         $data = $request->validate([
             'site_name' => ['required', 'string', 'max:100'],
+            'site_description' => ['nullable', 'string', 'max:500'],
             'registration_open' => ['sometimes', 'boolean'],
             'show_home_staff' => ['sometimes', 'boolean'],
             'instance_rules' => ['nullable', 'string', 'max:20000'],
@@ -66,6 +70,8 @@ final class SettingsController extends Controller
             'video_max_dimension' => ['required', 'integer', 'min:240', 'max:4320'],
             'video_max_frame_rate' => ['required', 'integer', 'min:1', 'max:120'],
             'trending_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'world_hide_content_warnings' => ['sometimes', 'boolean'],
+            'forced_content_warning_hashtags' => ['nullable', 'string', 'max:4000'],
             'favicon' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp,gif', 'max:'.$maxKb],
             'remove_favicon' => ['sometimes', 'boolean'],
         ], [], [
@@ -102,6 +108,7 @@ final class SettingsController extends Controller
 
         $settings->update([
             'site_name' => $data['site_name'],
+            'site_description' => $data['site_description'] ?? '',
             'registration_open' => $request->boolean('registration_open'),
             'show_home_staff' => $request->boolean('show_home_staff'),
             'instance_rules' => $data['instance_rules'] ?? '',
@@ -119,6 +126,8 @@ final class SettingsController extends Controller
             'video_max_dimension' => (int) $data['video_max_dimension'],
             'video_max_frame_rate' => (int) $data['video_max_frame_rate'],
             'trending_days' => (int) $data['trending_days'],
+            'world_hide_content_warnings' => $request->boolean('world_hide_content_warnings'),
+            'forced_content_warning_hashtags' => $data['forced_content_warning_hashtags'] ?? '',
             'instance_icon_dir' => $iconDirectory,
         ], $request->user());
 

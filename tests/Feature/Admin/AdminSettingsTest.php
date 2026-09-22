@@ -124,6 +124,26 @@ class AdminSettingsTest extends TestCase
         $this->assertSame(14, (int) config('openbook.hashtags.trending_days'));
     }
 
+    public function test_admin_can_configure_world_content_warning_moderation(): void
+    {
+        $admin = $this->createFullAccount('adminworldmoderation');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'world_hide_content_warnings' => '1',
+                'forced_content_warning_hashtags' => "#Nudes, porno\n#nudes invalid-tag",
+            ]))
+            ->assertRedirect(route('admin.settings.edit'));
+
+        $settings = app(InstanceSettings::class);
+
+        $this->assertTrue($settings->worldHidesContentWarnings());
+        $this->assertSame(['nudes', 'porno'], $settings->forcedContentWarningHashtags());
+        $this->assertTrue((bool) config('openbook.moderation.hide_content_warnings_from_world'));
+        $this->assertSame(['nudes', 'porno'], config('openbook.moderation.forced_content_warning_hashtags'));
+    }
+
     public function test_admin_settings_save_does_not_modify_env_file(): void
     {
         $envPath = base_path('.env');
