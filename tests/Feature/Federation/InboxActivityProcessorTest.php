@@ -774,6 +774,80 @@ class InboxActivityProcessorTest extends TestCase
         );
     }
 
+    public function test_an_older_create_cannot_overwrite_a_newer_post_update(): void
+    {
+        Queue::fake();
+        $follower = $this->createFullAccount('versionfollower');
+        $remote = $this->createRemoteActor('versionauthor');
+        app(FollowManager::class)->follow($follower->actor, $remote)
+            ->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+
+        $noteUri = $remote->uri.'/posts/versioned';
+        $published = '2026-09-20T09:14:48Z';
+        $updated = '2026-09-20T09:15:55Z';
+        $firstImage = 'https://cdn.example/first.jpg';
+        $allImages = [
+            $firstImage,
+            'https://cdn.example/second.jpg',
+            'https://cdn.example/third.jpg',
+            'https://cdn.example/fourth.jpg',
+        ];
+        $baseNote = [
+            'id' => $noteUri,
+            'type' => 'Note',
+            'attributedTo' => $remote->uri,
+            'published' => $published,
+            'to' => [NoteSerializer::PUBLIC_STREAM],
+        ];
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process([
+            'id' => $noteUri.'/create',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                ...$baseNote,
+                'name' => 'Versione iniziale',
+                'content' => '<p>Prima versione.</p>',
+                'attachment' => [['type' => 'Document', 'mediaType' => 'image/jpeg', 'url' => $firstImage]],
+            ],
+        ], $remote));
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process([
+            'id' => $noteUri.'/update',
+            'type' => 'Update',
+            'actor' => $remote->uri,
+            'object' => [
+                ...$baseNote,
+                'updated' => $updated,
+                'content' => '<p>Versione aggiornata.</p>',
+                'attachment' => array_map(
+                    fn (string $url): array => ['type' => 'Document', 'mediaType' => 'image/jpeg', 'url' => $url],
+                    $allImages,
+                ),
+            ],
+        ], $remote));
+
+        // La stessa Create puo' arrivare dopo tramite un altro percorso
+        // federato: non deve riportare il post alla versione iniziale.
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process([
+            'id' => $noteUri.'/create-forwarded',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                ...$baseNote,
+                'name' => 'Versione iniziale',
+                'content' => '<p>Prima versione.</p>',
+                'attachment' => [['type' => 'Document', 'mediaType' => 'image/jpeg', 'url' => $firstImage]],
+            ],
+        ], $remote));
+
+        $post = Post::query()->where('uri', $noteUri)->firstOrFail();
+        $this->assertNull($post->title);
+        $this->assertSame('Versione aggiornata.', $post->body);
+        $this->assertSame('2026-09-20 09:15:55', $post->remote_updated_at?->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame($allImages, $post->media()->pluck('remote_url')->all());
+    }
+
     public function test_a_direct_create_from_an_already_cached_blocked_actor_is_ignored(): void
     {
         $admin = $this->createFullAccount('domainadmin', ['is_admin' => true]);

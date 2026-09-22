@@ -18,7 +18,9 @@ use App\Federation\Replies\RemoteRepliesFetcher;
 use App\Federation\Serialization\NoteSerializer;
 use App\Federation\Support\ActivityPubTimestamp;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Salva (creando o aggiornando) la rappresentazione locale di una Note o
@@ -55,6 +57,43 @@ final class RemoteNoteUpserter
         bool $resolveQuote = true,
         ?Post $directMessageThreadParent = null,
     ): Post {
+        return DB::transaction(fn (): Post => $this->upsertPostWithinTransaction(
+            $note,
+            $noteUri,
+            $actor,
+            $body,
+            $publishedAt,
+            $notifyMentions,
+            $resolveQuote,
+            $directMessageThreadParent,
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $note
+     */
+    private function upsertPostWithinTransaction(
+        array $note,
+        string $noteUri,
+        Actor $actor,
+        string $body,
+        Carbon $publishedAt,
+        bool $notifyMentions,
+        bool $resolveQuote,
+        ?Post $directMessageThreadParent,
+    ): Post {
+        /** @var Post $post */
+        $post = Post::query()->where('uri', $noteUri)->lockForUpdate()->first() ?? new Post(['uri' => $noteUri]);
+        $wasNew = ! $post->exists;
+        $remoteUpdatedAt = $this->remoteUpdatedAt($note);
+
+        if (! $wasNew
+            && $post->remote_updated_at !== null
+            && $remoteUpdatedAt !== null
+            && $remoteUpdatedAt->lessThan($post->remote_updated_at)) {
+            return $post;
+        }
+
         $quotedPost = null;
         $quoteUri = null;
 
@@ -81,10 +120,6 @@ final class RemoteNoteUpserter
             $visibility = Post::VISIBILITY_DIRECT;
         }
 
-        /** @var Post $post */
-        $post = Post::query()->where('uri', $noteUri)->first() ?? new Post(['uri' => $noteUri]);
-        $wasNew = ! $post->exists;
-
         $attributes = [
             'actor_id' => $actor->id,
             'title' => RemotePostObject::title($note),
@@ -96,6 +131,7 @@ final class RemoteNoteUpserter
             // Riconverti sempre al TZ app: i caller possono passare un Carbon
             // ancora con offset remoto (vedi ActivityPubTimestamp).
             'published_at' => ActivityPubTimestamp::normalize($publishedAt),
+            'remote_updated_at' => $remoteUpdatedAt ?? $post->remote_updated_at,
         ];
 
         if ($resolveQuote) {
@@ -133,6 +169,26 @@ final class RemoteNoteUpserter
         $this->attachments->sync($post, $actor, $note);
 
         return $post;
+    }
+
+    /** @param array<string, mixed> $note */
+    private function remoteUpdatedAt(array $note): ?Carbon
+    {
+        foreach (['updated', 'published'] as $field) {
+            $value = $note[$field] ?? null;
+
+            if (! is_string($value) || $value === '') {
+                continue;
+            }
+
+            try {
+                return ActivityPubTimestamp::parse($value);
+            } catch (Throwable) {
+                // Un timestamp non valido non deve impedire l'interoperabilita'.
+            }
+        }
+
+        return null;
     }
 
     /** @param array<string, mixed> $note */

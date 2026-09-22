@@ -5,7 +5,9 @@ namespace Tests\Feature\Federation;
 use App\Application\Services\PostComposer;
 use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
+use App\Domain\Posts\PostAttachment;
 use App\Federation\Actors\Actor;
+use App\Infrastructure\Media\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\Concerns\CreatesAccounts;
@@ -109,6 +111,56 @@ class RemotePostRefreshTest extends TestCase
             'body' => 'Nuovo commento remoto.',
         ]);
         $this->assertSame(1, Comment::query()->where('post_id', $post->id)->count());
+    }
+
+    public function test_fetch_updates_can_repair_attachments_at_the_same_remote_version(): void
+    {
+        $viewer = $this->createFullAccount('refreshmedia');
+        $author = $this->createRemoteActor('refreshmediaauthor');
+        $post = $this->createRemotePost($author, 'media');
+        $updated = now()->subHour()->startOfSecond();
+        $post->forceFill(['remote_updated_at' => $updated])->save();
+        $oldMedia = Media::query()->create([
+            'actor_id' => $author->id,
+            'disk' => 'remote',
+            'path' => 'remote/old-photo',
+            'remote_url' => 'https://cdn.example/first.jpg',
+            'mime_type' => 'image/jpeg',
+            'byte_size' => 0,
+        ]);
+        PostAttachment::query()->create([
+            'post_id' => $post->id,
+            'media_id' => $oldMedia->id,
+            'position' => 0,
+        ]);
+        $images = [
+            'https://cdn.example/first.jpg',
+            'https://cdn.example/second.jpg',
+            'https://cdn.example/third.jpg',
+            'https://cdn.example/fourth.jpg',
+        ];
+
+        Http::fake([$post->uri => Http::response([
+            'id' => $post->uri,
+            'type' => 'Note',
+            'attributedTo' => $author->uri,
+            'content' => '<p>Versione corrente.</p>',
+            'published' => $post->published_at->toAtomString(),
+            'updated' => $updated->toAtomString(),
+            'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            'attachment' => array_map(
+                fn (string $url): array => ['type' => 'Document', 'mediaType' => 'image/jpeg', 'url' => $url],
+                $images,
+            ),
+        ], 200, ['Content-Type' => 'application/activity+json'])]);
+
+        $this->actingAs($viewer)
+            ->from(route('posts.show', $post))
+            ->post(route('posts.fetch_updates', $post))
+            ->assertRedirect(route('posts.show', $post));
+
+        $this->assertSame('Versione corrente.', $post->fresh()->body);
+        $this->assertSame($images, $post->media()->pluck('remote_url')->all());
     }
 
     public function test_fetch_updates_with_own_local_reply_in_remote_collection_does_not_error(): void
