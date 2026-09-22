@@ -2,6 +2,51 @@
 
 @section('title', ($event->isDeleted() ? __('openbook.events.deleted_title') : $event->name).' - '.config('app.name'))
 
+@if ($event->visibility === \App\Domain\Events\Event::VISIBILITY_PUBLIC && ! $event->isDeleted())
+    @php
+        $openGraphDescriptionHtml = (string) \App\Domain\Posts\PostBodyRenderer::render(
+            collect([$event->distinctSummary(), $event->content])->filter()->implode(' '),
+            $event->custom_emojis,
+            $event->isRemote() ? parse_url($event->uri, PHP_URL_HOST) : null,
+        );
+        $openGraphDescription = \Illuminate\Support\Str::limit(
+            trim(preg_replace(
+                '/\s+/u',
+                ' ',
+                html_entity_decode(
+                    strip_tags(preg_replace('#<(?:br|/p|/li|/h[1-6])\b[^>]*>#i', ' ', $openGraphDescriptionHtml) ?? $openGraphDescriptionHtml),
+                    ENT_QUOTES | ENT_HTML5,
+                    'UTF-8',
+                ),
+            ) ?? ''),
+            200,
+        );
+        $openGraphImage = $event->media->first(fn ($media) => str_starts_with($media->mime_type, 'image/'));
+    @endphp
+
+    @push('head')
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="{{ route('events.show', $event) }}">
+        <meta property="og:title" content="{{ $event->name }}">
+        @if ($openGraphDescription !== '')
+            <meta property="og:description" content="{{ $openGraphDescription }}">
+        @endif
+        <meta property="og:site_name" content="{{ config('app.name') }}">
+        <meta property="og:locale" content="{{ str_replace('-', '_', app()->getLocale()) }}">
+        @if ($openGraphImage !== null)
+            <meta property="og:image" content="{{ url($openGraphImage->url()) }}">
+            <meta property="og:image:type" content="{{ $openGraphImage->mime_type }}">
+            @if ($openGraphImage->width !== null)
+                <meta property="og:image:width" content="{{ $openGraphImage->width }}">
+            @endif
+            @if ($openGraphImage->height !== null)
+                <meta property="og:image:height" content="{{ $openGraphImage->height }}">
+            @endif
+            <meta property="og:image:alt" content="{{ $openGraphImage->alt_text ?: $event->name }}">
+        @endif
+    @endpush
+@endif
+
 @section('content')
     <div class="ob-card">
         <p><a href="{{ route('events.index') }}">&larr; {{ __('openbook.events.back') }}</a></p>
