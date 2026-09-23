@@ -157,10 +157,12 @@ class ProfileController extends Controller
 
         $isFollowing = false;
         $hasPendingRequest = false;
+        $autoAnnounce = false;
 
         if ($viewerActor !== null && $viewerActor->id !== $user->actor->id) {
             $isFollowing = $this->followManager->isFollowing($viewerActor, $user->actor);
             $hasPendingRequest = $this->followManager->hasPendingRequest($viewerActor, $user->actor);
+            $autoAnnounce = $isFollowing && $this->followManager->autoAnnounces($viewerActor, $user->actor);
         }
 
         $pendingFollowRequests = collect();
@@ -211,6 +213,7 @@ class ProfileController extends Controller
             'communitiesCount' => $communitiesCount,
             'isFollowing' => $isFollowing,
             'hasPendingRequest' => $hasPendingRequest,
+            'autoAnnounce' => $autoAnnounce,
             'pendingFollowRequests' => $pendingFollowRequests,
         ]);
     }

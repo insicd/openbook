@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
  * l'endpoint web protetto da token per hosting privi di cron o accesso CLI
  * (vedi {@see CronController}). Coordina l'elaborazione dell'inbox, la
  * consegna ActivityPub e Web Push, la conferma dei follow, l'importazione dei
- * feed e la manutenzione periodica del database. I processi potenzialmente
+ * feed, le condivisioni automatiche e la manutenzione periodica del database. I processi potenzialmente
  * piu' lunghi ricevono una porzione del tempo massimo disponibile, cosi'
  * un'unica chiamata resta compatibile con i limiti tipici dell'hosting
  * condiviso senza richiedere worker permanenti.
@@ -36,6 +36,11 @@ class CronCommand extends Command
         $this->call('openbook:fetch-feeds', [
             '--limit' => 5,
             '--max-time' => max(3, $slice),
+        ]);
+        $this->call('openbook:auto-announce', [
+            '--limit' => 20,
+            '--per-follow' => 8,
+            '--max-time' => max(2, $slice),
         ]);
         $this->call('openbook:purge-database');
 

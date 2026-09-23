@@ -394,6 +394,12 @@ return [
         'accept' => 'Accetta',
         'reject' => 'Rifiuta',
         'requested' => 'Richiesta inviata',
+        'auto_announce_menu' => 'Condivisione automatica',
+        'auto_announce_enable' => 'Condividi automaticamente i nuovi post',
+        'auto_announce_disable' => 'Disattiva condivisione automatica',
+        'auto_announce_help' => 'I nuovi post pubblici di questo contatto vengono condivisi dal tuo account (condivisione diretta), come su Friendica. Il cron dell\'istanza li pubblica quando arrivano.',
+        'auto_announce_enabled' => 'Condivisione automatica attivata. I nuovi post pubblici di questo contatto verranno condivisi dal tuo account.',
+        'auto_announce_disabled' => 'Condivisione automatica disattivata.',
     ],
 
     'search' => [

@@ -139,6 +139,10 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/attori/{actor}/segui', [FollowController::class, 'storeForActor'])->name('actors.follow');
     Route::delete('/attori/{actor}/segui', [FollowController::class, 'destroyForActor'])->name('actors.unfollow');
+    Route::post('/attori/{actor}/condivisione-automatica', [FollowController::class, 'enableAutoAnnounce'])
+        ->name('actors.auto_announce');
+    Route::delete('/attori/{actor}/condivisione-automatica', [FollowController::class, 'disableAutoAnnounce'])
+        ->name('actors.auto_announce.destroy');
     Route::get('/attori/{actor}/condividi-a-utente', [ActorProfileController::class, 'shareToUser'])
         ->name('actors.share_to_user');
 
