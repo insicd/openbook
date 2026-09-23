@@ -56,6 +56,28 @@ class FollowController extends Controller
         return back();
     }
 
+    public function enableAutoAnnounce(Actor $actor): RedirectResponse
+    {
+        try {
+            $this->followManager->setAutoAnnounce(auth()->user()->actor, $actor, true);
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['auto_announce' => $exception->getMessage()]);
+        }
+
+        return back()->with('status', __('openbook.follow.auto_announce_enabled'));
+    }
+
+    public function disableAutoAnnounce(Actor $actor): RedirectResponse
+    {
+        try {
+            $this->followManager->setAutoAnnounce(auth()->user()->actor, $actor, false);
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['auto_announce' => $exception->getMessage()]);
+        }
+
+        return back()->with('status', __('openbook.follow.auto_announce_disabled'));
+    }
+
     public function accept(Follow $follow): RedirectResponse
     {
         $follower = $follow->follower;

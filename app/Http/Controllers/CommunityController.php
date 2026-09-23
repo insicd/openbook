@@ -160,6 +160,10 @@ class CommunityController extends Controller
         $isMember = $viewerActor !== null && $community->isMember($viewerActor);
         $hasPendingRequest = $viewerActor !== null
             && $this->followManager->hasPendingRequest($viewerActor, $community->actor);
+        $autoAnnounce = $isMember
+            && $viewerActor !== null
+            && ! $community->is_private
+            && $this->followManager->autoAnnounces($viewerActor, $community->actor);
         $canViewWall = Gate::forUser($viewer)->allows('viewWall', $community);
 
         $pendingJoinRequests = collect();
@@ -187,6 +191,7 @@ class CommunityController extends Controller
             'posts' => $posts,
             'isMember' => $isMember,
             'hasPendingRequest' => $hasPendingRequest,
+            'autoAnnounce' => $autoAnnounce,
             'canViewWall' => $canViewWall,
             'pendingJoinRequests' => $pendingJoinRequests,
             'canPost' => $viewer !== null && Gate::forUser($viewer)->allows('post', $community),

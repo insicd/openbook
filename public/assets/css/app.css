@@ -377,7 +377,8 @@ html.ob-compose-modal-open {
 }
 
 .ob-icon-btn:hover,
-.ob-icon-btn:focus-visible {
+.ob-icon-btn:focus-visible,
+.ob-icon-btn--active {
   background: var(--ob-color-primary-soft);
   color: var(--ob-color-primary);
   text-decoration: none;
@@ -1457,6 +1458,22 @@ body.ob-css-preview #ob-compose-modal {
 .ob-profile-toolbar__message,
 .ob-profile-toolbar__share {
   flex-shrink: 0;
+}
+
+.ob-profile-toolbar__menu {
+  position: relative;
+}
+
+.ob-profile-toolbar__menu .ob-post__menu-panel {
+  top: calc(100% + 0.35rem);
+  bottom: auto;
+  left: auto;
+  right: 0;
+  min-width: 16rem;
+}
+
+.ob-profile-toolbar__menu-help {
+  margin: 0.15rem 0.7rem 0.45rem;
 }
 
 .ob-profile-stats strong {

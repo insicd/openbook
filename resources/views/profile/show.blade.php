@@ -60,6 +60,7 @@
                                     @method('DELETE')
                                     <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.follow.unfollow') }}</button>
                                 </form>
+                                @include('profile._auto_announce', ['actor' => $profileUser->actor, 'autoAnnounce' => $autoAnnounce ?? false])
                             @elseif ($hasPendingRequest)
                                 <form method="POST" action="{{ route('follow.destroy', $profileUser) }}" class="ob-profile-toolbar__form">
                                     @csrf
