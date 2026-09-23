@@ -394,6 +394,12 @@ return [
         'accept' => 'Accept',
         'reject' => 'Reject',
         'requested' => 'Request sent',
+        'auto_announce_menu' => 'Automatic sharing',
+        'auto_announce_enable' => 'Automatically share new posts',
+        'auto_announce_disable' => 'Turn off automatic sharing',
+        'auto_announce_help' => 'New public posts from this contact will be shared from your account (direct share), like on Friendica. The instance cron publishes them as they arrive.',
+        'auto_announce_enabled' => 'Automatic sharing is on. New public posts from this contact will be shared from your account.',
+        'auto_announce_disabled' => 'Automatic sharing is off.',
     ],
 
     'search' => [

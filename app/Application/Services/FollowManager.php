@@ -248,6 +248,57 @@ final class FollowManager
             ->exists();
     }
 
+    public function autoAnnounces(Actor $follower, Actor $target): bool
+    {
+        return Follow::query()
+            ->where('follower_id', $follower->id)
+            ->where('following_id', $target->id)
+            ->where('status', Follow::STATUS_ACCEPTED)
+            ->where('auto_announce', true)
+            ->exists();
+    }
+
+    public function setAutoAnnounce(Actor $follower, Actor $target, bool $enabled): Follow
+    {
+        if ($follower->id === $target->id) {
+            throw new InvalidArgumentException('Non puoi condividere automaticamente i tuoi post.');
+        }
+
+        if (! $follower->isLocal() || ! $follower->isPerson()) {
+            throw new InvalidArgumentException('Solo un account locale puo\' attivare la condivisione automatica.');
+        }
+
+        $target->loadMissing('community');
+
+        if ($target->community?->is_private) {
+            throw new InvalidArgumentException('Non puoi condividere automaticamente i post di una community privata.');
+        }
+
+        $follow = Follow::query()
+            ->where('follower_id', $follower->id)
+            ->where('following_id', $target->id)
+            ->where('status', Follow::STATUS_ACCEPTED)
+            ->first();
+
+        if ($follow === null) {
+            throw new InvalidArgumentException('Devi seguire questo contatto prima di condividerne i post automaticamente.');
+        }
+
+        if ($enabled) {
+            $follow->forceFill([
+                'auto_announce' => true,
+                'auto_announce_since' => $follow->auto_announce ? $follow->auto_announce_since : now(),
+            ])->save();
+        } else {
+            $follow->forceFill([
+                'auto_announce' => false,
+                'auto_announce_since' => null,
+            ])->save();
+        }
+
+        return $follow->fresh() ?? $follow;
+    }
+
     public function hasPendingRequest(Actor $follower, Actor $target): bool
     {
         return Follow::query()

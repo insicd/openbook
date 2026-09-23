@@ -77,6 +77,7 @@
                                 @method('DELETE')
                                 <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ $isGroup ? __('openbook.communities.leave') : __('openbook.follow.unfollow') }}</button>
                             </form>
+                            @include('profile._auto_announce', ['actor' => $profileActor, 'autoAnnounce' => $autoAnnounce ?? false])
                         @elseif ($hasPendingRequest)
                             <form method="POST" action="{{ route('actors.unfollow', $profileActor) }}" class="ob-profile-toolbar__form">
                                 @csrf

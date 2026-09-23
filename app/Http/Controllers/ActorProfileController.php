@@ -151,10 +151,12 @@ class ActorProfileController extends Controller
 
         $isFollowing = false;
         $hasPendingRequest = false;
+        $autoAnnounce = false;
 
         if ($viewerActor !== null) {
             $isFollowing = $this->followManager->isFollowing($viewerActor, $actor);
             $hasPendingRequest = $this->followManager->hasPendingRequest($viewerActor, $actor);
+            $autoAnnounce = $isFollowing && $this->followManager->autoAnnounces($viewerActor, $actor);
         }
 
         $posts = null;
@@ -186,6 +188,7 @@ class ActorProfileController extends Controller
             'followingCount' => $followingCount,
             'isFollowing' => $isFollowing,
             'hasPendingRequest' => $hasPendingRequest,
+            'autoAnnounce' => $autoAnnounce,
             'emptyPostsMessage' => $this->emptyPostsMessage($actor, $isFollowing, $hasPendingRequest),
         ]);
     }

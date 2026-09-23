@@ -19,6 +19,12 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38.rc1]
 
 ### Added
+- **Condivisione automatica dei contatti** (stile Friendica): dal menu sul
+  profilo di un Actor seguito (locale, remoto, community pubblica o feed
+  RSS/Atom) si puo' attivare la condivisione diretta dei suoi nuovi post
+  pubblici. Il cron (`openbook:auto-announce`, richiamato da
+  `openbook:cron` dopo inbox e fetch dei feed) li pubblica dal proprio
+  account senza notificare l'autore e senza ripescare i post precedenti.
 - **Moderazione della timeline Mondo**: dal pannello amministrativo è possibile
   escludere i post dotati di content warning e configurare fino a 100 hashtag
   che applicano localmente un avviso generico anche quando il post originale
