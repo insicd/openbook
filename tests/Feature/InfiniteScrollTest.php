@@ -8,6 +8,7 @@ use App\Application\Services\PostComposer;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
@@ -61,7 +62,9 @@ class InfiniteScrollTest extends TestCase
         $response->assertOk();
         $response->assertSee('data-infinite-scroll', false);
         $response->assertDontSee('data-next-url', false);
-        $response->assertDontSee('<noscript>', false);
+        // Le card possono contenere altri fallback noscript (per esempio
+        // l'elenco delle reazioni): qui interessa soltanto la paginazione.
+        $response->assertDontSee('ob-pagination', false);
     }
 
     public function test_fetching_the_next_cursor_url_returns_the_remaining_posts_inside_the_same_container(): void
@@ -120,7 +123,7 @@ class InfiniteScrollTest extends TestCase
         $this->assertNotContains($newest->id, $secondIds);
     }
 
-    public function test_the_home_feed_cursor_query_does_not_put_shared_at_alias_in_where(): void
+    public function test_the_home_feed_cursor_query_filters_on_the_ranked_timeline_column(): void
     {
         config(['openbook.feed.per_page' => 2]);
 
@@ -134,8 +137,8 @@ class InfiniteScrollTest extends TestCase
         $cursor = FeedCursor::fromPost($firstPage->getCollection()->last(), useShareSort: true);
 
         $sql = null;
-        \Illuminate\Support\Facades\DB::listen(function ($query) use (&$sql): void {
-            if (str_contains($query->sql, 'coalesce(shared_at')) {
+        DB::listen(function ($query) use (&$sql): void {
+            if (str_contains($query->sql, 'feed_events') && str_contains($query->sql, 'timeline_at')) {
                 $sql = $query->sql;
             }
         });
@@ -143,13 +146,8 @@ class InfiniteScrollTest extends TestCase
         $feedQuery->forActor($user->actor, $cursor);
 
         $this->assertNotNull($sql);
-        // ORDER BY puo' usare l'alias; il filtro cursore no (MySQL).
-        $this->assertStringNotContainsString('coalesce(shared_at, published_at) <', $sql);
-        $this->assertStringNotContainsString('coalesce(shared_at, published_at) =', $sql);
-        $this->assertMatchesRegularExpression(
-            '/coalesce\(\(select ["`]?created_at["`]? from ["`]?announces["`]?.*\) < \?/is',
-            $sql,
-        );
+        $this->assertMatchesRegularExpression('/["`]?feed_events["`]?\.["`]?timeline_at["`]? < \?/i', $sql);
+        $this->assertMatchesRegularExpression('/["`]?feed_events["`]?\.["`]?timeline_at["`]? = \?/i', $sql);
     }
 
     public function test_a_hashtag_page_for_an_unknown_tag_still_renders_the_infinite_scroll_container_without_errors(): void

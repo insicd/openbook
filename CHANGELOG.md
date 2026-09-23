@@ -80,6 +80,9 @@ il [`README`](README.md#roadmap-and-project-status).
   delle tendenze insieme a quelli dei post.
 
 ### Fixed
+- Timeline Home: la sonda cronologica considera una finestra più ampia prima
+  di ricorrere alla scansione completa dei post degli Actor seguiti, evitando
+  rallentamenti sulle istanze che ricevono molti contenuti tramite relay.
 - Blocchi di dominio federati: nuovi post, commenti ed eventi provenienti da
   un dominio bloccato vengono ignorati anche se inoltrati da un relay
   autorizzato o se il relativo Actor era già presente nella cache locale. Il
