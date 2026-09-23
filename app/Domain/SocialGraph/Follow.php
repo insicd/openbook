@@ -20,6 +20,8 @@ use Illuminate\Support\Carbon;
  * @property string $following_id
  * @property string $status
  * @property string|null $remote_activity_uri
+ * @property bool $auto_announce
+ * @property Carbon|null $auto_announce_since
  * @property Carbon $requested_at
  * @property Carbon|null $accepted_at
  */
@@ -39,6 +41,8 @@ class Follow extends Model
         'following_id',
         'status',
         'remote_activity_uri',
+        'auto_announce',
+        'auto_announce_since',
         'requested_at',
         'accepted_at',
     ];
@@ -46,6 +50,8 @@ class Follow extends Model
     protected function casts(): array
     {
         return [
+            'auto_announce' => 'boolean',
+            'auto_announce_since' => 'datetime',
             'requested_at' => 'datetime',
             'accepted_at' => 'datetime',
         ];
