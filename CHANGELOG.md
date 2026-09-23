@@ -82,6 +82,12 @@ il [`README`](README.md#roadmap-and-project-status).
   delle tendenze insieme a quelli dei post.
 
 ### Fixed
+- Aggiornamenti federati fuori ordine
+  ([issue #84](https://github.com/insicd/openbook/issues/84)): i post remoti
+  conservano la versione temporale dell'oggetto ActivityPub e ignorano le
+  rappresentazioni più vecchie, evitando che una `Create` ritardata possa
+  ripristinare testo o allegati precedenti dopo un `Update`. Il refresh
+  manuale può comunque riallineare una copia locale incompleta.
 - Anteprime degli eventi ([issue #85](https://github.com/insicd/openbook/issues/85)):
   le pagine degli eventi pubblici espongono metadati Open Graph con titolo,
   descrizione e immagine di copertina per migliorare le preview nelle
