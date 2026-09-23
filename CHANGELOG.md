@@ -82,6 +82,10 @@ il [`README`](README.md#roadmap-and-project-status).
   delle tendenze insieme a quelli dei post.
 
 ### Fixed
+- Messaggi non letti ([issue #55](https://github.com/insicd/openbook/issues/55)):
+  l'invio di un messaggio aggiorna lo stato di lettura del mittente, evitando
+  che la propria conversazione compaia con un nuovo messaggio appena si cambia
+  pagina. Lo stato non letto del destinatario resta invariato.
 - Aggiornamenti federati fuori ordine
   ([issue #84](https://github.com/insicd/openbook/issues/84)): i post remoti
   conservano la versione temporale dell'oggetto ActivityPub e ignorano le

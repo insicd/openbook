@@ -20,6 +20,7 @@ final class MessageComposer
 {
     public function __construct(
         private readonly ConversationResolver $conversations,
+        private readonly ConversationReadTracker $readTracker,
         private readonly DirectMessagePolicy $policy,
         private readonly NotificationCreator $notificationCreator,
         private readonly ActivityDelivery $delivery,
@@ -90,6 +91,7 @@ final class MessageComposer
             ]);
 
             $this->conversations->touch($conversation, $post->published_at);
+            $this->readTracker->markRead($conversation, $sender, $post->published_at);
 
             if ($recipient->isLocal() && $recipient->isPerson()) {
                 $this->notificationCreator->notify(
