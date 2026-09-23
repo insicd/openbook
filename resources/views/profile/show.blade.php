@@ -60,7 +60,6 @@
                                     @method('DELETE')
                                     <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.follow.unfollow') }}</button>
                                 </form>
-                                @include('profile._auto_announce', ['actor' => $profileUser->actor, 'autoAnnounce' => $autoAnnounce ?? false])
                             @elseif ($hasPendingRequest)
                                 <form method="POST" action="{{ route('follow.destroy', $profileUser) }}" class="ob-profile-toolbar__form">
                                     @csrf
@@ -78,7 +77,11 @@
                                 title="{{ __('openbook.messages.message_aria') }}">
                                 <x-icon name="message" />
                             </a>
-                            @include('profile._share_to_user', ['actor' => $profileUser->actor])
+                            @include('profile._actions_menu', [
+                                'actor' => $profileUser->actor,
+                                'autoAnnounce' => $autoAnnounce ?? false,
+                                'showAutoAnnounce' => $isFollowing,
+                            ])
                         @else
                             <a href="{{ route('login') }}" class="ob-btn ob-btn--primary ob-btn--small">{{ __('openbook.follow.follow') }}</a>
                         @endauth
@@ -86,7 +89,11 @@
                 @else
                     @auth
                         <div class="ob-profile-toolbar__actions">
-                            @include('profile._share_to_user', ['actor' => $profileUser->actor])
+                            @include('profile._actions_menu', [
+                                'actor' => $profileUser->actor,
+                                'autoAnnounce' => false,
+                                'showAutoAnnounce' => false,
+                            ])
                         </div>
                     @endauth
                 @endunless

@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Condivisione diretta automatica (stile Friendica) dei nuovi post
-     * pubblici di un contatto seguito: Person/Group/feed, locale o remoto.
+     * Condivisione diretta automatica dei nuovi post pubblici di un
+     * contatto seguito: Person/Group/feed, locale o remoto.
      */
     public function up(): void
     {

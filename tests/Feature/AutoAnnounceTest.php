@@ -76,8 +76,13 @@ class AutoAnnounceTest extends TestCase
         $this->actingAs($viewer)
             ->get(route('profile.show', $author->username))
             ->assertOk()
+            ->assertSee(__('openbook.profile.actions_menu'), false)
             ->assertSee(__('openbook.follow.auto_announce_enable'), false)
-            ->assertSee(route('actors.auto_announce', $author->actor), false);
+            ->assertSee(__('openbook.follow.auto_announce_help'), false)
+            ->assertSee(__('openbook.actions.announce_share_user'), false)
+            ->assertSee(route('actors.auto_announce', $author->actor), false)
+            ->assertSee(route('profiles.share_to_user', $author), false)
+            ->assertDontSee('Friendica', false);
     }
 
     public function test_cron_shares_only_new_public_posts_without_notifying_the_author(): void

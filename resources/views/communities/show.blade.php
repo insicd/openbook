@@ -56,7 +56,11 @@
                             <button type="submit" class="ob-btn ob-btn--ghost">{{ __('openbook.communities.leave') }}</button>
                         </form>
                         @unless ($community->is_private)
-                            @include('profile._auto_announce', ['actor' => $community->actor, 'autoAnnounce' => $autoAnnounce ?? false])
+                            @include('profile._actions_menu', [
+                                'actor' => $community->actor,
+                                'autoAnnounce' => $autoAnnounce ?? false,
+                                'showAutoAnnounce' => true,
+                            ])
                         @endunless
                     @elseif ($hasPendingRequest)
                         <span class="ob-field__help">{{ __('openbook.communities.pending') }}</span>
