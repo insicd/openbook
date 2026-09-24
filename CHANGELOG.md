@@ -19,12 +19,14 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38.rc1]
 
 ### Added
-- **Condivisione automatica dei contatti** (stile Friendica): dal menu sul
+- **Condivisione automatica dei contatti**: dal menu a tre puntini sul
   profilo di un Actor seguito (locale, remoto, community pubblica o feed
   RSS/Atom) si puo' attivare la condivisione diretta dei suoi nuovi post
-  pubblici. Il cron (`openbook:auto-announce`, richiamato da
-  `openbook:cron` dopo inbox e fetch dei feed) li pubblica dal proprio
-  account senza notificare l'autore e senza ripescare i post precedenti.
+  pubblici. La stessa tendina include "Condividi a utente"; le spiegazioni
+  lunghe si aprono in un modale con conferma. Il cron
+  (`openbook:auto-announce`, richiamato da `openbook:cron` dopo inbox e
+  fetch dei feed) pubblica le condivisioni dal proprio account senza
+  notificare l'autore e senza ripescare i post precedenti.
 - **Moderazione della timeline Mondo**: dal pannello amministrativo è possibile
   escludere i post dotati di content warning e configurare fino a 100 hashtag
   che applicano localmente un avviso generico anche quando il post originale
@@ -83,6 +85,20 @@ il [`README`](README.md#roadmap-and-project-status).
 - Timeline Home: la sonda cronologica considera una finestra più ampia prima
   di ricorrere alla scansione completa dei post degli Actor seguiti, evitando
   rallentamenti sulle istanze che ricevono molti contenuti tramite relay.
+- Messaggi non letti ([issue #55](https://github.com/insicd/openbook/issues/55)):
+  l'invio di un messaggio aggiorna lo stato di lettura del mittente, evitando
+  che la propria conversazione compaia con un nuovo messaggio appena si cambia
+  pagina. Lo stato non letto del destinatario resta invariato.
+- Aggiornamenti federati fuori ordine
+  ([issue #84](https://github.com/insicd/openbook/issues/84)): i post remoti
+  conservano la versione temporale dell'oggetto ActivityPub e ignorano le
+  rappresentazioni più vecchie, evitando che una `Create` ritardata possa
+  ripristinare testo o allegati precedenti dopo un `Update`. Il refresh
+  manuale può comunque riallineare una copia locale incompleta.
+- Anteprime degli eventi ([issue #85](https://github.com/insicd/openbook/issues/85)):
+  le pagine degli eventi pubblici espongono metadati Open Graph con titolo,
+  descrizione e immagine di copertina per migliorare le preview nelle
+  applicazioni di messaggistica e condivisione.
 - Blocchi di dominio federati: nuovi post, commenti ed eventi provenienti da
   un dominio bloccato vengono ignorati anche se inoltrati da un relay
   autorizzato o se il relativo Actor era già presente nella cache locale. Il

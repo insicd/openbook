@@ -47,6 +47,7 @@ use Illuminate\Support\Carbon;
  * @property int $announces_count
  * @property Carbon $published_at
  * @property Carbon|null $edited_at
+ * @property Carbon|null $remote_updated_at Versione dell'oggetto remoto applicata localmente
  * @property Carbon|null $replies_fetched_at ultimo tentativo di recupero della collection replies (post remoti)
  * @property string|null $shared_by_actor_id solo quando la riga proviene da {@see FeedQuery}, che lo valorizza con una subquery su "announces"
  * @property Carbon|null $shared_at vedi $shared_by_actor_id
@@ -113,6 +114,7 @@ class Post extends Model
         'status',
         'published_at',
         'edited_at',
+        'remote_updated_at',
         'replies_fetched_at',
     ];
 
@@ -125,6 +127,7 @@ class Post extends Model
             'published_at' => 'datetime',
             'custom_emojis' => 'array',
             'edited_at' => 'datetime',
+            'remote_updated_at' => 'datetime',
             'replies_fetched_at' => 'datetime',
             'likes_count' => 'integer',
             'comments_count' => 'integer',

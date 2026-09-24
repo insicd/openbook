@@ -3,10 +3,12 @@
 namespace Tests\Feature\Events;
 
 use App\Domain\Events\Event;
+use App\Domain\Events\EventAttachment;
 use App\Domain\Locations\GeoCity;
 use App\Domain\Posts\Hashtag;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Infrastructure\Media\Media;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -233,6 +235,56 @@ class EventBrowseTest extends TestCase
 
         $this->get(route('events.index'))->assertDontSee($event->name);
         $this->get(route('events.show', $event))->assertOk()->assertSee($event->name);
+    }
+
+    public function test_public_event_exposes_open_graph_metadata(): void
+    {
+        $event = $this->event($this->remoteActor(), [
+            'name' => 'Festival & musica',
+            'summary' => "Una serata speciale.\nSeconda riga.",
+            'content' => 'Concerti dal vivo.',
+            'remote_counts_fetched_at' => now(),
+        ]);
+        $media = Media::query()->create([
+            'actor_id' => $event->actor_id,
+            'disk' => 'remote',
+            'path' => 'remote/event-cover',
+            'remote_url' => 'https://cdn.example/event-cover.jpg',
+            'mime_type' => 'image/jpeg',
+            'byte_size' => 0,
+            'width' => 1200,
+            'height' => 630,
+            'alt_text' => 'Locandina del festival',
+        ]);
+        EventAttachment::query()->create([
+            'event_id' => $event->id,
+            'media_id' => $media->id,
+            'position' => 0,
+        ]);
+
+        $this->get(route('events.show', $event))
+            ->assertOk()
+            ->assertSee('<meta property="og:type" content="website">', false)
+            ->assertSee('<meta property="og:url" content="'.route('events.show', $event).'">', false)
+            ->assertSee('<meta property="og:title" content="Festival &amp; musica">', false)
+            ->assertSee('<meta property="og:description" content="Una serata speciale. Seconda riga. Concerti dal vivo.">', false)
+            ->assertSee('<meta property="og:image" content="https://cdn.example/event-cover.jpg">', false)
+            ->assertSee('<meta property="og:image:width" content="1200">', false)
+            ->assertSee('<meta property="og:image:height" content="630">', false)
+            ->assertSee('<meta property="og:image:alt" content="Locandina del festival">', false)
+            ->assertDontSee('twitter:card', false);
+    }
+
+    public function test_non_public_event_does_not_expose_open_graph_metadata(): void
+    {
+        $event = $this->event($this->remoteActor(), [
+            'visibility' => Event::VISIBILITY_UNLISTED,
+            'remote_counts_fetched_at' => now(),
+        ]);
+
+        $this->get(route('events.show', $event))
+            ->assertOk()
+            ->assertDontSee('property="og:', false);
     }
 
     public function test_event_list_uses_infinite_scroll_when_there_are_more_pages(): void

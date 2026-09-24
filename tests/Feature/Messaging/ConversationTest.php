@@ -2,12 +2,15 @@
 
 namespace Tests\Feature\Messaging;
 
+use App\Application\Services\ConversationReadTracker;
+use App\Application\Services\ConversationResolver;
 use App\Application\Services\MessageComposer;
 use App\Domain\Messaging\Conversation;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Validation\ValidationException;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -111,7 +114,7 @@ class ConversationTest extends TestCase
         $bob = $this->createFullAccount('bob');
         $bob->settings->update(['direct_message_policy' => 'followers']);
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
 
         app(MessageComposer::class)->send($alice->actor, $bob->actor, 'Non dovresti riuscire');
     }
@@ -148,7 +151,7 @@ class ConversationTest extends TestCase
 
         $alice = $this->createFullAccount('alice');
         $bob = $this->createFullAccount('bob');
-        $conversation = app(\App\Application\Services\ConversationResolver::class)
+        $conversation = app(ConversationResolver::class)
             ->findOrCreate($alice->actor, $bob->actor);
 
         $response = $this->actingAs($alice)
@@ -159,6 +162,43 @@ class ConversationTest extends TestCase
         $response->assertCreated();
         $response->assertJsonPath('message.mine', true);
         $response->assertJsonPath('message.body_html', fn ($html) => str_contains((string) $html, 'Ciao via Ajax'));
+    }
+
+    public function test_sending_a_message_does_not_mark_the_conversation_unread_for_the_sender(): void
+    {
+        Queue::fake();
+
+        $alice = $this->createFullAccount('alice');
+        $remote = $this->createRemoteActor('bob', 'fed.example');
+        $conversation = app(ConversationResolver::class)
+            ->findOrCreate($alice->actor, $remote);
+
+        $this->actingAs($alice)
+            ->get(route('messages.show', $conversation))
+            ->assertOk();
+
+        $this->travel(1)->minute();
+
+        $this->actingAs($alice)
+            ->postJson(route('messages.store', $conversation), [
+                'body' => 'Ciao via Ajax',
+            ])
+            ->assertCreated();
+
+        $this->assertSame(0, app(ConversationReadTracker::class)->unreadCountFor($alice->actor));
+    }
+
+    public function test_sending_a_message_keeps_the_conversation_unread_for_the_recipient(): void
+    {
+        Queue::fake();
+
+        $alice = $this->createFullAccount('alice');
+        $bob = $this->createFullAccount('bob');
+
+        app(MessageComposer::class)->send($alice->actor, $bob->actor, 'Ciao Bob!');
+
+        $this->assertSame(0, app(ConversationReadTracker::class)->unreadCountFor($alice->actor));
+        $this->assertSame(1, app(ConversationReadTracker::class)->unreadCountFor($bob->actor));
     }
 
     public function test_recipient_suggestions_return_open_urls(): void

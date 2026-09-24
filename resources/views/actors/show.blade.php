@@ -77,7 +77,6 @@
                                 @method('DELETE')
                                 <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ $isGroup ? __('openbook.communities.leave') : __('openbook.follow.unfollow') }}</button>
                             </form>
-                            @include('profile._auto_announce', ['actor' => $profileActor, 'autoAnnounce' => $autoAnnounce ?? false])
                         @elseif ($hasPendingRequest)
                             <form method="POST" action="{{ route('actors.unfollow', $profileActor) }}" class="ob-profile-toolbar__form">
                                 @csrf
@@ -96,8 +95,12 @@
                                 title="{{ __('openbook.messages.message_aria') }}">
                                 <x-icon name="message" />
                             </a>
-                            @include('profile._share_to_user', ['actor' => $profileActor])
                         @endif
+                        @include('profile._actions_menu', [
+                            'actor' => $profileActor,
+                            'autoAnnounce' => $autoAnnounce ?? false,
+                            'showAutoAnnounce' => $isFollowing,
+                        ])
                     @else
                         <a href="{{ route('login') }}" class="ob-btn ob-btn--primary ob-btn--small">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</a>
                     @endauth

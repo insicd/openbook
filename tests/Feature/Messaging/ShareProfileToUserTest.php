@@ -28,8 +28,11 @@ class ShareProfileToUserTest extends TestCase
             ->get(route('profile.show', $bob->username))
             ->assertOk()
             ->assertSee(route('messages.open', $bob->username), false)
+            ->assertSee(__('openbook.profile.actions_menu'), false)
             ->assertSee(route('profiles.share_to_user', $bob), false)
-            ->assertSee(__('openbook.messages.share_profile_aria'), false);
+            ->assertSee(__('openbook.messages.share_profile_aria'), false)
+            ->assertSee(__('openbook.actions.announce_share_user'), false)
+            ->assertDontSee(__('openbook.follow.auto_announce_enable'), false);
     }
 
     public function test_own_profile_offers_share_without_a_message_button(): void
@@ -40,6 +43,7 @@ class ShareProfileToUserTest extends TestCase
             ->get(route('profile.show', $alice->username))
             ->assertOk()
             ->assertDontSee(route('messages.open', $alice->username), false)
+            ->assertSee(__('openbook.profile.actions_menu'), false)
             ->assertSee(route('profiles.share_to_user', $alice), false);
     }
 

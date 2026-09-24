@@ -1469,11 +1469,67 @@ body.ob-css-preview #ob-compose-modal {
   bottom: auto;
   left: auto;
   right: 0;
-  min-width: 16rem;
+  min-width: 18rem;
 }
 
-.ob-profile-toolbar__menu-help {
-  margin: 0.15rem 0.7rem 0.45rem;
+html.ob-confirm-modal-open {
+  overflow: hidden;
+}
+
+.ob-confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.ob-confirm-modal[hidden] {
+  display: none;
+}
+
+.ob-confirm-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(16, 18, 24, 0.48);
+  cursor: pointer;
+}
+
+.ob-confirm-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 26rem);
+  padding: 1.15rem 1.2rem 1rem;
+  background: var(--ob-color-surface);
+  border: 1px solid var(--ob-color-border);
+  border-radius: calc(var(--ob-radius) + 2px);
+  box-shadow: 0 16px 40px rgba(28, 30, 33, 0.18);
+}
+
+.ob-confirm-modal__title {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ob-confirm-modal__body {
+  margin: 0 0 1.1rem;
+  color: var(--ob-color-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.ob-confirm-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .ob-profile-stats strong {
