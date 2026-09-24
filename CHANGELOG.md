@@ -98,7 +98,10 @@ il [`README`](README.md#roadmap-and-project-status).
   applicazioni di messaggistica e condivisione.
 - Location degli eventi federati: gli array ActivityPub contenenti sia una
   `VirtualLocation` sia un `Place` conservano il luogo fisico e usano l'URL
-  virtuale come collegamento di partecipazione online.
+  virtuale come collegamento di partecipazione online. Se un luogo remoto non
+  espone coordinate o un indirizzo strutturato, le componenti finali
+  dell'indirizzo testuale vengono confrontate in modo conservativo con il
+  catalogo locale delle città per completare località, regione e paese.
 - Blocchi di dominio federati: nuovi post, commenti ed eventi provenienti da
   un dominio bloccato vengono ignorati anche se inoltrati da un relay
   autorizzato o se il relativo Actor era già presente nella cache locale. Il
