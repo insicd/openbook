@@ -22,6 +22,7 @@ use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\EventCommentController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\EventInteractionController;
+use App\Http\Controllers\ExternalLinkPreviewController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\HashtagController;
@@ -102,6 +103,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/pubblicazioni-in-attesa/{publication}', [PostController::class, 'destroyPending'])
         ->name('posts.pending.destroy');
     Route::get('/posts/{post}/modifica', [PostController::class, 'edit'])->name('posts.edit');
+    Route::get('/posts/{post}/link-preview', ExternalLinkPreviewController::class)
+        ->middleware('throttle:60,1')
+        ->name('posts.link_preview');
     Route::put('/posts/{post}', [PostController::class, 'update'])->name('posts.update');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
     Route::post('/posts/{post}/aggiorna', [PostController::class, 'fetchUpdates'])
