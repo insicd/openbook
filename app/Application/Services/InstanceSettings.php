@@ -22,6 +22,10 @@ final class InstanceSettings
 
     public const KEY_SITE_DESCRIPTION = 'site_description';
 
+    public const KEY_CONTACT_EMAIL = 'contact_email';
+
+    public const KEY_CONTACT_ACCOUNT_ID = 'contact_account_id';
+
     public const KEY_REGISTRATION_OPEN = 'registration_open';
 
     public const KEY_INSTANCE_RULES = 'instance_rules';
@@ -126,6 +130,29 @@ final class InstanceSettings
     public function siteDescription(): string
     {
         return trim((string) (SystemSetting::get(self::KEY_SITE_DESCRIPTION) ?? ''));
+    }
+
+    public function contactEmail(): string
+    {
+        return trim((string) (SystemSetting::get(self::KEY_CONTACT_EMAIL) ?? ''));
+    }
+
+    public function contactAccountId(): ?string
+    {
+        return SystemSetting::get(self::KEY_CONTACT_ACCOUNT_ID) ?: null;
+    }
+
+    public function contactAccount(): ?User
+    {
+        $id = $this->contactAccountId();
+
+        return $id === null ? null : User::query()
+            ->whereKey($id)
+            ->where('status', User::STATUS_ACTIVE)
+            ->where('is_admin', true)
+            ->whereHas('actor')
+            ->with(['profile', 'actor'])
+            ->first();
     }
 
     public function registrationOpen(): bool
@@ -302,6 +329,8 @@ final class InstanceSettings
      * @param  array{
      *     site_name: string,
      *     site_description?: string,
+     *     contact_email?: string,
+     *     contact_account_id?: string|null,
      *     registration_open: bool,
      *     show_home_staff: bool,
      *     instance_rules?: string,
@@ -328,6 +357,8 @@ final class InstanceSettings
     {
         $siteName = trim($data['site_name']);
         $siteDescription = trim((string) ($data['site_description'] ?? ''));
+        $contactEmail = trim((string) ($data['contact_email'] ?? ''));
+        $contactAccountId = $data['contact_account_id'] ?? null;
         $registrationOpen = (bool) $data['registration_open'];
         $showHomeStaff = (bool) $data['show_home_staff'];
         $rules = (string) ($data['instance_rules'] ?? '');
@@ -347,6 +378,8 @@ final class InstanceSettings
 
         SystemSetting::put(self::KEY_SITE_NAME, $siteName);
         SystemSetting::put(self::KEY_SITE_DESCRIPTION, $siteDescription);
+        SystemSetting::put(self::KEY_CONTACT_EMAIL, $contactEmail);
+        SystemSetting::put(self::KEY_CONTACT_ACCOUNT_ID, $contactAccountId);
         SystemSetting::putBool(self::KEY_REGISTRATION_OPEN, $registrationOpen);
         SystemSetting::putBool(self::KEY_SHOW_HOME_STAFF, $showHomeStaff);
         SystemSetting::put(self::KEY_INSTANCE_RULES, $rules);
@@ -396,6 +429,8 @@ final class InstanceSettings
             $this->auditLogger->log($actor, 'settings.update', null, [
                 'site_name' => $siteName,
                 'has_site_description' => $siteDescription !== '',
+                'has_contact_email' => $contactEmail !== '',
+                'has_contact_account' => $contactAccountId !== null,
                 'registration_open' => $registrationOpen,
                 'show_home_staff' => $showHomeStaff,
                 'trending_days' => $trendingDays,

@@ -19,6 +19,13 @@ il [`README`](README.md#roadmap-and-project-status).
 ## [26.38.rc1]
 
 ### Added
+- **Informazioni d'istanza per i client Mastodon**: Openbook espone
+  `/api/v1/instance`, `/api/v2/instance` e `/api/v1/instance/peers` con
+  metadati, limiti media e conteggi reali. L'amministrazione puo' indicare
+  un'email pubblica e scegliere un account di contatto. I conteggi v1 sono
+  conservati per 15 minuti nella cache configurata, l'elenco dei domini e
+  gli utenti attivi per 6 ore. La v2 include gli utenti con accesso negli
+  ultimi 30 giorni e le icone dell'istanza, quando presenti.
 - **Condivisione automatica dei contatti**: dal menu a tre puntini sul
   profilo di un Actor seguito (locale, remoto, community pubblica o feed
   RSS/Atom) si puo' attivare la condivisione diretta dei suoi nuovi post

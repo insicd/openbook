@@ -66,6 +66,65 @@ class AdminSettingsTest extends TestCase
         $this->assertSame('Openbook Test', config('app.name'));
     }
 
+    public function test_admin_can_set_and_clear_the_public_contact_email(): void
+    {
+        $admin = $this->createFullAccount('admincontact');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings.edit'))
+            ->assertOk()
+            ->assertSee('name="contact_email"', false);
+
+        $this->put(route('admin.settings.update'), $this->settingsPayload([
+            'contact_email' => 'abuse@example.test',
+        ]))->assertRedirect(route('admin.settings.edit'));
+
+        $this->assertSame('abuse@example.test', SystemSetting::get(InstanceSettings::KEY_CONTACT_EMAIL));
+        $this->get('/api/v1/instance')->assertJsonPath('email', 'abuse@example.test');
+
+        $this->put(route('admin.settings.update'), $this->settingsPayload([
+            'contact_email' => 'not-an-email',
+        ]))->assertSessionHasErrors('contact_email');
+        $this->assertSame('abuse@example.test', app(InstanceSettings::class)->contactEmail());
+
+        $this->put(route('admin.settings.update'), $this->settingsPayload([
+            'contact_email' => '',
+        ]))->assertRedirect(route('admin.settings.edit'));
+        $this->get('/api/v1/instance')->assertJsonPath('email', '');
+    }
+
+    public function test_admin_can_select_and_clear_a_public_contact_account_independently_of_home_staff(): void
+    {
+        $admin = $this->createFullAccount('admincontactaccount');
+        $admin->forceFill(['is_admin' => true])->save();
+        $other = $this->createFullAccount('othercontactaccount');
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings.edit'))
+            ->assertOk()
+            ->assertSee('name="contact_account_id"', false)
+            ->assertSee('value="'.$admin->id.'"', false);
+
+        $this->put(route('admin.settings.update'), $this->settingsPayload([
+            'show_home_staff' => '0',
+            'contact_account_id' => $other->id,
+        ]))->assertSessionHasErrors('contact_account_id');
+
+        $this->put(route('admin.settings.update'), $this->settingsPayload([
+            'show_home_staff' => '0',
+            'contact_account_id' => $admin->id,
+        ]))->assertRedirect(route('admin.settings.edit'));
+
+        $this->assertSame($admin->id, app(InstanceSettings::class)->contactAccountId());
+        $this->assertFalse(app(InstanceSettings::class)->showHomeStaff());
+        $this->get('/api/v1/instance')->assertJsonPath('contact_account.username', 'admincontactaccount');
+
+        $this->put(route('admin.settings.update'), $this->settingsPayload())
+            ->assertRedirect(route('admin.settings.edit'));
+        $this->get('/api/v1/instance')->assertJsonPath('contact_account', null);
+    }
+
     public function test_video_support_cannot_be_enabled_with_missing_binaries(): void
     {
         $admin = $this->createFullAccount('adminvideomissing');
