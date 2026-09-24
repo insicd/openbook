@@ -201,7 +201,13 @@ final class RemoteEventObject
         $place = $document['location'] ?? null;
 
         if (is_array($place) && array_is_list($place)) {
-            $place = $place[0] ?? null;
+            foreach ($place as $location) {
+                if (is_array($location) && RemotePostObject::hasType($location['type'] ?? null, 'Place')) {
+                    $place = $location;
+
+                    break;
+                }
+            }
         }
 
         if (! is_array($place) || ! RemotePostObject::hasType($place['type'] ?? null, 'Place')) {
@@ -356,7 +362,26 @@ final class RemoteEventObject
     /** @param array<string, mixed> $document */
     public static function externalParticipationUrl(array $document): ?string
     {
-        return self::httpsUrl($document['externalParticipationUrl'] ?? null, 2048);
+        $url = self::httpsUrl($document['externalParticipationUrl'] ?? null, 2048);
+
+        if ($url !== null) {
+            return $url;
+        }
+
+        $locations = $document['location'] ?? null;
+        $locations = is_array($locations) && array_is_list($locations) ? $locations : [$locations];
+
+        foreach ($locations as $location) {
+            if (is_array($location) && RemotePostObject::hasType($location['type'] ?? null, 'VirtualLocation')) {
+                $url = self::httpsUrl($location['url'] ?? null, 2048);
+
+                if ($url !== null) {
+                    return $url;
+                }
+            }
+        }
+
+        return null;
     }
 
     /** @param array<string, mixed> $document */

@@ -96,6 +96,9 @@ il [`README`](README.md#roadmap-and-project-status).
   le pagine degli eventi pubblici espongono metadati Open Graph con titolo,
   descrizione e immagine di copertina per migliorare le preview nelle
   applicazioni di messaggistica e condivisione.
+- Location degli eventi federati: gli array ActivityPub contenenti sia una
+  `VirtualLocation` sia un `Place` conservano il luogo fisico e usano l'URL
+  virtuale come collegamento di partecipazione online.
 - Blocchi di dominio federati: nuovi post, commenti ed eventi provenienti da
   un dominio bloccato vengono ignorati anche se inoltrati da un relay
   autorizzato o se il relativo Actor era già presente nella cache locale. Il
