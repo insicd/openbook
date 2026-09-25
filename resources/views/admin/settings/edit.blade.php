@@ -22,6 +22,29 @@
         </div>
 
         <div class="ob-field" style="margin-top:1rem">
+            <label for="contact_email">{{ __('openbook.admin.settings.contact_email') }}</label>
+            <input type="email" id="contact_email" name="contact_email" value="{{ old('contact_email', $contactEmail) }}" maxlength="254" autocomplete="email">
+            <p class="ob-field__help">{{ __('openbook.admin.settings.contact_email_help') }}</p>
+            @error('contact_email')
+                <p class="ob-field__error">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <div class="ob-field" style="margin-top:1rem">
+            <label for="contact_account_id">{{ __('openbook.admin.settings.contact_account') }}</label>
+            <select id="contact_account_id" name="contact_account_id">
+                <option value="">{{ __('openbook.admin.settings.contact_account_none') }}</option>
+                @foreach ($contactAccounts as $contactAccount)
+                    <option value="{{ $contactAccount->id }}" @selected(old('contact_account_id', $contactAccountId) === $contactAccount->id)>{{ '@'.$contactAccount->username }}</option>
+                @endforeach
+            </select>
+            <p class="ob-field__help">{{ __('openbook.admin.settings.contact_account_help') }}</p>
+            @error('contact_account_id')
+                <p class="ob-field__error">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <div class="ob-field" style="margin-top:1rem">
             <label for="favicon">{{ __('openbook.admin.settings.favicon') }}</label>
             <div class="ob-settings-avatar-picker">
                 <img

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Application\Services\InstanceSettings;
+use App\Domain\Accounts\User;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Media\InstanceIconUploader;
 use App\Infrastructure\Media\VideoCapability;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use InvalidArgumentException;
@@ -21,6 +23,10 @@ final class SettingsController extends Controller
         return view('admin.settings.edit', [
             'siteName' => $settings->siteName(),
             'siteDescription' => $settings->siteDescription(),
+            'contactEmail' => $settings->contactEmail(),
+            'contactAccountId' => $settings->contactAccountId(),
+            'contactAccounts' => User::query()->where('status', User::STATUS_ACTIVE)
+                ->where('is_admin', true)->whereHas('actor')->orderBy('username')->get(),
             'registrationOpen' => $settings->registrationOpen(),
             'showHomeStaff' => $settings->showHomeStaff(),
             'instanceRules' => $settings->instanceRules(),
@@ -53,6 +59,9 @@ final class SettingsController extends Controller
         $data = $request->validate([
             'site_name' => ['required', 'string', 'max:100'],
             'site_description' => ['nullable', 'string', 'max:500'],
+            'contact_email' => ['nullable', 'email', 'max:254'],
+            'contact_account_id' => ['nullable', 'uuid', Rule::exists('users', 'id')
+                ->where('status', User::STATUS_ACTIVE)->where('is_admin', true)],
             'registration_open' => ['sometimes', 'boolean'],
             'show_home_staff' => ['sometimes', 'boolean'],
             'instance_rules' => ['nullable', 'string', 'max:20000'],
@@ -109,6 +118,8 @@ final class SettingsController extends Controller
         $settings->update([
             'site_name' => $data['site_name'],
             'site_description' => $data['site_description'] ?? '',
+            'contact_email' => $data['contact_email'] ?? '',
+            'contact_account_id' => $data['contact_account_id'] ?? null,
             'registration_open' => $request->boolean('registration_open'),
             'show_home_staff' => $request->boolean('show_home_staff'),
             'instance_rules' => $data['instance_rules'] ?? '',
