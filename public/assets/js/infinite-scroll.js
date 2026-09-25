@@ -1,16 +1,12 @@
 /**
  * Scorrimento infinito per elenchi paginati (feed, Mondo, profilo, hashtag,
- * galleria foto, "Da scoprire", follower/seguiti): sostituisce la
- * paginazione a numeri di pagina, che pero' resta disponibile in <noscript>
- * nelle viste che lo usano, cosi' da non perdere alcuna funzionalita' per
- * chi naviga senza JavaScript.
+ * galleria foto, "Da scoprire", follower/seguiti). Gli elenchi diversi dalla
+ * Home mantengono la paginazione in <noscript>; la Home richiede JavaScript.
  *
- * Nessuna libreria esterna, nessuna route/API dedicata sul server: quando il
- * segnaposto in fondo alla pagina diventa visibile, viene semplicemente
- * scaricata la stessa pagina successiva indicata in "data-next-url" (cursore
- * ?cursor=... calcolato lato server), se ne estrae il solo elenco di post
- * (`[data-infinite-scroll]`) e i suoi figli vengono spostati in coda
- * all'elenco corrente.
+ * Quando il segnaposto diventa visibile, scarica la pagina indicata in
+ * "data-next-url" e aggiunge i figli di `[data-infinite-scroll]`. Nella Home
+ * usa la stessa funzione per caricare il primo blocco e i successivi, che
+ * arrivano come frammenti HTML; gli altri elenchi ricevono la pagina completa.
  */
 (function () {
     'use strict';
@@ -22,6 +18,8 @@
     }
 
     var nextUrl = container.getAttribute('data-next-url');
+    var isHomeFeed = container.hasAttribute('data-home-feed');
+    var initialLoad = container.hasAttribute('data-initial-load');
 
     if (!nextUrl) {
         return;
@@ -48,6 +46,21 @@
         sentinel.remove();
     }
 
+    function showRetry() {
+        observer.disconnect();
+        setStatus(container.getAttribute('data-error-label'));
+
+        var retry = document.createElement('a');
+        retry.href = nextUrl;
+        retry.textContent = container.getAttribute('data-retry-label');
+        retry.addEventListener('click', function (event) {
+            event.preventDefault();
+            loadNextPage();
+        });
+
+        status.append(' ', retry);
+    }
+
     function loadNextPage() {
         if (loading || !nextUrl) {
             return;
@@ -69,6 +82,10 @@
                     .parseFromString(html, 'text/html')
                     .querySelector('[data-infinite-scroll]');
 
+                if (isHomeFeed && !freshContainer) {
+                    throw new Error('missing feed fragment');
+                }
+
                 while (freshContainer && freshContainer.firstChild) {
                     var node = freshContainer.firstChild;
                     var postId = null;
@@ -87,19 +104,28 @@
 
                 nextUrl = freshContainer ? freshContainer.getAttribute('data-next-url') : null;
                 loading = false;
+                var wasInitialLoad = initialLoad;
+                initialLoad = false;
 
                 if (nextUrl) {
                     setStatus('');
+                    if (isHomeFeed) {
+                        observer.observe(sentinel);
+                    }
                 } else {
                     stopObserving();
-                    setStatus(container.getAttribute('data-end-label'));
+                    setStatus(wasInitialLoad ? '' : container.getAttribute('data-end-label'));
                 }
             })
             .catch(function () {
                 loading = false;
-                nextUrl = null;
-                stopObserving();
-                setStatus(container.getAttribute('data-error-label'));
+                if (isHomeFeed) {
+                    showRetry();
+                } else {
+                    nextUrl = null;
+                    stopObserving();
+                    setStatus(container.getAttribute('data-error-label'));
+                }
             });
     }
 
@@ -114,5 +140,9 @@
         { rootMargin: '600px 0px' }
     );
 
-    observer.observe(sentinel);
+    if (initialLoad) {
+        loadNextPage();
+    } else {
+        observer.observe(sentinel);
+    }
 })();

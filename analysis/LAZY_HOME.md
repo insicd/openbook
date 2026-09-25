@@ -1,9 +1,9 @@
 # Home progressiva: tendenze e feed asincroni
 
 Documento di analisi e piano di lavoro. Gli sprint 1 e 2 della macrofase 1
-sono implementati. La prova dei tempi su un'installazione rappresentativa
-resta da fare nella pausa tra le macrofasi; la macrofase 2 non è ancora
-implementata.
+sono implementati e la prova dei tempi tra le macrofasi ha dato esito
+positivo. Nella macrofase 2, gli sprint 3 e 4 caricano tramite lo stesso
+frammento HTML sia il primo blocco sia le pagine successive della Home.
 
 ## Obiettivo
 
@@ -78,6 +78,15 @@ della scadenza dei cinque minuti.
 
 ## Macrofase 2 — Prime card via HTML asincrono
 
+**Stato implementato:** `/home` usa lo stesso endpoint per due risposte. La
+navigazione normale restituisce la cornice della Home con layout, composer,
+eventuale citazione e pubblicazioni video in attesa, senza interrogare il feed
+né preparare il kit di benvenuto. La richiesta AJAX a `/home` interroga il feed
+e restituisce un frammento HTML: le card, oppure il kit di benvenuto se il
+primo blocco è vuoto. Le richieste AJAX a `/home?cursor=…` restituiscono le
+card successive. Non esiste una route separata né un algoritmo diverso per il
+primo blocco.
+
 Restituire subito il layout, il composer e un contenitore del feed con stato
 di caricamento, senza eseguire `FeedQuery::forActor()` nella richiesta
 iniziale. Il browser chiede poi la prima pagina del feed come **frammento
@@ -131,12 +140,17 @@ risultato.
    cursore successivo, riusando query, annotazioni e vista delle card attuali.
    Far usare il frammento alle pagine successive dello scroll, mentre la prima
    pagina della Home resta ancora renderizzata nella risposta iniziale.
-   Preparare la logica di caricamento condivisa e il link di retry.
+   Preparare la logica di caricamento condivisa e il link di retry. Implementato
+   usando lo stesso URL `/home?cursor=…`: la richiesta AJAX riceve il frammento,
+   la navigazione normale la cornice della Home. Gli altri elenchi non cambiano.
 4. **Primo blocco asincrono.** Togliere la query del feed dalla risposta
    iniziale `/home` e richiedere il primo frammento con la stessa logica usata
    dallo scroll. Integrare kit di benvenuto, stato vuoto, composer e messaggio
    `<noscript>`. Provare il percorso completo e confrontare il tempo fino alla
-   cornice con quello fino alle prime card.
+   cornice con quello fino alle prime card. Implementato: `/home` senza header
+   AJAX restituisce la cornice; la richiesta AJAX allo stesso URL restituisce
+   il primo frammento. Il kit di benvenuto arriva nel contenitore del feed
+   quando il primo blocco è vuoto, e il composer resta nella cornice iniziale.
 
 ## Confini
 

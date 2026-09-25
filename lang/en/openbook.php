@@ -17,6 +17,8 @@ return [
         'loading' => 'Loading more posts...',
         'end' => 'There are no more posts to show.',
         'error' => 'Could not load more posts. Try reloading the page.',
+        'retry_error' => 'Could not load more posts.',
+        'retry' => 'Try again',
         'next' => 'More posts',
     ],
 
@@ -235,6 +237,7 @@ return [
     ],
 
     'feed' => [
+        'requires_js' => 'JavaScript is required to load your Home feed.',
         'welcome_title' => 'Start here',
         'welcome_body' => 'Your feed is still empty. Follow someone to fill it with conversations, or publish your first post above.',
         'welcome_staff' => 'This instance\'s staff',

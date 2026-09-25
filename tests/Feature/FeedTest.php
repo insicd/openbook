@@ -524,7 +524,7 @@ class FeedTest extends TestCase
         $this->publishPost($user, 'Post visibile nella pagina feed.');
 
         $this->actingAs($user)
-            ->get(route('feed.index'))
+            ->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee('Post visibile nella pagina feed.');
     }
@@ -536,7 +536,7 @@ class FeedTest extends TestCase
         $suffix = ' PARTE_NASCOSTA_NEL_FEED';
         $post = $this->publishPost($user, $prefix.$suffix);
 
-        $feed = $this->actingAs($user)->get(route('feed.index'));
+        $feed = $this->actingAs($user)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
         $feed->assertOk();
         $feed->assertSee(__('openbook.posts.read_more'), false);
         $feed->assertSee('ob-post__excerpt', false);

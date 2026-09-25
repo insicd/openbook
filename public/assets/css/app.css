@@ -638,6 +638,10 @@ html.ob-compose-modal-open {
   margin-top: 1rem;
 }
 
+.ob-home-feed {
+  margin-top: 1rem;
+}
+
 .ob-sidebar .ob-card + .ob-card {
   margin-top: 0;
 }

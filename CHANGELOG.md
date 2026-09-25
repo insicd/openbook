@@ -96,6 +96,11 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- La Home mostra subito layout e composer; lo stesso endpoint `/home` carica
+  poi via AJAX le card o, se il feed e' vuoto, il kit di benvenuto. Anche lo
+  scorrimento scarica solo le card successive e il relativo cursore, evitando
+  di ricostruire l'intera pagina a ogni blocco. In caso di errore compare un
+  link per riprovare il caricamento.
 - Il box laterale delle tendenze si carica quando diventa visibile sui
   desktop. La Home e le altre pagine autenticate non attendono più la query
   degli hashtag in tendenza per mostrare il layout; su viewport sotto i

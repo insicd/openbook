@@ -31,8 +31,21 @@ class FeedController extends Controller
         $user = auth()->user();
         $user->loadMissing(['profile', 'actor']);
 
-        $posts = $this->feedQuery->forActor($user->actor, FeedCursor::fromRequest($request));
-        Post::annotateViewerState($posts->getCollection(), $user->actor);
+        if ($request->ajax()) {
+            $cursor = FeedCursor::fromRequest($request);
+            $posts = $this->feedQuery->forActor($user->actor, $cursor);
+            Post::annotateViewerState($posts->getCollection(), $user->actor);
+
+            return view('posts._feed', [
+                'posts' => $posts,
+                'emptyMessage' => __('openbook.feed.empty'),
+                'homeFeed' => true,
+                'fragment' => true,
+                'welcomeKit' => $posts->isEmpty() && $cursor === null
+                    ? $this->buildWelcomeKit($user->actor, $user->id)
+                    : null,
+            ]);
+        }
 
         $quotedPost = $this->resolveQuotedPostForComposer($request, $user->actor);
 
@@ -45,18 +58,10 @@ class FeedController extends Controller
             ->orderBy('slug')
             ->get();
 
-        $welcomeKit = null;
-
-        if ($posts->isEmpty() && FeedCursor::fromRequest($request) === null) {
-            $welcomeKit = $this->buildWelcomeKit($user->actor, $user->id);
-        }
-
         return view('feed.index', [
             'currentUser' => $user,
-            'posts' => $posts,
             'quotedPost' => $quotedPost,
             'composerCommunities' => $composerCommunities,
-            'welcomeKit' => $welcomeKit,
             'pendingPublications' => config('openbook.video.enabled', false)
                 ? PendingPostPublication::query()
                     ->where('actor_id', $user->actor->id)

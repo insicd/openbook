@@ -45,7 +45,7 @@ class ExternalLinkPreviewTest extends TestCase
             'visibility' => Post::VISIBILITY_PUBLIC,
         ]);
 
-        $this->actingAs($author)->get(route('feed.index'))
+        $this->actingAs($author)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee('data-link-preview-url="'.route('posts.link_preview', $post).'" hidden', false);
     }

@@ -17,6 +17,8 @@ return [
         'loading' => 'Caricamento altri post...',
         'end' => 'Non ci sono altri post da mostrare.',
         'error' => 'Impossibile caricare altri post. Riprova ricaricando la pagina.',
+        'retry_error' => 'Impossibile caricare altri post.',
+        'retry' => 'Riprova',
         'next' => 'Post successivi',
     ],
 
@@ -235,6 +237,7 @@ return [
     ],
 
     'feed' => [
+        'requires_js' => 'Per caricare il feed della Home è necessario JavaScript.',
         'welcome_title' => 'Inizia da qui',
         'welcome_body' => 'Il tuo feed è ancora vuoto. Segui qualcuno per riempirlo di conversazioni, oppure pubblica il tuo primo post qui sopra.',
         'welcome_staff' => 'Lo staff di questa istanza',

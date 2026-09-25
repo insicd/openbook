@@ -201,11 +201,18 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
 - **Scorrimento infinito al posto della paginazione a numeri**: feed, "Mondo",
   profilo (locale o remoto) e pagina di un hashtag non mostrano piu' frecce/numeri
   di pagina in fondo all'elenco dei post. Quando l'utente si avvicina alla fine
-  della pagina, `public/assets/js/infinite-scroll.js` scarica in background la
-  pagina successiva (lo stesso URL "?page=N" di sempre) e ne innesta i soli post
-  in coda all'elenco corrente, senza alcuna route/API dedicata ne' libreria
-  esterna. La paginazione classica resta comunque disponibile dentro un
-  `<noscript>`, per chi naviga senza JavaScript. Impostare `data-infinite-scroll`
+  della pagina, `public/assets/js/infinite-scroll.js` richiede l'URL successivo
+  `?cursor=…` e ne innesta i post in coda all'elenco corrente, senza route/API
+  dedicata ne' libreria esterna. Una richiesta normale a `/home` renderizza
+  layout, composer, eventuale post citato e pubblicazioni video in attesa,
+  senza interrogare il feed ne' preparare il kit di benvenuto. La richiesta
+  AJAX allo stesso endpoint `/home` restituisce un frammento HTML con le card,
+  oppure il kit di benvenuto se il primo blocco e' vuoto; le richieste AJAX
+  con cursore restituiscono le card successive. Lo stesso caricatore gestisce
+  entrambi e offre un link per riprovare dopo un errore.
+  Senza JavaScript, la Home spiega che il feed lo richiede. Gli altri elenchi
+  continuano a scaricare la pagina completa e offrono la paginazione classica
+  dentro un `<noscript>`. Impostare `data-infinite-scroll`
   e "data-next-url" su un contenitore di post e' sufficiente perche' lo script si
   attivi: vedi `resources/views/posts/_feed.blade.php`, il parziale condiviso da
   tutte queste pagine. Approfittata anche l'occasione per dare a

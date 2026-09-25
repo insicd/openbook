@@ -38,7 +38,7 @@ class FeedWelcomeTest extends TestCase
         $newbie = $this->createFullAccount('kitnewbie');
 
         $this->actingAs($newbie)
-            ->get(route('feed.index'))
+            ->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee(__('openbook.feed.welcome_title'), false)
             ->assertSee(__('openbook.feed.welcome_staff'), false)
@@ -49,7 +49,7 @@ class FeedWelcomeTest extends TestCase
             ->assertSee('Remo Remoto', false)
             ->assertSee(route('communities.index'), false)
             ->assertSee(route('world.discover'), false)
-            ->assertDontSee('id="ob-post-list"', false);
+            ->assertSee('id="ob-post-list"', false);
     }
 
     public function test_welcome_kit_is_hidden_once_the_feed_has_posts(): void
@@ -62,7 +62,7 @@ class FeedWelcomeTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get(route('feed.index'))
+            ->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertDontSee(__('openbook.feed.welcome_title'), false)
             ->assertSee('Il mio primo post.', false)
@@ -85,7 +85,7 @@ class FeedWelcomeTest extends TestCase
         ]);
 
         $this->actingAs($newbie)
-            ->get(route('feed.index'))
+            ->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee(__('openbook.feed.welcome_title'), false)
             ->assertDontSee('@kitalready', false);

@@ -435,7 +435,7 @@ class PopularHashtagsTest extends TestCase
         $empty = Hashtag::query()->create(['name' => '']);
         $post->hashtags()->attach($empty->id);
 
-        $response = $this->actingAs($alice)->get('/home');
+        $response = $this->actingAs($alice)->get('/home', ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
         $response->assertSee('Post visibile');

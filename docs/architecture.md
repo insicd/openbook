@@ -202,14 +202,20 @@ and "Edit profile" button on your own profile) makes them editable:
 - **Infinite scroll instead of numbered pagination**: feed, World, profile
   (local or remote), and hashtag pages no longer show page arrows/numbers at
   the bottom of the post list. When the user nears the end of the page,
-  `public/assets/js/infinite-scroll.js` downloads the next page in the
-  background (the same `?page=N` URL as always) and appends only its posts to
-  the current list, with no dedicated route/API and no external library.
-  Classic pagination remains available inside a `<noscript>`, for people
-  browsing without JavaScript. Setting `data-infinite-scroll` and
-  `data-next-url` on a post container is enough for the script to activate: see
-  `resources/views/posts/_feed.blade.php`, the partial shared by all these
-  pages. This was also the chance to give `FeedQuery`/`HashtagController` a
+  `public/assets/js/infinite-scroll.js` requests the next `?cursor=…` URL and
+  appends its posts to the current list, with no dedicated route/API or
+  external library. A normal request to `/home` renders the layout, composer,
+  any quoted post, and pending video publications without querying the feed or
+  building the welcome kit. An AJAX request to the same `/home` endpoint
+  returns an HTML fragment with post cards, or the welcome kit when the first
+  block is empty; AJAX cursor requests return later cards. The same loader
+  handles both and offers a retry link after an error. Without JavaScript,
+  Home explains that the feed requires it. Other post lists fetch their full
+  pages and offer classic pagination inside `<noscript>`. Setting
+  `data-infinite-scroll` and `data-next-url` on a post container is enough for
+  the script to activate: see `resources/views/posts/_feed.blade.php`, the
+  partial shared by all these pages. This was also the chance to give
+  `FeedQuery`/`HashtagController` a
   truly deterministic sort (`ORDER BY ... , id DESC`): without a tie-breaker,
   two posts published in the same second could end up duplicated or skipped
   when moving from one page to the next, a defect already present with classic
