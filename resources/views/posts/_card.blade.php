@@ -54,18 +54,6 @@
                     <x-icon name="more-vertical" />
                 </summary>
                 <div class="ob-post__menu-panel" role="menu">
-                    <button
-                        type="button"
-                        class="ob-post__menu-item"
-                        role="menuitem"
-                        data-copy-url="{{ $postPermalink }}"
-                        data-copy-label="{{ __('openbook.posts.copy_link') }}"
-                        data-copy-done="{{ __('openbook.posts.link_copied') }}"
-                        data-copy-error="{{ __('openbook.posts.copy_link_error') }}"
-                    >
-                        <x-icon name="link" />
-                        <span data-copy-text>{{ __('openbook.posts.copy_link') }}</span>
-                    </button>
                     @if ($canOpenOriginal)
                         <a href="{{ $post->uri }}" class="ob-post__menu-item" role="menuitem" target="_blank" rel="noopener noreferrer">
                             <x-icon name="globe" />
@@ -250,18 +238,7 @@
                                         {{ __('openbook.actions.announce_share_user') }}
                                     </a>
                                 @endunless
-                                @if ($post->visibility === \App\Domain\Posts\Post::VISIBILITY_PUBLIC)
-                                    <button
-                                        type="button"
-                                        class="ob-post__menu-item"
-                                        role="menuitem"
-                                        data-native-share-url="{{ route('posts.show', $post) }}"
-                                        hidden
-                                    >
-                                        <x-icon name="link" />
-                                        {{ __('openbook.actions.share_link') }}
-                                    </button>
-                                @endif
+                                @include('posts._share_link_actions')
                             </div>
                         </details>
                         @include('posts._reaction_list', [
@@ -288,9 +265,14 @@
                         <span class="ob-post__action-count">{{ $post->comments_count }}</span>
                     </a>
                     <div class="ob-post__action-group">
-                        <span class="ob-post__action" aria-label="{{ __('openbook.actions.announce', ['count' => $post->announces_count]) }}">
-                            <x-icon name="share" />
-                        </span>
+                        <details class="ob-post__share-menu">
+                            <summary class="ob-post__action" aria-label="{{ __('openbook.actions.announce', ['count' => $post->announces_count]) }}">
+                                <x-icon name="share" />
+                            </summary>
+                            <div class="ob-post__menu-panel" role="menu">
+                                @include('posts._share_link_actions')
+                            </div>
+                        </details>
                         @include('posts._reaction_list', [
                             'url' => route('posts.announces', $post),
                             'count' => $post->announces_count,

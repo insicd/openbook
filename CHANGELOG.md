@@ -96,6 +96,11 @@ il [`README`](README.md#roadmap-and-project-status).
   delle tendenze insieme a quelli dei post.
 
 ### Fixed
+- Condivisione dei post ([issue #94](https://github.com/insicd/openbook/issues/94)):
+  il menu si apre anche per i visitatori e offre sempre "Copia link",
+  spostato dai tre puntini. La condivisione nativa resta disponibile sui
+  browser che la supportano; ripubblicazione, citazione e invio a utente
+  richiedono ancora l'accesso.
 - Timeline Home: la sonda cronologica considera una finestra più ampia prima
   di ricorrere alla scansione completa dei post degli Actor seguiti, evitando
   rallentamenti sulle istanze che ricevono molti contenuti tramite relay.
