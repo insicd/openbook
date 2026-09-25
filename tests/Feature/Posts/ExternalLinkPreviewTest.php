@@ -23,6 +23,26 @@ class ExternalLinkPreviewTest extends TestCase
         $this->get(route('posts.link_preview', $post))->assertRedirect(route('login'));
     }
 
+    public function test_preview_requests_have_their_own_sixty_per_minute_limit(): void
+    {
+        $post = $this->createPost('https://article.example/story');
+        $viewer = $this->createFullAccount('previewlimit');
+        Http::fake(['article.example/*' => Http::response(
+            '<html><head><meta property="og:title" content="Article"></head></html>',
+            200,
+            ['Content-Type' => 'text/html'],
+        )]);
+
+        $this->actingAs($viewer);
+
+        for ($attempt = 0; $attempt < 60; $attempt++) {
+            $this->get(route('posts.link_preview', $post))->assertOk();
+        }
+
+        $this->get(route('posts.link_preview', $post))->assertStatus(429);
+        $this->get(route('search.suggest', ['q' => 'nothing-matches']))->assertOk();
+    }
+
     public function test_an_eligible_post_renders_only_a_hidden_async_placeholder(): void
     {
         $post = $this->createPost('Read https://article.example/story');
