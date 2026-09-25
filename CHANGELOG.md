@@ -103,6 +103,8 @@ la [roadmap](docs/roadmap.md).
   e' pre-selezionata. Il cookie remember di Laravel mantiene l'accesso per
   mesi anche dopo la scadenza della sessione (2 ore). Si puo' ancora
   togliere la spunta.
+- **Composer su mobile**: le icone delle opzioni di scrittura restano su
+  una sola riga (niente wrap), con gap e padding della toolbar ridotti.
 - Mondo mostra subito la cornice e carica separatamente i post e le persone
   "Da scoprire nel fediverso". Il primo blocco e lo scorrimento dei post usano
   lo stesso frammento HTML, senza ripetere la query dei suggerimenti; anche lo

@@ -1840,7 +1840,7 @@ html.ob-confirm-modal-open {
   padding: 0.85rem 1rem;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 767px) {
   .ob-composer__main {
     gap: 0.55rem;
   }
@@ -1855,6 +1855,23 @@ html.ob-confirm-modal-open {
     left: 0;
     bottom: calc(100% + 0.35rem);
     width: min(16rem, calc(100vw - 2rem));
+  }
+
+  .ob-composer__toolbar {
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+    padding-top: 0.3rem;
+  }
+
+  .ob-composer__toggles {
+    flex-wrap: nowrap;
+    gap: 0;
+    margin-inline: -0.2rem;
+  }
+
+  .ob-composer__toggles .ob-icon-btn {
+    width: 34px;
+    height: 34px;
   }
 }
 
