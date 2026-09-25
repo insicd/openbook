@@ -73,6 +73,64 @@ class EventInboxActivityTest extends TestCase
         $this->assertSame('via San Carlo, 42, Bologna', $location?->address);
     }
 
+    public function test_remote_event_address_fills_missing_city_and_country_from_local_catalog(): void
+    {
+        config()->set('openbook.locations.catalog_ready', true);
+
+        foreach ([
+            [2855745, 'Paderborn', 51.7191, 8.7544, 'North Rhine-Westphalia', 'DE', 'Germany', 152531],
+            [2754652, 'Heerlen', 50.8837, 5.9815, 'Limburg', 'NL', 'Netherlands', 93084],
+            [9994652, 'Heerlen', 40.0000, -75.0000, 'Pennsylvania', 'US', 'United States', 999999],
+            [6138610, 'Saint-Laurent', 45.5001, -73.6658, 'Quebec', 'CA', 'Canada', 774391],
+        ] as [$id, $name, $latitude, $longitude, $region, $countryCode, $countryName, $population]) {
+            GeoCity::query()->create([
+                'geoname_id' => $id,
+                'name' => $name,
+                'ascii_name' => $name,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'latitude_bucket' => (int) floor($latitude),
+                'longitude_bucket' => (int) floor($longitude),
+                'country_code' => $countryCode,
+                'country_name' => $countryName,
+                'admin1_code' => '01',
+                'admin1_name' => $region,
+                'feature_code' => 'PPLA',
+                'population' => $population,
+                'catalog_batch' => '00000000-0000-0000-0000-000000000001',
+            ]);
+        }
+
+        $agenda = $this->remoteActor('agenda-address', 'gancio.example', 'https://gancio.example/federation/u/agenda');
+
+        foreach ([
+            ['1', 'Westernmauer 12-16, 33098 Paderborn', 'Paderborn', 'DE', null],
+            ['2', 'Pancratiusstraat 30, 6411KC Heerlen, Netherlands', 'Heerlen', 'NL', null],
+            ['3', '4848 Saint Laurent', null, null, null],
+            ['4', 'Westernmauer 12-16, 33098 Paderborn', null, null, [0.0, 0.0]],
+        ] as [$suffix, $address, $expectedCity, $expectedCountry, $coordinates]) {
+            $activity = $this->balottaCreate($agenda);
+            $activity['id'] = "https://gancio.example/activities/{$suffix}";
+            $activity['object']['id'] = "https://gancio.example/events/{$suffix}";
+            $activity['object']['location'] = [
+                'type' => 'Place',
+                'address' => $address,
+            ];
+
+            if ($coordinates !== null) {
+                [$activity['object']['location']['latitude'], $activity['object']['location']['longitude']] = $coordinates;
+            }
+
+            $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process($activity, $agenda));
+
+            $location = Event::query()->where('uri', $activity['object']['id'])->with('location')->firstOrFail()->location;
+            $this->assertSame($expectedCity, $location?->locality);
+            $this->assertSame($expectedCountry, $location?->country_code);
+            $this->assertSame($coordinates[0] ?? null, $location?->latitude);
+            $this->assertSame($coordinates[1] ?? null, $location?->longitude);
+        }
+    }
+
     public function test_mobilizon_announce_imports_creator_organizer_links_and_then_merges_create(): void
     {
         $creator = $this->remoteActor('creator', 'mobilizon.example', 'https://mobilizon.example/@creator');

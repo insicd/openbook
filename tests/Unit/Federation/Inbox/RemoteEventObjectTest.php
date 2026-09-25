@@ -96,6 +96,31 @@ class RemoteEventObjectTest extends TestCase
         $this->assertSame(['teatro'], RemoteEventObject::hashtags($event));
     }
 
+    public function test_it_parses_gancio_virtual_and_physical_locations(): void
+    {
+        $event = [
+            'location' => [[
+                'type' => 'VirtualLocation',
+                'url' => 'https://www.supermercator.nl/live-drawing',
+            ], [
+                'id' => 'https://offbeat.amsterdam/federation/p/69',
+                'type' => 'Place',
+                'name' => 'Supermercator',
+                'address' => 'Mercatorplein 3H, 1057 BX Amsterdam',
+                'latitude' => 52.3689648,
+                'longitude' => 4.8512865,
+            ]],
+        ];
+
+        $this->assertSame('Supermercator', RemoteEventObject::location($event)['name']);
+        $this->assertSame('Mercatorplein 3H, 1057 BX Amsterdam', RemoteEventObject::location($event)['address']);
+        $this->assertTrue(RemoteEventObject::isOnline($event));
+        $this->assertSame(
+            'https://www.supermercator.nl/live-drawing',
+            RemoteEventObject::externalParticipationUrl($event),
+        );
+    }
+
     public function test_it_rejects_missing_core_fields_and_unsafe_urls(): void
     {
         $event = [
