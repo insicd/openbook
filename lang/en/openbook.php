@@ -952,6 +952,8 @@ return [
                 'password_reset_tokens_help' => 'Password reset requests older than :hours hours.',
                 'post_publication_queue' => 'Video publication queue',
                 'post_publication_queue_help' => 'Jobs completed or failed more than :days days ago. Cleanup also removes residual private staging files; published posts and media remain untouched.',
+                'external_link_previews' => 'External link previews',
+                'external_link_previews_help' => 'Previews not refreshed for a long time, past their cache lifetime. Posts remain untouched.',
             ],
         ],
     ],

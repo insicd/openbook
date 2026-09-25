@@ -11,6 +11,11 @@
 
 @include('posts._body', ['body' => $post->body, 'customEmojis' => $post->custom_emojis, 'truncateBody' => $truncateBody])
 @include('posts._video_embed_if_any', ['body' => $post->body])
+@auth
+    @if ($embedDepth === 0 && app(\App\Application\Services\ExternalLinkPreviewService::class)->eligibleUrl($post) !== null)
+        <div class="ob-post__link-preview" data-link-preview-url="{{ route('posts.link_preview', $post) }}" hidden></div>
+    @endif
+@endauth
 
 @if ($post->media->isNotEmpty())
     <div class="ob-post__media" data-lightbox-group>

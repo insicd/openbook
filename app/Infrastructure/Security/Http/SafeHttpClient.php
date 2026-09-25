@@ -38,6 +38,12 @@ final class SafeHttpClient
         return $this->send('GET', $url, null, $headers, $signingActor);
     }
 
+    /** Fetch a small public document within one deadline, redirects included. */
+    public function getWithin(string $url, array $headers, int $seconds, int $maxBytes): SafeHttpResponse
+    {
+        return $this->send('GET', $url, null, $headers, null, $seconds, $maxBytes);
+    }
+
     /**
      * Usato per la consegna delle attivita' in uscita (Fase 4): il corpo va
      * passato gia' serializzato (non un array), perche' la firma HTTP deve
@@ -63,8 +69,11 @@ final class SafeHttpClient
         ?string $body,
         array $headers,
         ?Actor $signingActor,
+        ?int $totalTimeoutSeconds = null,
+        ?int $responseLimit = null,
     ): SafeHttpResponse {
         $maxRedirects = (int) config('openbook.federation.fetch.max_redirects', 3);
+        $deadline = $totalTimeoutSeconds === null ? null : microtime(true) + $totalTimeoutSeconds;
         $signGets = $method === 'GET'
             && $signingActor !== null
             && $signingActor->key !== null
@@ -75,6 +84,11 @@ final class SafeHttpClient
 
         for ($redirect = 0; $redirect <= $maxRedirects; $redirect++) {
             $target = $this->guard->assertUrlIsSafe($currentUrl);
+            $remaining = $deadline === null ? null : $deadline - microtime(true);
+
+            if ($remaining !== null && $remaining <= 0) {
+                return new SafeHttpResponse(503, [], '');
+            }
 
             $requestHeaders = $headers;
 
@@ -85,7 +99,7 @@ final class SafeHttpClient
                 );
             }
 
-            $response = $this->performRequest($method, $currentUrl, $body, $requestHeaders, $target);
+            $response = $this->performRequest($method, $currentUrl, $body, $requestHeaders, $target, $remaining, $responseLimit !== null);
 
             if ($signGets
                 && $response->status() === 401
@@ -124,8 +138,10 @@ final class SafeHttpClient
                 continue;
             }
 
-            $responseBody = $response->body();
-            $maxBytes = (int) config('openbook.federation.fetch.max_response_bytes', 1_000_000);
+            $maxBytes = $responseLimit ?? (int) config('openbook.federation.fetch.max_response_bytes', 1_000_000);
+            $responseBody = $responseLimit === null
+                ? $response->body()
+                : $this->readLimitedBody($response, $maxBytes, $deadline);
 
             if (strlen($responseBody) > $maxBytes) {
                 throw new SsrfViolationException('Risposta remota troppo grande.');
@@ -146,22 +162,36 @@ final class SafeHttpClient
         ?string $body,
         array $headers,
         ResolvedTarget $target,
+        ?float $remaining = null,
+        bool $stream = false,
     ): Response {
-        $timeout = (int) config('openbook.federation.fetch.timeout_seconds', 10);
-        $connectTimeout = (int) config('openbook.federation.fetch.connect_timeout_seconds', 5);
+        $timeout = (float) config('openbook.federation.fetch.timeout_seconds', 10);
+        $connectTimeout = (float) config('openbook.federation.fetch.connect_timeout_seconds', 5);
+
+        if ($remaining !== null) {
+            $timeout = min($timeout, max(0.1, $remaining));
+            $connectTimeout = min($connectTimeout, $timeout);
+        }
 
         try {
+            $options = [
+                'timeout' => $timeout,
+                'connect_timeout' => $connectTimeout,
+                'allow_redirects' => false,
+                'stream' => $stream,
+                'curl' => [
+                    CURLOPT_RESOLVE => ["{$target->host}:{$target->port}:{$target->ip}"],
+                ],
+            ];
+
+            if ($stream) {
+                $options['read_timeout'] = min(1.0, $timeout);
+            }
+
             $request = Http::withHeaders(array_merge([
                 'User-Agent' => (string) config('openbook.federation.user_agent'),
             ], $headers))
-                ->withOptions([
-                    'timeout' => $timeout,
-                    'connect_timeout' => $connectTimeout,
-                    'allow_redirects' => false,
-                    'curl' => [
-                        CURLOPT_RESOLVE => ["{$target->host}:{$target->port}:{$target->ip}"],
-                    ],
-                ]);
+                ->withOptions($options);
 
             return $method === 'POST'
                 ? $request->withBody((string) $body, 'application/activity+json')->post($url)
@@ -183,6 +213,36 @@ final class SafeHttpClient
 
             return $this->failedNetworkResponse();
         }
+    }
+
+    private function readLimitedBody(Response $response, int $maxBytes, ?float $deadline): string
+    {
+        $stream = $response->toPsrResponse()->getBody();
+        $body = '';
+
+        while (! $stream->eof() && strlen($body) <= $maxBytes) {
+            if ($deadline !== null && microtime(true) >= $deadline) {
+                throw new SsrfViolationException('Tempo massimo di recupero superato.');
+            }
+
+            try {
+                $chunk = $stream->read(min(8192, $maxBytes + 1 - strlen($body)));
+            } catch (\RuntimeException $exception) {
+                throw new SsrfViolationException('Lettura della risposta remota fallita.', 0, $exception);
+            }
+
+            if ($chunk === '') {
+                break;
+            }
+
+            $body .= $chunk;
+        }
+
+        if ($deadline !== null && microtime(true) >= $deadline) {
+            throw new SsrfViolationException('Tempo massimo di recupero superato.');
+        }
+
+        return $body;
     }
 
     private function failedNetworkResponse(): Response

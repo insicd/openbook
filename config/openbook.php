@@ -129,6 +129,13 @@ return [
     | Media
     |--------------------------------------------------------------------------
     */
+    'link_preview' => [
+        'success_ttl_seconds' => (int) env('OPENBOOK_LINK_PREVIEW_SUCCESS_TTL', 604800),
+        'failure_ttl_seconds' => (int) env('OPENBOOK_LINK_PREVIEW_FAILURE_TTL', 3600),
+        'fetch_timeout_seconds' => 5,
+        'max_response_bytes' => 262144,
+    ],
+
     'media' => [
         'max_size_kb' => (int) env('OPENBOOK_MEDIA_MAX_SIZE_KB', 8192),
         'max_attachments_per_post' => (int) env('OPENBOOK_MEDIA_MAX_ATTACHMENTS', 4),

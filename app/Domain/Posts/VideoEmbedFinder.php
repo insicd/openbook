@@ -17,10 +17,6 @@ namespace App\Domain\Posts;
  */
 final class VideoEmbedFinder
 {
-    private const URL_PATTERN = '/https?:\/\/[^\s<]+/u';
-
-    private const URL_TRAILING_PUNCTUATION = '.,;:!?';
-
     /**
      * @var list<string>
      */
@@ -37,21 +33,7 @@ final class VideoEmbedFinder
 
     public static function first(string $body): ?VideoEmbed
     {
-        if ($body === '') {
-            return null;
-        }
-
-        if (preg_match_all(self::URL_PATTERN, $body, $matches) === false) {
-            return null;
-        }
-
-        foreach ($matches[0] as $rawUrl) {
-            $url = self::normalizeUrl($rawUrl);
-
-            if ($url === null) {
-                continue;
-            }
-
+        foreach (PostBodyUrlFinder::distinct($body) as $url) {
             $embed = self::fromYoutube($url) ?? self::fromPeertube($url);
 
             if ($embed !== null) {
@@ -60,31 +42,6 @@ final class VideoEmbedFinder
         }
 
         return null;
-    }
-
-    private static function normalizeUrl(string $rawUrl): ?string
-    {
-        [$url] = self::splitTrailingPunctuation($rawUrl);
-
-        if ($url === '') {
-            return null;
-        }
-
-        // html_entity_decode non serve sul body grezzo (mai HTML), ma
-        // ripulisce eventuali &amp; arrivati da copie/incolla strani.
-        $url = html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-        if (filter_var($url, FILTER_VALIDATE_URL) === false) {
-            return null;
-        }
-
-        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
-
-        if ($scheme !== 'http' && $scheme !== 'https') {
-            return null;
-        }
-
-        return $url;
     }
 
     private static function fromYoutube(string $url): ?VideoEmbed
@@ -148,27 +105,5 @@ final class VideoEmbedFinder
             'https://'.$host.'/videos/embed/'.$videoId,
             $url,
         );
-    }
-
-    /**
-     * @return array{0: string, 1: string}
-     */
-    private static function splitTrailingPunctuation(string $url): array
-    {
-        $trailing = '';
-
-        while ($url !== '' && str_contains(self::URL_TRAILING_PUNCTUATION, substr($url, -1))) {
-            $trailing = substr($url, -1).$trailing;
-            $url = substr($url, 0, -1);
-        }
-
-        foreach ([')' => '(', ']' => '[', '}' => '{'] as $close => $open) {
-            while ($url !== '' && substr($url, -1) === $close && substr_count($url, $open) < substr_count($url, $close)) {
-                $trailing = $close.$trailing;
-                $url = substr($url, 0, -1);
-            }
-        }
-
-        return [$url, $trailing];
     }
 }

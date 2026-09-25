@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Domain\Posts\ExternalLinkPreview;
 use App\Domain\Posts\PendingPostAttachment;
 use App\Domain\Posts\PendingPostPublication;
 use App\Federation\Inbox\InboxItem;
@@ -125,6 +126,30 @@ class AdminDatabaseMaintenanceTest extends TestCase
             $this->assertDatabaseHas('post_publication_queue_attachments', ['publication_id' => $publication->id]);
             Storage::disk('local')->assertExists("post-publication/{$publication->id}/source.mov");
         }
+    }
+
+    public function test_purge_discards_only_very_old_link_previews(): void
+    {
+        $admin = $this->createFullAccount('adminpreviewpurge');
+        $admin->forceFill(['is_admin' => true])->save();
+
+        foreach (['old' => 31, 'recent' => 8] as $name => $ageDays) {
+            ExternalLinkPreview::query()->create([
+                'url_hash' => hash('sha256', $name),
+                'url' => 'https://example.test/'.$name,
+                'available' => true,
+                'title' => $name,
+                'fetched_at' => now()->subDays($ageDays),
+            ]);
+        }
+
+        $this->actingAs($admin)
+            ->post(route('admin.database.purge'), ['table' => 'external_link_previews'])
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseMissing('external_link_previews', ['url' => 'https://example.test/old']);
+        $this->assertDatabaseHas('external_link_previews', ['url' => 'https://example.test/recent']);
     }
 
     private function createPublication(string $actorId, string $status, int $ageDays): PendingPostPublication

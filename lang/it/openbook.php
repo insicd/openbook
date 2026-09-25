@@ -952,6 +952,8 @@ return [
                 'password_reset_tokens_help' => 'Richieste di reimpostazione password più vecchie di :hours ore.',
                 'post_publication_queue' => 'Coda pubblicazioni video',
                 'post_publication_queue_help' => 'Lavori completati o falliti da più di :days giorni. La pulizia rimuove anche eventuali file residui nello staging privato; post e media pubblicati restano intatti.',
+                'external_link_previews' => 'Anteprime dei link esterni',
+                'external_link_previews_help' => 'Anteprime non aggiornate da molto tempo, oltre la durata della cache. I post restano intatti.',
             ],
         ],
     ],
