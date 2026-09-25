@@ -160,6 +160,15 @@ p {
   flex-wrap: wrap;
 }
 
+.ob-nav--guest {
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.ob-nav--guest .ob-icon {
+  display: none;
+}
+
 .ob-nav--icons {
   gap: 0.4rem;
 }
@@ -3183,6 +3192,50 @@ a.ob-post__menu-item {
 }
 
 @media (max-width: 767px) {
+  .ob-header__inner {
+    gap: 0.5rem;
+    padding: 0.55rem 0.85rem;
+  }
+
+  .ob-brand {
+    font-size: 1.15rem;
+    max-width: 46vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ob-nav--guest {
+    gap: 0.15rem;
+  }
+
+  .ob-nav--guest .ob-nav__text {
+    display: none;
+  }
+
+  .ob-nav--guest .ob-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+  }
+
+  .ob-nav--guest .ob-nav__link {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+  }
+
+  .ob-nav--guest .ob-nav__register {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+  }
+
   .ob-sidebar-toggle {
     display: inline-flex;
   }

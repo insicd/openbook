@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Domain\Accounts\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
@@ -92,6 +93,43 @@ class LoginTest extends TestCase
         $response->assertSessionHasErrors('login');
         $this->assertStringContainsString('Troppi tentativi', session('errors')->first('login'));
         $this->assertGuest();
+    }
+
+    public function test_remember_me_is_checked_by_default_on_mobile(): void
+    {
+        $this->withHeaders([
+            'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+        ])->get(route('login'))
+            ->assertOk()
+            ->assertSee('name="remember"', false)
+            ->assertSee('checked', false);
+    }
+
+    public function test_remember_me_is_unchecked_by_default_on_desktop(): void
+    {
+        $html = $this->withHeaders([
+            'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        ])->get(route('login'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/name="remember"[^>]*value="1"/', $html);
+        $this->assertDoesNotMatchRegularExpression('/name="remember"[^>]*checked/', $html);
+    }
+
+    public function test_remember_me_sets_a_long_lived_cookie(): void
+    {
+        $user = User::factory()->create(['username' => 'resta']);
+
+        $response = $this->post(route('login'), [
+            'login' => 'resta',
+            'password' => 'password',
+            'remember' => '1',
+        ]);
+
+        $response->assertRedirect(route('feed.index'));
+        $response->assertCookie(Auth::guard()->getRecallerName());
+        $this->assertAuthenticatedAs($user);
     }
 
     public function test_a_user_can_logout(): void

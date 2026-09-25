@@ -96,6 +96,13 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Navbar ospite su mobile**: Eventi, Accedi e Registrati restano testuali
+  su desktop; sotto i 768 px diventano icone (calendario, accesso,
+  nuovo account) con etichetta accessibile, cosi' stanno su una sola riga.
+- **Login persistente da mobile**: sui telefoni la casella "Resta connesso"
+  e' pre-selezionata. Il cookie remember di Laravel mantiene l'accesso per
+  mesi anche dopo la scadenza della sessione (2 ore). Si puo' ancora
+  togliere la spunta.
 - Mondo mostra subito la cornice e carica separatamente i post e le persone
   "Da scoprire nel fediverso". Il primo blocco e lo scorrimento dei post usano
   lo stesso frammento HTML, senza ripetere la query dei suggerimenti; anche lo

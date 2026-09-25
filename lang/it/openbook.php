@@ -23,6 +23,7 @@ return [
     ],
 
     'nav' => [
+        'main' => 'Navigazione principale',
         'home' => 'Home',
         'world' => 'Mondo',
         'communities' => 'Community',

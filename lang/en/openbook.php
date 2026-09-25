@@ -23,6 +23,7 @@ return [
     ],
 
     'nav' => [
+        'main' => 'Main navigation',
         'home' => 'Home',
         'world' => 'World',
         'communities' => 'Communities',

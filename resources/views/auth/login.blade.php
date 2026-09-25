@@ -26,7 +26,8 @@
 
             <div class="ob-field">
                 <label class="ob-checkbox">
-                    <input type="checkbox" name="remember" value="1">
+                    <input type="checkbox" name="remember" value="1"
+                        @checked(old('remember', \App\Support\ClientDevice::isMobile()))>
                     {{ __('openbook.auth.remember_me') }}
                 </label>
             </div>
