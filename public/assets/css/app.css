@@ -638,7 +638,8 @@ html.ob-compose-modal-open {
   margin-top: 1rem;
 }
 
-.ob-home-feed {
+.ob-home-feed,
+.ob-world-feed {
   margin-top: 1rem;
 }
 

@@ -210,8 +210,9 @@ and "Edit profile" button on your own profile) makes them editable:
   returns an HTML fragment with post cards, or the welcome kit when the first
   block is empty; AJAX cursor requests return later cards. The same loader
   handles both and offers a retry link after an error. Without JavaScript,
-  Home explains that the feed requires it. Other post lists fetch their full
-  pages and offer classic pagination inside `<noscript>`. Setting
+  Home explains that the feed requires it. Profile, community, and hashtag
+  post lists still fetch full pages and offer classic pagination inside
+  `<noscript>`. Setting
   `data-infinite-scroll` and `data-next-url` on a post container is enough for
   the script to activate: see `resources/views/posts/_feed.blade.php`, the
   partial shared by all these pages. This was also the chance to give
@@ -220,6 +221,13 @@ and "Edit profile" button on your own profile) makes them editable:
   two posts published in the same second could end up duplicated or skipped
   when moving from one page to the next, a defect already present with classic
   pagination but much more visible with continuous scrolling.
+- **World and suggested people**: a normal `/mondo` request renders the page
+  shell without querying posts or suggested people. The scroll script requests
+  the first and later post blocks from `/mondo` as HTML fragments, while
+  `/mondo/suggeriti` loads the first five suggestions and the link to
+  `/mondo/scopri` separately. Opening Discover directly returns a full page;
+  later pages requested by its scroll return only the list. World posts require
+  JavaScript, and posts and suggestions have independent error states.
 - **Event list scrolling**: the initial `/eventi` or `/eventi/passati` request
   renders the complete page. For later pages, an XMLHttpRequest to the same
   `?page=N` URL returns only the event grid and its next-page URL. The browser

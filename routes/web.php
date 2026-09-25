@@ -66,6 +66,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/home', [FeedController::class, 'index'])->name('feed.index');
     Route::get('/tendenze/sidebar', [HashtagController::class, 'sidebar'])->name('hashtags.sidebar');
     Route::get('/mondo', [WorldController::class, 'index'])->name('world.index');
+    Route::get('/mondo/suggeriti', [WorldController::class, 'suggestions'])->name('world.suggestions');
     Route::get('/mondo/scopri', [WorldController::class, 'discover'])->name('world.discover');
 
     Route::get('/eventi/crea', [EventController::class, 'create'])->name('events.create');

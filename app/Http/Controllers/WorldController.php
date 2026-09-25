@@ -24,18 +24,30 @@ class WorldController extends Controller
 
     public function index(Request $request): View
     {
-        $viewer = auth()->user()->actor;
+        if ($request->ajax()) {
+            $viewer = auth()->user()->actor;
+            $posts = $this->feedQuery->world(FeedCursor::fromRequest($request));
+            Post::annotateViewerState($posts->getCollection(), $viewer);
 
-        $posts = $this->feedQuery->world(FeedCursor::fromRequest($request));
-        Post::annotateViewerState($posts->getCollection(), $viewer);
+            return view('posts._feed', [
+                'posts' => $posts,
+                'emptyMessage' => __('openbook.world.empty'),
+                'asyncFeed' => true,
+                'fragment' => true,
+            ]);
+        }
 
+        return view('world.index');
+    }
+
+    public function suggestions(): View
+    {
         $preview = $this->popularRemoteActorsQuery->forViewer(
-            $viewer,
+            auth()->user()->actor,
             PopularRemoteActorsQuery::PREVIEW_LIMIT + 1,
         );
 
-        return view('world.index', [
-            'posts' => $posts,
+        return view('world._suggestions', [
             'suggestedActors' => $preview->take(PopularRemoteActorsQuery::PREVIEW_LIMIT),
             'suggestedActorsHasMore' => $preview->count() > PopularRemoteActorsQuery::PREVIEW_LIMIT,
         ]);
@@ -45,12 +57,20 @@ class WorldController extends Controller
      * Elenco completo degli account remoti suggeriti (oltre i 5 in anteprima
      * sulla pagina Mondo).
      */
-    public function discover(): View
+    public function discover(Request $request): View
     {
         $viewer = auth()->user()->actor;
+        $suggestedActors = $this->popularRemoteActorsQuery->paginateForViewer($viewer);
+
+        if ($request->ajax() && $suggestedActors->currentPage() > 1) {
+            return view('world._discover_list', [
+                'suggestedActors' => $suggestedActors,
+                'fragment' => true,
+            ]);
+        }
 
         return view('world.discover', [
-            'suggestedActors' => $this->popularRemoteActorsQuery->paginateForViewer($viewer),
+            'suggestedActors' => $suggestedActors,
         ]);
     }
 }

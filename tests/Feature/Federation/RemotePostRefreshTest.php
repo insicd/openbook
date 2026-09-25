@@ -38,7 +38,7 @@ class RemotePostRefreshTest extends TestCase
         $post = $this->createRemotePost($author);
 
         $this->actingAs($viewer)
-            ->get(route('world.index'))
+            ->get(route('world.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee(__('openbook.posts.fetch_updates'), false)
             ->assertSee(route('posts.fetch_updates', $post), false);

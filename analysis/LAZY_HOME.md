@@ -152,6 +152,28 @@ risultato.
    il primo frammento. Il kit di benvenuto arriva nel contenitore del feed
    quando il primo blocco è vuoto, e il composer resta nella cornice iniziale.
 
+## Estensione: Mondo e persone da scoprire
+
+Mondo aveva lo stesso costo di rendering scartato dalla vecchia Home: ogni
+richiesta di scroll ricalcolava sia i post sia la classifica delle cinque
+persone suggerite, renderizzava la pagina completa e poi il browser estraeva
+solo i post. La pagina `/mondo/scopri` renderizzava a sua volta la cornice per
+ogni pagina successiva.
+
+La richiesta normale a `/mondo` ora restituisce una cornice leggera. Una
+richiesta AJAX allo stesso URL restituisce il primo blocco di post o quelli
+successivi usando il frammento `posts._feed` e la query `FeedQuery::world()`
+esistenti. La chiamata indipendente `/mondo/suggeriti` usa la stessa
+`PopularRemoteActorsQuery` per l'anteprima; `/mondo/scopri` usa ancora la
+medesima query paginata, ma restituisce solo la lista per lo scroll AJAX.
+Le navigazioni dirette a `/mondo/scopri?page=N` restano pagine complete. Non
+sono cambiati ordinamento, filtri, visibilità o ranking. Come per la Home,
+il feed di Mondo richiede JavaScript e mostra un link di retry in caso di
+errore; il widget suggerimenti ha caricamento e retry separati.
+La prova manuale deve confrontare il tempo della cornice `/mondo`, del primo
+frammento di post, dei blocchi successivi e di `/mondo/suggeriti`: questa
+modifica separa i costi, ma non accelera da sola le due query.
+
 ## Confini
 
 - Non cambiare la query o l'algoritmo del feed nell'ambito di questo lavoro:

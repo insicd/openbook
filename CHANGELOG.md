@@ -96,6 +96,10 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- Mondo mostra subito la cornice e carica separatamente i post e le persone
+  "Da scoprire nel fediverso". Il primo blocco e lo scorrimento dei post usano
+  lo stesso frammento HTML, senza ripetere la query dei suggerimenti; anche lo
+  scorrimento di `/mondo/scopri` riceve solo le righe successive.
 - Lo scorrimento infinito di `/eventi` e `/eventi/passati` carica dalle pagine
   successive solo le card degli eventi. La prima pagina e l'apertura diretta
   degli URL paginati continuano a mostrare la pagina completa, inclusa la

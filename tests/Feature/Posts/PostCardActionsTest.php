@@ -37,7 +37,7 @@ class PostCardActionsTest extends TestCase
         ]);
 
         // "Mondo" mostra i post remoti pubblici in cache con linkToPost attivo.
-        $response = $this->actingAs($viewer)->get(route('world.index'));
+        $response = $this->actingAs($viewer)->get(route('world.index'), ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
         $response->assertSee('href="'.route('posts.show', $post).'"', false);

@@ -210,9 +210,10 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   oppure il kit di benvenuto se il primo blocco e' vuoto; le richieste AJAX
   con cursore restituiscono le card successive. Lo stesso caricatore gestisce
   entrambi e offre un link per riprovare dopo un errore.
-  Senza JavaScript, la Home spiega che il feed lo richiede. Gli altri elenchi
-  di post continuano a scaricare la pagina completa e offrono la paginazione
-  classica dentro un `<noscript>`. Impostare `data-infinite-scroll`
+  Senza JavaScript, la Home spiega che il feed lo richiede. Gli elenchi di post
+  di profili, community e hashtag scaricano ancora la pagina completa e
+  offrono la paginazione classica dentro un `<noscript>`. Impostare
+  `data-infinite-scroll`
   e "data-next-url" su un contenitore di post e' sufficiente perche' lo script si
   attivi: vedi `resources/views/posts/_feed.blade.php`, il parziale condiviso da
   tutte queste pagine. Approfittata anche l'occasione per dare a
@@ -221,6 +222,14 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   nello stesso secondo potevano finire duplicati o saltati passando da una pagina
   all'altra, difetto gia' presente con la paginazione classica ma molto piu'
   evidente con lo scorrimento continuo.
+- **Mondo e persone da scoprire**: una richiesta normale a `/mondo` mostra la
+  cornice senza interrogare il feed o la classifica delle persone suggerite.
+  Lo script dello scorrimento chiede a `/mondo` il primo blocco e quelli
+  successivi come frammenti HTML; `/mondo/suggeriti` carica separatamente le
+  prime cinque persone e il link a `/mondo/scopri`. La pagina Scopri resta
+  completa quando viene aperta direttamente, ma le sue pagine successive
+  richieste dallo scroll contengono solo l'elenco. Il feed di Mondo richiede
+  JavaScript; post e suggerimenti hanno stati di errore indipendenti.
 - **Scorrimento degli eventi**: la prima richiesta a `/eventi` o
   `/eventi/passati` renderizza la pagina completa. Per le pagine successive,
   una XMLHttpRequest allo stesso URL `?page=N` riceve solo la griglia degli

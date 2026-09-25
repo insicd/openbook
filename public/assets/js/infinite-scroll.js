@@ -1,13 +1,14 @@
 /**
  * Scorrimento infinito per elenchi paginati (feed, Mondo, profilo, hashtag,
  * galleria foto, eventi, "Da scoprire", follower/seguiti). Gli elenchi diversi
- * dalla Home mantengono la paginazione in <noscript>; la Home richiede JavaScript.
+ * dalla Home e Mondo mantengono la paginazione in <noscript>; Home e Mondo
+ * richiedono JavaScript per i post.
  *
  * Quando il segnaposto diventa visibile, scarica la pagina indicata in
- * "data-next-url" e aggiunge i figli di `[data-infinite-scroll]`. Nella Home
- * usa la stessa funzione per caricare il primo blocco e i successivi, che
- * arrivano come frammenti HTML. Anche le pagine successive degli eventi
- * arrivano come frammenti; gli altri elenchi ricevono la pagina completa.
+ * "data-next-url" e aggiunge i figli di `[data-infinite-scroll]`. In Home e
+ * Mondo la stessa funzione carica il primo blocco e i successivi come
+ * frammenti HTML. Anche le pagine successive degli eventi arrivano come
+ * frammenti; gli altri elenchi ricevono la pagina completa.
  */
 (function () {
     'use strict';
@@ -19,7 +20,7 @@
     }
 
     var nextUrl = container.getAttribute('data-next-url');
-    var isHomeFeed = container.hasAttribute('data-home-feed');
+    var isAsyncFeed = container.hasAttribute('data-async-feed');
     var initialLoad = container.hasAttribute('data-initial-load');
 
     if (!nextUrl) {
@@ -83,7 +84,7 @@
                     .parseFromString(html, 'text/html')
                     .querySelector('[data-infinite-scroll]');
 
-                if (isHomeFeed && !freshContainer) {
+                if (isAsyncFeed && !freshContainer) {
                     throw new Error('missing feed fragment');
                 }
 
@@ -110,7 +111,7 @@
 
                 if (nextUrl) {
                     setStatus('');
-                    if (isHomeFeed) {
+                    if (isAsyncFeed) {
                         observer.observe(sentinel);
                     }
                 } else {
@@ -120,7 +121,7 @@
             })
             .catch(function () {
                 loading = false;
-                if (isHomeFeed) {
+                if (isAsyncFeed) {
                     showRetry();
                 } else {
                     nextUrl = null;
