@@ -49,7 +49,7 @@ final class NodeInfoController extends Controller
             'software' => [
                 'name' => 'openbook',
                 'version' => (string) config('openbook.version'),
-                'repository' => 'https://github.com/openbook-social/openbook',
+                'repository' => 'https://github.com/insicd/openbook',
                 'homepage' => config('openbook.homepage'),
             ],
             'protocols' => ['activitypub'],
