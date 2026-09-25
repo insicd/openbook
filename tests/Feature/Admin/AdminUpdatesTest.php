@@ -16,9 +16,9 @@ class AdminUpdatesTest extends TestCase
         Http::fake([
             'https://about.openb.app/releases/latest.json' => Http::response([
                 'schema_version' => 1,
-                'version' => '9.9.9',
+                'version' => '99.9',
                 'min_php' => '8.2.0',
-                'download_url' => 'https://about.openb.app/releases/openbook-9.9.9.zip',
+                'download_url' => 'https://about.openb.app/releases/openbook-99.9.zip',
                 'sha256' => str_repeat('cd', 32),
                 'notes' => 'Test release',
                 'requires_migration' => true,
@@ -31,8 +31,8 @@ class AdminUpdatesTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.updates.show'))
             ->assertOk()
-            ->assertSee('9.9.9', false)
-            ->assertSee(__('openbook.admin.updates.apply_button', ['version' => '9.9.9']), false);
+            ->assertSee('99.9', false)
+            ->assertSee(__('openbook.admin.updates.apply_button', ['version' => '99.9']), false);
     }
 
     public function test_moderators_cannot_access_updates(): void
@@ -50,9 +50,9 @@ class AdminUpdatesTest extends TestCase
         Http::fake([
             'https://about.openb.app/releases/latest.json' => Http::response([
                 'schema_version' => 1,
-                'version' => '9.9.9',
+                'version' => '99.9',
                 'min_php' => '8.2.0',
-                'download_url' => 'https://about.openb.app/releases/openbook-9.9.9.zip',
+                'download_url' => 'https://about.openb.app/releases/openbook-99.9.zip',
                 'sha256' => str_repeat('cd', 32),
                 'requires_migration' => true,
             ], 200),

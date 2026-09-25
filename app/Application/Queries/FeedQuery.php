@@ -41,8 +41,9 @@ final class FeedQuery
 
     // Limite di lavoro del tentativo cronologico, non limite del feed:
     // se i candidati non bastano, si usa la ricerca completa per autore.
-    // ponytail: soglia euristica fissa; ritararla solo se i benchmark mostrano fallback frequenti.
-    private const FOLLOWED_POST_PROBE_LIMIT = 256;
+    // ponytail: soglia euristica fissa; ritararla solo se i benchmark
+    // mostrano fallback frequenti.
+    private const FOLLOWED_POST_PROBE_LIMIT = 1024;
 
     public function forActor(Actor $viewer, ?FeedCursor $cursor = null, int $perPage = 0): FeedPage
     {

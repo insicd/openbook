@@ -117,12 +117,11 @@ class ActorProfileTest extends TestCase
         $response = $this->actingAs($viewer)->get(route('actors.show', $remote));
 
         $response->assertOk();
-        // L'ancora remota viene preservata come link etichettato (non come
-        // hashtag locale): cosi' resta il riferimento alla fonte originale.
-        $response->assertSee('class="post-link"', false);
-        $response->assertSee('https://example.test/tags/fediverso', false);
+        // Il markup remoto viene sanitizzato, poi gli hashtag riconosciuti
+        // vengono collegati alla corrispondente pagina locale.
+        $response->assertSee('href="'.route('hashtags.show', 'fediverso').'"', false);
         $response->assertSee('#fediverso');
-        $response->assertDontSee('href="https://example.test/tags/fediverso">#fediverso</a>', false);
+        $response->assertDontSee('https://example.test/tags/fediverso', false);
     }
 
     public function test_custom_emojis_are_rendered_in_remote_actor_name_and_summary(): void
