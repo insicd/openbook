@@ -96,6 +96,10 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- Lo scorrimento infinito di `/eventi` e `/eventi/passati` carica dalle pagine
+  successive solo le card degli eventi. La prima pagina e l'apertura diretta
+  degli URL paginati continuano a mostrare la pagina completa, inclusa la
+  sezione "I tuoi eventi" quando prevista.
 - La Home mostra subito layout e composer; lo stesso endpoint `/home` carica
   poi via AJAX le card o, se il feed e' vuoto, il kit di benvenuto. Anche lo
   scorrimento scarica solo le card successive e il relativo cursore, evitando

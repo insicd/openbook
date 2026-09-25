@@ -220,6 +220,12 @@ and "Edit profile" button on your own profile) makes them editable:
   two posts published in the same second could end up duplicated or skipped
   when moving from one page to the next, a defect already present with classic
   pagination but much more visible with continuous scrolling.
+- **Event list scrolling**: the initial `/eventi` or `/eventi/passati` request
+  renders the complete page. For later pages, an XMLHttpRequest to the same
+  `?page=N` URL returns only the event grid and its next-page URL. The browser
+  appends its cards using the shared infinite-scroll script. On `/eventi`, the
+  "Your events" section is rendered only with a full page request; opening a
+  later page directly still returns the complete page.
 - **Trending sidebar**: the authenticated layout renders a loading placeholder
   without running `PopularHashtagsQuery`. On viewports at least 1024 px wide,
   `public/assets/js/trending-sidebar.js` requests `/tendenze/sidebar` when the

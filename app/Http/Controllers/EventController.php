@@ -135,6 +135,13 @@ class EventController extends Controller
             ->paginate(18)
             ->withQueryString();
 
+        if ($request->ajax() && $events->currentPage() > 1) {
+            return view('events._grid', [
+                'events' => $events,
+                'fragment' => true,
+            ]);
+        }
+
         $yourEvents = collect();
 
         if ($viewer !== null && ! $archive) {

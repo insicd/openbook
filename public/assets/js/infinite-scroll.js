@@ -1,12 +1,13 @@
 /**
  * Scorrimento infinito per elenchi paginati (feed, Mondo, profilo, hashtag,
- * galleria foto, "Da scoprire", follower/seguiti). Gli elenchi diversi dalla
- * Home mantengono la paginazione in <noscript>; la Home richiede JavaScript.
+ * galleria foto, eventi, "Da scoprire", follower/seguiti). Gli elenchi diversi
+ * dalla Home mantengono la paginazione in <noscript>; la Home richiede JavaScript.
  *
  * Quando il segnaposto diventa visibile, scarica la pagina indicata in
  * "data-next-url" e aggiunge i figli di `[data-infinite-scroll]`. Nella Home
  * usa la stessa funzione per caricare il primo blocco e i successivi, che
- * arrivano come frammenti HTML; gli altri elenchi ricevono la pagina completa.
+ * arrivano come frammenti HTML. Anche le pagine successive degli eventi
+ * arrivano come frammenti; gli altri elenchi ricevono la pagina completa.
  */
 (function () {
     'use strict';

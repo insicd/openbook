@@ -211,8 +211,8 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   con cursore restituiscono le card successive. Lo stesso caricatore gestisce
   entrambi e offre un link per riprovare dopo un errore.
   Senza JavaScript, la Home spiega che il feed lo richiede. Gli altri elenchi
-  continuano a scaricare la pagina completa e offrono la paginazione classica
-  dentro un `<noscript>`. Impostare `data-infinite-scroll`
+  di post continuano a scaricare la pagina completa e offrono la paginazione
+  classica dentro un `<noscript>`. Impostare `data-infinite-scroll`
   e "data-next-url" su un contenitore di post e' sufficiente perche' lo script si
   attivi: vedi `resources/views/posts/_feed.blade.php`, il parziale condiviso da
   tutte queste pagine. Approfittata anche l'occasione per dare a
@@ -221,6 +221,14 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   nello stesso secondo potevano finire duplicati o saltati passando da una pagina
   all'altra, difetto gia' presente con la paginazione classica ma molto piu'
   evidente con lo scorrimento continuo.
+- **Scorrimento degli eventi**: la prima richiesta a `/eventi` o
+  `/eventi/passati` renderizza la pagina completa. Per le pagine successive,
+  una XMLHttpRequest allo stesso URL `?page=N` riceve solo la griglia degli
+  eventi e l'URL della pagina seguente. Lo script condiviso dello scorrimento
+  infinito aggiunge le card alla pagina corrente. In `/eventi`, la sezione
+  "I tuoi eventi" viene renderizzata solo nelle richieste della pagina
+  completa; aprire direttamente una pagina successiva continua a restituire
+  la pagina completa.
 - **Sidebar delle tendenze**: il layout autenticato mostra uno stato di
   caricamento senza eseguire `PopularHashtagsQuery`. Su viewport larghi almeno
   1024 px, `public/assets/js/trending-sidebar.js` richiede `/tendenze/sidebar`
