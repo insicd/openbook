@@ -122,7 +122,7 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
-- Le anteprime dei link hanno un limite autonomo di 60 richieste al minuto:
+- Le anteprime dei link hanno un limite autonomo di 120 richieste al minuto:
   sfogliare molti post con link non consuma più il limite condiviso da ricerca,
   suggerimenti e notifiche.
 - Condivisione dei post ([issue #94](https://github.com/insicd/openbook/issues/94)):

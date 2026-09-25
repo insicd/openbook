@@ -23,7 +23,7 @@ class ExternalLinkPreviewTest extends TestCase
         $this->get(route('posts.link_preview', $post))->assertRedirect(route('login'));
     }
 
-    public function test_preview_requests_have_their_own_sixty_per_minute_limit(): void
+    public function test_preview_requests_have_their_own_120_per_minute_limit(): void
     {
         $post = $this->createPost('https://article.example/story');
         $viewer = $this->createFullAccount('previewlimit');
@@ -35,7 +35,7 @@ class ExternalLinkPreviewTest extends TestCase
 
         $this->actingAs($viewer);
 
-        for ($attempt = 0; $attempt < 60; $attempt++) {
+        for ($attempt = 0; $attempt < 120; $attempt++) {
             $this->get(route('posts.link_preview', $post))->assertOk();
         }
 

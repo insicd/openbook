@@ -106,7 +106,7 @@ Route::middleware('auth')->group(function () {
         ->name('posts.pending.destroy');
     Route::get('/posts/{post}/modifica', [PostController::class, 'edit'])->name('posts.edit');
     Route::get('/posts/{post}/link-preview', ExternalLinkPreviewController::class)
-        ->middleware('throttle:60,1,link-preview:')
+        ->middleware('throttle:120,1,link-preview:')
         ->name('posts.link_preview');
     Route::put('/posts/{post}', [PostController::class, 'update'])->name('posts.update');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
