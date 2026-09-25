@@ -9,6 +9,7 @@ use App\Domain\Events\Event;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -136,7 +137,7 @@ class PopularHashtagsTest extends TestCase
         $this->assertFalse($names->contains('vecchio'));
     }
 
-    public function test_the_sidebar_shows_trending_hashtags_with_limit_and_more_link(): void
+    public function test_the_sidebar_loads_trends_from_an_authenticated_endpoint(): void
     {
         $alice = $this->createFullAccount('alice');
 
@@ -148,13 +149,45 @@ class PopularHashtagsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee(__('openbook.sidebar.trending_title', ['days' => '7d']), false);
-        $response->assertSee('#tag1');
-        $response->assertSee(__('openbook.sidebar.trending_more'), false);
+        $response->assertSee('data-trending-widget', false);
+        $response->assertSee(route('hashtags.sidebar'), false);
+        $response->assertSee(__('openbook.sidebar.trending_loading'), false);
+        $response->assertDontSee('class="ob-hashtag-list"', false);
+
+        $json = $this->getJson(route('hashtags.sidebar'));
+
+        $json->assertOk()
+            ->assertJsonCount(5, 'hashtags')
+            ->assertJsonPath('has_more', true)
+            ->assertJsonPath('hashtags.0.name', 'tag1')
+            ->assertJsonPath('hashtags.0.url', route('hashtags.show', 'tag1'))
+            ->assertJsonPath('hashtags.0.uses', trans_choice('openbook.sidebar.hashtag_uses', 1, ['count' => '1']));
+        $response->assertSee(__('openbook.sidebar.trending_retry'), false);
         $response->assertSee(route('hashtags.index'), false);
-        $response->assertDontSee(__('openbook.sidebar.no_popular_hashtags'));
     }
 
-    public function test_the_sidebar_shows_an_empty_state_when_no_hashtag_has_been_used_yet(): void
+    public function test_the_trending_sidebar_endpoint_requires_authentication(): void
+    {
+        $this->getJson(route('hashtags.sidebar'))->assertUnauthorized();
+    }
+
+    public function test_authenticated_pages_do_not_run_the_trending_query_while_rendering(): void
+    {
+        $alice = $this->createFullAccount('alice');
+        $this->publishPost($alice, 'Un post su #veloce');
+
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $this->actingAs($alice)->get('/home')->assertOk();
+
+        $queries = collect(DB::getQueryLog())->pluck('query')->implode(' ');
+        DB::disableQueryLog();
+
+        $this->assertStringNotContainsString('event_hashtags', $queries);
+    }
+
+    public function test_the_sidebar_endpoint_returns_an_empty_state_when_no_hashtag_has_been_used_yet(): void
     {
         $alice = $this->createFullAccount('alice');
 
@@ -165,6 +198,106 @@ class PopularHashtagsTest extends TestCase
         $response->assertSee(__('openbook.sidebar.no_popular_hashtags'));
         $response->assertSee(__('openbook.nav.trending'), false);
         $response->assertSee(route('hashtags.index'), false);
+
+        $this->getJson(route('hashtags.sidebar'))
+            ->assertOk()
+            ->assertJsonPath('hashtags', [])
+            ->assertJsonPath('has_more', false);
+    }
+
+    public function test_the_sidebar_cache_expires_after_five_minutes(): void
+    {
+        $alice = $this->createFullAccount('trendcache');
+        $this->publishPost($alice, 'Post #prima');
+
+        $this->actingAs($alice)->getJson(route('hashtags.sidebar'))
+            ->assertOk()
+            ->assertJsonPath('hashtags.0.name', 'prima');
+
+        $this->publishPost($alice, 'Post #seconda');
+
+        $this->getJson(route('hashtags.sidebar'))
+            ->assertOk()
+            ->assertJsonMissing(['name' => 'seconda']);
+
+        $this->travel(5)->minutes();
+
+        $this->getJson(route('hashtags.sidebar'))
+            ->assertOk()
+            ->assertJsonCount(2, 'hashtags');
+    }
+
+    public function test_the_sidebar_cache_works_with_the_database_store(): void
+    {
+        config(['cache.default' => 'database']);
+        $alice = $this->createFullAccount('trenddbcache');
+        $this->publishPost($alice, 'Post #prima');
+        $query = app(PopularHashtagsQuery::class);
+
+        $this->assertSame(['prima'], $query->sidebar()->pluck('name')->all());
+
+        $this->publishPost($alice, 'Post #seconda');
+        $this->assertSame(['prima'], $query->sidebar()->pluck('name')->all());
+
+        $query->invalidateSidebar();
+        $this->assertSame(['prima', 'seconda'], $query->sidebar()->pluck('name')->all());
+    }
+
+    public function test_visiting_trending_immediately_invalidates_the_sidebar_cache(): void
+    {
+        $alice = $this->createFullAccount('trendrefresh');
+        $this->publishPost($alice, 'Post #prima');
+
+        $this->actingAs($alice)->getJson(route('hashtags.sidebar'))
+            ->assertOk()
+            ->assertJsonPath('hashtags.0.name', 'prima');
+
+        $this->publishPost($alice, 'Post #seconda');
+
+        $this->getJson(route('hashtags.sidebar'))
+            ->assertJsonMissing(['name' => 'seconda']);
+
+        $this->get(route('hashtags.index'))
+            ->assertOk()
+            ->assertSee('#seconda');
+
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $this->getJson(route('hashtags.sidebar'))
+            ->assertOk()
+            ->assertJsonCount(2, 'hashtags');
+
+        $queries = collect(DB::getQueryLog())->pluck('query')->implode(' ');
+        DB::disableQueryLog();
+
+        $this->assertStringNotContainsString('event_hashtags', $queries);
+    }
+
+    public function test_changing_moderation_or_trending_window_ignores_a_stale_sidebar_cache(): void
+    {
+        $alice = $this->createFullAccount('trendpolicy');
+        $this->publishPost($alice, 'Post #nudes');
+        $old = $this->publishPost($alice, 'Post #antico');
+        $old->forceFill(['published_at' => now()->subDays(8)])->save();
+
+        $this->actingAs($alice)->getJson(route('hashtags.sidebar'))
+            ->assertOk()
+            ->assertJsonPath('hashtags.0.name', 'nudes');
+
+        config()->set('openbook.moderation.hide_content_warnings_from_world', true);
+        config()->set('openbook.moderation.forced_content_warning_hashtags', ['nudes']);
+
+        $this->getJson(route('hashtags.sidebar'))
+            ->assertOk()
+            ->assertJsonPath('hashtags', []);
+
+        config()->set('openbook.hashtags.trending_days', 14);
+
+        $this->getJson(route('hashtags.sidebar'))
+            ->assertOk()
+            ->assertJsonPath('hashtags.0.name', 'antico')
+            ->assertJsonMissing(['name' => 'nudes']);
     }
 
     public function test_the_trending_index_lists_hashtags(): void
@@ -225,8 +358,13 @@ class PopularHashtagsTest extends TestCase
         $this->actingAs($alice)
             ->get(route('notifications.index'))
             ->assertOk()
-            ->assertSee(route('hashtags.show', 'innocuo'), false)
-            ->assertDontSee(route('hashtags.show', 'nudes'), false);
+            ->assertSee(route('hashtags.sidebar'), false);
+
+        $this->actingAs($alice)
+            ->getJson(route('hashtags.sidebar'))
+            ->assertOk()
+            ->assertJsonPath('hashtags.0.name', 'innocuo')
+            ->assertJsonMissing(['name' => 'nudes']);
     }
 
     public function test_forced_content_warning_hashtags_remain_in_trending_when_world_filtering_is_disabled(): void

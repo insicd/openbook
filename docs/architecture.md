@@ -214,6 +214,15 @@ and "Edit profile" button on your own profile) makes them editable:
   two posts published in the same second could end up duplicated or skipped
   when moving from one page to the next, a defect already present with classic
   pagination but much more visible with continuous scrolling.
+- **Trending sidebar**: the authenticated layout renders a loading placeholder
+  without running `PopularHashtagsQuery`. On viewports at least 1024 px wide,
+  `public/assets/js/trending-sidebar.js` requests `/tendenze/sidebar` when the
+  widget enters view. The JSON response contains the five formatted rows and
+  whether the full Trending page has more; it uses the same query and moderation
+  rules as that page. Hidden mobile sidebars make no request. The sidebar
+  result is cached for five minutes using the configured Laravel cache store.
+  Visiting `/tendenze` invalidates it immediately; changes to the ranking
+  window or moderation settings also bypass the previous result.
 - **Post card**: like / comment / share are icons only (with the numeric
   counter beside them; the texts remain as `aria-label` for accessibility).
   Deletion is no longer in line with the other actions: it appears only for

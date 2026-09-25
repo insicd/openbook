@@ -64,6 +64,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/esci', [SessionController::class, 'destroy'])->name('logout');
 
     Route::get('/home', [FeedController::class, 'index'])->name('feed.index');
+    Route::get('/tendenze/sidebar', [HashtagController::class, 'sidebar'])->name('hashtags.sidebar');
     Route::get('/mondo', [WorldController::class, 'index'])->name('world.index');
     Route::get('/mondo/scopri', [WorldController::class, 'discover'])->name('world.discover');
 

@@ -8,8 +8,10 @@ use App\Application\Queries\PopularHashtagsQuery;
 use App\Domain\Events\Event;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
+use App\Support\CompactNumber;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -22,7 +24,9 @@ class HashtagController extends Controller
 
     public function index(): View
     {
+        $this->popularHashtags->invalidateSidebar();
         $hashtags = $this->popularHashtags->top(100);
+        $this->popularHashtags->primeSidebar($hashtags);
         $viewerActorId = auth()->user()?->actor?->id;
         $followedHashtagIds = $viewerActorId !== null
             ? DB::table('hashtag_follows')
@@ -36,6 +40,28 @@ class HashtagController extends Controller
             'hashtags' => $hashtags,
             'trendingDays' => max(1, (int) config('openbook.hashtags.trending_days', 7)),
             'followedHashtagIds' => $followedHashtagIds,
+        ]);
+    }
+
+    public function sidebar(): JsonResponse
+    {
+        $hashtags = $this->popularHashtags->sidebar();
+
+        return response()->json([
+            'hashtags' => $hashtags->take(PopularHashtagsQuery::SIDEBAR_LIMIT)
+                ->map(static function (Hashtag $hashtag): array {
+                    $count = (int) $hashtag->usage_count;
+
+                    return [
+                        'name' => $hashtag->name,
+                        'url' => route('hashtags.show', $hashtag->name),
+                        'uses' => trans_choice('openbook.sidebar.hashtag_uses', $count, [
+                            'count' => CompactNumber::format($count),
+                        ]),
+                    ];
+                })
+                ->values(),
+            'has_more' => $hashtags->count() > PopularHashtagsQuery::SIDEBAR_LIMIT,
         ]);
     }
 

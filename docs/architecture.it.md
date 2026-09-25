@@ -214,6 +214,16 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   nello stesso secondo potevano finire duplicati o saltati passando da una pagina
   all'altra, difetto gia' presente con la paginazione classica ma molto piu'
   evidente con lo scorrimento continuo.
+- **Sidebar delle tendenze**: il layout autenticato mostra uno stato di
+  caricamento senza eseguire `PopularHashtagsQuery`. Su viewport larghi almeno
+  1024 px, `public/assets/js/trending-sidebar.js` richiede `/tendenze/sidebar`
+  quando il box entra nell'area visibile. Il JSON contiene le cinque righe gia'
+  formattate e indica se la pagina completa mostra altri risultati; usa la
+  stessa query e le stesse regole di moderazione di quella pagina. La sidebar
+  nascosta su mobile non fa richieste. Il risultato del box resta nella cache
+  Laravel configurata per cinque minuti. L'accesso a `/tendenze` lo invalida
+  subito; anche le modifiche alla finestra temporale o alla moderazione
+  scartano il valore precedente.
 - **Card del post**: like / commento / condivisione sono solo icone (con il
   contatore numerico accanto; i testi restano come `aria-label` per
   l'accessibilita'). L'eliminazione non e' piu' in linea con le altre azioni:

@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Application\Queries\PopularHashtagsQuery;
 use App\Application\Queries\SidebarSuggestionContext;
 use App\Application\Queries\SuggestedActorsByBioQuery;
 use App\Application\Queries\SuggestedLocalActorsQuery;
@@ -175,12 +174,8 @@ class AppServiceProvider extends ServiceProvider
                 $suggestions = collect();
             }
 
-            $trending = app(PopularHashtagsQuery::class)->top(PopularHashtagsQuery::SIDEBAR_LIMIT + 1);
-
             $view->with([
                 'suggestedActors' => $suggestions,
-                'popularHashtags' => $trending->take(PopularHashtagsQuery::SIDEBAR_LIMIT),
-                'popularHashtagsHasMore' => $trending->count() > PopularHashtagsQuery::SIDEBAR_LIMIT,
             ]);
         });
     }

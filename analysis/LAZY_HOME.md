@@ -1,6 +1,8 @@
 # Home progressiva: tendenze e feed asincroni
 
-Documento di analisi. Nessuna delle modifiche descritte qui è ancora
+Documento di analisi e piano di lavoro. Gli sprint 1 e 2 della macrofase 1
+sono implementati. La prova dei tempi su un'installazione rappresentativa
+resta da fare nella pausa tra le macrofasi; la macrofase 2 non è ancora
 implementata.
 
 ## Obiettivo
@@ -10,9 +12,11 @@ contenuti più costosi arrivino poco dopo. L'obiettivo è migliorare il tempo
 percepito prima che l'utente veda una pagina utilizzabile, senza promettere
 che le query sottostanti diventino più veloci. Procedere in due macrofasi
 misurabili, mantenendo l'interfaccia semplice e senza introdurre worker o
-dipendenze obbligatorie.
+dipendenze obbligatorie. Entrambe le macrofasi sono previste: tra una e
+l'altra ci si ferma per provare il risultato e confrontare le misure, non per
+decidere se realizzare la seconda.
 
-## Situazione attuale
+## Situazione di partenza (prima dello sprint 1)
 
 - `FeedController::index()` esegue `FeedQuery::forActor()` e annota i post
   prima di restituire `feed.index`: il primo blocco di card è nell'HTML
@@ -60,29 +64,79 @@ residuo del layout è ancora significativo, esaminare separatamente i
 suggerimenti della sidebar e le altre query condivise; non spostarle per
 assunzione.
 
+Solo dopo avere completato e provato la UI asincrona, aggiungere in uno sprint
+distinto una cache condivisa delle tendenze con durata di **5 minuti**. Non
+richiedere Redis o altri servizi esterni: usare il sistema di cache già
+disponibile nell'installazione ordinaria. Misurare separatamente richieste con
+cache fredda e calda, così da distinguere il beneficio dell'asincronia da
+quello della cache.
+
+Decisione successiva: l'accesso a `/tendenze` invalida subito la cache del
+box laterale. Un cambio della finestra temporale o delle impostazioni di
+moderazione rende comunque inutilizzabile il valore precedente, anche prima
+della scadenza dei cinque minuti.
+
 ## Macrofase 2 — Prime card via HTML asincrono
 
-Se la Home resta percettibilmente lenta dopo la prima fase, restituire subito
-il layout, il composer e un contenitore del feed con stato di caricamento,
-senza eseguire `FeedQuery::forActor()` nella richiesta iniziale. Il browser
-chiede poi la prima pagina del feed come **frammento HTML** già renderizzato
-dal server, non come JSON da trasformare in card nel client.
+Restituire subito il layout, il composer e un contenitore del feed con stato
+di caricamento, senza eseguire `FeedQuery::forActor()` nella richiesta
+iniziale. Il browser chiede poi la prima pagina del feed come **frammento
+HTML** già renderizzato dal server, non come JSON da trasformare in card nel
+client.
 
 Usare lo stesso frammento per le pagine successive dello scroll infinito:
 card e URL del cursore successivo devono essere sufficienti al JavaScript,
 senza ricostruire e trasferire l'intero layout. Mantenere invariati
 ordinamento, visibilità, annotazioni per il visualizzatore, deduplicazione e
-semantica del cursore. Un caricamento fallito deve offrire un messaggio e la
-possibilità di riprovare; prevedere un percorso utilizzabile anche senza
-JavaScript. Conservare il comportamento della Home vuota/kit di benvenuto e
-del composer, inclusa la citazione di un post da `?quote=`.
+semantica del cursore. Il primo blocco e i successivi devono usare la stessa
+logica JavaScript di caricamento e gestione degli errori. Se una richiesta
+fallisce, mostrare un messaggio comprensibile e un **link per riprovare** la
+stessa richiesta, senza perdere le card già presenti. Conservare il
+comportamento della Home vuota/kit di benvenuto e del composer, inclusa la
+citazione di un post da `?quote=`.
+
+Il feed asincrono richiede JavaScript. Senza JavaScript, mostrare al massimo
+un messaggio in `<noscript>` che lo spieghi; non costruire un secondo percorso
+di rendering completo della Home solo per questo caso.
 
 Misurare separatamente il tempo fino all'HTML iniziale e quello fino alle
 prime card: la query del feed può continuare a impiegare tempo, ma non deve
 trattenere la cornice della pagina. Verificare primo caricamento, scroll,
 pagina vuota, nuovi post arrivati durante lo scroll, errore/retry, viewport
-mobile e funzionamento senza JavaScript. L'estrazione del solo frammento deve
+mobile e messaggio `<noscript>`. L'estrazione del solo frammento deve
 evitare anche le query di layout che oggi accompagnano le pagine successive.
+
+## Sprint e punti di prova
+
+Ogni sprint è una modifica separata, verificabile prima di iniziare il
+successivo. Le misure vanno prese su dati rappresentativi e confrontate nelle
+stesse condizioni; il tempo della risposta iniziale e quello fino ai contenuti
+visibili sono due risultati distinti.
+
+1. **Tendenze asincrone.** Preparare l'endpoint JSON autenticato e il box con
+   caricamento su visibilità, stato vuoto ed errore. Rimuovere la query delle
+   tendenze dal view composer. Verificare desktop, viewport sotto i 1024 px e
+   scroll attuale; rilevare i tempi senza cache.
+2. **Cache delle tendenze.** Aggiungere la cache di 5 minuti senza cambiare
+   endpoint o UI. Verificare che scadenza e configurazione di moderazione non
+   facciano apparire risultati non consentiti; confrontare cache fredda e
+   calda.
+
+**Pausa di prova tra le macrofasi:** usare la Home e le altre pagine
+autenticate, controllare i tempi e annotare l'eventuale costo residuo del
+layout. La seconda macrofase resta prevista anche se la prima dà un buon
+risultato.
+
+3. **Frammenti HTML per lo scroll.** Esporre un frammento che contenga card e
+   cursore successivo, riusando query, annotazioni e vista delle card attuali.
+   Far usare il frammento alle pagine successive dello scroll, mentre la prima
+   pagina della Home resta ancora renderizzata nella risposta iniziale.
+   Preparare la logica di caricamento condivisa e il link di retry.
+4. **Primo blocco asincrono.** Togliere la query del feed dalla risposta
+   iniziale `/home` e richiedere il primo frammento con la stessa logica usata
+   dallo scroll. Integrare kit di benvenuto, stato vuoto, composer e messaggio
+   `<noscript>`. Provare il percorso completo e confrontare il tempo fino alla
+   cornice con quello fino alle prime card.
 
 ## Confini
 
@@ -91,5 +145,5 @@ evitare anche le query di layout che oggi accompagnano le pagine successive.
 - Non introdurre code, polling continuo o un framework frontend. Restare su
   richieste HTTP mirate e JavaScript leggero, coerente con l'interfaccia
   esistente.
-- Non assumere che la macrofase 2 sia necessaria prima di aver misurato il
-  risultato della macrofase 1.
+- Non fondere lo spostamento asincrono delle tendenze con l'aggiunta della
+  cache: sono due ottimizzazioni da provare separatamente.

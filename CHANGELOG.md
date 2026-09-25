@@ -96,6 +96,12 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- Il box laterale delle tendenze si carica quando diventa visibile sui
+  desktop. La Home e le altre pagine autenticate non attendono più la query
+  degli hashtag in tendenza per mostrare il layout; su viewport sotto i
+  1024 px la richiesta non parte. Il risultato è conservato in cache per
+  cinque minuti e aggiornato subito quando si apre `/tendenze` o cambiano
+  le impostazioni che influenzano la classifica.
 - **Documentazione in `/docs`**: i README inglese e italiano restano una
   pagina breve (cos'e' Openbook, installazione rapida, badge, link a sito,
   istanza e changelog). Guide complete, architettura, federazione, cron e
