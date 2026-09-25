@@ -5,7 +5,7 @@ proporre modifiche in modo coerente con l'architettura e gli obiettivi del proge
 
 ## Principi generali
 
-- Openbook segue una roadmap a fasi (vedi [`README.md`](README.md#roadmap-e-stato-del-progetto)):
+- Openbook segue una roadmap a fasi (vedi [`docs/roadmap.it.md`](docs/roadmap.it.md)):
   non si avviano funzionalita' di una fase successiva finche' i test della fase
   precedente non sono verdi.
 - Il software deve restare **installabile su shared hosting**: evita di introdurre
@@ -14,8 +14,8 @@ proporre modifiche in modo coerente con l'architettura e gli obiettivi del proge
   degradare in modo elegante quando non disponibili.
 - La federazione ActivityPub e' parte integrante dell'architettura, non un plugin:
   mantieni separati dominio applicativo locale, rappresentazione ActivityStreams,
-  ricezione/consegna delle attivita' e interfaccia web (vedi la sezione
-  [Architettura](README.md#architettura) del README).
+  ricezione/consegna delle attivita' e interfaccia web (vedi
+  [Architettura](docs/architecture.it.md)).
 - I controller non devono contenere logica di dominio o di federazione: devono
   validare, autorizzare, invocare un servizio applicativo e restituire la risposta.
 
@@ -24,7 +24,7 @@ proporre modifiche in modo coerente con l'architettura e gli obiettivi del proge
 - PHP 8.2+, Composer.
 - Un client MySQL/MariaDB e' opzionale per lo sviluppo quotidiano (la suite di test
   usa SQLite in memoria di default) ma e' necessario per esercitare i test di
-  integrazione specifici sull'installer (vedi [README — Test](README.md#test)).
+  integrazione specifici sull'installer (vedi [Test](docs/development.it.md)).
 
 ## Flusso di lavoro
 
@@ -43,7 +43,8 @@ proporre modifiche in modo coerente con l'architettura e gli obiettivi del proge
    php artisan test
    ```
 
-6. Aggiorna la documentazione (README, commenti dove utile) se la modifica cambia il
+6. Aggiorna la documentazione in [`docs/`](docs/README.it.md) (e il README
+   se cambia l'installazione rapida) quando la modifica cambia il
    comportamento osservabile o i requisiti di installazione.
 7. Apri la pull request descrivendo cosa cambia e perche', collegando la issue
    correlata.

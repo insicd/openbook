@@ -14,7 +14,7 @@ La versione tecnica del software e' `config('openbook.version')`
 Il footer mostra anche il nome in codice (`config('openbook.release_label')`).
 
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
-il [`README`](README.md#roadmap-and-project-status).
+la [roadmap](docs/roadmap.md).
 
 ## [26.38.rc1]
 
@@ -94,6 +94,13 @@ il [`README`](README.md#roadmap-and-project-status).
   Openbook tenta di completarli tramite il catalogo locale delle citta'. Gli
   hashtag degli eventi pubblici e non elencati partecipano inoltre al calcolo
   delle tendenze insieme a quelli dei post.
+
+### Changed
+- **Documentazione in `/docs`**: i README inglese e italiano restano una
+  pagina breve (cos'e' Openbook, installazione rapida, badge, link a sito,
+  istanza e changelog). Guide complete, architettura, federazione, cron e
+  roadmap sono in [`docs/`](docs/README.it.md), divise per argomento e in
+  entrambe le lingue.
 
 ### Fixed
 - Condivisione dei post ([issue #94](https://github.com/insicd/openbook/issues/94)):
