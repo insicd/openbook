@@ -202,18 +202,47 @@ and "Edit profile" button on your own profile) makes them editable:
 - **Infinite scroll instead of numbered pagination**: feed, World, profile
   (local or remote), and hashtag pages no longer show page arrows/numbers at
   the bottom of the post list. When the user nears the end of the page,
-  `public/assets/js/infinite-scroll.js` downloads the next page in the
-  background (the same `?page=N` URL as always) and appends only its posts to
-  the current list, with no dedicated route/API and no external library.
-  Classic pagination remains available inside a `<noscript>`, for people
-  browsing without JavaScript. Setting `data-infinite-scroll` and
-  `data-next-url` on a post container is enough for the script to activate: see
-  `resources/views/posts/_feed.blade.php`, the partial shared by all these
-  pages. This was also the chance to give `FeedQuery`/`HashtagController` a
+  `public/assets/js/infinite-scroll.js` requests the next `?cursor=…` URL and
+  appends its posts to the current list, with no dedicated route/API or
+  external library. A normal request to `/home` renders the layout, composer,
+  any quoted post, and pending video publications without querying the feed or
+  building the welcome kit. An AJAX request to the same `/home` endpoint
+  returns an HTML fragment with post cards, or the welcome kit when the first
+  block is empty; AJAX cursor requests return later cards. The same loader
+  handles both and offers a retry link after an error. Without JavaScript,
+  Home explains that the feed requires it. Profile, community, and hashtag
+  post lists still fetch full pages and offer classic pagination inside
+  `<noscript>`. Setting
+  `data-infinite-scroll` and `data-next-url` on a post container is enough for
+  the script to activate: see `resources/views/posts/_feed.blade.php`, the
+  partial shared by all these pages. This was also the chance to give
+  `FeedQuery`/`HashtagController` a
   truly deterministic sort (`ORDER BY ... , id DESC`): without a tie-breaker,
   two posts published in the same second could end up duplicated or skipped
   when moving from one page to the next, a defect already present with classic
   pagination but much more visible with continuous scrolling.
+- **World and suggested people**: a normal `/mondo` request renders the page
+  shell without querying posts or suggested people. The scroll script requests
+  the first and later post blocks from `/mondo` as HTML fragments, while
+  `/mondo/suggeriti` loads the first five suggestions and the link to
+  `/mondo/scopri` separately. Opening Discover directly returns a full page;
+  later pages requested by its scroll return only the list. World posts require
+  JavaScript, and posts and suggestions have independent error states.
+- **Event list scrolling**: the initial `/eventi` or `/eventi/passati` request
+  renders the complete page. For later pages, an XMLHttpRequest to the same
+  `?page=N` URL returns only the event grid and its next-page URL. The browser
+  appends its cards using the shared infinite-scroll script. On `/eventi`, the
+  "Your events" section is rendered only with a full page request; opening a
+  later page directly still returns the complete page.
+- **Trending sidebar**: the authenticated layout renders a loading placeholder
+  without running `PopularHashtagsQuery`. On viewports at least 1024 px wide,
+  `public/assets/js/trending-sidebar.js` requests `/tendenze/sidebar` when the
+  widget enters view. The JSON response contains the five formatted rows and
+  whether the full Trending page has more; it uses the same query and moderation
+  rules as that page. Hidden mobile sidebars make no request. The sidebar
+  result is cached for five minutes using the configured Laravel cache store.
+  Visiting `/tendenze` invalidates it immediately; changes to the ranking
+  window or moderation settings also bypass the previous result.
 - **Post card**: like / comment / share are icons only (with the numeric
   counter beside them; the texts remain as `aria-label` for accessibility).
   Deletion is no longer in line with the other actions: it appears only for

@@ -6,6 +6,8 @@ use App\Application\Services\PostComposer;
 use App\Domain\Posts\Post;
 use App\Policies\PostPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -35,7 +37,7 @@ class PostCardActionsTest extends TestCase
         ]);
 
         // "Mondo" mostra i post remoti pubblici in cache con linkToPost attivo.
-        $response = $this->actingAs($viewer)->get(route('world.index'));
+        $response = $this->actingAs($viewer)->get(route('world.index'), ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
         $response->assertSee('href="'.route('posts.show', $post).'"', false);
@@ -53,7 +55,7 @@ class PostCardActionsTest extends TestCase
             'visibility' => Post::VISIBILITY_PUBLIC,
         ]);
 
-        $response = $this->actingAs($author)->get(route('feed.index'));
+        $response = $this->actingAs($author)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
         $response->assertSee('href="'.route('posts.show', $post).'"', false);
@@ -71,7 +73,7 @@ class PostCardActionsTest extends TestCase
         $permalink = route('posts.show', $post);
 
         $guestHtml = $this->get(route('posts.show', $post))->assertOk()->getContent();
-        $authorHtml = $this->actingAs($author)->get(route('feed.index'))->assertOk()->getContent();
+        $authorHtml = $this->actingAs($author)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
 
         foreach ([$guestHtml, $authorHtml] as $html) {
             $this->assertStringContainsString('class="ob-post__share-menu"', $html);
@@ -121,7 +123,7 @@ class PostCardActionsTest extends TestCase
             'visibility' => Post::VISIBILITY_PUBLIC,
         ]);
 
-        $response = $this->actingAs($author)->get(route('feed.index'));
+        $response = $this->actingAs($author)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
         $response->assertSee('class="ob-post__action"', false);
@@ -140,7 +142,7 @@ class PostCardActionsTest extends TestCase
             'visibility' => Post::VISIBILITY_PUBLIC,
         ]);
 
-        $response = $this->actingAs($author)->get(route('feed.index'));
+        $response = $this->actingAs($author)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
         $response->assertSee('class="ob-post__menu"', false);
@@ -164,7 +166,7 @@ class PostCardActionsTest extends TestCase
         ]);
 
         $this->actingAs($author)
-            ->get(route('feed.index'))
+            ->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee(__('openbook.actions.edit'), false)
             ->assertSee('data-edit-post', false);
@@ -225,10 +227,10 @@ class PostCardActionsTest extends TestCase
 
     public function test_content_warning_hides_attachments_until_the_spoiler_is_opened(): void
     {
-        \Illuminate\Support\Facades\Storage::fake('public');
+        Storage::fake('public');
 
         $author = $this->createFullAccount('cwmedia');
-        $image = \Illuminate\Http\UploadedFile::fake()->image('sensibile.jpg', 800, 600);
+        $image = UploadedFile::fake()->image('sensibile.jpg', 800, 600);
 
         $post = app(PostComposer::class)->compose($author->actor, [
             'body' => 'Testo coperto dall avviso.',
@@ -238,7 +240,7 @@ class PostCardActionsTest extends TestCase
             'alt_texts' => ['Immagine coperta'],
         ]);
 
-        $html = $this->actingAs($author)->get(route('feed.index'))->assertOk()->getContent();
+        $html = $this->actingAs($author)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
 
         $this->assertStringContainsString('class="ob-post__cw"', $html);
         $this->assertStringContainsString('Immagine coperta', $html);

@@ -96,6 +96,25 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- Mondo mostra subito la cornice e carica separatamente i post e le persone
+  "Da scoprire nel fediverso". Il primo blocco e lo scorrimento dei post usano
+  lo stesso frammento HTML, senza ripetere la query dei suggerimenti; anche lo
+  scorrimento di `/mondo/scopri` riceve solo le righe successive.
+- Lo scorrimento infinito di `/eventi` e `/eventi/passati` carica dalle pagine
+  successive solo le card degli eventi. La prima pagina e l'apertura diretta
+  degli URL paginati continuano a mostrare la pagina completa, inclusa la
+  sezione "I tuoi eventi" quando prevista.
+- La Home mostra subito layout e composer; lo stesso endpoint `/home` carica
+  poi via AJAX le card o, se il feed e' vuoto, il kit di benvenuto. Anche lo
+  scorrimento scarica solo le card successive e il relativo cursore, evitando
+  di ricostruire l'intera pagina a ogni blocco. In caso di errore compare un
+  link per riprovare il caricamento.
+- Il box laterale delle tendenze si carica quando diventa visibile sui
+  desktop. La Home e le altre pagine autenticate non attendono più la query
+  degli hashtag in tendenza per mostrare il layout; su viewport sotto i
+  1024 px la richiesta non parte. Il risultato è conservato in cache per
+  cinque minuti e aggiornato subito quando si apre `/tendenze` o cambiano
+  le impostazioni che influenzano la classifica.
 - **Documentazione in `/docs`**: i README inglese e italiano restano una
   pagina breve (cos'e' Openbook, installazione rapida, badge, link a sito,
   istanza e changelog). Guide complete, architettura, federazione, cron e
@@ -103,6 +122,9 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- Le anteprime dei link hanno un limite autonomo di 120 richieste al minuto:
+  sfogliare molti post con link non consuma più il limite condiviso da ricerca,
+  suggerimenti e notifiche.
 - Condivisione dei post ([issue #94](https://github.com/insicd/openbook/issues/94)):
   il menu si apre anche per i visitatori e offre sempre "Copia link",
   spostato dai tre puntini. La condivisione nativa resta disponibile sui

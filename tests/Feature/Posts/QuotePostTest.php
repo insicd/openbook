@@ -25,7 +25,7 @@ class QuotePostTest extends TestCase
             'visibility' => Post::VISIBILITY_PUBLIC,
         ]);
 
-        $response = $this->actingAs($author)->get(route('feed.index'));
+        $response = $this->actingAs($author)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
         $response->assertSee('class="ob-post__share-menu"', false);
@@ -85,7 +85,7 @@ class QuotePostTest extends TestCase
         $detail->assertSee('class="ob-post__quote"', false);
         $detail->assertSee('ob-post--embed', false);
 
-        $feed = $this->actingAs($quoter)->get(route('feed.index'));
+        $feed = $this->actingAs($quoter)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
         $feed->assertOk();
         $feed->assertSee('La mia opinione sulla citazione.', false);
 

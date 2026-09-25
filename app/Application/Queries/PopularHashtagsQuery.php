@@ -6,6 +6,7 @@ use App\Domain\Events\Event;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -16,6 +17,56 @@ use Illuminate\Support\Facades\DB;
 final class PopularHashtagsQuery
 {
     public const SIDEBAR_LIMIT = 5;
+
+    private const SIDEBAR_CACHE_KEY = 'popular_hashtags:sidebar:v1';
+
+    /**
+     * @return Collection<int, Hashtag>
+     */
+    public function sidebar(): Collection
+    {
+        $policy = $this->sidebarPolicy();
+        $cached = Cache::get(self::SIDEBAR_CACHE_KEY);
+
+        if (is_array($cached)
+            && ($cached['policy'] ?? null) === $policy
+            && ($cached['hashtags'] ?? null) instanceof Collection
+        ) {
+            return $cached['hashtags'];
+        }
+
+        $hashtags = $this->top(self::SIDEBAR_LIMIT + 1);
+        $this->primeSidebar($hashtags);
+
+        return $hashtags;
+    }
+
+    /**
+     * Riusa la classifica appena calcolata per la pagina completa.
+     *
+     * @param  Collection<int, Hashtag>  $hashtags
+     */
+    public function primeSidebar(Collection $hashtags): void
+    {
+        Cache::put(self::SIDEBAR_CACHE_KEY, [
+            'policy' => $this->sidebarPolicy(),
+            'hashtags' => $hashtags->take(self::SIDEBAR_LIMIT + 1),
+        ], now()->addMinutes(5));
+    }
+
+    public function invalidateSidebar(): void
+    {
+        Cache::forget(self::SIDEBAR_CACHE_KEY);
+    }
+
+    private function sidebarPolicy(): array
+    {
+        return [
+            'days' => max(1, (int) config('openbook.hashtags.trending_days', 7)),
+            'hide_content_warnings' => (bool) config('openbook.moderation.hide_content_warnings_from_world', false),
+            'forced_hashtags' => config('openbook.moderation.forced_content_warning_hashtags', []),
+        ];
+    }
 
     /**
      * @return Collection<int, Hashtag>

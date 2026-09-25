@@ -64,7 +64,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/esci', [SessionController::class, 'destroy'])->name('logout');
 
     Route::get('/home', [FeedController::class, 'index'])->name('feed.index');
+    Route::get('/tendenze/sidebar', [HashtagController::class, 'sidebar'])->name('hashtags.sidebar');
     Route::get('/mondo', [WorldController::class, 'index'])->name('world.index');
+    Route::get('/mondo/suggeriti', [WorldController::class, 'suggestions'])->name('world.suggestions');
     Route::get('/mondo/scopri', [WorldController::class, 'discover'])->name('world.discover');
 
     Route::get('/eventi/crea', [EventController::class, 'create'])->name('events.create');
@@ -104,7 +106,7 @@ Route::middleware('auth')->group(function () {
         ->name('posts.pending.destroy');
     Route::get('/posts/{post}/modifica', [PostController::class, 'edit'])->name('posts.edit');
     Route::get('/posts/{post}/link-preview', ExternalLinkPreviewController::class)
-        ->middleware('throttle:60,1')
+        ->middleware('throttle:120,1,link-preview:')
         ->name('posts.link_preview');
     Route::put('/posts/{post}', [PostController::class, 'update'])->name('posts.update');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');

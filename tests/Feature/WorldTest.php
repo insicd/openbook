@@ -128,16 +128,34 @@ class WorldTest extends TestCase
         $response->assertRedirect(route('login'));
     }
 
-    public function test_an_authenticated_user_sees_remote_posts_on_the_world_page(): void
+    public function test_the_world_page_loads_posts_and_suggestions_independently(): void
     {
         $viewer = $this->createFullAccount('worldviewer');
         $remote = $this->createRemoteActor('tancredi');
         $this->cacheRemotePost($remote, ['body' => 'Contenuto visibile nella pagina Mondo.']);
 
-        $this->actingAs($viewer)
-            ->get(route('world.index'))
-            ->assertOk()
-            ->assertSee('Contenuto visibile nella pagina Mondo.');
+        $page = $this->actingAs($viewer)->get(route('world.index'));
+        $page->assertOk();
+        $page->assertSee('data-initial-load', false);
+        $page->assertSee('data-async-feed', false);
+        $page->assertSee(route('world.suggestions'), false);
+        $page->assertDontSee('Contenuto visibile nella pagina Mondo.');
+        $page->assertDontSee('@tancredi@remoto.example');
+
+        $posts = $this->actingAs($viewer)->get(route('world.index'), [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+        $posts->assertOk();
+        $posts->assertSee('Contenuto visibile nella pagina Mondo.');
+        $posts->assertDontSee('data-world-suggestions-result', false);
+        $posts->assertDontSee('<!DOCTYPE html>', false);
+        $posts->assertDontSee('data-world-suggestions', false);
+
+        $suggestions = $this->actingAs($viewer)->get(route('world.suggestions'));
+        $suggestions->assertOk();
+        $suggestions->assertSee('@tancredi@remoto.example');
+        $suggestions->assertDontSee('Contenuto visibile nella pagina Mondo.');
+        $suggestions->assertDontSee('<!DOCTYPE html>', false);
     }
 
     public function test_suggested_actors_rank_local_followers_above_recent_activity_only(): void
@@ -186,19 +204,19 @@ class WorldTest extends TestCase
         $this->assertFalse($suggestions->pluck('id')->contains($remote->id));
     }
 
-    public function test_the_world_page_renders_a_suggested_remote_account(): void
+    public function test_the_suggestions_request_renders_a_remote_account(): void
     {
         $viewer = $this->createFullAccount('worldsuggestpage');
         $remote = $this->createRemoteActor('yolanda');
         $this->cacheRemotePost($remote);
 
         $this->actingAs($viewer)
-            ->get(route('world.index'))
+            ->get(route('world.suggestions'))
             ->assertOk()
             ->assertSee('@yolanda@remoto.example');
     }
 
-    public function test_the_world_page_shows_see_more_when_there_are_more_than_five_suggestions(): void
+    public function test_the_suggestions_request_shows_see_more_when_there_are_more_than_five(): void
     {
         $viewer = $this->createFullAccount('worldseemore');
 
@@ -208,10 +226,42 @@ class WorldTest extends TestCase
         }
 
         $this->actingAs($viewer)
-            ->get(route('world.index'))
+            ->get(route('world.suggestions'))
             ->assertOk()
             ->assertSee(__('openbook.world.suggested_more'))
             ->assertSee(route('world.discover'), false);
+    }
+
+    public function test_world_scroll_returns_only_later_posts(): void
+    {
+        config(['openbook.feed.per_page' => 2]);
+
+        $viewer = $this->createFullAccount('worldfeedscroll');
+        $remote = $this->createRemoteActor('worldfeedauthor');
+
+        for ($i = 1; $i <= 3; $i++) {
+            $this->cacheRemotePost($remote, [
+                'body' => 'Post dal mondo '.$i,
+                'published_at' => now()->subMinutes($i),
+            ]);
+        }
+
+        $first = $this->actingAs($viewer)->get(route('world.index'), [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+        $first->assertOk();
+        $first->assertSee('Post dal mondo 1');
+        $first->assertDontSee('Post dal mondo 3');
+        $this->assertSame(1, preg_match('/data-next-url="([^"]+)"/', $first->getContent(), $matches));
+
+        $second = $this->actingAs($viewer)->get(html_entity_decode($matches[1]), [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+        $second->assertOk();
+        $second->assertSee('Post dal mondo 3');
+        $second->assertDontSee('Post dal mondo 1');
+        $second->assertDontSee('<!DOCTYPE html>', false);
+        $second->assertDontSee('data-next-url=', false);
     }
 
     public function test_the_discover_page_lists_all_suggested_remote_accounts(): void
@@ -241,7 +291,7 @@ class WorldTest extends TestCase
 
         for ($i = 1; $i <= 3; $i++) {
             $remote = $this->createRemoteActor('scroll'.$i, 'fediverse.example');
-            $this->cacheRemotePost($remote);
+            $this->cacheRemotePost($remote, ['published_at' => now()->subMinutes($i)]);
         }
 
         $response = $this->actingAs($viewer)->get(route('world.discover'));
@@ -252,10 +302,25 @@ class WorldTest extends TestCase
         $response->assertSee('data-next-url="'.route('world.discover', ['page' => 2]).'"', false);
         $response->assertSee('<noscript>', false);
         $response->assertSee('ob-pagination', false);
+
+        $fragment = $this->actingAs($viewer)->get(route('world.discover', ['page' => 2]), [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+        $fragment->assertOk();
+        $fragment->assertSee('@scroll3@fediverse.example');
+        $fragment->assertDontSee('@scroll1@fediverse.example');
+        $fragment->assertDontSee('<!DOCTYPE html>', false);
+        $fragment->assertDontSee('ob-pagination', false);
+
+        $direct = $this->actingAs($viewer)->get(route('world.discover', ['page' => 2]));
+        $direct->assertOk();
+        $direct->assertSee('<!DOCTYPE html>', false);
+        $direct->assertSee('@scroll3@fediverse.example');
     }
 
     public function test_a_guest_cannot_view_the_discover_page(): void
     {
         $this->get(route('world.discover'))->assertRedirect(route('login'));
+        $this->get(route('world.suggestions'))->assertRedirect(route('login'));
     }
 }

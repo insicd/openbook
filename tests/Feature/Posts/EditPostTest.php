@@ -238,7 +238,7 @@ class EditPostTest extends TestCase
         $post = $this->publish($author, 'Post con voce modifica.');
 
         $this->actingAs($author)
-            ->get(route('feed.index'))
+            ->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee('data-edit-post', false)
             ->assertSee('data-edit-action="'.route('posts.update', $post).'"', false)

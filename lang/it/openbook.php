@@ -17,6 +17,8 @@ return [
         'loading' => 'Caricamento altri post...',
         'end' => 'Non ci sono altri post da mostrare.',
         'error' => 'Impossibile caricare altri post. Riprova ricaricando la pagina.',
+        'retry_error' => 'Impossibile caricare altri post.',
+        'retry' => 'Riprova',
         'next' => 'Post successivi',
     ],
 
@@ -235,6 +237,7 @@ return [
     ],
 
     'feed' => [
+        'requires_js' => 'Per caricare il feed della Home è necessario JavaScript.',
         'welcome_title' => 'Inizia da qui',
         'welcome_body' => 'Il tuo feed è ancora vuoto. Segui qualcuno per riempirlo di conversazioni, oppure pubblica il tuo primo post qui sopra.',
         'welcome_staff' => 'Lo staff di questa istanza',
@@ -1003,6 +1006,9 @@ return [
         'instance_title' => 'Questa istanza',
         'trending_title' => 'In tendenza (:days)',
         'trending_more' => 'Mostra tutti',
+        'trending_loading' => 'Caricamento tendenze…',
+        'trending_error' => 'Impossibile caricare le tendenze.',
+        'trending_retry' => 'Riprova',
         'hashtag_uses' => '{1} :count post|[2,*] :count post',
         'no_popular_hashtags' => 'Ancora nessun hashtag in tendenza.',
         'people_to_follow' => 'Persone da seguire',
@@ -1013,11 +1019,15 @@ return [
         'subtitle' => 'Post pubblici arrivati da altre istanze del fediverso verso questa piattaforma: solo ciò che è già rilevante qui (autori seguiti, risposte, menzioni), non un indice completo del fediverso.',
         'suggested_title' => 'Da scoprire nel fediverso',
         'suggested_more' => 'Vedi altro',
+        'suggested_loading' => 'Caricamento persone da scoprire…',
+        'suggested_error' => 'Impossibile caricare le persone da scoprire.',
+        'suggested_retry' => 'Riprova',
         'discover_title' => 'Da scoprire nel fediverso',
         'discover_subtitle' => 'Account di altre istanze già conosciuti da questa piattaforma (seguiti da qualcuno qui, oppure con post pubblici in cache), ordinati per popolarità locale.',
         'discover_empty' => 'Al momento non ci sono account remoti da suggerire.',
         'back_to_world' => 'Torna a Mondo',
         'empty' => 'Ancora nessun post dal resto del fediverso. Segui qualcuno su un\'altra istanza per iniziare a vederne i contenuti qui.',
+        'requires_js' => 'Per caricare i post di Mondo è necessario JavaScript.',
         'infinite_scroll' => [
             'loading' => 'Caricamento altri account...',
             'end' => 'Non ci sono altri account da mostrare.',

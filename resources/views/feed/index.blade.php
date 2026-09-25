@@ -36,9 +36,15 @@
         </section>
     @endif
 
-    @if (($welcomeKit ?? null) !== null)
-        @include('feed._welcome', ['welcomeKit' => $welcomeKit])
-    @else
-        @include('posts._feed', ['posts' => $posts, 'emptyMessage' => __('openbook.feed.empty')])
-    @endif
+    @include('posts._feed', [
+        'initialLoading' => true,
+        'initialUrl' => request()->fullUrl(),
+        'emptyMessage' => __('openbook.feed.empty'),
+        'homeFeed' => true,
+    ])
+    <noscript>
+        <div class="ob-card ob-empty-state">
+            <p>{{ __('openbook.feed.requires_js') }}</p>
+        </div>
+    </noscript>
 @endsection

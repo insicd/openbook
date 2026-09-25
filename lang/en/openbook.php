@@ -17,6 +17,8 @@ return [
         'loading' => 'Loading more posts...',
         'end' => 'There are no more posts to show.',
         'error' => 'Could not load more posts. Try reloading the page.',
+        'retry_error' => 'Could not load more posts.',
+        'retry' => 'Try again',
         'next' => 'More posts',
     ],
 
@@ -235,6 +237,7 @@ return [
     ],
 
     'feed' => [
+        'requires_js' => 'JavaScript is required to load your Home feed.',
         'welcome_title' => 'Start here',
         'welcome_body' => 'Your feed is still empty. Follow someone to fill it with conversations, or publish your first post above.',
         'welcome_staff' => 'This instance\'s staff',
@@ -1003,6 +1006,9 @@ return [
         'instance_title' => 'This instance',
         'trending_title' => 'Trending (:days)',
         'trending_more' => 'Show all',
+        'trending_loading' => 'Loading trends…',
+        'trending_error' => 'Trends could not be loaded.',
+        'trending_retry' => 'Try again',
         'hashtag_uses' => '{1} :count post|[2,*] :count posts',
         'no_popular_hashtags' => 'No trending hashtags yet.',
         'people_to_follow' => 'People to follow',
@@ -1013,11 +1019,15 @@ return [
         'subtitle' => 'Public posts that reached this instance from other servers in the fediverse: only what is already relevant here (accounts you follow, replies, mentions), not a full index of the fediverse.',
         'suggested_title' => 'Discover on the fediverse',
         'suggested_more' => 'See more',
+        'suggested_loading' => 'Loading people to discover…',
+        'suggested_error' => 'Could not load people to discover.',
+        'suggested_retry' => 'Try again',
         'discover_title' => 'Discover on the fediverse',
         'discover_subtitle' => 'Accounts from other instances already known to this platform (followed by someone here, or with public posts in cache), ranked by local popularity.',
         'discover_empty' => 'There are no remote accounts to suggest right now.',
         'back_to_world' => 'Back to World',
         'empty' => 'No posts from the rest of the fediverse yet. Follow someone on another instance to start seeing their content here.',
+        'requires_js' => 'JavaScript is required to load World posts.',
         'infinite_scroll' => [
             'loading' => 'Loading more accounts...',
             'end' => 'There are no more accounts to show.',

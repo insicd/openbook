@@ -30,6 +30,34 @@ class InfiniteScrollTest extends TestCase
         ]);
     }
 
+    public function test_initial_home_shell_skips_the_feed_query_and_explains_the_javascript_requirement(): void
+    {
+        $user = $this->createFullAccount('infinitescrollshell');
+        $this->publishPost($user, 'Post caricato dopo.');
+
+        $feedQueries = 0;
+        DB::listen(function ($query) use (&$feedQueries): void {
+            if (str_contains($query->sql, 'feed_events')) {
+                $feedQueries++;
+            }
+        });
+
+        $shell = $this->actingAs($user)->get(route('feed.index'));
+
+        $shell->assertOk();
+        $shell->assertSee('data-initial-load', false);
+        $shell->assertSee('id="ob-composer"', false);
+        $shell->assertSee(__('openbook.feed.requires_js'), false);
+        $shell->assertDontSee('Post caricato dopo.');
+        $this->assertSame(0, $feedQueries);
+
+        $fragment = $this->actingAs($user)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $fragment->assertOk();
+        $fragment->assertSee('Post caricato dopo.');
+        $fragment->assertDontSee('id="ob-composer"', false);
+        $this->assertGreaterThan(0, $feedQueries);
+    }
+
     public function test_the_feed_exposes_a_cursor_based_next_url_when_there_are_more_posts(): void
     {
         config(['openbook.feed.per_page' => 2]);
@@ -39,7 +67,12 @@ class InfiniteScrollTest extends TestCase
         $this->publishPost($user, 'Secondo post.');
         $this->publishPost($user, 'Terzo post.');
 
-        $response = $this->actingAs($user)->get(route('feed.index'));
+        $shell = $this->actingAs($user)->get(route('feed.index'));
+        $shell->assertOk();
+        $shell->assertSee('data-initial-load', false);
+        $shell->assertDontSee('Primo post.');
+
+        $response = $this->actingAs($user)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
         $response->assertSee('id="ob-post-list"', false);
@@ -48,8 +81,7 @@ class InfiniteScrollTest extends TestCase
         $response->assertSee('cursor=', false);
         $response->assertDontSee('page=2', false);
 
-        $response->assertSee('<noscript>', false);
-        $response->assertSee('ob-pagination', false);
+        $response->assertDontSee('ob-pagination', false);
     }
 
     public function test_the_feed_has_no_next_page_url_when_every_post_fits_on_one_page(): void
@@ -57,7 +89,7 @@ class InfiniteScrollTest extends TestCase
         $user = $this->createFullAccount('infinitescrollone');
         $this->publishPost($user, 'Unico post.');
 
-        $response = $this->actingAs($user)->get(route('feed.index'));
+        $response = $this->actingAs($user)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
         $response->assertSee('data-infinite-scroll', false);
@@ -76,7 +108,7 @@ class InfiniteScrollTest extends TestCase
         $this->publishPost($user, 'Post numero due.');
         $this->publishPost($user, 'Post numero tre.');
 
-        $firstPage = $this->actingAs($user)->get(route('feed.index'));
+        $firstPage = $this->actingAs($user)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
         $firstPage->assertOk();
 
         preg_match('/data-next-url="([^"]+)"/', $firstPage->getContent(), $matches);
@@ -84,7 +116,7 @@ class InfiniteScrollTest extends TestCase
 
         $nextUrl = html_entity_decode($matches[1], ENT_QUOTES);
 
-        $response = $this->actingAs($user)->get($nextUrl);
+        $response = $this->actingAs($user)->get($nextUrl, ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
         $response->assertSee('id="ob-post-list"', false);
@@ -92,6 +124,67 @@ class InfiniteScrollTest extends TestCase
         $response->assertDontSee('Post numero due.');
         $response->assertDontSee('Post numero tre.');
         $response->assertDontSee('data-next-url', false);
+    }
+
+    public function test_home_cursor_ajax_returns_only_the_feed_fragment_while_normal_navigation_keeps_the_full_page(): void
+    {
+        config(['openbook.feed.per_page' => 2]);
+
+        $user = $this->createFullAccount('infinitescrollfragment');
+        $this->publishPost($user, 'Post piu vecchio.');
+        $this->publishPost($user, 'Post centrale.');
+        $this->publishPost($user, 'Post piu recente.');
+
+        $firstPage = $this->actingAs($user)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        $firstPage->assertOk();
+        $firstPage->assertDontSee('<!DOCTYPE html>', false);
+        $firstPage->assertSee('data-home-feed', false);
+
+        preg_match('/data-next-url="([^"]+)"/', $firstPage->getContent(), $matches);
+        $this->assertNotEmpty($matches[1] ?? null);
+        $nextUrl = html_entity_decode($matches[1], ENT_QUOTES);
+
+        $fragment = $this->actingAs($user)->get($nextUrl, ['X-Requested-With' => 'XMLHttpRequest']);
+        $fragment->assertOk();
+        $fragment->assertSee('id="ob-post-list"', false);
+        $fragment->assertSee('data-home-feed', false);
+        $fragment->assertSee('Post piu vecchio.');
+        $fragment->assertDontSee('Post centrale.');
+        $fragment->assertDontSee('Post piu recente.');
+        $fragment->assertDontSee('<!DOCTYPE html>', false);
+        $fragment->assertDontSee('ob-pagination', false);
+        $fragment->assertDontSee('id="ob-composer"', false);
+        $fragment->assertDontSee('data-next-url', false);
+
+        $fullPage = $this->actingAs($user)->get($nextUrl);
+        $fullPage->assertOk();
+        $fullPage->assertSee('<!DOCTYPE html>', false);
+        $fullPage->assertSee('data-initial-load', false);
+        $fullPage->assertDontSee('Post piu vecchio.');
+    }
+
+    public function test_home_cursor_fragment_keeps_the_next_cursor_and_ignores_new_posts(): void
+    {
+        config(['openbook.feed.per_page' => 1]);
+
+        $user = $this->createFullAccount('infinitescrollfragmentcursor');
+        $this->publishPost($user, 'Post piu vecchio.');
+        $this->publishPost($user, 'Post centrale.');
+        $this->publishPost($user, 'Post piu recente.');
+
+        $firstPage = $this->actingAs($user)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
+        preg_match('/data-next-url="([^"]+)"/', $firstPage->getContent(), $matches);
+        $this->assertNotEmpty($matches[1] ?? null);
+        $nextUrl = html_entity_decode($matches[1], ENT_QUOTES);
+
+        $this->publishPost($user, 'Post arrivato durante lo scroll.');
+
+        $fragment = $this->actingAs($user)->get($nextUrl, ['X-Requested-With' => 'XMLHttpRequest']);
+        $fragment->assertOk();
+        $fragment->assertSee('Post centrale.');
+        $fragment->assertDontSee('Post piu recente.');
+        $fragment->assertDontSee('Post arrivato durante lo scroll.');
+        $fragment->assertSee('data-next-url="', false);
     }
 
     public function test_a_new_post_published_while_scrolling_does_not_duplicate_items_from_the_previous_page(): void

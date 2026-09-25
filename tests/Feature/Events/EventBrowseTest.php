@@ -308,6 +308,72 @@ class EventBrowseTest extends TestCase
         $response->assertSee(__('openbook.infinite_scroll.next'));
     }
 
+    public function test_upcoming_event_scroll_returns_only_the_grid_and_keeps_your_events_on_the_initial_page(): void
+    {
+        $actor = $this->remoteActor();
+        $viewer = $this->createFullAccount('eventscrollviewer');
+        $invitation = $this->event($actor, [
+            'name' => 'Invito riservato',
+            'visibility' => Event::VISIBILITY_DIRECT,
+        ]);
+        $invitation->recipients()->attach($viewer->actor->id);
+
+        foreach (range(1, 37) as $position) {
+            $this->event($actor, [
+                'name' => 'Evento pubblico '.$position,
+                'start_at' => now()->addDays($position),
+            ]);
+        }
+
+        $firstPage = $this->actingAs($viewer)->get(route('events.index'));
+        $firstPage->assertOk();
+        $firstPage->assertSee(__('openbook.events.your_events'));
+        $firstPage->assertSee('Invito riservato');
+        $firstPage->assertSee('data-next-url=', false);
+
+        $fragment = $this->actingAs($viewer)->get(route('events.index', ['page' => 2]), [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+        $fragment->assertOk();
+        $fragment->assertSee('data-infinite-scroll', false);
+        $fragment->assertSee('Evento pubblico 19');
+        $fragment->assertSee('data-next-url=', false);
+        $fragment->assertSee('page=3', false);
+        $fragment->assertDontSee('Invito riservato');
+        $fragment->assertDontSee(__('openbook.events.your_events'));
+        $fragment->assertDontSee('<!DOCTYPE html>', false);
+        $fragment->assertDontSee('ob-pagination', false);
+
+        $fullPage = $this->actingAs($viewer)->get(route('events.index', ['page' => 2]));
+        $fullPage->assertOk();
+        $fullPage->assertSee('<!DOCTYPE html>', false);
+        $fullPage->assertSee('Invito riservato');
+        $fullPage->assertSee('Evento pubblico 19');
+    }
+
+    public function test_archive_scroll_returns_only_the_grid(): void
+    {
+        $actor = $this->remoteActor();
+
+        foreach (range(1, 19) as $position) {
+            $this->event($actor, [
+                'name' => 'Evento passato '.$position,
+                'start_at' => now()->subDays($position + 1),
+                'end_at' => now()->subDays($position),
+            ]);
+        }
+
+        $fragment = $this->get(route('events.archive', ['page' => 2]), [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+        $fragment->assertOk();
+        $fragment->assertSee('data-infinite-scroll', false);
+        $fragment->assertSee('Evento passato 19');
+        $fragment->assertDontSee('Evento passato 18');
+        $fragment->assertDontSee('<!DOCTYPE html>', false);
+        $fragment->assertDontSee('data-next-url=', false);
+    }
+
     public function test_upcoming_event_is_shown_on_its_hashtag_page(): void
     {
         $hashtag = Hashtag::query()->create(['name' => 'crust']);

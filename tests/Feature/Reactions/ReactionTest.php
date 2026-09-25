@@ -196,7 +196,7 @@ class ReactionTest extends TestCase
         $post = $this->publishPost($author);
 
         $this->actingAs($author)
-            ->get(route('feed.index'))
+            ->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee('id="post-'.$post->id.'"', false)
             ->assertSee('data-like-form', false)
@@ -232,7 +232,7 @@ class ReactionTest extends TestCase
         $post = $this->publishPost($author);
 
         $this->actingAs($author)
-            ->get(route('feed.index'))
+            ->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee('data-announce-menu', false)
             ->assertSee('data-announce-action="'.route('posts.announce', $post).'"', false)
@@ -245,7 +245,7 @@ class ReactionTest extends TestCase
         $post = $this->publishPost($author);
 
         $this->actingAs($author)
-            ->get(route('feed.index'))
+            ->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee('data-reaction-list', false)
             ->assertSee('data-url="'.route('posts.likes', $post).'"', false)

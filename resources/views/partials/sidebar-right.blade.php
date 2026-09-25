@@ -6,27 +6,24 @@
     </p>
 </div>
 
-<div class="ob-card ob-side-widget">
+<div
+    class="ob-card ob-side-widget"
+    data-trending-widget
+    data-url="{{ route('hashtags.sidebar') }}"
+    data-loading-label="{{ __('openbook.sidebar.trending_loading') }}"
+    data-empty-label="{{ __('openbook.sidebar.no_popular_hashtags') }}"
+    data-error-label="{{ __('openbook.sidebar.trending_error') }}"
+    data-retry-label="{{ __('openbook.sidebar.trending_retry') }}"
+    data-more-label="{{ __('openbook.sidebar.trending_more') }}"
+    data-more-url="{{ route('hashtags.index') }}"
+>
     @php
         $trendingDays = max(1, (int) config('openbook.hashtags.trending_days', 7));
     @endphp
     <h2 class="ob-side-widget__title">{{ __('openbook.sidebar.trending_title', ['days' => $trendingDays.'d']) }}</h2>
 
-    @if (($popularHashtags ?? collect())->isNotEmpty())
-        <ul class="ob-hashtag-list">
-            @foreach ($popularHashtags as $hashtag)
-                <li>
-                    <a href="{{ route('hashtags.show', $hashtag->name) }}">#{{ $hashtag->name }}</a>
-                    <span class="ob-field__help">{{ trans_choice('openbook.sidebar.hashtag_uses', (int) $hashtag->usage_count, ['count' => \App\Support\CompactNumber::format((int) $hashtag->usage_count)]) }}</span>
-                </li>
-            @endforeach
-        </ul>
-        @if ($popularHashtagsHasMore ?? false)
-            <a href="{{ route('hashtags.index') }}" class="ob-side-widget__more">{{ __('openbook.sidebar.trending_more') }}</a>
-        @endif
-    @else
-        <p class="ob-field__help">{{ __('openbook.sidebar.no_popular_hashtags') }}</p>
-    @endif
+    <div data-trending-content aria-live="polite"></div>
+    <noscript><a href="{{ route('hashtags.index') }}">{{ __('openbook.nav.trending') }}</a></noscript>
 </div>
 
 @if (($suggestedActors ?? collect())->isNotEmpty())

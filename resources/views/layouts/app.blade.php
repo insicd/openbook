@@ -160,6 +160,7 @@
     <script src="{{ \App\Support\Assets::url('assets/js/location-picker.js') }}" defer></script>
 
     @auth
+        <script src="{{ \App\Support\Assets::url('assets/js/trending-sidebar.js') }}" defer></script>
         <div
             id="ob-emoji-i18n"
             hidden
