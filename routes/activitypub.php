@@ -5,6 +5,7 @@ use App\Http\Controllers\Federation\FeedActorFederationController;
 use App\Http\Controllers\Federation\FollowersController;
 use App\Http\Controllers\Federation\FollowingController;
 use App\Http\Controllers\Federation\InboxController;
+use App\Http\Controllers\Federation\InstanceInfoController;
 use App\Http\Controllers\Federation\NodeInfoController;
 use App\Http\Controllers\Federation\OutboxController;
 use App\Http\Controllers\Federation\RelayActorController;
@@ -33,6 +34,16 @@ Route::get('/.well-known/nodeinfo', [NodeInfoController::class, 'discovery'])
 Route::get('/nodeinfo/2.1', [NodeInfoController::class, 'show'])
     ->middleware('throttle:120,1')
     ->name('nodeinfo.show');
+
+Route::get('/api/v1/instance', [InstanceInfoController::class, 'show'])
+    ->middleware('throttle:120,1')
+    ->name('instance.api_v1');
+Route::get('/api/v1/instance/peers', [InstanceInfoController::class, 'peers'])
+    ->middleware('throttle:120,1')
+    ->name('instance.peers');
+Route::get('/api/v2/instance', [InstanceInfoController::class, 'showV2'])
+    ->middleware('throttle:120,1')
+    ->name('instance.api_v2');
 
 Route::get('/relay', [RelayActorController::class, 'show'])
     ->middleware('throttle:120,1')

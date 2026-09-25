@@ -3,6 +3,7 @@
 namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
+use App\Domain\Posts\ExternalLinkPreview;
 use App\Domain\Posts\PendingPostPublication;
 use App\Federation\Inbox\InboxItem;
 use Illuminate\Support\Carbon;
@@ -111,6 +112,7 @@ final class DatabaseMaintenanceService
             'sessions' => $this->purgeSessions(),
             'password_reset_tokens' => $this->purgePasswordResetTokens(),
             'post_publication_queue' => $this->purgePostPublicationQueue(),
+            'external_link_previews' => $this->externalLinkPreviewsPurgeableQuery()->delete(),
             default => 0,
         };
 
@@ -142,6 +144,7 @@ final class DatabaseMaintenanceService
             'sessions' => $this->sessionsPurgeableQuery()->count(),
             'password_reset_tokens' => $this->passwordResetTokensPurgeableQuery()->count(),
             'post_publication_queue' => $this->postPublicationQueuePurgeableQuery()->count(),
+            'external_link_previews' => $this->externalLinkPreviewsPurgeableQuery()->count(),
             default => 0,
         };
     }
@@ -193,6 +196,12 @@ final class DatabaseMaintenanceService
                 'table' => 'post_publication_queue',
                 'label_key' => 'openbook.admin.database.tables.post_publication_queue',
                 'description_key' => 'openbook.admin.database.tables.post_publication_queue_help',
+            ],
+            [
+                'key' => 'external_link_previews',
+                'table' => 'external_link_previews',
+                'label_key' => 'openbook.admin.database.tables.external_link_previews',
+                'description_key' => 'openbook.admin.database.tables.external_link_previews_help',
             ],
         ];
     }
@@ -331,6 +340,17 @@ final class DatabaseMaintenanceService
                 PendingPostPublication::STATUS_FAILED,
             ])
             ->where('updated_at', '<', $this->publicationQueueCutoff());
+    }
+
+    private function externalLinkPreviewsPurgeableQuery()
+    {
+        $retention = max(
+            30 * 86400,
+            2 * (int) config('openbook.link_preview.success_ttl_seconds', 604800),
+            2 * (int) config('openbook.link_preview.failure_ttl_seconds', 3600),
+        );
+
+        return ExternalLinkPreview::query()->where('fetched_at', '<', now()->subSeconds($retention));
     }
 
     private function publicationQueueCutoff(): Carbon
