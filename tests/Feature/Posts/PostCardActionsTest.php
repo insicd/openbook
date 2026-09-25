@@ -60,7 +60,7 @@ class PostCardActionsTest extends TestCase
         $response->assertDontSee(__('openbook.posts.open_original'), false);
     }
 
-    public function test_the_overflow_menu_offers_copy_link_for_guests_and_authors(): void
+    public function test_the_share_menu_offers_copy_link_for_guests_and_authors(): void
     {
         $author = $this->createFullAccount('copylink');
         $post = app(PostComposer::class)->compose($author->actor, [
@@ -70,19 +70,20 @@ class PostCardActionsTest extends TestCase
 
         $permalink = route('posts.show', $post);
 
-        $this->get(route('posts.show', $post))
-            ->assertOk()
-            ->assertSee('data-copy-url="'.$permalink.'"', false)
-            ->assertSee(__('openbook.posts.copy_link'), false);
+        $guestHtml = $this->get(route('posts.show', $post))->assertOk()->getContent();
+        $authorHtml = $this->actingAs($author)->get(route('feed.index'))->assertOk()->getContent();
 
-        $this->actingAs($author)
-            ->get(route('feed.index'))
-            ->assertOk()
-            ->assertSee('data-copy-url="'.$permalink.'"', false)
-            ->assertSee(__('openbook.posts.copy_link'), false);
+        foreach ([$guestHtml, $authorHtml] as $html) {
+            $this->assertStringContainsString('class="ob-post__share-menu"', $html);
+            $this->assertSame(1, substr_count($html, 'data-copy-url="'.$permalink.'"'));
+            $this->assertGreaterThan(strpos($html, 'class="ob-post__share-menu"'), strpos($html, 'data-copy-url="'.$permalink.'"'));
+        }
+
+        $this->assertStringNotContainsString('data-announce-form', $guestHtml);
+        $this->assertStringContainsString('data-announce-form', $authorHtml);
     }
 
-    public function test_native_share_is_offered_to_authenticated_users_for_public_posts_only(): void
+    public function test_native_share_is_offered_to_guests_and_authenticated_users_for_public_posts_only(): void
     {
         $author = $this->createFullAccount('nativeshare');
         $attributes = [
@@ -97,7 +98,7 @@ class PostCardActionsTest extends TestCase
 
         $this->get(route('posts.show', $public))
             ->assertOk()
-            ->assertDontSee('data-native-share-url', false);
+            ->assertSee('data-native-share-url="'.route('posts.show', $public).'"', false);
 
         $this->actingAs($author);
 
@@ -108,6 +109,8 @@ class PostCardActionsTest extends TestCase
         $this->assertStringContainsString('data-native-share-url="'.route('posts.show', $public).'"', $publicHtml);
         $this->assertStringNotContainsString('data-native-share-url', $unlistedHtml);
         $this->assertStringNotContainsString('data-native-share-url', $directHtml);
+        $this->assertStringContainsString('data-copy-url="'.route('posts.show', $unlisted).'"', $unlistedHtml);
+        $this->assertStringContainsString('data-copy-url="'.route('posts.show', $direct).'"', $directHtml);
     }
 
     public function test_action_buttons_are_icon_only_without_word_labels(): void
