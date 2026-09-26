@@ -1,8 +1,8 @@
 # Ricerca: persone e suggerimenti della lente
 
-Documento di analisi per il ramo `search_improvements`. Fotografa il comportamento
-attuale e definisce la strategia da discutere prima dell'implementazione. Nessuna
-modifica funzionale è inclusa in questa fase.
+Documento di analisi per il ramo `search_improvements`. Le sezioni "Stato
+attuale verificato" e "Albero attuale" fotografano il comportamento prima
+dell'intervento; le sezioni successive definiscono il comportamento scelto.
 
 ## Problema e obiettivo
 
@@ -234,3 +234,28 @@ post/commenti locali indicizzabili e visibili, eventi visibili e hashtag.
 - Verificare con fixture e query reali che i remoti già noti compaiano anche
   nella sezione persone di `/cerca`, senza cambiare la risoluzione federata
   degli handle completi o la visibilità dei contenuti.
+
+## Stato di implementazione
+
+La ricerca dedicata `PeopleSearchQuery` ora alimenta suggerimenti e sezione
+Persone di `/cerca`; `MentionSuggestQuery` rimane al composer. Persone locali e
+remote note rispettano `discoverable`, stato e lo stesso ranking. Hashtag,
+contenuti, URL e risoluzione degli handle completi conservano i loro percorsi.
+
+I test focalizzati coprono `@` iniziale, nome remoto con spazi, ranking fra
+bio locale e nome remoto, visibilità e pagina completa. Su un database MySQL
+locale con circa 10.800 Actor `Person`, `EXPLAIN` usa `actors_type_index` e
+join `eq_ref` alle tabelle locali, con ordinamento temporaneo; le misure
+puntuali per `Dario` e `@zeldaz` sono state circa 94 e 88 ms. La ricerca per
+sottostringa su nomi/bio richiede una scansione dei candidati e non beneficia
+di un normale indice B-tree; non è stata aggiunta una migrazione senza un
+piano che la giustifichi. Per `nuke@openb.app`, il ramo handle usa invece
+`actors_preferred_username_domain_unique` (range, una riga stimata; circa
+10 ms nella misura puntuale).
+
+La suite completa eseguita con SQLite in memoria ha dato 1.097 test passati,
+2 ignorati e un fallimento riproducibile in
+`FeedTest::test_long_post_bodies_are_truncated_in_the_feed_with_a_read_more_control`:
+la risposta del feed non contiene l'etichetta "Altro..." attesa dal test.
+Il test riguarda il rendering dell'estratto dei post e non percorre la
+ricerca modificata. I test mirati di ricerca e moderazione passano.
