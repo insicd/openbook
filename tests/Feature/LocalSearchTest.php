@@ -13,8 +13,8 @@ use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
 
 /**
- * Ricerca locale per parole chiave: quando la query non e' un indirizzo
- * federato, Openbook cerca solo tra i contenuti di questa istanza.
+ * Ricerca per parole chiave: persone locali e remote note, contenuti
+ * indicizzati localmente e catalogo degli eventi visibili.
  */
 class LocalSearchTest extends TestCase
 {
@@ -39,6 +39,58 @@ class LocalSearchTest extends TestCase
         $byBio = $this->actingAs($viewer)->get(route('search.create', ['q' => 'felci']));
         $byBio->assertOk();
         $byBio->assertSee('Amico delle piante', false);
+    }
+
+    public function test_people_results_include_known_remote_actors_and_normalize_at_only_for_people(): void
+    {
+        $viewer = $this->createFullAccount('ricercatore');
+        $this->createFullAccount('zeldazarathustra');
+        $this->createRemoteActor('nuke', 'openb.app', ['name' => 'Dario Fadda']);
+
+        $this->actingAs($viewer)
+            ->get(route('search.create', ['q' => '@zeldaz']))
+            ->assertOk()
+            ->assertSee('@zeldazarathustra@'.config('openbook.domain'), false);
+
+        $this->actingAs($viewer)
+            ->get(route('search.create', ['q' => 'Dario fadda']))
+            ->assertOk()
+            ->assertSee('Dario Fadda', false)
+            ->assertSee('@nuke@openb.app', false);
+    }
+
+    public function test_undiscoverable_remote_is_excluded_from_keyword_people_results(): void
+    {
+        $viewer = $this->createFullAccount('ricercatore');
+        $this->createRemoteActor('segretoremoto', 'social.example', [
+            'name' => 'Persona segreta',
+            'discoverable' => false,
+        ]);
+
+        $this->actingAs($viewer)
+            ->get(route('search.create', ['q' => 'segretoremoto']))
+            ->assertOk()
+            ->assertDontSee('@segretoremoto@social.example', false);
+    }
+
+    public function test_at_prefix_is_kept_when_searching_post_text(): void
+    {
+        $viewer = $this->createFullAccount('ricercatore');
+        $composer = app(PostComposer::class);
+        $composer->compose($viewer->actor, [
+            'body' => 'Menzione @zeldaz nella discussione.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+        $composer->compose($viewer->actor, [
+            'body' => 'Solo zeldaz senza chiocciola.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        $this->actingAs($viewer)
+            ->get(route('search.create', ['q' => '@zeldaz']))
+            ->assertOk()
+            ->assertSee('nella discussione', false)
+            ->assertDontSee('Solo zeldaz senza chiocciola.', false);
     }
 
     public function test_a_keyword_search_finds_local_posts_and_comments_but_not_remote_ones(): void
@@ -125,7 +177,7 @@ class LocalSearchTest extends TestCase
         $response = $this->actingAs($viewer)->get(route('search.create', ['q' => 'nascosto']));
 
         $response->assertOk();
-        $response->assertSeeText('Nessun risultato locale per "nascosto".');
+        $response->assertSeeText('Nessun risultato per "nascosto".');
         $response->assertDontSee('@nascosto@', false);
     }
 
@@ -143,7 +195,7 @@ class LocalSearchTest extends TestCase
 
         $response->assertOk();
         $response->assertDontSee('Un trattato di entomologia urbana.', false);
-        $response->assertSeeText('Nessun risultato locale per "entomologia".');
+        $response->assertSeeText('Nessun risultato per "entomologia".');
     }
 
     public function test_an_author_can_still_search_their_own_non_indexable_posts(): void
@@ -187,7 +239,7 @@ class LocalSearchTest extends TestCase
 
         $response->assertOk();
         $response->assertSessionDoesntHaveErrors('q');
-        $response->assertSeeText('Nessun risultato locale per "non e un indirizzo valido".');
+        $response->assertSeeText('Nessun risultato per "non e un indirizzo valido".');
     }
 
     public function test_like_wildcards_in_the_query_are_treated_literally(): void

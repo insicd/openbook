@@ -96,6 +96,12 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Ricerca persone**: la lente e la sezione Persone di `/cerca` cercano con
+  le stesse regole gli Actor locali e remoti gia' noti all'istanza. La `@`
+  iniziale e' facoltativa, i nomi con spazi vengono riconosciuti e i risultati
+  rispettano `discoverable` anche per i remoti. L'autocompletamento continua
+  a mostrare persone e hashtag; eventi e altri contenuti restano nella pagina
+  completa dopo l'invio.
 - **Navbar ospite su mobile**: Eventi, Accedi e Registrati restano testuali
   su desktop; sotto i 768 px diventano icone (calendario, accesso,
   nuovo account) con etichetta accessibile, cosi' stanno su una sola riga.

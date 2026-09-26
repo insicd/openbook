@@ -259,9 +259,11 @@ and "Edit profile" button on your own profile) makes them editable:
   full page remains in the left sidebar); the search icon opens an inline input
   instead of going straight to `/cerca` (submitting the form still uses the
   same local/federated search). Dedicated script:
-  `public/assets/js/header-panels.js`. On desktop, after scrolling past the
-  composer, a **+** button appears in the center of the header that returns
-  focus to the composer (or to Home if you are elsewhere); on mobile the same
+  `public/assets/js/header-panels.js`. Its autocomplete lists known
+  discoverable local and remote people plus hashtags; the full search also
+  searches visible posts, comments, and events. On desktop, after scrolling
+  past the composer, a **+** button appears in the center of the header that
+  returns focus to the composer (or to Home if you are elsewhere); on mobile the same
   control is a discreet FAB at the bottom right (`compose-shortcut.js`).
 - **Emoji**: in post and comment composers (including replies) a smile icon
   opens a local Mastodon-style picker (categories, search, recents in

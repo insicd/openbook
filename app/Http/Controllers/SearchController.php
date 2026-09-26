@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\LocalSearchQuery;
+use App\Application\Queries\PeopleSearchQuery;
 use App\Domain\Feeds\FeedActorRegistrar;
 use App\Domain\Feeds\FeedDiscoverer;
 use App\Domain\Feeds\FeedImporter;
@@ -29,7 +30,7 @@ use Throwable;
  *    solo se non e' un profilo AP si passa al feed RSS/Atom (Friendica).
  * 2. Indirizzo federato (`utente@dominio`, `acct:...`): risoluzione locale
  *    o via WebFinger + {@see RemoteActorResolver}.
- * 3. Parola chiave: ricerca locale ({@see LocalSearchQuery}).
+ * 3. Parola chiave: persone note e contenuti locali.
  *
  * Se la query inizia con "#" e gli hashtag trovati sono esattamente uno,
  * si va direttamente alla pagina di quel tag.
@@ -42,6 +43,7 @@ class SearchController extends Controller
         private readonly RemoteNoteDocumentFetcher $activityPubDocuments,
         private readonly LocalActorResolver $localActors,
         private readonly LocalSearchQuery $localSearch,
+        private readonly PeopleSearchQuery $peopleSearch,
         private readonly FeedDiscoverer $feedDiscoverer,
         private readonly FeedActorRegistrar $feedRegistrar,
         private readonly FeedImporter $feedImporter,
@@ -78,6 +80,11 @@ class SearchController extends Controller
 
         $viewer = $request->user()?->actor;
         $results = $this->localSearch->search($query, $viewer);
+        $results['people'] = $this->peopleSearch->search(
+            $query,
+            (int) config('openbook.search.per_section', 10),
+            (int) config('openbook.search.min_length', 2),
+        );
 
         if ($this->shouldOpenSoleHashtag($query, $results['hashtags'])) {
             return redirect()->route('hashtags.show', $results['hashtags']->first()->name);

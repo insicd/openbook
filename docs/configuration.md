@@ -17,7 +17,7 @@ All Openbook-specific settings are centralized in
 | `OPENBOOK_COMMENT_MAX_DEPTH` | Comment nesting levels treated as "normal" in configuration (the actual structure has no hard limit, see [Known limitations](roadmap.md#known-limitations)). |
 | `OPENBOOK_EVENT_DEFAULT_DURATION_HOURS` | Visual duration assumed when a remote event has no `endTime` (default 12 hours; stored and federated dates are not changed). |
 | `OPENBOOK_EVENT_CACHE_TTL_HOURS` | Minimum interval between opportunistic refreshes of the same remote event from its origin (default 4 hours). |
-| `OPENBOOK_SEARCH_MIN_LENGTH` / `OPENBOOK_SEARCH_PER_SECTION` | Minimum query length and maximum results per section in local search. |
+| `OPENBOOK_SEARCH_MIN_LENGTH` / `OPENBOOK_SEARCH_PER_SECTION` | Minimum query length and maximum results per section on the Search page, including known local and remote people. |
 | `DB_PERSISTENT` | If `true`, reuse PDO MySQL/MariaDB connections across requests. Recommended on hosting with a limit on new connections per second (e.g. Hostinger: error `2002 Operation not permitted`). |
 | `OPENBOOK_FEED_PER_PAGE` | Number of posts per page in the personal feed, the local feed, and profile/hashtag pages. |
 | `OPENBOOK_PUBLICATION_QUEUE_RETENTION_DAYS` | Days to retain completed or failed video publication jobs before database rows and any residual private staging files are removed. |

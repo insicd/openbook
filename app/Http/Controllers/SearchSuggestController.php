@@ -3,60 +3,44 @@
 namespace App\Http\Controllers;
 
 use App\Application\Queries\LocalSearchQuery;
-use App\Application\Queries\MentionSuggestQuery;
-use App\Domain\Accounts\User;
+use App\Application\Queries\PeopleSearchQuery;
 use App\Domain\Posts\Hashtag;
 use App\Federation\Actors\Actor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Autocomplete della ricerca (navbar e pagina /cerca): persone locali
- * discoverable, Person remoti gia' in cache, e hashtag. Nessuna chiamata
+ * Autocomplete della ricerca (navbar e pagina /cerca): persone discoverable
+ * gia' note all'istanza e hashtag. Nessuna chiamata
  * WebFinger: la risoluzione federata resta sul submit della ricerca.
  */
 class SearchSuggestController extends Controller
 {
     public function __construct(
         private readonly LocalSearchQuery $localSearch,
-        private readonly MentionSuggestQuery $mentionSuggest,
+        private readonly PeopleSearchQuery $peopleSearch,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
     {
         $term = trim((string) $request->query('q', ''));
-        $viewer = $request->user()?->actor;
         $limit = (int) config('openbook.search.suggest_limit', 8);
         $peopleLimit = (int) ceil($limit * 0.6);
         $hashtagLimit = max(1, $limit - $peopleLimit);
 
-        $local = $this->localSearch->suggest($term, $peopleLimit, $hashtagLimit);
-
-        $suggestions = $local['people']
-            ->map(fn (User $user) => $this->personFromUser($user))
-            ->values()
-            ->all();
-
-        if (! str_starts_with($term, '#')) {
-            $knownLocalUsernames = $local['people']
-                ->map(fn (User $user) => mb_strtolower($user->username))
+        $suggestions = str_starts_with($term, '#')
+            ? []
+            : $this->peopleSearch
+                ->search($term, $peopleLimit, (int) config('openbook.search.suggest_min_length', 2))
+                ->map(fn (Actor $actor) => $this->personFromActor($actor))
                 ->all();
 
-            $remoteSlots = max(0, $peopleLimit - count($suggestions));
+        $hashtags = $this->localSearch->suggestHashtags(
+            $term,
+            str_starts_with($term, '#') ? $limit : $hashtagLimit,
+        );
 
-            if ($remoteSlots > 0) {
-                $remotes = $this->mentionSuggest
-                    ->forPrefix($term, $viewer, $remoteSlots + count($knownLocalUsernames))
-                    ->filter(fn (Actor $actor) => ! $actor->isLocal())
-                    ->take($remoteSlots);
-
-                foreach ($remotes as $actor) {
-                    $suggestions[] = $this->personFromActor($actor);
-                }
-            }
-        }
-
-        foreach ($local['hashtags'] as $hashtag) {
+        foreach ($hashtags as $hashtag) {
             $suggestions[] = $this->hashtagSuggestion($hashtag);
         }
 
@@ -68,32 +52,15 @@ class SearchSuggestController extends Controller
     /**
      * @return array{type: string, url: string, handle: string, display_name: string, avatar_url: ?string, is_local: bool}
      */
-    private function personFromUser(User $user): array
-    {
-        $actor = $user->actor;
-
-        return [
-            'type' => 'person',
-            'url' => route('profile.show', $user->username),
-            'handle' => $user->username,
-            'display_name' => $actor?->displayNameForText() ?: ($user->profile?->display_name ?: $user->username),
-            'avatar_url' => $actor?->avatarUrl(),
-            'is_local' => true,
-        ];
-    }
-
-    /**
-     * @return array{type: string, url: string, handle: string, display_name: string, avatar_url: ?string, is_local: bool}
-     */
     private function personFromActor(Actor $actor): array
     {
         return [
             'type' => 'person',
             'url' => $actor->profileUrl(),
-            'handle' => $actor->handle(),
+            'handle' => $actor->isLocal() ? $actor->preferred_username : $actor->handle(),
             'display_name' => $actor->displayNameForText(),
             'avatar_url' => $actor->avatarUrl(),
-            'is_local' => false,
+            'is_local' => $actor->isLocal(),
         ];
     }
 

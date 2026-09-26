@@ -2,7 +2,6 @@
 
 namespace App\Application\Queries;
 
-use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
 use App\Domain\Events\Event;
 use App\Domain\Posts\Hashtag;
@@ -14,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 /**
- * Ricerca locale per parole chiave: posta, commenti, persone, hashtag ed
+ * Ricerca locale per parole chiave: posta, commenti, hashtag ed
  * eventi conservati dall'istanza. Post e commenti restano limitati ai
  * contenuti locali indicizzabili; gli eventi includono anche quelli remoti
  * ricevuti via ActivityPub, perche' costituiscono il catalogo eventi locale.
@@ -40,7 +39,6 @@ final class LocalSearchQuery
 {
     /**
      * @return array{
-     *     people: Collection<int, User>,
      *     posts: Collection<int, Post>,
      *     comments: Collection<int, Comment>,
      *     hashtags: Collection<int, Hashtag>,
@@ -59,7 +57,6 @@ final class LocalSearchQuery
         $pattern = $this->likePattern($term);
 
         return [
-            'people' => $this->people($term, $pattern, $limit),
             'posts' => $this->posts($pattern, $viewer, $limit),
             'comments' => $this->comments($pattern, $viewer, $limit),
             'hashtags' => $this->hashtags(Hashtag::normalize($term), $limit),
@@ -68,51 +65,28 @@ final class LocalSearchQuery
     }
 
     /**
-     * Suggerimenti rapidi mentre si digita nella ricerca: solo persone e
-     * hashtag (niente post/commenti), per tenere la risposta leggera.
+     * Suggerimenti hashtag mentre si digita nella ricerca.
      *
-     * @return array{
-     *     people: Collection<int, User>,
-     *     hashtags: Collection<int, Hashtag>
-     * }
+     * @return Collection<int, Hashtag>
      */
-    public function suggest(string $term, int $peopleLimit = 0, int $hashtagLimit = 0): array
+    public function suggestHashtags(string $term, int $limit): Collection
     {
         $term = trim($term);
         $minLength = (int) config(
             'openbook.search.suggest_min_length',
             (int) config('openbook.search.min_length', 2),
         );
-        $defaultLimit = (int) config('openbook.search.suggest_limit', 8);
-        $peopleLimit = $peopleLimit > 0 ? $peopleLimit : (int) ceil($defaultLimit * 0.6);
-        $hashtagLimit = $hashtagLimit > 0 ? $hashtagLimit : max(1, $defaultLimit - $peopleLimit);
-
         if ($term === '' || mb_strlen(ltrim($term, '#')) < $minLength) {
-            return [
-                'people' => collect(),
-                'hashtags' => collect(),
-            ];
+            return collect();
         }
 
-        $hashOnly = str_starts_with($term, '#');
         $normalizedHashtag = Hashtag::normalize($term);
 
-        if ($hashOnly) {
-            return [
-                'people' => collect(),
-                'hashtags' => $this->hashtags($normalizedHashtag, $peopleLimit + $hashtagLimit),
-            ];
-        }
-
-        return [
-            'people' => $this->people($term, $this->likePattern($term), $peopleLimit),
-            'hashtags' => $this->hashtags($normalizedHashtag, $hashtagLimit),
-        ];
+        return $this->hashtags($normalizedHashtag, $limit);
     }
 
     /**
      * @return array{
-     *     people: Collection<int, User>,
      *     posts: Collection<int, Post>,
      *     comments: Collection<int, Comment>,
      *     hashtags: Collection<int, Hashtag>,
@@ -122,43 +96,11 @@ final class LocalSearchQuery
     private function empty(): array
     {
         return [
-            'people' => collect(),
             'posts' => collect(),
             'comments' => collect(),
             'hashtags' => collect(),
             'events' => collect(),
         ];
-    }
-
-    /**
-     * @return Collection<int, User>
-     */
-    private function people(string $term, string $pattern, int $limit): Collection
-    {
-        $normalizedUsername = mb_strtolower($term);
-
-        return User::query()
-            ->select('users.*')
-            ->with(['profile', 'actor', 'settings'])
-            ->leftJoin('profiles', 'profiles.user_id', '=', 'users.id')
-            ->join('user_settings', 'user_settings.user_id', '=', 'users.id')
-            ->where('users.status', User::STATUS_ACTIVE)
-            ->where('user_settings.discoverable', true)
-            ->where(function ($query) use ($pattern) {
-                $this->whereContains($query, 'users.username', $pattern);
-                $query->orWhere(function ($query) use ($pattern) {
-                    $this->whereContains($query, 'profiles.display_name', $pattern);
-                });
-                $query->orWhere(function ($query) use ($pattern) {
-                    $this->whereContains($query, 'profiles.bio', $pattern);
-                });
-            })
-            // Un match esatto sul username (caso tipico: si cerca "mario"
-            // senza "@dominio") resta in cima, sfruttando anche l'indice unico.
-            ->orderByRaw('case when users.username = ? then 0 else 1 end', [$normalizedUsername])
-            ->orderBy('users.username')
-            ->limit($limit)
-            ->get();
     }
 
     /**

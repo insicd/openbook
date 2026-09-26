@@ -414,7 +414,7 @@ return [
     'search' => [
         'title' => 'Cerca',
         'placeholder' => 'Parola chiave, utente@dominio, oppure URL di un sito/feed',
-        'help' => 'Cerca tra i contenuti di questa istanza (persone, post, commenti, eventi e hashtag), inserisci un indirizzo federato (es. persona@altraistanza.social), oppure l\'URL di un sito o di un feed RSS/Atom per seguirlo come contatto.',
+        'help' => 'Cerca persone locali e remote gia\' note, oltre a post, commenti, eventi e hashtag; inserisci un indirizzo federato (es. persona@altraistanza.social), oppure l\'URL di un sito o di un feed RSS/Atom per seguirlo come contatto.',
         'submit' => 'Cerca',
         'people' => 'Persone',
         'posts' => 'Post',
@@ -423,7 +423,7 @@ return [
         'events' => 'Eventi',
         'suggest_label' => 'Suggerimenti di ricerca',
         'suggest_empty' => 'Nessun suggerimento. Premi Invio per cercare comunque.',
-        'empty' => 'Nessun risultato locale per ":query".',
+        'empty' => 'Nessun risultato per ":query".',
         'view_in_post' => 'Vedi nel post',
         'errors' => [
             'too_short' => 'Inserisci almeno :min caratteri.',
