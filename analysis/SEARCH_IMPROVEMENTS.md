@@ -106,9 +106,13 @@ applicare correttamente visibilità e URL del profilo.
    Ogni altro input è testo di ricerca persone; un solo `@` iniziale è
    facoltativo e non cambia i candidati. Le ricerche ordinarie possono
    continuare a proporre anche hashtag, entro il limite dedicato.
-2. **Normalizzare una volta.** Tagliare gli spazi esterni, uniformare gli
-   spazi interni e rimuovere il `@` iniziale per la ricerca di persone.
-   Conservare l'input originale per l'interfaccia e per il percorso URL/handle.
+2. **Normalizzare nel contesto della query.** Conservare il testo in ingresso
+   senza modificarlo. Solo la query delle persone taglia gli spazi esterni,
+   uniforma quelli interni e considera facoltativo il `@` iniziale. La query
+   di contenuti usa il testo originale e le proprie regole: una menzione
+   `@nome` in un post o evento non deve trasformarsi in `nome`. Anche il
+   percorso URL/handle interpreta l'input originale. Suggerimenti e sezione
+   Persone di `/cerca` condividono la normalizzazione **delle persone**.
    Non applicare ai nomi visualizzati la regex riservata agli username.
 3. **Cercare tutte le persone con la stessa query applicativa.** Per testo
    semplice: corrispondenza su username e frase contenuta nel nome
@@ -175,6 +179,11 @@ post/commenti locali indicizzabili e visibili, eventi visibili e hashtag.
   convenienza, ma il composer ha regole diverse (inserire un handle durante
   la scrittura). Non cambiare la sua semantica incidentalmente; estrarre o
   riusare soltanto le parti effettivamente comuni.
+- **Eventi.** Restano nella pagina completa dopo Invio, inclusi gli eventi
+  remoti memorizzati che superano i filtri di visibilità. Non entrano nei
+  suggerimenti mentre si digita, che continuano a proporre persone e hashtag.
+  `discoverable` riguarda i risultati persona; gli eventi continuano a
+  seguire le proprie regole di visibilità.
 - **Limiti e deduplicazione.** Un Actor locale deve comparire una sola volta.
   Non filtrare i locali *dopo* aver applicato un limite a una query mista:
   può consumare posti e nascondere remoti idonei. Una query unica con limite
@@ -189,8 +198,8 @@ post/commenti locali indicizzabili e visibili, eventi visibili e hashtag.
   ciascuno. Non aggiungere indici sulla sola supposizione che verranno usati.
 - **Campo e UI.** Il browser deve continuare a inviare il testo senza
   reinterpretarlo e mantenere navigazione da tastiera, debounce, annullamento
-  delle richieste obsolete e limiti configurati. La normalizzazione va fatta
-  sul server e condivisa tra suggerimenti e pagina dei risultati.
+  delle richieste obsolete e limiti configurati. Ogni query normalizza la
+  propria copia del testo sul server secondo il contenuto che cerca.
 
 ## Strategia implementativa proposta
 
