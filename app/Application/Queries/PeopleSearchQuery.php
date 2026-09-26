@@ -17,7 +17,7 @@ final class PeopleSearchQuery
     public function search(string $input, int $limit, int $minLength = 2): Collection
     {
         $term = preg_replace('/\s+/u', ' ', trim($input)) ?? trim($input);
-        $term = str_starts_with($term, '@') ? substr($term, 1) : $term;
+        $term = ltrim($term, '@');
 
         if ($term === '' || mb_strlen($term) < $minLength || str_starts_with($term, '#')) {
             return collect();
