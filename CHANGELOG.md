@@ -144,6 +144,9 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- Il comando `openbook:repair-federation-urls` conserva i percorsi dedicati
+  dell'Actor tecnico `/relay` invece di convertirli erroneamente in
+  `/users/relay` quando ripara gli URI degli Actor locali.
 - Le anteprime dei link hanno un limite autonomo di 120 richieste al minuto:
   sfogliare molti post con link non consuma più il limite condiviso da ricerca,
   suggerimenti e notifiche.
