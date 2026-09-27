@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Queries\CommunityDirectoryQuery;
 use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedPage;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
-use App\Application\Queries\SuggestedRemoteCommunitiesQuery;
 use App\Application\Services\CommunityMembershipService;
 use App\Application\Services\CommunityModeratorManager;
 use App\Application\Services\CommunityRegistrar;
@@ -21,7 +21,6 @@ use App\Federation\Actors\LocalActorUrls;
 use App\Http\Requests\Communities\StoreCommunityRequest;
 use App\Http\Requests\Communities\UpdateCommunityRequest;
 use App\Http\Support\ActivityPubNegotiation;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,89 +37,25 @@ class CommunityController extends Controller
         private readonly FeedQuery $feedQuery,
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
-        private readonly SuggestedRemoteCommunitiesQuery $remoteSuggestions,
+        private readonly CommunityDirectoryQuery $directory,
     ) {}
 
     public function index(Request $request): View
     {
-        $scope = $request->query('scope') === 'remote' ? 'remote' : 'local';
+        $requestedScope = $request->query('scope');
+        $scope = in_array($requestedScope, ['mine', 'local', 'remote'], true)
+            ? $requestedScope
+            : ($request->user() === null ? 'local' : 'mine');
         $viewerActor = $request->user()?->actor;
-
-        $suggestedRemoteCommunities = collect();
-        $remoteStatusMap = [];
-
-        if ($scope === 'remote') {
-            $suggestedRemoteCommunities = $this->remoteSuggestions->forViewer($viewerActor);
-
-            if ($viewerActor !== null && $suggestedRemoteCommunities->isNotEmpty()) {
-                $remoteStatusMap = $this->followManager->statusMapFor($viewerActor, $suggestedRemoteCommunities);
-            }
-        }
+        $communities = $this->directory->paginate($scope, $viewerActor);
 
         return view('communities.index', [
             'scope' => $scope,
-            'communities' => $scope === 'remote'
-                ? $this->remoteFollowedCommunities($request)
-                : $this->localCommunities($request),
-            'suggestedRemoteCommunities' => $suggestedRemoteCommunities,
-            'remoteStatusMap' => $remoteStatusMap,
+            'communities' => $communities,
+            'statusMap' => $viewerActor !== null
+                ? $this->followManager->statusMapFor($viewerActor, $communities->getCollection())
+                : [],
         ]);
-    }
-
-    /**
-     * Elenco community locali: le pubbliche per tutti; le private solo per
-     * chi le ha create e per lo staff dell'istanza.
-     */
-    private function localCommunities(Request $request): LengthAwarePaginator
-    {
-        $viewer = $request->user();
-
-        return Community::query()
-            ->with('actor')
-            ->when(
-                $viewer?->isStaff(),
-                fn ($query) => $query,
-                fn ($query) => $query->where(function ($visibility) use ($viewer): void {
-                    $visibility->where('is_private', false);
-
-                    if ($viewer !== null) {
-                        $visibility->orWhere('owner_user_id', $viewer->id);
-                    }
-                }),
-            )
-            ->orderByDesc('members_count')
-            ->orderBy('slug')
-            ->paginate(20)
-            ->withQueryString();
-    }
-
-    /**
-     * Group remoti a cui l'utente autenticato e' iscritto (Follow accettato).
-     * Per gli ospiti la lista e' vuota: l'iscrizione federata richiede un account.
-     */
-    private function remoteFollowedCommunities(Request $request): LengthAwarePaginator
-    {
-        $viewerActorId = $request->user()?->actor?->id;
-
-        if ($viewerActorId === null) {
-            return Actor::query()
-                ->whereRaw('0 = 1')
-                ->paginate(20)
-                ->withQueryString();
-        }
-
-        return Actor::query()
-            ->where('type', Actor::TYPE_GROUP)
-            ->where('is_local', false)
-            ->where('status', Actor::STATUS_ACTIVE)
-            ->whereIn('id', Follow::query()
-                ->select('following_id')
-                ->where('follower_id', $viewerActorId)
-                ->where('status', Follow::STATUS_ACCEPTED))
-            ->orderBy('preferred_username')
-            ->orderBy('domain')
-            ->paginate(20)
-            ->withQueryString();
     }
 
     public function create(): View

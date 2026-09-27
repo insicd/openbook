@@ -203,8 +203,10 @@ Le community sono Actor ActivityPub di tipo `Group`:
 
 - **Locali**: creazione da UI, slug `/c/{slug}`, WebFinger `nome@dominio`, iscrizione
   (Follow/Accept), wall dei post dei membri, Announce del Group in uscita, community
-  private con approvazione, moderatori delegati. Elenco in `/community` con switch
-  **Locali** / **Remote**.
+  private con approvazione, moderatori delegati. L'elenco `/community` distingue
+  **Le tue community**, **Community locali** e **Community remote**; le ultime
+  due includono anche i Group già seguiti. Le tre liste sono ordinate per
+  handle e paginano venti righe alla volta.
 - **Remote** (Lemmy, Friendica, …): ricerca `nome@dominio`, iscrizione federata,
   profilo `/attori/{id}` con composer per i membri, ingestione di Announce/Page
   (FEP-1b12). Gli URI Actor locali usano lo schema Mastodon `/users/{username}` per
