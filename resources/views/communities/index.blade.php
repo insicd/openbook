@@ -26,17 +26,14 @@
     </div>
 
     <div class="ob-card">
-        @if ($scope === 'mine' && auth()->guest())
-            <div class="ob-empty-state">
-                <p>{{ __('openbook.communities.mine_login_prompt') }} <a href="{{ route('login') }}">{{ __('openbook.nav.login') }}</a></p>
-            </div>
-        @elseif ($communities->isEmpty())
-            <div class="ob-empty-state">
-                <p>{{ __('openbook.communities.empty_'.$scope) }}</p>
-            </div>
-        @else
-            @include('communities._directory_list', ['actors' => $communities, 'statusMap' => $statusMap])
-            {{ $communities->links() }}
-        @endif
+        @include('communities._directory_page', [
+            'initialLoading' => true,
+            'initialUrl' => request()->fullUrl(),
+        ])
     </div>
+    <noscript>
+        <div class="ob-card ob-empty-state">
+            <p>{{ __('openbook.communities.requires_js') }}</p>
+        </div>
+    </noscript>
 @endsection

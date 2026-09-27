@@ -6,7 +6,7 @@ use App\Application\Services\DomainBlockManager;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 
 /** Tre viste della directory Group con lo stesso ordinamento per handle. */
 final class CommunityDirectoryQuery
@@ -15,11 +15,11 @@ final class CommunityDirectoryQuery
 
     public function __construct(private readonly DomainBlockManager $domainBlocks) {}
 
-    /** @return LengthAwarePaginator<Actor> */
-    public function paginate(string $scope, ?Actor $viewer): LengthAwarePaginator
+    /** @return Paginator<Actor> */
+    public function paginate(string $scope, ?Actor $viewer): Paginator
     {
         if ($scope === 'mine' && $viewer === null) {
-            return new LengthAwarePaginator([], 0, self::PER_PAGE);
+            return new Paginator([], self::PER_PAGE);
         }
 
         $query = Actor::query()
@@ -71,7 +71,7 @@ final class CommunityDirectoryQuery
             ->orderByRaw('LOWER(actors.preferred_username)')
             ->orderByRaw('LOWER(actors.domain)')
             ->orderBy('actors.id')
-            ->paginate(self::PER_PAGE)
+            ->simplePaginate(self::PER_PAGE)
             ->withQueryString();
     }
 

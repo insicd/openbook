@@ -604,11 +604,19 @@ class CommunityTest extends TestCase
 
         $this->get(route('communities.index'))
             ->assertOk()
-            ->assertSee('Biblioteca locale')
-            ->assertSee('!biblioteca')
+            ->assertDontSee('Biblioteca locale')
+            ->assertSee('data-initial-load')
             ->assertSee(__('openbook.communities.scope_mine'))
             ->assertSee(__('openbook.communities.scope_local'))
             ->assertSee(__('openbook.communities.scope_remote'));
+
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest');
+        $this->get(route('communities.index'))
+            ->assertOk()
+            ->assertSee('Biblioteca locale')
+            ->assertSee('!biblioteca')
+            ->assertDontSee(__('openbook.communities.scope_remote'))
+            ->assertDontSee('<html', false);
 
         $this->get(route('communities.index', ['scope' => 'mine']))
             ->assertOk()
@@ -627,13 +635,13 @@ class CommunityTest extends TestCase
             'is_private' => true,
         ]);
 
-        $this->get(route('communities.index'))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index'))
             ->assertOk()
             ->assertDontSee('Cerchia nascosta')
             ->assertDontSee('!solo-noi');
 
         $this->actingAs($other)
-            ->get(route('communities.index', ['scope' => 'local']))
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'local']))
             ->assertOk()
             ->assertDontSee('Cerchia nascosta')
             ->assertDontSee('!solo-noi');
@@ -652,14 +660,14 @@ class CommunityTest extends TestCase
         ]);
 
         $this->actingAs($owner)
-            ->get(route('communities.index'))
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index'))
             ->assertOk()
             ->assertSee('Archivio del creatore')
             ->assertSee('!archivio-privato')
             ->assertSee(__('openbook.communities.private_badge'));
 
         $this->actingAs($staff)
-            ->get(route('communities.index', ['scope' => 'local']))
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'local']))
             ->assertOk()
             ->assertSee('Archivio del creatore')
             ->assertSee(__('openbook.communities.private_badge'));
@@ -690,7 +698,7 @@ class CommunityTest extends TestCase
         ]);
 
         $this->actingAs($member)
-            ->get(route('communities.index'))
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index'))
             ->assertOk()
             ->assertSee('Circolo remoto')
             ->assertSee('!circolo@forum.example')
@@ -708,7 +716,7 @@ class CommunityTest extends TestCase
             'name' => 'Solo con account',
         ]);
 
-        $this->get(route('communities.index', ['scope' => 'remote']))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
             ->assertOk()
             ->assertSee('Solo con account')
             ->assertSee(route('login'));
@@ -744,7 +752,7 @@ class CommunityTest extends TestCase
         ]);
 
         $response = $this->actingAs($newcomer)
-            ->get(route('communities.index', ['scope' => 'remote']));
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']));
 
         $response->assertOk()
             ->assertSee('Linux remoto', false)
@@ -774,7 +782,7 @@ class CommunityTest extends TestCase
             'accepted_at' => now(),
         ]);
 
-        $this->get(route('communities.index', ['scope' => 'remote']))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
             ->assertOk()
             ->assertSee('Linux remoto', false)
             ->assertDontSee(__('openbook.communities.empty_remote'));
@@ -798,14 +806,14 @@ class CommunityTest extends TestCase
             'accepted_at' => now(),
         ]);
 
-        $this->actingAs($member)->get(route('communities.index'))
+        $this->actingAs($member)->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index'))
             ->assertSee('Club privato');
-        $this->get(route('communities.index', ['scope' => 'local']))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'local']))
             ->assertSee('Club privato')
             ->assertSee(route('communities.leave', $community), false);
 
         auth()->logout();
-        $this->get(route('communities.index', ['scope' => 'local']))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'local']))
             ->assertDontSee('Club privato');
     }
 
@@ -831,12 +839,12 @@ class CommunityTest extends TestCase
             'accepted_at' => now(),
         ]);
 
-        $this->actingAs($viewer)->get(route('communities.index', ['scope' => 'remote']))
+        $this->actingAs($viewer)->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
             ->assertSee('Hidden group')
             ->assertDontSee($other->name);
 
         auth()->logout();
-        $this->get(route('communities.index', ['scope' => 'remote']))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
             ->assertDontSee('Hidden group')
             ->assertDontSee($other->name);
     }
@@ -854,9 +862,9 @@ class CommunityTest extends TestCase
             'requested_at' => now(),
         ]);
 
-        $this->actingAs($viewer)->get(route('communities.index'))
+        $this->actingAs($viewer)->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index'))
             ->assertDontSee('!pendinggroup@groups.example');
-        $this->get(route('communities.index', ['scope' => 'remote']))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
             ->assertSee('!pendinggroup@groups.example')
             ->assertSee(__('openbook.communities.list_cancel_request'));
     }
@@ -868,7 +876,7 @@ class CommunityTest extends TestCase
         ]);
         DomainBlock::query()->create(['domain' => 'blocked.example']);
 
-        $this->get(route('communities.index', ['scope' => 'remote']))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
             ->assertOk()
             ->assertDontSee('!'.$blocked->handle());
     }
@@ -887,7 +895,7 @@ class CommunityTest extends TestCase
             ]);
         }
 
-        $this->get(route('communities.index', ['scope' => 'remote']))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
             ->assertOk()
             ->assertSeeInOrder([
                 '!Alpha@groups.example',
@@ -911,15 +919,17 @@ class CommunityTest extends TestCase
             ]);
         }
 
-        $first = $this->get(route('communities.index', ['scope' => 'remote']))->assertOk();
+        $first = $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))->assertOk();
         $first->assertSeeInOrder(['!group00@groups.example', '!group01@groups.example', '!group19@groups.example'])
             ->assertDontSee('!group20@groups.example')
-            ->assertSee('scope=remote&amp;page=2', false);
+            ->assertSee('scope=remote&amp;page=2', false)
+            ->assertDontSee('ob-pagination');
 
-        $this->get(route('communities.index', ['scope' => 'remote', 'page' => 2]))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote', 'page' => 2]))
             ->assertOk()
             ->assertSee('!group20@groups.example')
-            ->assertDontSee('!group19@groups.example');
+            ->assertDontSee('!group19@groups.example')
+            ->assertDontSee('data-next-url');
     }
 
     public function test_a_non_member_can_visit_a_private_community_and_request_to_join(): void

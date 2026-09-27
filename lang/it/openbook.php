@@ -596,6 +596,7 @@ return [
         'scope_local' => 'Community locali',
         'scope_remote' => 'Community remote',
         'mine_login_prompt' => 'Accedi per vedere le tue community.',
+        'requires_js' => 'Attiva JavaScript per sfogliare le community.',
         'list_owned' => 'Creata da te',
         'list_leave' => 'Disiscriviti',
         'list_cancel_request' => 'Annulla richiesta',

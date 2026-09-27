@@ -5,10 +5,9 @@ Questo documento definisce il lavoro sull'indice `/community`; il muro dei
 post di una singola community e i profili remoti restano nel TODO di
 `analysis/LAZY_HOME.md` e `analysis/TODO.md`.
 
-**Stato:** sprint 1 implementato. Le tre schede condividono query e riga,
-mostrano gli stati di iscrizione e conservano temporaneamente la paginazione
-manuale. Il caricamento a frammenti e le azioni inline restano agli sprint 2
-e 3.
+**Stato:** sprint 2 implementato. Le tre schede condividono query e riga;
+la pagina normale è una cornice, mentre primo blocco e successivi arrivano
+come frammenti AJAX. Le azioni inline restano allo sprint 3.
 
 ## Problema osservato
 
@@ -191,6 +190,17 @@ di produzione, senza assumere che il piano locale predica il costo reale.
   duplicati, fine elenco, schede vuote, cambio scheda, reload diretto e
   errore/riprova. Test funzionali su SQLite e controllo delle query/piani
   MySQL per i blocchi successivi.
+
+**Esito tecnico:** il controller restituisce la cornice senza interrogare la
+directory; la richiesta AJAX esegue solo lo scope attivo. Il caricatore
+condiviso prende il primo blocco e i successivi da `_directory_page`.
+`simplePaginate(20)` richiede 21 righe per determinare se esiste un blocco
+successivo, senza un conteggio globale. L'ordinamento conserva handle,
+dominio e ID come discriminanti; l'offset può comunque risentire di nuove
+community inserite durante lo scroll, un limite da rivalutare se osservato.
+Su MySQL locale l'`EXPLAIN` della seconda pagina Remote (LIMIT 21 OFFSET 20)
+usa `actors_type_index` e filesort su 22 Actor. Il campione resta troppo
+piccolo per spiegare la lentezza osservata su un'istanza più popolata.
 
 ### Sprint 3 — Azioni senza perdere lo scroll e rifinitura
 

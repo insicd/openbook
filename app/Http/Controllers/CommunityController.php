@@ -46,10 +46,14 @@ class CommunityController extends Controller
         $scope = in_array($requestedScope, ['mine', 'local', 'remote'], true)
             ? $requestedScope
             : ($request->user() === null ? 'local' : 'mine');
+        if (! $request->ajax()) {
+            return view('communities.index', ['scope' => $scope]);
+        }
+
         $viewerActor = $request->user()?->actor;
         $communities = $this->directory->paginate($scope, $viewerActor);
 
-        return view('communities.index', [
+        return view('communities._directory_page', [
             'scope' => $scope,
             'communities' => $communities,
             'statusMap' => $viewerActor !== null
