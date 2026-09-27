@@ -5,9 +5,10 @@ Questo documento definisce il lavoro sull'indice `/community`; il muro dei
 post di una singola community e i profili remoti restano nel TODO di
 `analysis/LAZY_HOME.md` e `analysis/TODO.md`.
 
-**Stato:** sprint 2 implementato. Le tre schede condividono query e riga;
-la pagina normale è una cornice, mentre primo blocco e successivi arrivano
-come frammenti AJAX. Le azioni inline restano allo sprint 3.
+**Stato:** sprint 3 implementato e provato manualmente. Le tre schede
+condividono query e riga; la pagina normale è una cornice, mentre primo blocco
+e successivi arrivano come frammenti AJAX. Le azioni aggiornano la singola
+riga senza perdere i blocchi caricati.
 
 ## Problema osservato
 
@@ -212,6 +213,14 @@ piccolo per spiegare la lentezza osservata su un'istanza più popolata.
   fallimenti mostrati senza alterare lo stato della card, private locali,
   stato remoto pending/accepted e protezione dell'owner. Rieseguire i test
   mirati e la suite completa prima della PR.
+
+**Esito tecnico:** le route esistenti rispondono con la riga aggiornata quando
+la richiesta accetta JSON; i form HTML continuano a fare redirect. La
+directory intercetta l'invio anche per le righe aggiunte dallo scroll e
+aggiorna o rimuove solo quella interessata. Un errore lascia intatta la riga
+e mostra un messaggio accessibile. Le richieste in attesa per le community
+locali private sono annullabili tramite la stessa route di uscita, con policy
+estesa al `Follow` pending; il proprietario resta escluso.
 
 Ogni sprint si ferma a una prova visiva e funzionale prima del successivo.
 Questo lavoro riguarda l'indice delle community; lo scroll del muro dei post

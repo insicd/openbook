@@ -98,9 +98,10 @@ la [roadmap](docs/roadmap.md).
 ### Changed
 - L'elenco `/community` separa le community in «Le tue», «Locali» e
   «Remote». Ogni scheda carica progressivamente venti Group alla volta in
-  ordine di handle, inclusi quelli già seguiti, con l'azione o lo stato di
-  iscrizione sulla riga. Le community remote note non richiedono più un
-  iscritto locale per comparire nella directory; i Group non scopribili
+  ordine di handle, inclusi quelli già seguiti. Iscrizione, disiscrizione e
+  annullamento delle richieste aggiornano la riga senza ricaricare la pagina.
+  Le community remote note non richiedono più un iscritto locale per
+  comparire nella directory; i Group non scopribili
   restano visibili solo a chi li segue o ha una richiesta in attesa.
 - **Ricerca persone**: la lente e la sezione Persone di `/cerca` cercano con
   le stesse regole gli Actor locali e remoti gia' noti all'istanza. La `@`

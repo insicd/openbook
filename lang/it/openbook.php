@@ -597,6 +597,7 @@ return [
         'scope_remote' => 'Community remote',
         'mine_login_prompt' => 'Accedi per vedere le tue community.',
         'requires_js' => 'Attiva JavaScript per sfogliare le community.',
+        'action_error' => 'Non è stato possibile aggiornare l’iscrizione. Riprova.',
         'list_owned' => 'Creata da te',
         'list_leave' => 'Disiscriviti',
         'list_cancel_request' => 'Annulla richiesta',

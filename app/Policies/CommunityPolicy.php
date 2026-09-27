@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Domain\Accounts\User;
 use App\Domain\Communities\Community;
+use App\Domain\SocialGraph\Follow;
 
 class CommunityPolicy
 {
@@ -62,7 +63,11 @@ class CommunityPolicy
     {
         return $user->actor !== null
             && ! $community->isOwnedBy($user)
-            && $community->isMember($user->actor);
+            && Follow::query()
+                ->where('follower_id', $user->actor->id)
+                ->where('following_id', $community->actor_id)
+                ->whereIn('status', [Follow::STATUS_ACCEPTED, Follow::STATUS_PENDING])
+                ->exists();
     }
 
     public function moderate(User $user, Community $community): bool

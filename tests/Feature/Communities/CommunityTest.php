@@ -932,6 +932,92 @@ class CommunityTest extends TestCase
             ->assertDontSee('data-next-url');
     }
 
+    public function test_local_membership_actions_return_an_updated_directory_row(): void
+    {
+        $owner = $this->createFullAccount('rowowner');
+        $member = $this->createFullAccount('rowmember');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'rowcommunity',
+            'name' => 'Community in lista',
+        ]);
+
+        $joined = $this->actingAs($member)->postJson(route('communities.join', $community));
+        $joined->assertOk()
+            ->assertJsonPath('following', true)
+            ->assertJsonPath('listed.mine', true)
+            ->assertJsonPath('html', fn (string $html): bool => str_contains($html, __('openbook.communities.list_leave')));
+
+        $left = $this->deleteJson(route('communities.leave', $community));
+        $left->assertOk()
+            ->assertJsonPath('following', false)
+            ->assertJsonPath('listed.mine', false)
+            ->assertJsonPath('listed.local', true)
+            ->assertJsonPath('html', fn (string $html): bool => str_contains($html, __('openbook.communities.join')));
+
+        $this->actingAs($owner)->deleteJson(route('communities.leave', $community))
+            ->assertForbidden();
+    }
+
+    public function test_pending_local_membership_can_be_cancelled_from_the_directory(): void
+    {
+        $owner = $this->createFullAccount('pendingowner');
+        $member = $this->createFullAccount('pendingmember');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'pendinglocal',
+            'name' => 'Community privata',
+            'is_private' => true,
+        ]);
+
+        $this->actingAs($member)->postJson(route('communities.join', $community))
+            ->assertOk()
+            ->assertJsonPath('following', false)
+            ->assertJsonPath('listed.local', false)
+            ->assertSee(__('openbook.communities.list_cancel_request'));
+
+        $this->deleteJson(route('communities.leave', $community))
+            ->assertOk()
+            ->assertSee(__('openbook.communities.request_join'));
+
+        $this->assertDatabaseMissing('follows', [
+            'follower_id' => $member->actor->id,
+            'following_id' => $community->actor_id,
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $member->actor->id,
+            'following_id' => $community->actor_id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $this->deleteJson(route('communities.leave', $community))
+            ->assertOk()
+            ->assertJsonPath('listed.local', false);
+    }
+
+    public function test_remote_group_membership_actions_return_an_updated_directory_row(): void
+    {
+        Queue::fake();
+        $viewer = $this->createFullAccount('remoterowviewer');
+        $group = $this->createRemoteActor('remoterow', 'groups.example', [
+            'type' => Actor::TYPE_GROUP,
+            'discoverable' => false,
+        ]);
+
+        $this->actingAs($viewer)->postJson(route('actors.follow', $group))
+            ->assertOk()
+            ->assertJsonPath('following', false)
+            ->assertJsonPath('listed.remote', true)
+            ->assertSee(__('openbook.communities.list_cancel_request'));
+
+        $this->deleteJson(route('actors.unfollow', $group))
+            ->assertOk()
+            ->assertJsonPath('following', false)
+            ->assertJsonPath('listed.remote', false)
+            ->assertJsonPath('html', fn (string $html): bool => str_contains($html, route('actors.follow', $group)));
+    }
+
     public function test_a_non_member_can_visit_a_private_community_and_request_to_join(): void
     {
         $owner = $this->createFullAccount('privowner');

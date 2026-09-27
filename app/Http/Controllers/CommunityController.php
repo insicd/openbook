@@ -21,7 +21,9 @@ use App\Federation\Actors\LocalActorUrls;
 use App\Http\Requests\Communities\StoreCommunityRequest;
 use App\Http\Requests\Communities\UpdateCommunityRequest;
 use App\Http\Support\ActivityPubNegotiation;
+use App\Http\Support\CommunityDirectoryRowResponse;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -38,6 +40,7 @@ class CommunityController extends Controller
         private readonly FollowManager $followManager,
         private readonly FollowListQuery $followListQuery,
         private readonly CommunityDirectoryQuery $directory,
+        private readonly CommunityDirectoryRowResponse $directoryRow,
     ) {}
 
     public function index(Request $request): View
@@ -191,7 +194,7 @@ class CommunityController extends Controller
             ->with('status', __('openbook.communities.updated'));
     }
 
-    public function join(Community $community): RedirectResponse
+    public function join(Request $request, Community $community): RedirectResponse|JsonResponse
     {
         Gate::authorize('join', $community);
 
@@ -205,10 +208,14 @@ class CommunityController extends Controller
             ? __('openbook.communities.request_sent')
             : __('openbook.communities.joined');
 
+        if ($request->expectsJson()) {
+            return $this->directoryRow->forActor($community->actor, $request->user()->actor);
+        }
+
         return back()->with('status', $status);
     }
 
-    public function leave(Community $community): RedirectResponse
+    public function leave(Request $request, Community $community): RedirectResponse|JsonResponse
     {
         Gate::authorize('leave', $community);
 
@@ -216,6 +223,10 @@ class CommunityController extends Controller
             $this->membership->leave(auth()->user()->actor, $community);
         } catch (\InvalidArgumentException $exception) {
             throw ValidationException::withMessages(['community' => $exception->getMessage()]);
+        }
+
+        if ($request->expectsJson()) {
+            return $this->directoryRow->forActor($community->actor, $request->user()->actor);
         }
 
         return back()->with('status', __('openbook.communities.left'));

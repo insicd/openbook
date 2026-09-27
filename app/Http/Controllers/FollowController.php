@@ -6,13 +6,17 @@ use App\Application\Services\FollowManager;
 use App\Domain\Accounts\User;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Http\Support\CommunityDirectoryRowResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class FollowController extends Controller
 {
     public function __construct(
         private readonly FollowManager $followManager,
+        private readonly CommunityDirectoryRowResponse $directoryRow,
     ) {}
 
     public function store(User $user): RedirectResponse
@@ -38,7 +42,7 @@ class FollowController extends Controller
      * richiesta resta sempre "in attesa" finche' non arriva un Accept dal
      * server remoto (vedi {@see FollowManager::follow()}).
      */
-    public function storeForActor(Actor $actor): RedirectResponse
+    public function storeForActor(Request $request, Actor $actor): RedirectResponse|JsonResponse
     {
         try {
             $this->followManager->follow(auth()->user()->actor, $actor);
@@ -46,12 +50,20 @@ class FollowController extends Controller
             throw ValidationException::withMessages(['follow' => $exception->getMessage()]);
         }
 
+        if ($request->expectsJson() && $actor->isGroup()) {
+            return $this->directoryRow->forActor($actor, $request->user()->actor);
+        }
+
         return back()->with('status', 'Richiesta di follow inviata.');
     }
 
-    public function destroyForActor(Actor $actor): RedirectResponse
+    public function destroyForActor(Request $request, Actor $actor): RedirectResponse|JsonResponse
     {
         $this->followManager->unfollow(auth()->user()->actor, $actor);
+
+        if ($request->expectsJson() && $actor->isGroup()) {
+            return $this->directoryRow->forActor($actor, $request->user()->actor);
+        }
 
         return back();
     }

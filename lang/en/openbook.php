@@ -597,6 +597,7 @@ return [
         'scope_remote' => 'Remote communities',
         'mine_login_prompt' => 'Sign in to see your communities.',
         'requires_js' => 'Enable JavaScript to browse communities.',
+        'action_error' => 'Could not update your membership. Please try again.',
         'list_owned' => 'Created by you',
         'list_leave' => 'Leave community',
         'list_cancel_request' => 'Cancel request',

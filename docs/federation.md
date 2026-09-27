@@ -219,6 +219,8 @@ Communities are ActivityPub Actors of type `Group`:
   directory has **Your communities**, **Local communities**, and **Remote
   communities** tabs. The latter two also include joined Groups; all three
   lists are ordered by handle and load twenty rows at a time as you scroll.
+  Membership actions update the row without reloading the page; pending
+  requests to private local communities can also be cancelled.
 - **Remote** (Lemmy, Friendica, …): search `nome@dominio`, federated join,
   profile `/attori/{id}` with a composer for members, ingestion of
   Announce/Page (FEP-1b12). Local Actor URIs use the Mastodon scheme

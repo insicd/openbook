@@ -4,6 +4,9 @@
 <ul
     class="ob-community-list"
     data-infinite-scroll
+    data-community-directory
+    data-scope="{{ $scope }}"
+    data-action-error-label="{{ __('openbook.communities.action_error') }}"
     data-async-feed
     data-retry-label="{{ __('openbook.infinite_scroll.retry') }}"
     @if ($initialLoading ?? false) data-initial-load @endif

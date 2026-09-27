@@ -36,4 +36,5 @@
             <p>{{ __('openbook.communities.requires_js') }}</p>
         </div>
     </noscript>
+    <script src="{{ \App\Support\Assets::url('assets/js/community-directory.js') }}" defer></script>
 @endsection
