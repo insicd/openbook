@@ -4,12 +4,14 @@ namespace App\Application\Queries;
 
 use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 /**
  * Suggerimenti per l'autocomplete delle menzioni nel composer: Person
  * locali e remoti gia' in cache, filtrati per prefisso di username
- * (e opzionalmente di dominio dopo il secondo "@").
+ * (e opzionalmente di dominio dopo il secondo "@"). La chat puo' includere
+ * anche gli Actor Application remoti con inbox.
  */
 final class MentionSuggestQuery
 {
@@ -18,7 +20,7 @@ final class MentionSuggestQuery
     /**
      * @return Collection<int, Actor>
      */
-    public function forPrefix(string $prefix, ?Actor $viewer = null, int $limit = 0): Collection
+    public function forPrefix(string $prefix, ?Actor $viewer = null, int $limit = 0, bool $includeRemoteApplications = false): Collection
     {
         $prefix = ltrim(trim($prefix), '@');
         $limit = $limit > 0 ? $limit : (int) config('openbook.mentions.suggest_limit', self::DEFAULT_LIMIT);
@@ -45,7 +47,19 @@ final class MentionSuggestQuery
 
         $query = Actor::query()
             ->with(['user.profile'])
-            ->where('type', Actor::TYPE_PERSON)
+            ->where(function (Builder $builder) use ($includeRemoteApplications): void {
+                $builder->where('type', Actor::TYPE_PERSON);
+
+                if ($includeRemoteApplications) {
+                    $builder->orWhere(function (Builder $application): void {
+                        $application->where('type', Actor::TYPE_APPLICATION)
+                            ->where('is_local', false)
+                            ->whereHas('endpoints', function (Builder $endpoints): void {
+                                $endpoints->where('inbox', '!=', '')->orWhere('shared_inbox', '!=', '');
+                            });
+                    });
+                }
+            })
             ->where('status', Actor::STATUS_ACTIVE)
             ->when(
                 $viewer !== null,
@@ -60,7 +74,7 @@ final class MentionSuggestQuery
                 });
         } else {
             $userPattern = $this->likePrefix($username);
-            $query->where(function (Builder $builder) use ($userPattern, $username): void {
+            $query->where(function (Builder $builder) use ($userPattern): void {
                 $this->whereStartsWith($builder, 'preferred_username', $userPattern);
                 $builder->orWhere(function (Builder $builder) use ($userPattern): void {
                     $this->whereStartsWith($builder, 'name', $userPattern);
@@ -87,7 +101,7 @@ final class MentionSuggestQuery
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  Builder<Model>  $query
      */
     private function whereStartsWith(Builder $query, string $column, string $pattern): void
     {

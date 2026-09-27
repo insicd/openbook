@@ -120,7 +120,7 @@ class ConversationController extends Controller
         $prefix = (string) $request->query('q', '');
         $viewer = $request->user()->actor;
 
-        $actors = $this->mentionSuggest->forPrefix($prefix, $viewer);
+        $actors = $this->mentionSuggest->forPrefix($prefix, $viewer, includeRemoteApplications: true);
 
         return response()->json([
             'suggestions' => $actors->map(fn (Actor $actor) => [
@@ -137,7 +137,14 @@ class ConversationController extends Controller
 
     public function openActor(Request $request, Actor $actor): RedirectResponse
     {
-        abort_unless($actor->isPerson() && $actor->isActive(), 404);
+        abort_unless(
+            $actor->isActive() && ($actor->isPerson() || (! $actor->isLocal() && $actor->isApplication())),
+            404,
+        );
+
+        if ($actor->isApplication()) {
+            abort_unless($this->policy->canSend($request->user()->actor, $actor), 404);
+        }
 
         return $this->redirectToConversation($request, $actor);
     }

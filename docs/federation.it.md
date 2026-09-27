@@ -147,7 +147,10 @@ finalmente bidirezionale.
   /`Delete`) e `CommentComposer`/`CommentController` (`Create`/`Delete`, sempre
   recapitato anche all'autore del contenuto padre come destinatario diretto). I
   messaggi con visibilita' "diretta" vengono consegnati solo agli Actor
-  esplicitamente menzionati, mai a tutti i follower.
+  esplicitamente menzionati, mai a tutti i follower. La chat puo' indirizzare
+  messaggi anche ad Actor `Application` remoti attivi con una inbox, oltre che
+  alle persone; community e Actor tecnico locale `/relay` non sono destinatari
+  della chat.
 - **Coda e cron**: la coda usa il driver database di Laravel (tabelle `jobs` e
   `failed_jobs`, gia' presenti dall'installer), coerente con i vincoli di shared
   hosting (nessun processo permanente, nessun Redis/RabbitMQ). I comandi
