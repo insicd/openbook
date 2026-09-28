@@ -9,6 +9,7 @@ use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\FollowManager;
 use App\Application\Services\PostComposer;
 use App\Domain\Communities\Community;
+use App\Domain\Moderation\DomainBlock;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
@@ -593,7 +594,7 @@ class CommunityTest extends TestCase
         );
     }
 
-    public function test_communities_index_lists_local_public_communities_by_default(): void
+    public function test_communities_index_defaults_to_local_for_guests(): void
     {
         $owner = $this->createFullAccount('listowner');
         app(CommunityRegistrar::class)->register($owner, [
@@ -603,10 +604,24 @@ class CommunityTest extends TestCase
 
         $this->get(route('communities.index'))
             ->assertOk()
-            ->assertSee('Biblioteca locale')
-            ->assertSee('!biblioteca')
+            ->assertDontSee('Biblioteca locale')
+            ->assertSee('data-initial-load')
+            ->assertSee(__('openbook.communities.scope_mine'))
             ->assertSee(__('openbook.communities.scope_local'))
             ->assertSee(__('openbook.communities.scope_remote'));
+
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest');
+        $this->get(route('communities.index'))
+            ->assertOk()
+            ->assertSee('Biblioteca locale')
+            ->assertSee('!biblioteca')
+            ->assertDontSee(__('openbook.communities.scope_remote'))
+            ->assertDontSee('<html', false);
+
+        $this->get(route('communities.index', ['scope' => 'mine']))
+            ->assertOk()
+            ->assertSee(__('openbook.communities.mine_login_prompt'))
+            ->assertDontSee('Biblioteca locale');
     }
 
     public function test_communities_index_hides_private_communities_from_guests_and_other_users(): void
@@ -620,13 +635,13 @@ class CommunityTest extends TestCase
             'is_private' => true,
         ]);
 
-        $this->get(route('communities.index'))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index'))
             ->assertOk()
             ->assertDontSee('Cerchia nascosta')
             ->assertDontSee('!solo-noi');
 
         $this->actingAs($other)
-            ->get(route('communities.index'))
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'local']))
             ->assertOk()
             ->assertDontSee('Cerchia nascosta')
             ->assertDontSee('!solo-noi');
@@ -645,27 +660,31 @@ class CommunityTest extends TestCase
         ]);
 
         $this->actingAs($owner)
-            ->get(route('communities.index'))
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index'))
             ->assertOk()
             ->assertSee('Archivio del creatore')
             ->assertSee('!archivio-privato')
             ->assertSee(__('openbook.communities.private_badge'));
 
         $this->actingAs($staff)
-            ->get(route('communities.index'))
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'local']))
             ->assertOk()
             ->assertSee('Archivio del creatore')
             ->assertSee(__('openbook.communities.private_badge'));
     }
 
-    public function test_communities_index_remote_tab_lists_followed_remote_groups(): void
+    public function test_my_communities_lists_accepted_local_and_remote_groups(): void
     {
         $member = $this->createFullAccount('remotemember');
+        $local = app(CommunityRegistrar::class)->register($member, [
+            'slug' => 'biblioteca',
+            'name' => 'Biblioteca locale',
+        ]);
         $followed = $this->createRemoteActor('circolo', 'forum.example', [
             'type' => Actor::TYPE_GROUP,
             'name' => 'Circolo remoto',
         ]);
-        $ignored = $this->createRemoteActor('altro', 'forum.example', [
+        $notFollowed = $this->createRemoteActor('altro', 'forum.example', [
             'type' => Actor::TYPE_GROUP,
             'name' => 'Non seguito',
         ]);
@@ -679,28 +698,31 @@ class CommunityTest extends TestCase
         ]);
 
         $this->actingAs($member)
-            ->get(route('communities.index', ['scope' => 'remote']))
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index'))
             ->assertOk()
             ->assertSee('Circolo remoto')
             ->assertSee('!circolo@forum.example')
+            ->assertSee('Biblioteca locale')
+            ->assertSee(route('communities.show', $local))
+            ->assertSee(__('openbook.communities.list_owned'))
             ->assertDontSee('Non seguito')
-            ->assertDontSee($ignored->name);
+            ->assertDontSee($notFollowed->name);
     }
 
-    public function test_communities_index_remote_tab_is_empty_for_guests(): void
+    public function test_remote_communities_are_visible_to_guests_without_a_local_follower(): void
     {
         $this->createRemoteActor('ospite', 'forum.example', [
             'type' => Actor::TYPE_GROUP,
             'name' => 'Solo con account',
         ]);
 
-        $this->get(route('communities.index', ['scope' => 'remote']))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
             ->assertOk()
-            ->assertSee(__('openbook.communities.empty_remote_guest'))
-            ->assertDontSee('Solo con account');
+            ->assertSee('Solo con account')
+            ->assertSee(route('login'));
     }
 
-    public function test_communities_index_remote_tab_suggests_groups_followed_by_local_users(): void
+    public function test_remote_tab_keeps_followed_groups_and_shows_join_state(): void
     {
         $member = $this->createFullAccount('localsubscriber');
         $newcomer = $this->createFullAccount('newmember');
@@ -730,21 +752,21 @@ class CommunityTest extends TestCase
         ]);
 
         $response = $this->actingAs($newcomer)
-            ->get(route('communities.index', ['scope' => 'remote']));
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']));
 
         $response->assertOk()
-            ->assertSee(__('openbook.communities.suggested_remote_title'), false)
             ->assertSee('Linux remoto', false)
             ->assertSee('!linux@lemmy.example', false)
-            ->assertSee(__('openbook.communities.your_remote_title'), false)
-            ->assertSee('Gia mia community', false);
+            ->assertSee('Gia mia community', false)
+            ->assertSee(route('actors.unfollow', $alreadyFollowed), false)
+            ->assertSee(route('actors.follow', $popular), false);
 
         $content = $response->getContent();
         $this->assertSame(1, substr_count($content, '!linux@lemmy.example'));
         $this->assertSame(1, substr_count($content, '!giaiscritto@lemmy.example'));
     }
 
-    public function test_communities_index_remote_tab_suggestions_visible_to_guests(): void
+    public function test_remote_tab_shows_known_groups_to_guests(): void
     {
         $member = $this->createFullAccount('localsubscriber');
         $popular = $this->createRemoteActor('linux', 'lemmy.example', [
@@ -760,12 +782,240 @@ class CommunityTest extends TestCase
             'accepted_at' => now(),
         ]);
 
-        $this->get(route('communities.index', ['scope' => 'remote']))
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
             ->assertOk()
-            ->assertSee(__('openbook.communities.suggested_remote_title'), false)
             ->assertSee('Linux remoto', false)
-            ->assertSee(__('openbook.communities.empty_remote_guest'))
-            ->assertDontSee(__('openbook.communities.your_remote_title'), false);
+            ->assertDontSee(__('openbook.communities.empty_remote'));
+    }
+
+    public function test_private_local_members_see_their_community_without_exposing_it_to_guests(): void
+    {
+        $owner = $this->createFullAccount('privateowner');
+        $member = $this->createFullAccount('privatemember');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'private-club',
+            'name' => 'Club privato',
+            'is_private' => true,
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $member->actor->id,
+            'following_id' => $community->actor_id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $this->actingAs($member)->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index'))
+            ->assertSee('Club privato');
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'local']))
+            ->assertSee('Club privato')
+            ->assertSee(route('communities.leave', $community), false);
+
+        auth()->logout();
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'local']))
+            ->assertDontSee('Club privato');
+    }
+
+    public function test_remote_directory_respects_discoverability_but_keeps_followed_groups_visible(): void
+    {
+        $viewer = $this->createFullAccount('remoteviewer');
+        $hidden = $this->createRemoteActor('hidden', 'groups.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Hidden group',
+            'discoverable' => false,
+        ]);
+        $other = $this->createRemoteActor('other', 'groups.example', [
+            'type' => Actor::TYPE_GROUP,
+            'name' => 'Other hidden group',
+            'discoverable' => false,
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $viewer->actor->id,
+            'following_id' => $hidden->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $this->actingAs($viewer)->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
+            ->assertSee('Hidden group')
+            ->assertDontSee($other->name);
+
+        auth()->logout();
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
+            ->assertDontSee('Hidden group')
+            ->assertDontSee($other->name);
+    }
+
+    public function test_pending_remote_membership_is_not_listed_as_mine(): void
+    {
+        $viewer = $this->createFullAccount('pendingviewer');
+        $group = $this->createRemoteActor('pendinggroup', 'groups.example', [
+            'type' => Actor::TYPE_GROUP,
+        ]);
+        Follow::query()->create([
+            'follower_id' => $viewer->actor->id,
+            'following_id' => $group->id,
+            'status' => Follow::STATUS_PENDING,
+            'requested_at' => now(),
+        ]);
+
+        $this->actingAs($viewer)->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index'))
+            ->assertDontSee('!pendinggroup@groups.example');
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
+            ->assertSee('!pendinggroup@groups.example')
+            ->assertSee(__('openbook.communities.list_cancel_request'));
+    }
+
+    public function test_remote_directory_hides_blocked_domains(): void
+    {
+        $blocked = $this->createRemoteActor('blocked', 'blocked.example', [
+            'type' => Actor::TYPE_GROUP,
+        ]);
+        DomainBlock::query()->create(['domain' => 'blocked.example']);
+
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
+            ->assertOk()
+            ->assertDontSee('!'.$blocked->handle());
+    }
+
+    public function test_community_directory_sorts_handles_without_case_difference(): void
+    {
+        foreach (['bravo', 'Alpha', 'zebra'] as $username) {
+            Actor::query()->create([
+                'type' => Actor::TYPE_GROUP,
+                'is_local' => false,
+                'preferred_username' => $username,
+                'domain' => 'groups.example',
+                'uri' => 'https://groups.example/c/'.$username,
+                'status' => Actor::STATUS_ACTIVE,
+                'discoverable' => true,
+            ]);
+        }
+
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))
+            ->assertOk()
+            ->assertSeeInOrder([
+                '!Alpha@groups.example',
+                '!bravo@groups.example',
+                '!zebra@groups.example',
+            ]);
+    }
+
+    public function test_community_directory_orders_handles_and_paginates_twenty_at_a_time(): void
+    {
+        for ($number = 20; $number >= 0; $number--) {
+            $username = sprintf('group%02d', $number);
+            Actor::query()->create([
+                'type' => Actor::TYPE_GROUP,
+                'is_local' => false,
+                'preferred_username' => $username,
+                'domain' => 'groups.example',
+                'uri' => 'https://groups.example/c/'.$username,
+                'status' => Actor::STATUS_ACTIVE,
+                'discoverable' => true,
+            ]);
+        }
+
+        $first = $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote']))->assertOk();
+        $first->assertSeeInOrder(['!group00@groups.example', '!group01@groups.example', '!group19@groups.example'])
+            ->assertDontSee('!group20@groups.example')
+            ->assertSee('scope=remote&amp;page=2', false)
+            ->assertDontSee('ob-pagination');
+
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('communities.index', ['scope' => 'remote', 'page' => 2]))
+            ->assertOk()
+            ->assertSee('!group20@groups.example')
+            ->assertDontSee('!group19@groups.example')
+            ->assertDontSee('data-next-url');
+    }
+
+    public function test_local_membership_actions_return_an_updated_directory_row(): void
+    {
+        $owner = $this->createFullAccount('rowowner');
+        $member = $this->createFullAccount('rowmember');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'rowcommunity',
+            'name' => 'Community in lista',
+        ]);
+
+        $joined = $this->actingAs($member)->postJson(route('communities.join', $community));
+        $joined->assertOk()
+            ->assertJsonPath('following', true)
+            ->assertJsonPath('listed.mine', true)
+            ->assertJsonPath('html', fn (string $html): bool => str_contains($html, __('openbook.communities.list_leave')));
+
+        $left = $this->deleteJson(route('communities.leave', $community));
+        $left->assertOk()
+            ->assertJsonPath('following', false)
+            ->assertJsonPath('listed.mine', false)
+            ->assertJsonPath('listed.local', true)
+            ->assertJsonPath('html', fn (string $html): bool => str_contains($html, __('openbook.communities.join')));
+
+        $this->actingAs($owner)->deleteJson(route('communities.leave', $community))
+            ->assertForbidden();
+    }
+
+    public function test_pending_local_membership_can_be_cancelled_from_the_directory(): void
+    {
+        $owner = $this->createFullAccount('pendingowner');
+        $member = $this->createFullAccount('pendingmember');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'pendinglocal',
+            'name' => 'Community privata',
+            'is_private' => true,
+        ]);
+
+        $this->actingAs($member)->postJson(route('communities.join', $community))
+            ->assertOk()
+            ->assertJsonPath('following', false)
+            ->assertJsonPath('listed.local', false)
+            ->assertSee(__('openbook.communities.list_cancel_request'));
+
+        $this->deleteJson(route('communities.leave', $community))
+            ->assertOk()
+            ->assertSee(__('openbook.communities.request_join'));
+
+        $this->assertDatabaseMissing('follows', [
+            'follower_id' => $member->actor->id,
+            'following_id' => $community->actor_id,
+        ]);
+
+        Follow::query()->create([
+            'follower_id' => $member->actor->id,
+            'following_id' => $community->actor_id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $this->deleteJson(route('communities.leave', $community))
+            ->assertOk()
+            ->assertJsonPath('listed.local', false);
+    }
+
+    public function test_remote_group_membership_actions_return_an_updated_directory_row(): void
+    {
+        Queue::fake();
+        $viewer = $this->createFullAccount('remoterowviewer');
+        $group = $this->createRemoteActor('remoterow', 'groups.example', [
+            'type' => Actor::TYPE_GROUP,
+            'discoverable' => false,
+        ]);
+
+        $this->actingAs($viewer)->postJson(route('actors.follow', $group))
+            ->assertOk()
+            ->assertJsonPath('following', false)
+            ->assertJsonPath('listed.remote', true)
+            ->assertSee(__('openbook.communities.list_cancel_request'));
+
+        $this->deleteJson(route('actors.unfollow', $group))
+            ->assertOk()
+            ->assertJsonPath('following', false)
+            ->assertJsonPath('listed.remote', false)
+            ->assertJsonPath('html', fn (string $html): bool => str_contains($html, route('actors.follow', $group)));
     }
 
     public function test_a_non_member_can_visit_a_private_community_and_request_to_join(): void
