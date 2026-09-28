@@ -414,7 +414,7 @@ return [
     'search' => [
         'title' => 'Search',
         'placeholder' => 'Keyword, user@domain, or site/feed URL',
-        'help' => 'Search this instance (people, posts, comments, events, hashtags), enter a federated address (e.g. person@otherinstance.social), or a site/RSS/Atom feed URL to follow it as a contact.',
+        'help' => 'Find known local and remote people, plus posts, comments, events, and hashtags; enter a federated address (e.g. person@otherinstance.social), or a site/RSS/Atom feed URL to follow it as a contact.',
         'submit' => 'Search',
         'people' => 'People',
         'posts' => 'Posts',
@@ -423,7 +423,7 @@ return [
         'events' => 'Events',
         'suggest_label' => 'Search suggestions',
         'suggest_empty' => 'No suggestions. Press Enter to search anyway.',
-        'empty' => 'No local results for ":query".',
+        'empty' => 'No results for ":query".',
         'view_in_post' => 'View in post',
         'errors' => [
             'too_short' => 'Enter at least :min characters.',

@@ -173,10 +173,15 @@ finally bidirectional.
   leading `@`, `acct:...`, or a profile URL), it is resolved locally if the
   domain matches this instance, otherwise via WebFinger + fetching the Actor
   document (`RemoteActorResolver::resolveByHandle()`), then redirected to the
-  profile. If the query has a different shape (keyword, phrase, username
-  without domain), it runs a *local-only* search (`LocalSearchQuery`) on people
-  (username, display name, bio; respects `discoverable`), posts and comments of
-  local Actors (visibility and FEP-5feb `indexable` respected), and hashtags.
+  profile. For a keyword, phrase, or username without domain,
+  `PeopleSearchQuery` finds known local and cached remote people by username
+  or display name; local biographies are also searchable. People results
+  respect each account's `discoverable` setting. `LocalSearchQuery` separately
+  finds posts and comments of local Actors (visibility and FEP-5feb
+  `indexable` respected), visible local or cached remote events, and hashtags.
+  The header autocomplete suggests discoverable people and hashtags, but does
+  not fetch unknown Actors or suggest events. A leading `@` is optional for
+  people queries; content queries retain the original text.
   No Elasticsearch: case-insensitive LIKE with escaped wildcards, configurable
   limits (`OPENBOOK_SEARCH_MIN_LENGTH`, `OPENBOOK_SEARCH_PER_SECTION`). A
   resolved remote Actor has a convenience profile page (`/attori/{id}`, never a

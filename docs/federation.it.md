@@ -161,13 +161,17 @@ finalmente bidirezionale.
   iniziale, `acct:...`, o l'URL di un profilo), lo risolve localmente se il
   dominio corrisponde a questa istanza, altrimenti tramite WebFinger + recupero
   del documento Actor (`RemoteActorResolver::resolveByHandle()`), poi
-  reindirizza al profilo. Se invece la query ha una forma diversa (parola
-  chiave, frase, username senza dominio), esegue una ricerca *solo locale*
-  (`LocalSearchQuery`) su persone (username, nome visualizzato, bio; rispetta
-  `discoverable`), post e commenti di Actor locali (visibilita' e `indexable`
-  FEP-5feb rispettati), e
-  hashtag. Nessun Elasticsearch: LIKE case-insensitive con jolly escapati,
-  limiti configurabili (`OPENBOOK_SEARCH_MIN_LENGTH`,
+  reindirizza al profilo. Per una parola chiave, frase o username senza
+  dominio, `PeopleSearchQuery` cerca le persone locali e remote gia' note
+  all'istanza per username o nome visualizzato; cerca anche nelle bio locali.
+  I risultati persona rispettano `discoverable`. Separatamente,
+  `LocalSearchQuery` cerca post e commenti di Actor locali (visibilita' e
+  `indexable` FEP-5feb rispettati), eventi visibili locali o remoti gia'
+  memorizzati e hashtag. L'autocompletamento della lente suggerisce persone
+  discoverable e hashtag, senza recuperare Actor sconosciuti ne' proporre
+  eventi. La `@` iniziale e' facoltativa per le query persone; le query sui
+  contenuti conservano il testo originale. Nessun Elasticsearch: LIKE
+  case-insensitive con jolly escapati, limiti configurabili (`OPENBOOK_SEARCH_MIN_LENGTH`,
   `OPENBOOK_SEARCH_PER_SECTION`). Un Actor remoto risolto ha una pagina profilo
   di comodo (`/attori/{id}`, mai un identificatore ActivityPub canonico) con
   statistiche, eventuale biografia e un pulsante di follow che avvia il flusso

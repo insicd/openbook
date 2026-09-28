@@ -264,9 +264,11 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   (la pagina completa resta nella sidebar sinistra); l'icona search apre un
   campo di input inline invece di andare subito a `/cerca` (l'invio del form
   usa comunque la stessa ricerca locale/federata). Script dedicato:
-  `public/assets/js/header-panels.js`. Su desktop, dopo lo scroll oltre il
-  composer, appare al centro della header un pulsante **+** che riporta
-  il focus sul composer (o alla Home se si e' altrove); su mobile lo stesso
+  `public/assets/js/header-panels.js`. L'autocompletamento mostra persone
+  locali e remote gia' note e discoverable, oltre agli hashtag; la ricerca
+  completa include anche post, commenti ed eventi visibili. Su desktop, dopo
+  lo scroll oltre il composer, appare al centro della header un pulsante **+**
+  che riporta il focus sul composer (o alla Home se si e' altrove); su mobile lo stesso
   controllo e' un FAB discreto in basso a destra (`compose-shortcut.js`).
 - **Emoji**: nei composer di post e commenti (anche risposte) un'icona
   sorriso apre un picker locale stile Mastodon (categorie, ricerca,
