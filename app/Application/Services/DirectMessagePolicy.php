@@ -21,7 +21,19 @@ final class DirectMessagePolicy
         }
 
         if (! $recipient->isLocal()) {
-            return $sender->isLocal() && $recipient->isPerson() && $recipient->isActive();
+            if (! $sender->isLocal() || ! $sender->isActive() || ! $recipient->isActive()) {
+                return false;
+            }
+
+            if ($recipient->isPerson()) {
+                return true;
+            }
+
+            if (! $recipient->isApplication()) {
+                return false;
+            }
+
+            return filled($recipient->endpoints?->inbox) || filled($recipient->endpoints?->shared_inbox);
         }
 
         if (! $recipient->isPerson() || ! $recipient->isActive()) {

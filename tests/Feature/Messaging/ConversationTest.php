@@ -4,10 +4,13 @@ namespace Tests\Feature\Messaging;
 
 use App\Application\Services\ConversationReadTracker;
 use App\Application\Services\ConversationResolver;
+use App\Application\Services\InstanceRelayActor;
 use App\Application\Services\MessageComposer;
 use App\Domain\Messaging\Conversation;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
+use App\Federation\Actors\Actor;
+use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
@@ -56,6 +59,41 @@ class ConversationTest extends TestCase
             'mentionable_id' => $post->id,
             'actor_id' => $remote->id,
         ]);
+    }
+
+    public function test_a_local_user_can_message_a_remote_application_with_an_inbox(): void
+    {
+        Queue::fake();
+
+        $alice = $this->createFullAccount('alice');
+        $application = $this->createRemoteActor('bot', 'remote.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+
+        $this->actingAs($alice)
+            ->post(route('messages.start'), ['recipient' => '@bot@remote.example'])
+            ->assertRedirect(route('messages.show', Conversation::query()->firstOrFail()));
+
+        $conversation = Conversation::query()->firstOrFail();
+        $this->actingAs($alice)
+            ->get(route('messages.open_actor', $application))
+            ->assertRedirect(route('messages.show', $conversation));
+
+        $this->actingAs($alice)
+            ->post(route('messages.store', $conversation), ['body' => 'Ciao bot'])
+            ->assertRedirect(route('messages.show', $conversation));
+
+        $this->assertDatabaseHas('posts', [
+            'actor_id' => $alice->actor->id,
+            'conversation_id' => $conversation->id,
+            'visibility' => Post::VISIBILITY_DIRECT,
+            'body' => 'Ciao bot',
+        ]);
+        $this->assertDatabaseHas('mentions', ['actor_id' => $application->id]);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $application->endpoints->shared_inbox
+            && ($job->activity['to'] ?? null) === [$application->uri]
+            && ($job->activity['object']['to'] ?? null) === [$application->uri]
+        );
     }
 
     public function test_the_messages_ui_lists_conversations(): void
@@ -206,6 +244,9 @@ class ConversationTest extends TestCase
         $viewer = $this->createFullAccount('viewer');
         $this->createFullAccount('alice');
         $remote = $this->createRemoteActor('bob', 'fed.example');
+        $application = $this->createRemoteActor('bot', 'app.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
 
         $localResponse = $this->actingAs($viewer)
             ->getJson(route('messages.suggest_recipients', ['q' => 'al']));
@@ -224,6 +265,14 @@ class ConversationTest extends TestCase
             'handle' => 'bob@fed.example',
             'open_url' => route('messages.open_actor', $remote),
         ]);
+        $remoteResponse->assertJsonFragment([
+            'handle' => 'bot@app.example',
+            'open_url' => route('messages.open_actor', $application),
+        ]);
+
+        $this->actingAs($viewer)
+            ->getJson(route('mentions.suggest', ['q' => 'bo']))
+            ->assertJsonMissing(['handle' => 'bot@app.example']);
     }
 
     public function test_start_opens_a_conversation_with_a_local_username(): void
@@ -258,5 +307,70 @@ class ConversationTest extends TestCase
 
         $response->assertRedirect(route('messages.index'));
         $response->assertSessionHasErrors('recipient');
+    }
+
+    public function test_start_rejects_an_unknown_remote_handle_without_a_server_error(): void
+    {
+        $alice = $this->createFullAccount('alice');
+
+        $this->actingAs($alice)
+            ->from(route('messages.index'))
+            ->post(route('messages.start'), ['recipient' => 'missing@remote.example'])
+            ->assertRedirect(route('messages.index'))
+            ->assertSessionHasErrors('recipient');
+
+        $this->assertDatabaseCount('conversations', 0);
+    }
+
+    public function test_community_and_local_relay_cannot_be_message_recipients(): void
+    {
+        $alice = $this->createFullAccount('alice');
+        $group = $this->createRemoteActor('community', 'remote.example', [
+            'type' => Actor::TYPE_GROUP,
+        ]);
+        $relay = app(InstanceRelayActor::class)->getOrCreate();
+
+        foreach ([$group, $relay] as $recipient) {
+            $this->actingAs($alice)
+                ->from(route('messages.index'))
+                ->post(route('messages.start'), ['recipient' => $recipient->handle()])
+                ->assertRedirect(route('messages.index'))
+                ->assertSessionHasErrors('recipient');
+
+            $this->actingAs($alice)
+                ->get(route('messages.open_actor', $recipient))
+                ->assertNotFound();
+        }
+
+        $this->assertDatabaseCount('conversations', 0);
+    }
+
+    public function test_remote_application_without_an_inbox_cannot_receive_messages(): void
+    {
+        $alice = $this->createFullAccount('alice');
+        $application = $this->createRemoteActor('bot', 'remote.example', [
+            'type' => Actor::TYPE_APPLICATION,
+        ]);
+        $application->endpoints->update(['inbox' => null, 'shared_inbox' => null]);
+
+        $this->actingAs($alice)
+            ->getJson(route('messages.suggest_recipients', ['q' => 'bot']))
+            ->assertJsonMissing(['handle' => 'bot@remote.example']);
+
+        $this->actingAs($alice)
+            ->get(route('messages.open_actor', $application))
+            ->assertNotFound();
+
+        $this->actingAs($alice)
+            ->from(route('messages.index'))
+            ->post(route('messages.start'), ['recipient' => 'bot@remote.example'])
+            ->assertRedirect(route('messages.index'))
+            ->assertSessionHasErrors('recipient');
+
+        $application->endpoints->update(['inbox' => '', 'shared_inbox' => '']);
+
+        $this->actingAs($alice)
+            ->getJson(route('messages.suggest_recipients', ['q' => 'bot']))
+            ->assertJsonMissing(['handle' => 'bot@remote.example']);
     }
 }

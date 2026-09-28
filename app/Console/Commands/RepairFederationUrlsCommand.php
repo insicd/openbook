@@ -4,18 +4,19 @@ namespace App\Console\Commands;
 
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorUrls;
+use App\Federation\Actors\RelayActorUrls;
 use Illuminate\Console\Command;
 
 /**
  * Allinea uri ed endpoint ActivityPub degli Actor locali all'APP_URL corrente
- * e allo schema canonico "/users/{username}" (compatibile con Lemmy/Mastodon).
+ * e allo schema canonico di ciascun tipo di Actor locale.
  */
 class RepairFederationUrlsCommand extends Command
 {
     protected $signature = 'openbook:repair-federation-urls
         {--dry-run : Mostra le modifiche senza scriverle}';
 
-    protected $description = 'Riscrive uri (/users/...) e inbox/outbox degli Actor locali in base ad APP_URL.';
+    protected $description = 'Riscrive uri ed endpoint degli Actor locali in base ad APP_URL.';
 
     public function handle(): int
     {
@@ -27,7 +28,9 @@ class RepairFederationUrlsCommand extends Command
             ->with('endpoints')
             ->orderBy('preferred_username')
             ->each(function (Actor $actor) use ($dryRun, &$updated): void {
-                $urls = LocalActorUrls::forUsername($actor->preferred_username, $actor->isGroup());
+                $urls = $actor->isApplication()
+                    ? RelayActorUrls::all()
+                    : LocalActorUrls::forUsername($actor->preferred_username, $actor->isGroup());
                 $changes = [];
 
                 if ($actor->uri !== $urls['uri']) {

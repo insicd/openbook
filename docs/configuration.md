@@ -8,7 +8,7 @@ All Openbook-specific settings are centralized in
 
 | Variable | Description |
 |---|---|
-| `OPENBOOK_DOMAIN` | Public domain of the instance, used in `user@domain` addresses. Must match the host of `APP_URL`. If you change domain, update both and then run `php artisan openbook:repair-federation-urls` (otherwise Lemmy rejects Follows when id and inbox are on different hosts). |
+| `OPENBOOK_DOMAIN` | Public domain of the instance, used in `user@domain` addresses. Must match the host of `APP_URL`. If you change domain, update both and then run `php artisan openbook:repair-federation-urls` (otherwise Lemmy rejects Follows when id and inbox are on different hosts). The command also updates the technical `/relay` Actor while keeping its dedicated paths; use `--dry-run` to review changes first. |
 | `OPENBOOK_INSTALLED` | Set automatically by the installer; do not change by hand. |
 | `OPENBOOK_WEB_CRON_ENABLED` / `OPENBOOK_WEB_CRON_TOKEN` | Enable running periodic jobs via HTTP request, for hosts without a real cron. |
 | `OPENBOOK_REGISTRATION_OPEN` / `OPENBOOK_REGISTRATION_REQUIRES_APPROVAL` | Control whether registrations are open. |

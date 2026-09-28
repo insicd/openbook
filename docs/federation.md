@@ -159,7 +159,9 @@ finally bidirectional.
   `CommentComposer`/`CommentController` (`Create`/`Delete`, always delivered
   also to the parent content's author as a direct recipient). Messages with
   "direct" visibility are delivered only to explicitly mentioned Actors, never
-  to all followers.
+  to all followers. Chat messages can also target active remote `Application`
+  Actors with an inbox, as well as people; communities and the local technical
+  `/relay` Actor are not chat recipients.
 - **Queue and cron**: the queue uses Laravel's database driver (`jobs` and
   `failed_jobs` tables, already present from the installer), consistent with
   shared-hosting constraints (no permanent process, no Redis/RabbitMQ). The

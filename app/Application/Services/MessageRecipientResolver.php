@@ -4,6 +4,7 @@ namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
 use App\Federation\Actors\Actor;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Risolve un handle grezzo (username locale o user@dominio remoto) in Actor.
@@ -28,11 +29,24 @@ final class MessageRecipientResolver
             }
 
             $actor = Actor::query()
-                ->where('type', Actor::TYPE_PERSON)
+                ->where(function (Builder $query): void {
+                    $query->where('type', Actor::TYPE_PERSON)
+                        ->orWhere(function (Builder $application): void {
+                            $application->where('type', Actor::TYPE_APPLICATION)
+                                ->where('is_local', false)
+                                ->whereHas('endpoints', function (Builder $endpoints): void {
+                                    $endpoints->where('inbox', '!=', '')->orWhere('shared_inbox', '!=', '');
+                                });
+                        });
+                })
                 ->where('status', Actor::STATUS_ACTIVE)
                 ->where('preferred_username', $username)
                 ->where('domain', $domain)
                 ->first();
+
+            if ($actor === null) {
+                return null;
+            }
         } else {
             $username = mb_strtolower($raw);
 
