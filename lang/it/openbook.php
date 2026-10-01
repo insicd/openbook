@@ -535,6 +535,7 @@ return [
 
     'messages' => [
         'title' => 'Messaggi',
+        'unread' => 'Non letta',
         'new_title' => 'Nuova conversazione',
         'share_title' => 'Condividi a utente',
         'share_intro' => 'Invia questo post in un messaggio privato.',

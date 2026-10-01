@@ -144,6 +144,8 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- Le conversazioni non lette mostrano un badge esplicito nella lista delle
+  chat; lo sfondo usa una variabile CSS definita, rendendo visibile l'indicatore.
 - Le notifiche push dei messaggi diretti vengono accodate anche quando la
   notifica della chat è riutilizzata. Più messaggi prima della consegna
   condividono una sola push pendente, senza riavviare il periodo di grazia.

@@ -290,9 +290,10 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   `published_at` originale. Il cursore di ciascun partecipante conserva data
   di arrivo e ID dell'ultimo messaggio mostrato, distinguendo gli arrivi nello
   stesso secondo. Il polling segna letti solo i messaggi nella risposta; il
-  contatore laterale conta conversazioni non lette. Una migration converte
-  letture e attività esistenti all'ordine di arrivo. Aprire un thread mostra
-  i suoi ultimi 100 messaggi nell'ordine di arrivo.
+  contatore laterale conta conversazioni non lette. Nella lista ciascuna chat
+  non letta mostra un badge esplicito e uno sfondo evidenziato. Una migration
+  converte letture e attività esistenti all'ordine di arrivo. Aprire un thread
+  mostra i suoi ultimi 100 messaggi nell'ordine di arrivo.
 - **Badge laterali live**: `notifications.feed` restituisce sia il conteggio
   delle notifiche sia quello delle conversazioni non lette. Il polling esistente
   delle notifiche aggiorna entrambi ogni 60 secondi, sospendendosi quando la

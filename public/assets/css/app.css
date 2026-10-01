@@ -3685,7 +3685,7 @@ a.ob-post__menu-item {
 }
 
 .ob-message-row--unread {
-  background: color-mix(in srgb, var(--ob-color-accent) 8%, transparent);
+  background: var(--ob-color-primary-soft);
   margin: 0 -1rem;
   padding-left: 1rem;
   padding-right: 1rem;
@@ -3706,6 +3706,24 @@ a.ob-post__menu-item {
 .ob-message-row__time {
   color: var(--ob-color-text-muted);
   font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.ob-message-row__name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.ob-message-row__unread {
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  background: var(--ob-color-danger);
+  color: var(--ob-color-primary-contrast);
+  font-size: 0.75rem;
+  font-weight: 600;
   white-space: nowrap;
 }
 

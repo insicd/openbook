@@ -282,9 +282,10 @@ and "Edit profile" button on your own profile) makes them editable:
   Per-participant read cursors store the arrival timestamp and ID of the last
   message shown, distinguishing arrivals in the same second. Polling marks
   only messages in its response as read; the sidebar count measures unread
-  conversations. A migration converts existing reads and conversation
-  activity to this arrival order. Opening a thread shows its latest 100
-  messages in arrival order.
+  conversations. Each unread conversation has an explicit badge and a
+  highlighted background in the chat list. A migration converts existing
+  reads and conversation activity to this arrival order. Opening a thread
+  shows its latest 100 messages in arrival order.
 - **Live sidebar badges**: `notifications.feed` returns both unread notification
   and unread conversation counts. The existing 60-second notification poll
   updates both badges, pausing while the tab is hidden. A shared revision

@@ -143,8 +143,20 @@ class ConversationArrivalTest extends TestCase
         app(MessageComposer::class)->send($bob->actor, $viewer->actor, 'Nuovo B');
         app(MessageComposer::class)->send($alice->actor, $viewer->actor, 'Nuovo A');
         $this->getJson(route('messages.feed', $a->conversation_id).'?after='.$a->id)->assertOk();
-        $this->get(route('messages.index'))->assertOk()->assertViewHas('unreadFlags', fn ($flags) => $flags[$b->conversation_id] && ! $flags[$a->conversation_id])->assertSee('ob-message-row--unread');
+        $response = $this->get(route('messages.index'))->assertOk()
+            ->assertViewHas('unreadFlags', fn ($flags) => $flags[$b->conversation_id] && ! $flags[$a->conversation_id])
+            ->assertSee(__('openbook.messages.unread'));
+        $document = new \DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($document);
+        foreach ([$a->conversation_id => 0, $b->conversation_id => 1] as $id => $expected) {
+            $badges = $xpath->query('//a[@href="'.route('messages.show', $id).'"]//span[contains(@class, "ob-message-row__unread")]');
+            $this->assertSame($expected, $badges->length);
+        }
         $this->assertSame(1, app(ConversationReadTracker::class)->unreadCountFor($viewer->actor));
+
+        $this->get(route('messages.show', $b->conversation_id))->assertOk();
+        $this->get(route('messages.index'))->assertOk()->assertDontSee('ob-message-row__unread', false);
     }
 
     public function test_a_second_message_received_in_the_same_second_as_reading_chat_b_is_unread(): void
