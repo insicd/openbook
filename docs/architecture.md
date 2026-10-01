@@ -265,6 +265,9 @@ and "Edit profile" button on your own profile) makes them editable:
   past the composer, a **+** button appears in the center of the header that
   returns focus to the composer (or to Home if you are elsewhere); on mobile the same
   control is a discreet FAB at the bottom right (`compose-shortcut.js`).
+- **Direct message notifications**: incoming messages in the same conversation
+  update its unread notification, keeping the link on the latest message.
+  Once that notification has been read, a later message creates a new one.
 - **Emoji**: in post and comment composers (including replies) a smile icon
   opens a local Mastodon-style picker (categories, search, recents in
   `localStorage`). System-native Unicode only, no CDN / Twemoji

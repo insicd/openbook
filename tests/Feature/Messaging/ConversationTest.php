@@ -43,6 +43,47 @@ class ConversationTest extends TestCase
         ]);
     }
 
+    public function test_unread_message_notifications_are_grouped_by_conversation(): void
+    {
+        $alice = $this->createFullAccount('alice');
+        $bob = $this->createFullAccount('bob');
+        $carol = $this->createFullAccount('carol');
+
+        $first = app(MessageComposer::class)->send($alice->actor, $bob->actor, 'Primo');
+        $notification = Notification::query()->where('recipient_id', $bob->id)->firstOrFail();
+        $initialRevision = $bob->fresh()->notifications_revision;
+
+        $this->travel(1)->minute();
+        $second = app(MessageComposer::class)->send($alice->actor, $bob->actor, 'Secondo');
+
+        $this->assertSame(1, Notification::query()->where('recipient_id', $bob->id)->count());
+        $this->assertDatabaseHas('notifications', [
+            'id' => $notification->id,
+            'recipient_id' => $bob->id,
+            'notifiable_id' => $second->id,
+            'read_at' => null,
+        ]);
+        $this->assertTrue($notification->created_at->lt($notification->fresh()->created_at));
+        $this->assertSame($initialRevision + 1, $bob->fresh()->notifications_revision);
+        $this->assertSame(route('messages.show', $first->conversation_id), $notification->fresh()->targetUrl());
+
+        app(MessageComposer::class)->send($carol->actor, $bob->actor, 'Altra chat');
+
+        $this->assertSame(2, Notification::query()->where('recipient_id', $bob->id)->whereNull('read_at')->count());
+
+        $this->actingAs($bob)->get(route('notifications.index'))->assertOk();
+        $this->assertNotNull($notification->fresh()->read_at);
+        $this->travel(1)->minute();
+        $third = app(MessageComposer::class)->send($alice->actor, $bob->actor, 'Terzo');
+
+        $this->assertSame(3, Notification::query()->where('recipient_id', $bob->id)->count());
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $bob->id,
+            'notifiable_id' => $third->id,
+            'read_at' => null,
+        ]);
+    }
+
     public function test_a_local_user_can_message_a_remote_actor(): void
     {
         Queue::fake();

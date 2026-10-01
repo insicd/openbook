@@ -144,6 +144,10 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- Le notifiche dei messaggi diretti non si moltiplicano durante una chat:
+  i nuovi messaggi aggiornano la notifica ancora non letta della stessa
+  conversazione, che rimanda al messaggio più recente. Dopo aver letto la
+  notifica, un nuovo messaggio ne genera una nuova ([issue #101](https://github.com/insicd/openbook/issues/101)).
 - La chat accetta Actor `Application` remoti attivi con inbox come destinatari,
   mantenendo esclusi community e relay locale. Un handle remoto sconosciuto
   restituisce l'errore di destinatario anziche' causare un errore 500.

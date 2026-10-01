@@ -7,6 +7,7 @@ use App\Domain\Comments\Comment;
 use App\Domain\Notifications\Notification;
 use App\Domain\Notifications\PushNotification;
 use App\Domain\Notifications\PushSubscription;
+use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +38,31 @@ final class NotificationCreator
 
         if ($type === Notification::TYPE_MENTION && $this->alreadyNotifiedForCommentThread($recipientActor->user_id, $notifiable)) {
             return null;
+        }
+
+        if ($type === Notification::TYPE_DIRECT_MESSAGE && $notifiable instanceof Post && $notifiable->conversation_id !== null) {
+            $existing = Notification::query()
+                ->select('notifications.*')
+                ->join('posts', 'posts.id', '=', 'notifications.notifiable_id')
+                ->where('notifications.recipient_id', $recipientActor->user_id)
+                ->where('notifications.type', Notification::TYPE_DIRECT_MESSAGE)
+                ->where('notifications.notifiable_type', $notifiable->getMorphClass())
+                ->whereNull('notifications.read_at')
+                ->where('posts.conversation_id', $notifiable->conversation_id)
+                ->orderByDesc('notifications.created_at')
+                ->first();
+
+            if ($existing !== null) {
+                $existing->forceFill([
+                    'actor_id' => $causedBy?->id,
+                    'notifiable_id' => $notifiable->getKey(),
+                    'created_at' => now(),
+                ])->save();
+
+                User::query()->whereKey($recipientActor->user_id)->increment('notifications_revision');
+
+                return $existing;
+            }
         }
 
         $notification = Notification::query()->create([

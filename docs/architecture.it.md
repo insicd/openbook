@@ -270,6 +270,10 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   lo scroll oltre il composer, appare al centro della header un pulsante **+**
   che riporta il focus sul composer (o alla Home se si e' altrove); su mobile lo stesso
   controllo e' un FAB discreto in basso a destra (`compose-shortcut.js`).
+- **Notifiche dei messaggi diretti**: i messaggi in arrivo nella stessa
+  conversazione aggiornano la sua notifica non letta, mantenendo il link sul
+  messaggio più recente. Dopo la lettura della notifica, un messaggio
+  successivo ne crea una nuova.
 - **Emoji**: nei composer di post e commenti (anche risposte) un'icona
   sorriso apre un picker locale stile Mastodon (categorie, ricerca,
   recenti in `localStorage`). Solo Unicode nativo del sistema, nessuna
