@@ -27,6 +27,7 @@
     var etag = null;
     var timer = null;
     var inFlight = false;
+    var refreshPending = false;
 
     function badgeLabel(count) {
         return count > 9 ? '9+' : String(count);
@@ -115,6 +116,27 @@
         );
     }
 
+    function setMessagesBadge(count) {
+        var nav = document.querySelector('[data-messages-nav]');
+        if (!nav) {
+            return;
+        }
+        var badge = nav.querySelector('[data-messages-badge]');
+        if (count <= 0) {
+            if (badge) {
+                badge.remove();
+            }
+            return;
+        }
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'ob-badge-count';
+            badge.setAttribute('data-messages-badge', '');
+            nav.appendChild(badge);
+        }
+        badge.textContent = badgeLabel(count);
+    }
+
     function renderList(notifications) {
         if (!list) {
             return;
@@ -163,6 +185,7 @@
 
         lastRevision = payload.revision;
         setBadges(payload.unread_count || 0);
+        setMessagesBadge(payload.unread_conversations_count || 0);
         renderList(payload.notifications || []);
     }
 
@@ -215,6 +238,10 @@
             })
             .finally(function () {
                 inFlight = false;
+                if (refreshPending) {
+                    refreshPending = false;
+                    poll();
+                }
             });
     }
 
@@ -228,6 +255,14 @@
 
     document.addEventListener('visibilitychange', function () {
         if (!document.hidden) {
+            poll();
+        }
+    });
+
+    document.addEventListener('openbook:messages-read', function () {
+        if (inFlight) {
+            refreshPending = true;
+        } else {
             poll();
         }
     });

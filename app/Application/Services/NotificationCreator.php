@@ -40,28 +40,26 @@ final class NotificationCreator
             return null;
         }
 
+        $notification = null;
+
         if ($type === Notification::TYPE_DIRECT_MESSAGE && $notifiable instanceof Post && $notifiable->conversation_id !== null) {
-            $existing = Notification::query()
+            $notification = Notification::query()
                 ->forDirectConversation($recipientActor->user_id, $notifiable->conversation_id)
                 ->orderByDesc('created_at')
                 ->orderByDesc('id')
                 ->first();
 
-            if ($existing !== null) {
-                $existing->forceFill([
+            if ($notification !== null) {
+                $notification->forceFill([
                     'actor_id' => $causedBy?->id,
                     'notifiable_id' => $notifiable->getKey(),
                     'read_at' => null,
                     'created_at' => now(),
                 ])->save();
-
-                User::query()->whereKey($recipientActor->user_id)->increment('notifications_revision');
-
-                return $existing;
             }
         }
 
-        $notification = Notification::query()->create([
+        $notification ??= Notification::query()->create([
             'recipient_id' => $recipientActor->user_id,
             'actor_id' => $causedBy?->id,
             'type' => $type,
@@ -80,6 +78,7 @@ final class NotificationCreator
                     return;
                 }
 
+                // Riutilizzare la riga pendente accorpa i messaggi senza rinviare la consegna.
                 PushNotification::query()->firstOrCreate(['notification_id' => $notificationId]);
             } catch (Throwable $exception) {
                 // Il canale push e' accessorio: la notifica locale resta valida.

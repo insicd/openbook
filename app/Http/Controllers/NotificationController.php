@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Services\ConversationReadTracker;
 use App\Domain\Accounts\User;
 use App\Domain\Notifications\Notification;
 use App\Domain\Notifications\PushNotification;
@@ -42,7 +43,7 @@ class NotificationController extends Controller
 
     /**
      * Anteprima per il polling live. Se il client invia If-None-Match uguale
-     * alla revisione corrente, risponde 304 con una sola lettura su "users"
+     * alla revisione condivisa da notifiche e letture chat, risponde 304 con una lettura su "users"
      * (niente count ne' elenco notifiche).
      */
     public function feed(Request $request): JsonResponse|Response
@@ -97,6 +98,9 @@ class NotificationController extends Controller
             ->json([
                 'revision' => $revision,
                 'unread_count' => $unreadCount,
+                'unread_conversations_count' => auth()->user()->actor !== null
+                    ? app(ConversationReadTracker::class)->unreadCountFor(auth()->user()->actor)
+                    : 0,
                 'notifications' => $notifications,
             ])
             ->withHeaders([

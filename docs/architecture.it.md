@@ -278,6 +278,33 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   destinatario e conversazione, conservando la notifica più recente e
   segnandola non letta se almeno un duplicato lo era. Le notifiche non
   collegate a una conversazione restano intatte.
+  Il riutilizzo accoda anche la push del browser dopo il commit. Più messaggi
+  prima della consegna condividono una sola push pendente senza riavviare il
+  periodo di grazia; un nuovo messaggio dopo consegna o consumo dal browser
+  può accodarla di nuovo. Il polling esistente della scheda visibile sopprime
+  le push pendenti; il payload contiene il testo della notifica sul mittente,
+  senza il contenuto privato.
+- **Ordine e lettura della chat**: ordine del thread, cursori del polling,
+  anteprime e attività della conversazione usano l'arrivo locale
+  (`posts.created_at`). La data sopra ogni messaggio mantiene il suo
+  `published_at` originale. Il cursore di ciascun partecipante conserva data
+  di arrivo e ID dell'ultimo messaggio mostrato, distinguendo gli arrivi nello
+  stesso secondo. Il polling segna letti solo i messaggi nella risposta; il
+  contatore laterale conta conversazioni non lette. Una migration converte
+  letture e attività esistenti all'ordine di arrivo. Aprire un thread mostra
+  i suoi ultimi 100 messaggi nell'ordine di arrivo.
+- **Badge laterali live**: `notifications.feed` restituisce sia il conteggio
+  delle notifiche sia quello delle conversazioni non lette. Il polling esistente
+  delle notifiche aggiorna entrambi ogni 60 secondi, sospendendosi quando la
+  scheda è nascosta. Una revisione condivisa invalida l'ETag all'arrivo dei
+  messaggi e all'avanzamento dei cursori di lettura, anche se la notifica generale
+  era già letta, e ai cambiamenti di stato o visibilità dei messaggi.
+  Leggere le notifiche generali non segna lette le conversazioni.
+  Dopo ricezione o invio di messaggi, la chat richiede un aggiornamento immediato
+  allo stesso poller.
+  La migration invalida le revisioni dei badge esistenti, rimuove gli indici
+  semplici dei post coperti dai prefissi dei composti e aggiunge un indice
+  destinatario/tipo/data/ID per riutilizzare le notifiche anche già lette.
 - **Emoji**: nei composer di post e commenti (anche risposte) un'icona
   sorriso apre un picker locale stile Mastodon (categorie, ricerca,
   recenti in `localStorage`). Solo Unicode nativo del sistema, nessuna

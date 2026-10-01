@@ -115,6 +115,7 @@ class NotificationTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('unread_count', 1);
+        $response->assertJsonPath('unread_conversations_count', 0);
         $response->assertJsonCount(1, 'notifications');
         $response->assertJsonPath('notifications.0.unread', true);
         $this->assertStringContainsString('notiffollower5', $response->json('notifications.0.message'));

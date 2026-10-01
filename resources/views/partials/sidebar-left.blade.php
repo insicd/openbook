@@ -30,10 +30,10 @@
     <a href="{{ route('hashtags.index') }}" class="ob-side-nav__link {{ request()->routeIs('hashtags.*') ? 'is-active' : '' }}">
         <x-icon name="hash" /> {{ __('openbook.nav.trending') }}
     </a>
-    <a href="{{ route('messages.index') }}" class="ob-side-nav__link {{ request()->routeIs('messages.*') ? 'is-active' : '' }}">
+    <a href="{{ route('messages.index') }}" class="ob-side-nav__link {{ request()->routeIs('messages.*') ? 'is-active' : '' }}" data-messages-nav>
         <x-icon name="message" /> {{ __('openbook.nav.messages') }}
         @if (($unreadMessagesCount ?? 0) > 0)
-            <span class="ob-badge-count">{{ $unreadMessagesCount > 9 ? '9+' : $unreadMessagesCount }}</span>
+            <span class="ob-badge-count" data-messages-badge>{{ $unreadMessagesCount > 9 ? '9+' : $unreadMessagesCount }}</span>
         @endif
     </a>
     <a href="{{ route('notifications.index') }}" class="ob-side-nav__link {{ request()->routeIs('notifications.index') ? 'is-active' : '' }}" data-notifications-nav>

@@ -76,7 +76,7 @@ class ConversationController extends Controller
         $other = $conversation->otherParticipant($viewer);
         $messages = $this->conversations->messagesFor($conversation);
 
-        $this->readTracker->markRead($conversation, $viewer);
+        $this->readTracker->markRead($conversation, $viewer, $messages->last());
 
         $canSend = $this->policy->canSend($viewer, $other);
 
@@ -320,10 +320,14 @@ class ConversationController extends Controller
 
         $messages = $this->conversations->messagesAfter($conversation, $afterId);
 
-        if ($afterId === null) {
-            $this->readTracker->markRead($conversation, $viewer);
-        } elseif ($messages->isNotEmpty()) {
-            $this->readTracker->markRead($conversation, $viewer);
+        if ($afterId === null || $messages->isNotEmpty()) {
+            $this->readTracker->markRead($conversation, $viewer, $messages->last());
+        }
+
+        if ($messages->isNotEmpty()) {
+            $last = $messages->last();
+            $revision = $last->id.'@'.$last->created_at->timestamp;
+            $etag = '"'.md5($revision).'"';
         }
 
         return response()

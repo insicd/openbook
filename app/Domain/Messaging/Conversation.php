@@ -53,7 +53,8 @@ class Conversation extends Model
         return $this->hasMany(Post::class)
             ->where('visibility', Post::VISIBILITY_DIRECT)
             ->where('status', Post::STATUS_PUBLISHED)
-            ->orderBy('published_at');
+            ->orderBy('created_at')
+            ->orderBy('id');
     }
 
     public function otherParticipant(Actor $viewer): Actor

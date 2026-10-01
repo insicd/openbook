@@ -90,8 +90,8 @@ final class MessageComposer
                 'actor_id' => $recipient->id,
             ]);
 
-            $this->conversations->touch($conversation, $post->published_at);
-            $this->readTracker->markRead($conversation, $sender, $post->published_at);
+            $this->conversations->touch($conversation, $post->created_at);
+            $this->readTracker->markRead($conversation, $sender, $post);
 
             if ($recipient->isLocal() && $recipient->isPerson()) {
                 $this->notificationCreator->notify(

@@ -90,7 +90,7 @@
                     <div class="ob-message-row__top">
                         <strong>{!! $other->displayNameHtml() !!}</strong>
                         @if ($preview)
-                            <span class="ob-message-row__time">{{ $preview->published_at->diffForHumans() }}</span>
+                            <span class="ob-message-row__time">{{ $preview->created_at->diffForHumans() }}</span>
                         @endif
                     </div>
                     @if ($preview)

@@ -7,7 +7,6 @@ use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Mention;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
-use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Federation\Serialization\NoteSerializer;
 
 /**
@@ -49,7 +48,7 @@ final class DirectMessageLinker
             $post->update(['conversation_id' => $conversation->id]);
         }
 
-        $this->conversations->touch($conversation, $post->published_at);
+        $this->conversations->touch($conversation, $post->created_at);
 
         $conversation->loadMissing(['participantLow', 'participantHigh']);
         $other = $conversation->otherParticipant($author);
