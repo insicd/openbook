@@ -23,7 +23,7 @@
     var list = panelRoot ? panelRoot.querySelector('[data-notifications-list]') : null;
     var emptyLabel = panelRoot ? panelRoot.getAttribute('data-notifications-empty') || '' : '';
     var indexUrl = panelRoot ? panelRoot.getAttribute('data-notifications-index') || '/notifiche' : '/notifiche';
-    var lastFingerprint = null;
+    var lastRevision = null;
     var etag = null;
     var timer = null;
     var inFlight = false;
@@ -156,24 +156,12 @@
             .join('');
     }
 
-    function fingerprint(payload) {
-        var ids = (payload.notifications || [])
-            .map(function (item) {
-                return item.id + ':' + (item.unread ? '1' : '0');
-            })
-            .join(',');
-
-        return String(payload.unread_count) + '|' + ids;
-    }
-
     function applyPayload(payload) {
-        var next = fingerprint(payload);
-
-        if (next === lastFingerprint) {
+        if (payload.revision === lastRevision) {
             return;
         }
 
-        lastFingerprint = next;
+        lastRevision = payload.revision;
         setBadges(payload.unread_count || 0);
         renderList(payload.notifications || []);
     }
@@ -255,7 +243,7 @@
             });
         }
 
-        lastFingerprint = null;
+        lastRevision = null;
         etag = null;
     });
 

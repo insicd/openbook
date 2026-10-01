@@ -271,9 +271,13 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   che riporta il focus sul composer (o alla Home se si e' altrove); su mobile lo stesso
   controllo e' un FAB discreto in basso a destra (`compose-shortcut.js`).
 - **Notifiche dei messaggi diretti**: i messaggi in arrivo nella stessa
-  conversazione aggiornano la sua notifica non letta, mantenendo il link sul
-  messaggio più recente. Dopo la lettura della notifica, un messaggio
-  successivo ne crea una nuova.
+  conversazione riutilizzano la sua notifica, spostandola sul messaggio più
+  recente e segnandola di nuovo come non letta. Aprire la conversazione
+  segna letta la relativa notifica.
+  Una migration dati irreversibile elimina i duplicati precedenti per
+  destinatario e conversazione, conservando la notifica più recente e
+  segnandola non letta se almeno un duplicato lo era. Le notifiche non
+  collegate a una conversazione restano intatte.
 - **Emoji**: nei composer di post e commenti (anche risposte) un'icona
   sorriso apre un picker locale stile Mastodon (categorie, ricerca,
   recenti in `localStorage`). Solo Unicode nativo del sistema, nessuna

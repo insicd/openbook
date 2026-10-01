@@ -42,20 +42,16 @@ final class NotificationCreator
 
         if ($type === Notification::TYPE_DIRECT_MESSAGE && $notifiable instanceof Post && $notifiable->conversation_id !== null) {
             $existing = Notification::query()
-                ->select('notifications.*')
-                ->join('posts', 'posts.id', '=', 'notifications.notifiable_id')
-                ->where('notifications.recipient_id', $recipientActor->user_id)
-                ->where('notifications.type', Notification::TYPE_DIRECT_MESSAGE)
-                ->where('notifications.notifiable_type', $notifiable->getMorphClass())
-                ->whereNull('notifications.read_at')
-                ->where('posts.conversation_id', $notifiable->conversation_id)
-                ->orderByDesc('notifications.created_at')
+                ->forDirectConversation($recipientActor->user_id, $notifiable->conversation_id)
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
                 ->first();
 
             if ($existing !== null) {
                 $existing->forceFill([
                     'actor_id' => $causedBy?->id,
                     'notifiable_id' => $notifiable->getKey(),
+                    'read_at' => null,
                     'created_at' => now(),
                 ])->save();
 

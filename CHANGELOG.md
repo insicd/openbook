@@ -145,9 +145,11 @@ la [roadmap](docs/roadmap.md).
 
 ### Fixed
 - Le notifiche dei messaggi diretti non si moltiplicano durante una chat:
-  i nuovi messaggi aggiornano la notifica ancora non letta della stessa
-  conversazione, che rimanda al messaggio più recente. Dopo aver letto la
-  notifica, un nuovo messaggio ne genera una nuova ([issue #101](https://github.com/insicd/openbook/issues/101)).
+  ogni conversazione riutilizza la stessa notifica, che torna non letta e
+  rimanda al messaggio più recente quando ne arriva uno nuovo. Aprire la chat
+  segna letta anche la relativa notifica. Una migration rimuove i duplicati
+  già presenti, conservando la notifica più recente e lo stato non letto
+  della conversazione ([issue #101](https://github.com/insicd/openbook/issues/101)).
 - La chat accetta Actor `Application` remoti attivi con inbox come destinatari,
   mantenendo esclusi community e relay locale. Un handle remoto sconosciuto
   restituisce l'errore di destinatario anziche' causare un errore 500.

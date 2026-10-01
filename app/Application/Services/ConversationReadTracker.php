@@ -2,8 +2,10 @@
 
 namespace App\Application\Services;
 
+use App\Domain\Accounts\User;
 use App\Domain\Messaging\Conversation;
 use App\Domain\Messaging\ConversationRead;
+use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Support\Carbon;
@@ -23,15 +25,26 @@ final class ConversationReadTracker
             return;
         }
 
+        $readAt ??= now();
+
         DB::table('conversation_reads')->updateOrInsert(
             [
                 'conversation_id' => $conversation->id,
                 'user_id' => $userId,
             ],
             [
-                'last_read_at' => $readAt ?? now(),
+                'last_read_at' => $readAt,
             ],
         );
+
+        $updated = Notification::query()
+            ->forDirectConversation($userId, $conversation->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => $readAt]);
+
+        if ($updated > 0) {
+            User::query()->whereKey($userId)->increment('notifications_revision');
+        }
     }
 
     public function unreadCountFor(Actor $viewer): int
