@@ -23,10 +23,11 @@
     var list = panelRoot ? panelRoot.querySelector('[data-notifications-list]') : null;
     var emptyLabel = panelRoot ? panelRoot.getAttribute('data-notifications-empty') || '' : '';
     var indexUrl = panelRoot ? panelRoot.getAttribute('data-notifications-index') || '/notifiche' : '/notifiche';
-    var lastFingerprint = null;
+    var lastRevision = null;
     var etag = null;
     var timer = null;
     var inFlight = false;
+    var refreshPending = false;
 
     function badgeLabel(count) {
         return count > 9 ? '9+' : String(count);
@@ -115,6 +116,27 @@
         );
     }
 
+    function setMessagesBadge(count) {
+        var nav = document.querySelector('[data-messages-nav]');
+        if (!nav) {
+            return;
+        }
+        var badge = nav.querySelector('[data-messages-badge]');
+        if (count <= 0) {
+            if (badge) {
+                badge.remove();
+            }
+            return;
+        }
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'ob-badge-count';
+            badge.setAttribute('data-messages-badge', '');
+            nav.appendChild(badge);
+        }
+        badge.textContent = badgeLabel(count);
+    }
+
     function renderList(notifications) {
         if (!list) {
             return;
@@ -156,25 +178,14 @@
             .join('');
     }
 
-    function fingerprint(payload) {
-        var ids = (payload.notifications || [])
-            .map(function (item) {
-                return item.id + ':' + (item.unread ? '1' : '0');
-            })
-            .join(',');
-
-        return String(payload.unread_count) + '|' + ids;
-    }
-
     function applyPayload(payload) {
-        var next = fingerprint(payload);
-
-        if (next === lastFingerprint) {
+        if (payload.revision === lastRevision) {
             return;
         }
 
-        lastFingerprint = next;
+        lastRevision = payload.revision;
         setBadges(payload.unread_count || 0);
+        setMessagesBadge(payload.unread_conversations_count || 0);
         renderList(payload.notifications || []);
     }
 
@@ -227,6 +238,10 @@
             })
             .finally(function () {
                 inFlight = false;
+                if (refreshPending) {
+                    refreshPending = false;
+                    poll();
+                }
             });
     }
 
@@ -244,6 +259,14 @@
         }
     });
 
+    document.addEventListener('openbook:messages-read', function () {
+        if (inFlight) {
+            refreshPending = true;
+        } else {
+            poll();
+        }
+    });
+
     // Dopo "segna come lette" dal pannello, allinea subito badge/lista e
     // invalida l'ETag cosi' il prossimo poll conferma lo stato dal server.
     document.addEventListener('openbook:notifications-read', function () {
@@ -255,7 +278,7 @@
             });
         }
 
-        lastFingerprint = null;
+        lastRevision = null;
         etag = null;
     });
 

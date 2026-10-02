@@ -7,6 +7,7 @@ use App\Domain\Comments\Comment;
 use App\Domain\Notifications\Notification;
 use App\Domain\Notifications\PushNotification;
 use App\Domain\Notifications\PushSubscription;
+use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +40,26 @@ final class NotificationCreator
             return null;
         }
 
-        $notification = Notification::query()->create([
+        $notification = null;
+
+        if ($type === Notification::TYPE_DIRECT_MESSAGE && $notifiable instanceof Post && $notifiable->conversation_id !== null) {
+            $notification = Notification::query()
+                ->forDirectConversation($recipientActor->user_id, $notifiable->conversation_id)
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($notification !== null) {
+                $notification->forceFill([
+                    'actor_id' => $causedBy?->id,
+                    'notifiable_id' => $notifiable->getKey(),
+                    'read_at' => null,
+                    'created_at' => now(),
+                ])->save();
+            }
+        }
+
+        $notification ??= Notification::query()->create([
             'recipient_id' => $recipientActor->user_id,
             'actor_id' => $causedBy?->id,
             'type' => $type,
@@ -58,6 +78,7 @@ final class NotificationCreator
                     return;
                 }
 
+                // Riutilizzare la riga pendente accorpa i messaggi senza rinviare la consegna.
                 PushNotification::query()->firstOrCreate(['notification_id' => $notificationId]);
             } catch (Throwable $exception) {
                 // Il canale push e' accessorio: la notifica locale resta valida.

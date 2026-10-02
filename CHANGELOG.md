@@ -144,6 +144,26 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- Le conversazioni non lette mostrano un badge esplicito nella lista delle
+  chat; lo sfondo usa una variabile CSS definita, rendendo visibile l'indicatore.
+- Le notifiche push dei messaggi diretti vengono accodate anche quando la
+  notifica della chat è riutilizzata. Più messaggi prima della consegna
+  condividono una sola push pendente, senza riavviare il periodo di grazia.
+- Il badge «Messaggi» si aggiorna tramite lo stesso polling delle notifiche,
+  contando le conversazioni non lette anche mentre è aperta un'altra chat.
+  La lettura di una chat aggiorna il badge anche se la notifica era già letta.
+- Le chat ordinano e recuperano i messaggi per arrivo locale (`created_at`),
+  includendo anche quelli federati pubblicati prima dell'ultima lettura.
+  Ogni partecipante ha un cursore sull'ultimo messaggio visualizzato:
+  messaggi nello stesso secondo e quelli oltre il limite di una risposta
+  restano distinguibili come non letti. La data sul singolo messaggio
+  continua a indicare la pubblicazione originale (`published_at`).
+- Le notifiche dei messaggi diretti non si moltiplicano durante una chat:
+  ogni conversazione riutilizza la stessa notifica, che torna non letta e
+  rimanda al messaggio più recente quando ne arriva uno nuovo. Aprire la chat
+  segna letta anche la relativa notifica. Una migration rimuove i duplicati
+  già presenti, conservando la notifica più recente e lo stato non letto
+  della conversazione ([issue #101](https://github.com/insicd/openbook/issues/101)).
 - La chat accetta Actor `Application` remoti attivi con inbox come destinatari,
   mantenendo esclusi community e relay locale. Un handle remoto sconosciuto
   restituisce l'errore di destinatario anziche' causare un errore 500.

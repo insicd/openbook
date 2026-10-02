@@ -6,6 +6,7 @@ use App\Domain\Messaging\Conversation;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
@@ -50,56 +51,43 @@ final class ConversationListQuery
      */
     public function messagesFor(Conversation $conversation, int $limit = 100): Collection
     {
-        return Post::query()
-            ->where('conversation_id', $conversation->id)
-            ->where('visibility', Post::VISIBILITY_DIRECT)
-            ->where('status', Post::STATUS_PUBLISHED)
+        return $this->messageQuery($conversation)
             ->with(self::MESSAGE_RELATIONS)
-            ->orderBy('published_at')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->limit($limit)
-            ->get();
+            ->get()->reverse()->values();
     }
 
     public function latestMessagePreview(Conversation $conversation): ?Post
     {
-        return Post::query()
-            ->where('conversation_id', $conversation->id)
-            ->where('visibility', Post::VISIBILITY_DIRECT)
-            ->where('status', Post::STATUS_PUBLISHED)
+        return $this->messageQuery($conversation)
             ->with(['actor.user.profile', 'quotedEvent'])
-            ->orderByDesc('published_at')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->first();
     }
 
     /**
-     * Messaggi pubblicati dopo un certo cursore (per polling live del thread).
+     * Messaggi arrivati dopo un certo cursore (per polling live del thread).
      *
      * @return Collection<int, Post>
      */
     public function messagesAfter(Conversation $conversation, ?string $afterMessageId = null, int $limit = 50): Collection
     {
-        $query = Post::query()
-            ->where('conversation_id', $conversation->id)
-            ->where('visibility', Post::VISIBILITY_DIRECT)
-            ->where('status', Post::STATUS_PUBLISHED)
+        $query = $this->messageQuery($conversation)
             ->with(self::MESSAGE_RELATIONS)
-            ->orderBy('published_at')
+            ->orderBy('created_at')
             ->orderBy('id');
 
         if ($afterMessageId !== null && $afterMessageId !== '') {
             $cursor = Post::query()
                 ->where('conversation_id', $conversation->id)
                 ->whereKey($afterMessageId)
-                ->first(['id', 'published_at']);
+                ->first(['id', 'created_at']);
 
             if ($cursor !== null) {
-                $query->where(function ($builder) use ($cursor) {
-                    $builder->where('published_at', '>', $cursor->published_at)
-                        ->orWhere(function ($sameInstant) use ($cursor) {
-                            $sameInstant->where('published_at', $cursor->published_at)
-                                ->where('id', '>', $cursor->id);
-                        });
-                });
+                $query->afterArrival($cursor->created_at, $cursor->id);
             }
         }
 
@@ -108,12 +96,18 @@ final class ConversationListQuery
 
     public function threadRevision(Conversation $conversation): string
     {
-        $latest = $this->latestMessagePreview($conversation);
+        $latest = $this->messageQuery($conversation)
+            ->orderByDesc('created_at')->orderByDesc('id')->first(['id', 'created_at']);
 
         if ($latest === null) {
             return 'empty';
         }
 
-        return $latest->id.'@'.$latest->published_at->timestamp;
+        return $latest->id.'@'.$latest->created_at->timestamp;
+    }
+
+    private function messageQuery(Conversation $conversation): Builder
+    {
+        return $conversation->messages()->getQuery()->reorder();
     }
 }

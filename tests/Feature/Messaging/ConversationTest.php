@@ -43,6 +43,69 @@ class ConversationTest extends TestCase
         ]);
     }
 
+    public function test_message_notifications_are_reused_per_conversation_after_reading(): void
+    {
+        $alice = $this->createFullAccount('alice');
+        $bob = $this->createFullAccount('bob');
+        $carol = $this->createFullAccount('carol');
+
+        $first = app(MessageComposer::class)->send($alice->actor, $bob->actor, 'Primo');
+        $notification = Notification::query()->where('recipient_id', $bob->id)->firstOrFail();
+        $initialRevision = $bob->fresh()->notifications_revision;
+
+        $this->travel(1)->minute();
+        $second = app(MessageComposer::class)->send($alice->actor, $bob->actor, 'Secondo');
+
+        $this->assertSame(1, Notification::query()->where('recipient_id', $bob->id)->count());
+        $this->assertDatabaseHas('notifications', [
+            'id' => $notification->id,
+            'recipient_id' => $bob->id,
+            'notifiable_id' => $second->id,
+            'read_at' => null,
+        ]);
+        $this->assertTrue($notification->created_at->lt($notification->fresh()->created_at));
+        $this->assertSame($initialRevision + 1, $bob->fresh()->notifications_revision);
+        $this->assertSame(route('messages.show', $first->conversation_id), $notification->fresh()->targetUrl());
+
+        $otherMessage = app(MessageComposer::class)->send($carol->actor, $bob->actor, 'Altra chat');
+
+        $this->assertSame(2, Notification::query()->where('recipient_id', $bob->id)->whereNull('read_at')->count());
+
+        $revisionBeforeReading = $bob->fresh()->notifications_revision;
+        $this->actingAs($bob)->get(route('messages.show', $first->conversation_id))->assertOk();
+        $this->assertNotNull($notification->fresh()->read_at);
+        $this->assertSame($revisionBeforeReading + 1, $bob->fresh()->notifications_revision);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $bob->id,
+            'notifiable_id' => $otherMessage->id,
+            'read_at' => null,
+        ]);
+
+        $this->travel(1)->minute();
+        $third = app(MessageComposer::class)->send($alice->actor, $bob->actor, 'Terzo');
+
+        $this->assertSame(2, Notification::query()->where('recipient_id', $bob->id)->count());
+        $this->assertDatabaseHas('notifications', [
+            'id' => $notification->id,
+            'recipient_id' => $bob->id,
+            'notifiable_id' => $third->id,
+            'read_at' => null,
+        ]);
+
+        $this->actingAs($bob)->get(route('notifications.index'))->assertOk();
+        $this->assertNotNull($notification->fresh()->read_at);
+        $this->travel(1)->minute();
+        $fourth = app(MessageComposer::class)->send($alice->actor, $bob->actor, 'Quarto');
+
+        $this->assertSame(2, Notification::query()->where('recipient_id', $bob->id)->count());
+        $this->assertDatabaseHas('notifications', [
+            'id' => $notification->id,
+            'recipient_id' => $bob->id,
+            'notifiable_id' => $fourth->id,
+            'read_at' => null,
+        ]);
+    }
+
     public function test_a_local_user_can_message_a_remote_actor(): void
     {
         Queue::fake();
@@ -181,6 +244,10 @@ class ConversationTest extends TestCase
         $response->assertOk();
         $response->assertJsonCount(1, 'messages');
         $response->assertJsonPath('messages.0.body_html', fn ($html) => str_contains((string) $html, 'Secondo'));
+        $this->assertSame(0, Notification::query()
+            ->where('recipient_id', $bob->id)
+            ->whereNull('read_at')
+            ->count());
     }
 
     public function test_store_returns_json_for_ajax_requests(): void

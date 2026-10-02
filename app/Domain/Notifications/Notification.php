@@ -10,6 +10,7 @@ use App\Domain\Events\EventParticipation;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -83,6 +84,17 @@ class Notification extends Model
         return [
             'read_at' => 'datetime',
         ];
+    }
+
+    public function scopeForDirectConversation(Builder $query, string $recipientId, string $conversationId): Builder
+    {
+        return $query
+            ->where('recipient_id', $recipientId)
+            ->where('type', self::TYPE_DIRECT_MESSAGE)
+            ->where('notifiable_type', (new Post)->getMorphClass())
+            ->whereIn('notifiable_id', Post::query()
+                ->select('id')
+                ->where('conversation_id', $conversationId));
     }
 
     public function recipient(): BelongsTo

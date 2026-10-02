@@ -88,9 +88,14 @@
                 <x-avatar :actor="$other" style="width:48px;height:48px" />
                 <div class="ob-message-row__body">
                     <div class="ob-message-row__top">
-                        <strong>{!! $other->displayNameHtml() !!}</strong>
+                        <span class="ob-message-row__name">
+                            <strong>{!! $other->displayNameHtml() !!}</strong>
+                            @if ($isUnread)
+                                <span class="ob-message-row__unread">{{ __('openbook.messages.unread') }}</span>
+                            @endif
+                        </span>
                         @if ($preview)
-                            <span class="ob-message-row__time">{{ $preview->published_at->diffForHumans() }}</span>
+                            <span class="ob-message-row__time">{{ $preview->created_at->diffForHumans() }}</span>
                         @endif
                     </div>
                     @if ($preview)

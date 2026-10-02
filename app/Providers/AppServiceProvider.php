@@ -55,6 +55,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Post::updated(function (Post $post): void {
+            app(ConversationReadTracker::class)->invalidateOnPostChange($post);
+        });
+
         if (config('app.env') === 'production') {
             URL::forceScheme('https');
         }

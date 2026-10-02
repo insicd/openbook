@@ -535,6 +535,7 @@ return [
 
     'messages' => [
         'title' => 'Messages',
+        'unread' => 'Unread',
         'new_title' => 'New conversation',
         'share_title' => 'Share with user',
         'share_intro' => 'Send this post as a private message.',

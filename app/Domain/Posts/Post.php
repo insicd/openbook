@@ -136,6 +136,16 @@ class Post extends Model
         ];
     }
 
+    public function scopeAfterArrival(Builder $query, Carbon $createdAt, string $messageId): Builder
+    {
+        return $query->where(function (Builder $query) use ($createdAt, $messageId): void {
+            $query->where('created_at', '>', $createdAt)
+                ->orWhere(function (Builder $query) use ($createdAt, $messageId): void {
+                    $query->where('created_at', $createdAt)->where('id', '>', $messageId);
+                });
+        });
+    }
+
     public function actor(): BelongsTo
     {
         return $this->belongsTo(Actor::class);

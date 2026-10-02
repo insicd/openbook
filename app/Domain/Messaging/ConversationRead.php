@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
  * @property string $conversation_id
  * @property string $user_id
  * @property Carbon|null $last_read_at
+ * @property string|null $last_read_message_id
  */
 class ConversationRead extends Model
 {
@@ -25,6 +26,7 @@ class ConversationRead extends Model
         'conversation_id',
         'user_id',
         'last_read_at',
+        'last_read_message_id',
     ];
 
     protected function casts(): array

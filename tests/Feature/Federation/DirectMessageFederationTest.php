@@ -85,6 +85,33 @@ class DirectMessageFederationTest extends TestCase
             'type' => Notification::TYPE_DIRECT_MESSAGE,
             'notifiable_id' => $post->id,
         ]);
+
+        $secondNoteUri = 'https://remoto.example/users/sender/statuses/100';
+        $activity['id'] = 'https://remoto.example/activities/'.uniqid();
+        $activity['object']['id'] = $secondNoteUri;
+        $activity['object']['content'] = '<p>Secondo messaggio</p>';
+
+        $secondItem = InboxItem::query()->create([
+            'is_shared' => false,
+            'remote_activity_uri' => $activity['id'],
+            'activity_type' => 'Create',
+            'actor_uri' => $remote->uri,
+            'payload' => json_encode($activity, JSON_THROW_ON_ERROR),
+            'signature_valid' => true,
+            'status' => InboxItem::STATUS_PENDING,
+            'received_at' => now(),
+        ]);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, app(InboxActivityProcessor::class)->process($secondItem));
+
+        $secondPost = Post::query()->where('uri', $secondNoteUri)->firstOrFail();
+        $this->assertSame($post->conversation_id, $secondPost->conversation_id);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $local->id,
+            'type' => Notification::TYPE_DIRECT_MESSAGE,
+            'notifiable_id' => $secondPost->id,
+        ]);
+        $this->assertSame(1, Notification::query()->where('recipient_id', $local->id)->count());
     }
 
     public function test_inbound_direct_message_fetches_content_when_note_is_a_stub(): void

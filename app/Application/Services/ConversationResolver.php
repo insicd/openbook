@@ -32,6 +32,12 @@ final class ConversationResolver
 
     public function touch(Conversation $conversation, Carbon $at): void
     {
-        $conversation->update(['last_message_at' => $at]);
+        Conversation::query()->whereKey($conversation->id)
+            ->where(function ($query) use ($at): void {
+                $query->whereNull('last_message_at')->orWhere('last_message_at', '<', $at);
+            })
+            ->update(['last_message_at' => $at]);
+
+        $conversation->refresh();
     }
 }

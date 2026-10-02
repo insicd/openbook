@@ -231,6 +231,9 @@
             .then(function (payload) {
                 if (payload && payload.messages) {
                     appendMessages(payload.messages);
+                    if (payload.messages.length > 0) {
+                        document.dispatchEvent(new CustomEvent('openbook:messages-read'));
+                    }
                 }
             })
             .catch(function () {
@@ -297,6 +300,7 @@
             .then(function (payload) {
                 if (payload && payload.message) {
                     appendMessages([payload.message]);
+                    document.dispatchEvent(new CustomEvent('openbook:messages-read'));
                     textarea.value = '';
                     clearQuotedPost();
                     textarea.focus();

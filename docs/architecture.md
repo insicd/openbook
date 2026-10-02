@@ -265,6 +265,38 @@ and "Edit profile" button on your own profile) makes them editable:
   past the composer, a **+** button appears in the center of the header that
   returns focus to the composer (or to Home if you are elsewhere); on mobile the same
   control is a discreet FAB at the bottom right (`compose-shortcut.js`).
+- **Direct message notifications**: incoming messages in the same conversation
+  reuse its notification, moving it to the latest message and marking it
+  unread again. Opening the conversation marks that notification as read.
+  An irreversible data migration removes previous duplicates per recipient
+  and conversation, retaining the latest notification and marking it unread
+  if any duplicate was unread. Unlinked notifications are left intact.
+  Reusing a notification also queues browser push after commit. Multiple
+  messages before delivery share one pending push without resetting its grace
+  period; a new message after delivery or browser consumption can queue it
+  again. The existing visible-tab polling suppresses pending pushes, and the
+  payload contains the sender's notification text rather than private content.
+- **Chat ordering and read state**: thread ordering, polling cursors, previews,
+  and conversation activity use local arrival (`posts.created_at`). The
+  timestamp above each message still shows its original `published_at`.
+  Per-participant read cursors store the arrival timestamp and ID of the last
+  message shown, distinguishing arrivals in the same second. Polling marks
+  only messages in its response as read; the sidebar count measures unread
+  conversations. Each unread conversation has an explicit badge and a
+  highlighted background in the chat list. A migration converts existing
+  reads and conversation activity to this arrival order. Opening a thread
+  shows its latest 100 messages in arrival order.
+- **Live sidebar badges**: `notifications.feed` returns both unread notification
+  and unread conversation counts. The existing 60-second notification poll
+  updates both badges, pausing while the tab is hidden. A shared revision
+  invalidates the ETag on incoming messages and advancing read cursors, even
+  when the general notification was already read, and on message status or
+  visibility changes. Reading general notifications
+  does not mark conversations read. The chat requests an immediate refresh from
+  the same poller after receiving or sending messages.
+  The migration invalidates existing badge revisions, replaces redundant
+  single-column post indexes with their covering prefixes, and adds a
+  recipient/type/creation/ID index for notification reuse regardless of read state.
 - **Emoji**: in post and comment composers (including replies) a smile icon
   opens a local Mastodon-style picker (categories, search, recents in
   `localStorage`). System-native Unicode only, no CDN / Twemoji
