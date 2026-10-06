@@ -217,7 +217,7 @@ indipendente dal lock della retention. Ogni batch notifiche è transazionale;
 in caso di errore i batch precedenti già completati restano applicati.
 
 Il comando è **CLI autonomo**, senza richiamo obbligatorio da retention,
-`openbook:cron`, purge delle tabelle operative o endpoint HTTP. Può essere
+`openbook:cron` o purge delle tabelle operative. Può essere
 eseguito periodicamente con un cron dedicato:
 
 ```cron
@@ -226,7 +226,22 @@ eseguito periodicamente con un cron dedicato:
 
 Se si desidera pulire subito dopo la retention, i due comandi possono essere
 eseguiti in successione nello stesso script cron. Non servono worker permanenti
-o Redis. Il tab amministrativo Database sanity è previsto in uno sprint successivo.
+o Redis.
+
+Nel tab **Amministrazione → Database → Database sanity**, l'anteprima si carica
+all'apertura e usa gli stessi selettori e campioni da 100 righe del dry-run CLI.
+La tabella mostra tabella, tipo di oggetto e numero di orfani nel campione;
+**Aggiorna anteprima** ricarica soltanto le letture. I tipi non supportati sono
+segnalati separatamente e vengono conservati.
+
+**Pulisci gli orfani**, dopo conferma, esegue il servizio di sanity mediante
+POST protetta da CSRF e riservata agli amministratori. I limiti web sono fissi:
+100 righe per batch e 5 secondi controllati fra i batch; quello in corso termina
+anche se supera il limite. Una pulizia parziale può essere ripetuta oppure
+completata tramite CLI. Il lock è condiviso con il comando, così web e CLI non
+avviano pulizie contemporanee. L'azione viene registrata nell'audit con i conteggi.
+Dopo la pulizia si torna allo stesso tab, con campioni aggiornati e una colonna
+aggiuntiva per le righe effettivamente eliminate nell'ultima esecuzione.
 
 ### Worker video (solo quando il supporto video e' abilitato)
 

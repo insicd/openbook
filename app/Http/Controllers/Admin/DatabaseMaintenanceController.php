@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Application\Queries\DatabaseSanityQuery;
 use App\Application\Queries\RemotePostRetentionQuery;
 use App\Application\Services\DatabaseMaintenanceService;
+use App\Application\Services\DatabaseSanity;
 use App\Application\Services\InstanceSettings;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\View\View;
@@ -13,9 +15,13 @@ use Illuminate\Validation\Rule;
 
 final class DatabaseMaintenanceController extends Controller
 {
-    public function index(Request $request, DatabaseMaintenanceService $maintenance, InstanceSettings $settings, RemotePostRetentionQuery $retention): View
+    private const SANITY_BATCH_SIZE = 100;
+
+    private const SANITY_MAX_TIME = 5;
+
+    public function index(Request $request, DatabaseMaintenanceService $maintenance, InstanceSettings $settings, RemotePostRetentionQuery $retention, DatabaseSanityQuery $sanity): View
     {
-        $activeTab = $request->query('tab') === 'maintenance' ? 'maintenance' : 'retention';
+        $activeTab = in_array($request->query('tab'), ['maintenance', 'sanity'], true) ? $request->query('tab') : 'retention';
         $tables = $activeTab === 'maintenance' ? $maintenance->snapshots() : [];
         $totalSizeBytes = $maintenance->databaseSizeBytes();
         $totalPurgeable = array_sum(array_column($tables, 'purgeable_count'));
@@ -32,6 +38,10 @@ final class DatabaseMaintenanceController extends Controller
             'tables' => $tables,
             'activeTab' => $activeTab,
             'preview' => $preview,
+            'sanityPreview' => $activeTab === 'sanity' ? $sanity->samples(self::SANITY_BATCH_SIZE) : null,
+            'sanityUnknown' => $activeTab === 'sanity' ? $sanity->unsupportedCounts() : [],
+            'sanityResult' => $request->session()->get('sanityResult'),
+            'sanityBatchSize' => self::SANITY_BATCH_SIZE,
             'retentionHours' => DatabaseMaintenanceService::RETENTION_HOURS,
             'totalSizeLabel' => $totalSizeBytes === null ? __('openbook.admin.database.size_unavailable') : $this->formatBytes($totalSizeBytes),
             'maintenanceSizeLabel' => $this->formatBytes(array_sum(array_column($tables, 'size_bytes'))),
@@ -39,6 +49,19 @@ final class DatabaseMaintenanceController extends Controller
             'nonPertinentDays' => $settings->remotePostNonPertinentRetentionDays(),
             'pertinentDays' => $settings->remotePostPertinentRetentionDays(),
         ]);
+    }
+
+    public function runSanity(Request $request, DatabaseSanity $sanity): RedirectResponse
+    {
+        $result = $sanity->run(self::SANITY_BATCH_SIZE, self::SANITY_MAX_TIME, $request->user());
+        $redirect = redirect()->route('admin.database.index', ['tab' => 'sanity']);
+        if ($result === null) {
+            return $redirect->with('status', __('openbook.admin.database.sanity_busy'));
+        }
+
+        $total = array_sum(array_map(array_sum(...), $result['deleted']));
+
+        return $redirect->with('sanityResult', $result)->with('status', __('openbook.admin.database.sanity_completed', ['count' => $total]));
     }
 
     public function updateRetention(Request $request, InstanceSettings $settings): RedirectResponse

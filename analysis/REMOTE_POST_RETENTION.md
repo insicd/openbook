@@ -1,7 +1,7 @@
 # Retention dei post remoti — issue #106
 
-Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity S1/S2/S3 committati, S4 completato e approvato**.
-Aggiornato il 6 ottobre 2026.
+Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity S1/S2/S3/S4 committati, S5 completato e approvato**.
+Aggiornato il 7 ottobre 2026.
 
 Riferimento: [issue #106](https://github.com/insicd/openbook/issues/106).
 Il branch `issue_106` parte da `issue_107`, commit `79d4e34`, comprendendo anche
@@ -580,9 +580,9 @@ Verifica / uscita:
 
 Attività:
 
-- Definire con l'utente le informazioni e le azioni da offrire, a partire da
-  anteprima dry-run e report delle tabelle/tipi interessati e delle righe orfane.
-  Decidere in questa fase se prevedere anche un'azione di pulizia da web.
+- Presentare l’anteprima equivalente al dry-run in una tabella, con tabella,
+  tipo di oggetto e conteggio limitato. Come concordato dopo S4, offrire anche
+  la pulizia reale da web con conferma e limiti fissi.
 - Aggiungere il tab «Database sanity» alla pagina Amministrazione → Database,
   coerente con Retention e Maintenance e con accesso riservato agli admin.
 - Riutilizzare i servizi del comando, senza duplicare le regole di
@@ -1098,3 +1098,66 @@ Pint, diff check e review finale completati senza problemi critici individuati.
 L'utente ha verificato con successo il comando con e senza dry-run e approvato
 il commit di S4 e l'avvio di S5. Per S5 richiede la tabella equivalente al
 dry-run e propone anche la pulizia reale da web, con limiti adatti a HTTP.
+
+
+## Avanzamento — S5 completato e approvato
+
+S4 committato in `b29a594` dopo la verifica positiva dell’utente. Aggiunto il
+terzo tab **Database sanity** in Amministrazione → Database. L’apertura carica
+la tabella delle 15 coppie tabella/tipo, con campioni di massimo 100 orfani per
+coppia; non sono conteggi globali. Il pulsante **Aggiorna anteprima** ricarica
+soltanto le letture. CLI e pannello riusano gli stessi metodi di selezione e
+conteggio, senza duplicare i criteri di riconciliazione. I tipi non supportati
+restano segnalati separatamente e conservati.
+
+Come richiesto, in fondo alla tabella è presente anche **Pulisci gli orfani**,
+con conferma, POST protetta da CSRF e accesso riservato agli amministratori.
+Riusa il servizio CLI con batch da 100 righe e limite web di 5 secondi,
+verificato fra i batch: un batch già iniziato termina. Il lock su file è stato
+spostato nel servizio di ingresso condiviso, così CLI e web non possono
+avviare due pulizie contemporanee. Un risultato parziale invita a ripetere
+l’operazione; il CLI mantiene i propri default e resta utilizzabile da solo.
+
+Dopo la pulizia il pannello torna al tab sanity, aggiorna i campioni e aggiunge
+una colonna con le righe realmente eliminate durante quella esecuzione.
+L’azione amministrativa registra conteggi e indicazione di timeout nel registro
+audit, senza corpi di contenuti. Le regole di cancellazione aggregate e il
+trattamento di notifiche, push e revisioni rimangono quelli verificati in S2/S3.
+Non sono state introdotte nuove query di cancellazione o nuovi indici.
+
+Verifiche completate:
+
+- **9 test del pannello, 66 asserzioni**: anteprima senza scritture e coerente
+  con il CLI, caricamento solo nel tab sanity, autorizzazioni admin/moderatori/
+  utenti/ospiti, POST obbligatoria, tipi sconosciuti escapati e conservati,
+  pulizia reale con report e audit, lock condiviso, limiti web non alterabili
+  dalla richiesta e ripresa dopo timeout, rollback del batch notifiche e
+  rilascio del lock in caso di errore.
+- Regressioni CLI, Maintenance e Retention passate; suite completa:
+  **1.274 test passati, 5.798 asserzioni**, con i 2 test installer MySQL
+  saltati per database di test non raggiungibile nell’ambiente della suite.
+- Comando aggiornato eseguito su schema MySQL temporaneo isolato: dry-run
+  senza modifiche, pulizia corretta e ripetizione vuota; piani delle DELETE
+  e dell’UPDATE revisioni confermati. Schema rimosso al termine. MariaDB
+  non verificato su server separato.
+- Controllo nel browser con template reale e dati dimostrativi: tabella,
+  tab attivo e pulsanti in fondo; a 375 px i tab vanno a capo e la pagina
+  non produce overflow orizzontale. La tabella scorre nel proprio contenitore.
+  Nessuna pulizia eseguita dall’assistente sull’istanza locale.
+- Guide EN/IT, changelog e analisi aggiornati; Pint, diff check e review
+  completa senza problemi critici individuati.
+
+L’utente ha verificato il pannello e approvato il commit di S5, comprese le
+rifiniture dei pulsanti descritte sotto. Le due macrofasi sono completate.
+
+
+### Rifinitura S5 — Pulsanti coerenti fra i tab
+
+Dopo la prova manuale positiva, l’utente ha richiesto di uniformare il fondo
+pagina dei tre tab. I pulsanti Retention sono stati spostati fuori dalla card,
+con lo stesso margine superiore di Maintenance e Database sanity. Il pulsante
+di salvataggio rimane associato al form tramite l’attributo HTML `form`, così
+mantiene invio dei campi, validazione del browser e protezione CSRF. Anche con
+l’anteprima aperta le azioni restano in fondo. Nessuna modifica alle operazioni
+sui dati. I 34 test mirati del pannello sono passati (269 asserzioni);
+l’utente ha approvato la rifinitura e autorizzato il commit dello sprint.

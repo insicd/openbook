@@ -16,13 +16,16 @@
         <a href="{{ route('admin.database.index', ['tab' => 'maintenance']) }}"
            class="ob-profile-tabs__tab {{ $activeTab === 'maintenance' ? 'is-active' : '' }}"
            @if ($activeTab === 'maintenance') aria-current="page" @endif>{{ __('openbook.admin.database.tab_maintenance') }}</a>
+        <a href="{{ route('admin.database.index', ['tab' => 'sanity']) }}"
+           class="ob-profile-tabs__tab {{ $activeTab === 'sanity' ? 'is-active' : '' }}"
+           @if ($activeTab === 'sanity') aria-current="page" @endif>{{ __('openbook.admin.database.tab_sanity') }}</a>
     </nav>
 
     @if ($activeTab === 'retention')
         <section class="ob-card ob-admin-retention" style="margin-top:1.5rem" aria-labelledby="remote-retention-title">
             <h2 id="remote-retention-title">{{ __('openbook.admin.database.retention_title') }}</h2>
             <p class="ob-field__help">{{ __('openbook.admin.database.retention_intro') }}</p>
-            <form method="POST" action="{{ route('admin.database.retention.update') }}">
+            <form id="remote-retention-form" method="POST" action="{{ route('admin.database.retention.update') }}">
                 @csrf
                 @method('PUT')
                 <div class="ob-field" style="margin-top:1rem">
@@ -56,12 +59,6 @@
                 </div>
                 <h3>{{ __('openbook.admin.database.retention_preserved') }}</h3>
                 <p class="ob-field__help">{{ __('openbook.admin.database.retention_exclusions') }}</p>
-                <div class="ob-admin-retention__actions">
-                    <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.admin.database.retention_save') }}</button>
-                    <a class="ob-btn ob-btn--ghost" href="{{ route('admin.database.index', ['tab' => 'retention', 'preview' => 1]) }}#retention-preview">
-                        {{ __('openbook.admin.database.retention_preview') }}
-                    </a>
-                </div>
             </form>
             @if ($preview !== null)
                 <section id="retention-preview" aria-labelledby="retention-preview-title" style="margin-top:1.5rem">
@@ -88,6 +85,14 @@
                 </section>
             @endif
         </section>
+        <div class="ob-admin-retention__actions" style="margin-top:1.25rem">
+            <button type="submit" form="remote-retention-form" class="ob-btn ob-btn--primary">{{ __('openbook.admin.database.retention_save') }}</button>
+            <a class="ob-btn ob-btn--ghost" href="{{ route('admin.database.index', ['tab' => 'retention', 'preview' => 1]) }}#retention-preview">
+                {{ __('openbook.admin.database.retention_preview') }}
+            </a>
+        </div>
+    @elseif ($activeTab === 'sanity')
+        @include('admin.database.sanity')
     @else
         <h2>{{ __('openbook.admin.database.tab_maintenance') }}</h2>
         <p class="ob-field__help">{{ __('openbook.admin.database.intro') }}</p>

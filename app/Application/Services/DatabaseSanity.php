@@ -3,13 +3,38 @@
 namespace App\Application\Services;
 
 use App\Application\Queries\DatabaseSanityQuery;
+use App\Domain\Accounts\User;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
+use RuntimeException;
 
 final class DatabaseSanity
 {
     public function __construct(private readonly DatabaseSanityQuery $query) {}
+
+    /** @return ?array{deleted: array<string, array<string, int>>, timed_out: bool} */
+    public function run(int $batchSize, int $maxTime, ?User $operator = null): ?array
+    {
+        $lock = fopen(storage_path('framework/cache/database-sanity.lock'), 'c');
+        if ($lock === false) {
+            throw new RuntimeException('Unable to open the Database sanity lock.');
+        }
+
+        try {
+            if (! flock($lock, LOCK_EX | LOCK_NB)) {
+                return null;
+            }
+            $result = $this->reconcile($batchSize, $maxTime);
+            if ($operator !== null) {
+                app(AuditLogger::class)->log($operator, 'database.sanity', null, $result);
+            }
+
+            return $result;
+        } finally {
+            fclose($lock);
+        }
+    }
 
     /** @return array{deleted: array<string, array<string, int>>, timed_out: bool} */
     public function reconcile(int $batchSize, int $maxTime): array

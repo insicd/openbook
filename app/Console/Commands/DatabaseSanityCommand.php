@@ -28,9 +28,8 @@ final class DatabaseSanityCommand extends Command
         if ($this->option('dry-run')) {
             $this->info('Database sanity (dry-run): nessun dato modificato.');
             $this->line("Un solo batch per tabella/tipo, massimo {$batchSize} orfani. I conteggi non sono totali globali.");
-            foreach ($query->relations() as $table => $relation) {
-                foreach (array_keys($relation['parents']) as $type) {
-                    $count = $query->orphans($table, $type, $batchSize)->get()->count();
+            foreach ($query->samples($batchSize) as $table => $types) {
+                foreach ($types as $type => $count) {
                     $this->line("{$table} / {$type}: {$count} orfani nel campione (massimo {$batchSize}).");
                 }
             }
@@ -39,47 +38,34 @@ final class DatabaseSanityCommand extends Command
             return self::SUCCESS;
         }
 
-        $lock = fopen(storage_path('framework/cache/database-sanity.lock'), 'c');
-        if ($lock === false) {
-            $this->error('Impossibile aprire il lock della Database sanity.');
-
-            return self::FAILURE;
-        }
-
-        try {
-            if (! flock($lock, LOCK_EX | LOCK_NB)) {
-                $this->warn('Database sanity già in esecuzione: nessuna pulizia avviata.');
-
-                return self::SUCCESS;
-            }
-
-            $this->reportUnknownTypes($query);
-            $result = $sanity->reconcile($batchSize, $maxTime);
-            $this->info('Database sanity: righe eliminate in questa esecuzione.');
-            foreach ($result['deleted'] as $table => $types) {
-                foreach ($types as $type => $count) {
-                    $this->line("{$table} / {$type}: {$count} righe eliminate.");
-                }
-            }
-            if ($result['timed_out']) {
-                $this->comment('Limite di tempo raggiunto: eseguire nuovamente per continuare.');
-            }
+        $result = $sanity->run($batchSize, $maxTime);
+        if ($result === null) {
+            $this->warn('Database sanity già in esecuzione: nessuna pulizia avviata.');
 
             return self::SUCCESS;
-        } finally {
-            fclose($lock);
         }
+        $this->reportUnknownTypes($query);
+        $this->info('Database sanity: righe eliminate in questa esecuzione.');
+        foreach ($result['deleted'] as $table => $types) {
+            foreach ($types as $type => $count) {
+                $this->line("{$table} / {$type}: {$count} righe eliminate.");
+            }
+        }
+        if ($result['timed_out']) {
+            $this->comment('Limite di tempo raggiunto: eseguire nuovamente per continuare.');
+        }
+
+        return self::SUCCESS;
     }
 
     private function reportUnknownTypes(DatabaseSanityQuery $query): void
     {
-        foreach (array_keys($query->relations()) as $table) {
-            $types = $query->unknownTypes($table)->get();
-            foreach ($types as $unknown) {
-                $type = json_encode($unknown->type, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
-                $this->warn("{$table} / tipo non supportato {$type}: {$unknown->row_count} righe conservate (totale per tipo).");
+        foreach ($query->unsupportedCounts() as $table => $types) {
+            foreach ($types as $unknown => $count) {
+                $type = json_encode((string) $unknown, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+                $this->warn("{$table} / tipo non supportato {$type}: {$count} righe conservate (totale per tipo).");
             }
-            if ($types->count() === 100) {
+            if (count($types) === 100) {
                 $this->comment("{$table}: mostrati al massimo 100 tipi non supportati.");
             }
         }

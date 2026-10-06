@@ -1152,6 +1152,7 @@ html.ob-compose-modal-open {
 
 .ob-admin-database-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
   margin: 1.25rem 0;
   border-bottom: 1px solid var(--ob-color-border);

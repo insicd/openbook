@@ -21,6 +21,30 @@ final class DatabaseSanityQuery
         'notifications' => ['morph' => 'notifiable', 'models' => [Post::class, Comment::class, Follow::class, Actor::class, Event::class, EventComment::class, EventParticipation::class]],
     ];
 
+    /** @return array<string, array<string, int>> */
+    public function samples(int $limit): array
+    {
+        $counts = [];
+        foreach ($this->relations() as $table => $relation) {
+            foreach (array_keys($relation['parents']) as $type) {
+                $counts[$table][$type] = $this->orphans($table, $type, $limit)->get()->count();
+            }
+        }
+
+        return $counts;
+    }
+
+    /** @return array<string, array<string, int>> */
+    public function unsupportedCounts(): array
+    {
+        $counts = [];
+        foreach (array_keys($this->relations()) as $table) {
+            $counts[$table] = array_map(intval(...), $this->unknownTypes($table)->pluck('row_count', 'type')->all());
+        }
+
+        return $counts;
+    }
+
     /** @return array<string, array{morph: string, parents: array<string, string>}> */
     public function relations(): array
     {

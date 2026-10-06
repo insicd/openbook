@@ -217,7 +217,7 @@ of the retention lock. Each notification batch is transactional; on failure,
 previously completed batches remain applied.
 
 This is an **autonomous CLI command**, with no mandatory invocation from
-retention, `openbook:cron`, operational-table purge or an HTTP endpoint.
+retention, `openbook:cron` or operational-table purge.
 It can run periodically through a dedicated cron:
 
 ```cron
@@ -225,8 +225,22 @@ It can run periodically through a dedicated cron:
 ```
 
 To clean up immediately after retention, run the two commands sequentially
-in the same cron script. No permanent workers or Redis are needed. The
-Database sanity admin tab is planned for a later sprint.
+in the same cron script. No permanent workers or Redis are needed.
+
+In **Administration → Database → Database sanity**, the preview loads when
+the tab opens and uses the same selectors and 100-row samples as the CLI
+dry-run. The table shows table name, object type and orphan count in the
+sample; **Refresh preview** only reloads these reads. Unsupported types are
+reported separately and preserved.
+
+After confirmation, **Clean up orphans** runs the sanity service through a
+CSRF-protected POST restricted to administrators. Web limits are fixed:
+100 rows per batch and 5 seconds checked between batches; the current batch
+finishes even if it exceeds the limit. Partial cleanup can be repeated or
+completed through the CLI. The lock is shared with the command, preventing
+web and CLI cleanups from overlapping. The action and counts are recorded
+in the audit log. After cleanup, the same tab shows refreshed samples and
+an additional column for rows actually deleted during the last invocation.
 
 ### Video worker (only when video support is enabled)
 

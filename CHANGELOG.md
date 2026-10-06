@@ -24,6 +24,8 @@ la [roadmap](docs/roadmap.md).
   disabilitata. Dry-run con campioni per tabella/tipo, batch, limite di tempo e
   lock dedicato; tipi sconosciuti e registro audit conservati. La pulizia delle
   notifiche include i push collegati e aggiorna le revisioni dei destinatari.
+  Il tab amministrativo dedicato mostra la stessa anteprima in tabella e offre
+  la pulizia reale con limiti web, conferma, audit e lock condiviso con il CLI.
 - **Retention dei post remoti**: comando CLI `openbook:prune-remote-posts`
   per eliminare a batch i post Pertinenti e Non pertinenti scaduti, con
   limite di tempo, lock anti-sovrapposizione e anteprima `--dry-run` con link
