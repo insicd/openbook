@@ -102,6 +102,41 @@ rifiuta richieste troppo ravvicinate (`OPENBOOK_WEB_CRON_MIN_INTERVAL`, default 
 secondi, risposta 429) restituendo 404 se la funzione e' disabilitata o 403 se il
 token e' mancante o errato.
 
+### Anteprima retention dei post remoti
+
+Il comando CLI dedicato è attualmente disponibile **solo in dry-run**:
+
+```bash
+php artisan openbook:prune-remote-posts --dry-run --batch-size=100 --sample=10
+```
+
+Mostra un solo batch per fascia (Pertinenti e Non pertinenti), ordinato dalla
+prima importazione, e fino a `--sample` link locali per fascia. I conteggi
+riguardano il batch, non tutti i post scaduti. `--batch-size` deve essere un
+intero positivo; `--sample` può essere 0 per omettere i link. Il comando non
+modifica dati, non invia attività federate e rifiuta l'esecuzione senza
+`--dry-run`. Non viene richiamato da `openbook:cron` né dall'endpoint HTTP.
+
+Entrambe le durate hanno default **0 (disabilitata)**. Il form amministrativo
+arriverà con il completamento della funzione. Per una verifica anticipata si
+possono impostare le due chiavi tramite `php artisan tinker`:
+
+```php
+use App\Infrastructure\Database\SystemSetting;
+SystemSetting::get('remote_post_non_pertinent_retention_days', '0');
+SystemSetting::get('remote_post_pertinent_retention_days', '0');
+// Esempio: annotare prima i valori precedenti per poterli ripristinare.
+SystemSetting::put('remote_post_non_pertinent_retention_days', '30');
+SystemSetting::put('remote_post_pertinent_retention_days', '90');
+```
+
+Sono impostazioni persistenti, espresse in giorni: con entrambe attive usare
+una durata lunga almeno pari alla breve. Un campione vuoto è normale se non
+esistono post importati prima della soglia. I link rispettano `APP_URL`; aprirli
+con il proprio account per verificare i contenuti visibili. I post già segnati
+come cancellati possono comparire nel batch ma non avere una pagina consultabile.
+Per tornare al default, ripristinare entrambe le chiavi a `'0'`.
+
 ### Worker video (solo quando il supporto video e' abilitato)
 
 Gli upload video locali sono **disabilitati per default**. Un amministratore

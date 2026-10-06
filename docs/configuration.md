@@ -103,6 +103,41 @@ rejects requests that are too close together (`OPENBOOK_WEB_CRON_MIN_INTERVAL`,
 default 55 seconds, 429 response), returning 404 if the feature is disabled or
 403 if the token is missing or wrong.
 
+### Remote post retention preview
+
+The dedicated CLI command currently supports **dry-run only**:
+
+```bash
+php artisan openbook:prune-remote-posts --dry-run --batch-size=100 --sample=10
+```
+
+It displays one batch per category (relevant and non-relevant posts), ordered
+by first import time, and up to `--sample` local links per category. Counts
+refer to the batch, not all expired posts. `--batch-size` must be a positive
+integer; `--sample` may be 0 to omit links. The command does not modify data
+or send federation activities, and rejects execution without `--dry-run`.
+It is not invoked by `openbook:cron` or the HTTP cron endpoint.
+
+Both retention periods default to **0 (disabled)**. The administration form
+will arrive when the feature is completed. For early verification, the two
+settings can be configured through `php artisan tinker`:
+
+```php
+use App\Infrastructure\Database\SystemSetting;
+SystemSetting::get('remote_post_non_pertinent_retention_days', '0');
+SystemSetting::get('remote_post_pertinent_retention_days', '0');
+// Example: record previous values first so you can restore them.
+SystemSetting::put('remote_post_non_pertinent_retention_days', '30');
+SystemSetting::put('remote_post_pertinent_retention_days', '90');
+```
+
+These settings persist and are expressed in days: when both are enabled, the
+longer period must be at least as long as the shorter period. An empty sample
+is expected if no posts were imported before the cutoff. Links use `APP_URL`;
+open them while signed in to check content visible to your account. Posts
+already marked as deleted may appear in the batch without a viewable page.
+To return to defaults, restore both settings to `'0'`.
+
 ### Video worker (only when video support is enabled)
 
 Local video uploads are **disabled by default**. An administrator must enable

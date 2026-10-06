@@ -1,6 +1,6 @@
 # Retention dei post remoti — issue #106
 
-Stato: **analisi congelata nel commit `26a090d`; sprint R1 completato**.
+Stato: **analisi congelata nel commit `26a090d`; R1 committato, R2 verificato e approvato**.
 Aggiornato il 6 ottobre 2026.
 
 Riferimento: [issue #106](https://github.com/insicd/openbook/issues/106).
@@ -360,7 +360,8 @@ comando nel perimetro corrente.
 
 ### Esecuzione CLI della retention
 
-Interfaccia indicativa, non ancora esistente:
+Interfaccia prevista per R3; R2 supporta soltanto `--dry-run`, `--batch-size`
+e `--sample`, senza ancora `--max-time`:
 
 ```sh
 php artisan openbook:prune-remote-posts --batch-size=500 --max-time=1800 --dry-run
@@ -624,4 +625,34 @@ Verifiche effettuate:
 
 La prova MySQL verifica l'accesso ai dati su fixture; non costituisce una stima
 per database di produzione. La suite completa resta prevista alla chiusura R4.
-Il prossimo passo è R2: comando CLI di sola anteprima/dry-run.
+R1 è stato verificato e approvato dall’utente, quindi committato in `64540bf`.
+Regola concordata per il seguito: ogni sprint viene committato dopo le verifiche
+dell’utente, anche manuali quando disponibili, e prima di iniziare il successivo.
+
+
+## Avanzamento — R2 pronto per verifica manuale
+
+Aggiunto `openbook:prune-remote-posts --dry-run --batch-size=100 --sample=10`.
+Il comando usa le query di R1, mostra un solo batch per fascia e distingue il
+conteggio selezionato da un totale globale. Stesso istante di riferimento per
+entrambe le selezioni; link locali completi secondo `APP_URL`, senza corpi dei
+post o metadati privati. Fasce a 0 dichiarate disabilitate, campione 0 ammesso,
+input numerici invalidi respinti. Senza `--dry-run` il comando rifiuta l'esecuzione.
+Non sono stati aggiunti DELETE, scheduling o accesso HTTP.
+
+Verifiche effettuate: **25 test passati, 102 asserzioni** (14 del comando e 11 del
+selettore). I test CLI verificano anche l’assenza di query di scrittura, il limite
+per fascia, l’ordine dei link e la dimensione del campione. Pint e controllo del
+diff superati. Avvio sull’istanza locale verificato: entrambe le durate sono
+attualmente 0; nessuna impostazione locale è stata modificata.
+
+Documentazione operativa aggiornata in `docs/configuration.md` e relativa
+versione italiana, con istruzioni Tinker per impostare e ripristinare le durate
+in attesa del form R4; aggiornata la voce nel changelog. Le query sono invariate
+rispetto a R1, quindi non serve ripetere EXPLAIN.
+
+Verifica manuale dell’utente completata con durate 30/40 giorni. Controverificati
+in sola lettura tutti i 200 candidati dei batch e i 20 link condivisi: date
+precedenti alle soglie, esclusioni rispettate, fasce disgiunte. I 100 pertinenti
+risultano da autori seguiti; i non pertinenti non hanno fonti Home né commenti
+locali. R2 approvato per commit prima di avviare R3.
