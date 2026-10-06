@@ -155,7 +155,7 @@ class DatabaseSanityTest extends TestCase
 
     public static function invalidSelections(): array
     {
-        return [['notifications', 'post', 10], ['audit_logs', 'post', 10], ['posts', 'post', 10], ['likes', 'actor', 10], ['mentions', 'unknown', 10], ['likes', 'post', 0], ['mentions', 'post', -1]];
+        return [['notifications', 'unknown', 10], ['audit_logs', 'post', 10], ['posts', 'post', 10], ['likes', 'actor', 10], ['mentions', 'unknown', 10], ['likes', 'post', 0], ['mentions', 'post', -1]];
     }
 
     #[DataProvider('invalidSelections')]

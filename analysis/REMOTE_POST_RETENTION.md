@@ -1,6 +1,6 @@
 # Retention dei post remoti — issue #106
 
-Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity S1 committato, S2 completato e approvato**.
+Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity S1/S2 committati, S3 completato e approvato**.
 Aggiornato il 6 ottobre 2026.
 
 Riferimento: [issue #106](https://github.com/insicd/openbook/issues/106).
@@ -979,3 +979,57 @@ in S4/S5; documentazione operativa e changelog saranno aggiornati alla consegna
 delle funzionalità esposte. L'utente ha approvato S2 e autorizzato il commit
 e l'avvio di S3, rimandando la verifica manuale complessiva al comando CLI
 di S4, con e senza dry-run.
+
+## Avanzamento — S3 completato e approvato
+
+S2 committato in `3562397` dopo approvazione dell'utente. Il servizio
+`DatabaseSanity::reconcileBatch` ora gestisce anche `notifications`, per tutti
+i sette tipi inventariati in S1. Resta invariata la selezione limitata e il
+ricontrollo del tipo e dell'assenza fisica del padre nella DELETE aggregata.
+
+Per le notifiche, il batch racchiude in una transazione il lock degli ID
+selezionati, la DELETE e l'incremento aggregato di `notifications_revision`.
+Le righe push collegate vengono eliminate dalle FK. Una lettura degli ID
+rimasti nel batch permette di aggiornare soltanto i destinatari delle
+notifiche effettivamente cancellate: nessun incremento per una notifica
+preservata dal ricontrollo, un solo incremento per destinatario e per batch,
+anche quando gli vengono eliminate più notifiche. Il lock mantiene stabile
+l'associazione ID/destinatario durante questa operazione; tutte le letture
+aggiuntive sono limitate agli ID del batch. Usato il retry transazionale
+standard di Laravel, fino a tre tentativi in caso di deadlock.
+
+Non cambiano padri, audit, media, file o regole di retention. Nessuna attività
+federata o nuova consegna push. Notifiche lette e non lette seguono lo stesso
+criterio di orfanità; i padri deleted ancora presenti e i tipi non supportati
+restano conservati.
+
+Verifiche effettuate:
+
+- **94 test mirati passati, 675 asserzioni**, comprendendo sanity, notifiche,
+  outbox/consegna push e servizio di retention. I nuovi test coprono i sette
+  tipi padre, conservazione delle notifiche valide e dei tipi sconosciuti,
+  cascade push, audit con soggetto mancante o nullo e revisioni dei soli
+  destinatari coinvolti. Provati batch successivi, incremento unico per
+  destinatario/batch e ripetizione a vuoto senza ulteriori incrementi.
+- Padre ricreato dopo il lock del batch: la DELETE preserva la relativa
+  notifica e il suo push, senza cambiare la revisione del destinatario, mentre
+  elimina l'altro orfano dello stesso batch. Errore iniettato durante
+  l'incremento: rollback di notifiche, push e revisioni.
+- Verifica HTTP del polling: dopo la pulizia l'ETag precedente non produce
+  una risposta 304; il client riceve il conteggio non letto aggiornato e
+  l'elenco privo delle notifiche eliminate.
+- Servizio reale MySQL provato su schema temporaneo isolato con FK per push
+  e destinatari, tutti i sette tipi padre, cascade, ripetibilità, revisioni e
+  rollback. Una seconda connessione inserisce il padre tra lock del batch e
+  DELETE: la notifica/push sopravvive e la revisione del destinatario resta
+  invariata. EXPLAIN delle sette DELETE: `range` sulla PRIMARY della tabella
+  figlia e `eq_ref` sulla PRIMARY del padre. EXPLAIN dell'UPDATE aggregato delle
+  revisioni: `range` sulla PRIMARY di `users`. Nessun nuovo indice necessario.
+  Schema temporaneo rimosso, nessuna cancellazione sull'istanza locale;
+  MariaDB non verificato su un server separato.
+- Pint e diff check superati; review senza problemi critici individuati.
+
+L'utente ha approvato S3, autorizzando il commit e l'avvio di S4.
+Come concordato, la verifica manuale complessiva sarà effettuata con il comando
+CLI di S4, con e senza dry-run. Nessuna interfaccia operativa o documentazione
+d'uso aggiunta in questo sprint interno; il tab web resta previsto in S5.
