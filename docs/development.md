@@ -2,6 +2,14 @@
 
 ## Tests
 
+For post-detail back navigation, an optional browser check uses the production
+JS/CSS with a local HTTP fixture for ordinary form redirects:
+`node tests/Browser/post-back.cjs`. It requires Node.js, Playwright and an
+installed browser on the development machine; these are not application or
+hosting requirements. `BROWSER_TYPE` (default `chromium`) and
+`BROWSER_EXECUTABLE_PATH` can select an existing browser. This check complements
+PHPUnit and does not replace a test on an actual iOS installed web app.
+
 The project uses PHPUnit. The suite runs by default on in-memory SQLite (see
 `phpunit.xml`), so it does not need a MySQL database to run:
 

@@ -2,6 +2,14 @@
 
 ## Test
 
+Per il ritorno dal dettaglio post, una verifica browser opzionale usa JS/CSS
+di produzione con una fixture HTTP locale per i redirect dei form normali:
+`node tests/Browser/post-back.cjs`. Richiede Node.js, Playwright e un browser
+installato sulla macchina di sviluppo; non sono requisiti dell'applicazione
+o dell'hosting. `BROWSER_TYPE` (default `chromium`) e `BROWSER_EXECUTABLE_PATH`
+permettono di scegliere un browser esistente. La verifica integra PHPUnit e
+non sostituisce una prova della web app installata su un dispositivo iOS reale.
+
 Il progetto usa PHPUnit. La suite gira di default su SQLite in memoria (vedi
 `phpunit.xml`), quindi non richiede un database MySQL per essere eseguita:
 

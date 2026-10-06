@@ -106,6 +106,14 @@
                 </nav>
             @endauth
         </div>
+        @if (request()->routeIs('posts.show'))
+            <div class="ob-post-back" data-post-back hidden>
+                <button type="button" class="ob-post-back__button" data-post-back-button>
+                    <x-icon name="arrow-left" />
+                    <span>{{ __('openbook.posts.back') }}</span>
+                </button>
+            </div>
+        @endif
     </header>
 
     <div class="ob-shell {{ auth()->check() ? 'ob-shell--with-sidebars' : '' }}">
@@ -172,6 +180,7 @@
     <script src="{{ \App\Support\Assets::url('assets/js/notifications-live.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/compose-shortcut.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/composer.js') }}" defer></script>
+    <script src="{{ \App\Support\Assets::url('assets/js/post-back.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/location-picker.js') }}" defer></script>
 
     @auth

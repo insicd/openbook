@@ -255,6 +255,10 @@ and "Edit profile" button on your own profile) makes them editable:
   on local posts it still goes to the Openbook post page. The same pattern
   (icons + three-dot menu for Delete, never on remotes) is applied to comments
   too (`comments/_comment.blade.php`, `CommentPolicy`).
+- **Post card header**: in lists, a native link covers the header background
+  and opens the local post detail without a fragment. Author, timestamp and
+  menu controls remain above that link and keep their behavior. The overlay
+  is absent on the open post detail and embedded quote cards; no JS is needed.
 - **Navbar**: the bell icon opens a dropdown with recent notifications (the
   full page remains in the left sidebar); the search icon opens an inline input
   instead of going straight to `/cerca` (submitting the form still uses the
@@ -265,6 +269,15 @@ and "Edit profile" button on your own profile) makes them editable:
   past the composer, a **+** button appears in the center of the header that
   returns focus to the composer (or to Home if you are elsewhere); on mobile the same
   control is a discreet FAB at the bottom right (`compose-shortcut.js`).
+- **Post detail back navigation**: below 768 px, `/posts/{post}` has a separate
+  Back row inside the sticky header when opened from another same-origin page.
+  `post-back.js` stores a small distance/pending-submit context in
+  `sessionStorage` and marks the current history entry so reloads and native
+  back/forward do not inflate it. Normal form redirects, including validation
+  errors, add a step; AJAX actions do not. Back clears the context and calls
+  `history.go(-depth)`. Other pages clear the context; direct/external access
+  and new tabs without a previous entry do not show the control. Comment
+  endpoints are unchanged. The browser manages page cache and scroll recovery.
 - **Direct message notifications**: incoming messages in the same conversation
   reuse its notification, moving it to the latest message and marking it
   unread again. Opening the conversation marks that notification as read.

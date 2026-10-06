@@ -144,6 +144,14 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- Lo sfondo dell'intestazione delle card nelle liste apre il dettaglio del
+  post senza anchor. Autore, data e menu mantengono i propri collegamenti;
+  il nuovo link non compare nel dettaglio gia' aperto o nelle citazioni.
+- **Indietro nel dettaglio post su mobile** (#105): sotto i 768 px una riga
+  dedicata sotto la testata torna alla pagina interna di provenienza tramite
+  la cronologia, saltando i passaggi aggiunti dai form del dettaglio. Non
+  compare per accessi diretti o da siti esterni; il recupero della lista e
+  dello scroll resta affidato al browser.
 - Le conversazioni non lette mostrano un badge esplicito nella lista delle
   chat; lo sfondo usa una variabile CSS definita, rendendo visibile l'indicatore.
 - Le notifiche push dei messaggi diretti vengono accodate anche quando la

@@ -127,6 +127,32 @@ p {
   min-width: 0;
 }
 
+.ob-post-back {
+  display: none;
+  background: var(--ob-color-bg);
+  border-top: 1px solid var(--ob-color-border);
+}
+
+.ob-post-back__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.5rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--ob-color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.ob-post-back__button:hover,
+.ob-post-back__button:focus-visible {
+  color: var(--ob-color-primary);
+  background: var(--ob-color-primary-soft);
+}
+
 .ob-header__center {
   position: absolute;
   left: 50%;
@@ -2038,6 +2064,23 @@ html.ob-confirm-modal-open {
   min-width: 0;
 }
 
+.ob-post__header--linked {
+  position: relative;
+}
+
+.ob-post__header-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: var(--ob-radius);
+}
+
+.ob-post__header--linked .ob-post__meta a,
+.ob-post__header--linked .ob-post__menu > summary {
+  position: relative;
+  z-index: 2;
+}
+
 .ob-post__menu {
   position: relative;
   flex-shrink: 0;
@@ -3212,6 +3255,10 @@ a.ob-post__menu-item {
   .ob-header__inner {
     gap: 0.5rem;
     padding: 0.55rem 0.85rem;
+  }
+
+  .ob-post-back:not([hidden]) {
+    display: block;
   }
 
   .ob-brand {
