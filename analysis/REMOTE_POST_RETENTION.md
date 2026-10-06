@@ -1,6 +1,6 @@
 # Retention dei post remoti — issue #106
 
-Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity S1 completato e approvato**.
+Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity S1 committato, S2 completato e approvato**.
 Aggiornato il 6 ottobre 2026.
 
 Riferimento: [issue #106](https://github.com/insicd/openbook/issues/106).
@@ -919,3 +919,63 @@ L'utente ha verificato e approvato S1, autorizzando commit e avvio di S2.
 Confermato come riferimento per il dry-run CLI e il futuro tab web il report
 per tabella e tipo di padre, con numero di orfani e limite del campione
 esplicito, distinto da un eventuale conteggio totale.
+
+## Avanzamento — S2 completato e approvato
+
+S1 committato in `0d2ba4d` dopo approvazione dell'utente. Implementato il servizio
+`DatabaseSanity::reconcileBatch(table, type, batchSize, afterId)` per `likes` e
+`mentions`, riusando interamente il selettore S1. Un batch esegue una SELECT
+limitata degli ID e, se non vuota, una sola DELETE aggregata sugli ID selezionati.
+La DELETE contiene nuovamente tipo e NOT EXISTS del padre: preserva una riga
+diventata valida dopo la selezione e non coinvolge righe nuove non selezionate.
+Restituisce numero di righe eliminate e ultimo ID selezionato come cursore;
+un batch vuoto restituisce cursore nullo. Il cursore avanza anche quando tutti
+i candidati vengono preservati dal ricontrollo.
+
+Nessuna lettura dei parametri di retention, nessun passaggio di ID dal comando
+di retention, nessuna chiamata per singolo record e nessuna attività federata.
+Notifiche, audit, contenuti e media restano fuori da questa operazione. Il
+servizio rifiuta esplicitamente tabelle di pulizia diverse da like e menzioni;
+le notifiche saranno aggiunte in S3 con la gestione delle revisioni.
+
+Verifiche effettuate:
+
+- **68 test mirati passati, 407 asserzioni**, includendo selettori e servizio
+  sanity e i test di retention. Coperti tutti gli otto abbinamenti di pulizia,
+  batch successivi e ripetizione a vuoto, padri deleted ancora presenti,
+  tipi sconosciuti, conservazione delle altre relazioni, retention a 0,
+  audit/notifiche invariati e assenza di job federati.
+- Test di modifica tra SELECT e DELETE: padre reinserito, tipo della relazione
+  cambiato e nuovo orfano inserito dopo la selezione. Il ricontrollo preserva
+  il primo, esclude la relazione di tipo cambiato e limita la cancellazione
+  al batch originale.
+- Servizio reale MySQL provato su schema temporaneo isolato per tutti gli otto
+  abbinamenti, con batch da due righe, conservazione dei padri deleted e dei
+  tipi sconosciuti, esaurimento e ripetibilità. EXPLAIN delle otto DELETE:
+  accesso `range` sulla PRIMARY della tabella figlia per gli ID del batch,
+  lookup del padre `eq_ref` sulla sua PRIMARY, senza scansioni globali.
+- Due connessioni MySQL: il padre inserito e committato dopo la SELECT viene
+  riconosciuto dalla DELETE e la relazione è conservata. Con inserimento
+  ancora non committato, la DELETE attende il lock del padre; provocato il
+  timeout di test, nessuna riga figlia viene persa. Dopo il commit del padre,
+  la pulizia ripetuta non elimina la relazione. Non sono necessari lock
+  applicativi aggiuntivi o transazioni intorno alla SELECT preliminare.
+  Il database temporaneo è stato rimosso; nessuna cancellazione effettuata
+  sull'istanza locale. MariaDB non verificato su un server separato.
+- Pint e diff check superati; review senza problemi critici individuati.
+
+Il servizio è provabile manualmente da Tinker, con una chiamata per batch:
+
+```php
+$sanity = app(\App\Application\Services\DatabaseSanity::class);
+$sanity->reconcileBatch('likes', 'post', 100);
+$sanity->reconcileBatch('mentions', 'post', 100);
+```
+
+Ogni chiamata elimina al massimo 100 orfani della tabella/tipo indicati e
+restituisce `deleted` e `cursor`. Le selezioni S1 restano disponibili per
+confrontare il campione prima e dopo. Comando CLI e pannello restano previsti
+in S4/S5; documentazione operativa e changelog saranno aggiornati alla consegna
+delle funzionalità esposte. L'utente ha approvato S2 e autorizzato il commit
+e l'avvio di S3, rimandando la verifica manuale complessiva al comando CLI
+di S4, con e senza dry-run.
