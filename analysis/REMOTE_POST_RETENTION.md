@@ -1,6 +1,7 @@
 # Retention dei post remoti — issue #106
 
-Stato: **analisi, nessuna implementazione**. Aggiornato il 6 ottobre 2026.
+Stato: **analisi congelata nel commit `26a090d`; sprint R1 completato**.
+Aggiornato il 6 ottobre 2026.
 
 Riferimento: [issue #106](https://github.com/insicd/openbook/issues/106).
 Il branch `issue_106` parte da `issue_107`, commit `79d4e34`, comprendendo anche
@@ -586,5 +587,41 @@ indesiderata. Verifiche su SQLite e MySQL/MariaDB.
 
 Esaminati issue, manutenzione attuale, feed, modelli e migrazioni, importazione
 remota, serializer, commenti, notifiche e fonti ufficiali dei software confrontati.
-È stato aggiornato soltanto questo documento: nessuna modifica applicativa,
+Al freeze `26a090d` era stato aggiornato soltanto questo documento: nessuna modifica applicativa,
 nessuna cancellazione di dati, nessun test o EXPLAIN dichiarato già eseguito.
+
+
+## Avanzamento — R1 completato
+
+Implementate le due SELECT limitate in `RemotePostRetentionQuery`, con un unico
+predicato di pertinenza, soglia sulla prima importazione e ordine `created_at, id`.
+Le due impostazioni di durata sono centralizzate in `InstanceSettings`, entrambe
+con default 0; il form arriva in R4. Il selettore riusa le condizioni di visibilità
+di `Post` e il filtro Announce di `FeedQuery`, senza ranking o paginazione Home.
+Nessun comando di retention o cancellazione è stato introdotto.
+
+Verifiche effettuate:
+
+- 11 test del selettore: soglie, limiti, esclusioni, tutte le fonti Home,
+  visibilità, quote locali, commenti annidati, righe `deleted`, cambio di fascia
+  e disgiunzione dei risultati. Con i test di feed, community e condivisione
+  nei messaggi: **103 test superati, 462 asserzioni** su SQLite.
+- Controllo dello stile con Pint e revisione del diff. Per eseguire i test è
+  stata bypassata la cache di configurazione locale e impostata la lunghezza
+  estratti al default 150: il `.env` locale la imposta a 400, incompatibile con
+  la fixture già esistente del test di troncamento. Nessuna modifica al `.env`.
+- Migrazioni provate su MySQL locale in un database temporaneo isolato, inclusi
+  applicazione e rollback del nuovo indice. Fixture: 20 utenti locali,
+  300 attori remoti, 20.000 post remoti, 200 quote locali e relazioni di follow,
+  commenti locali, boost e hashtag.
+- EXPLAIN di entrambe le query: prima dell'indice il piano usava
+  `posts_conversation_arrival_index` e ordinava i candidati; con
+  `posts_retention_created_id_index (created_at, id)` entrambe usano una scansione
+  per intervallo sulla data, senza quell'ordinamento. I rami correlati usano le PK
+  e gli indici esistenti per visibilità/community, follow, commenti, boost e tag;
+  MySQL può materializzare le dipendenze locali per le anti-join. Nessuna UNION
+  nel selettore, nessun hint o indice aggiuntivo per queste relazioni.
+
+La prova MySQL verifica l'accesso ai dati su fixture; non costituisce una stima
+per database di produzione. La suite completa resta prevista alla chiusura R4.
+Il prossimo passo è R2: comando CLI di sola anteprima/dry-run.

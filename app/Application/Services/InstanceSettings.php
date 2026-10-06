@@ -58,6 +58,10 @@ final class InstanceSettings
 
     public const KEY_TRENDING_DAYS = 'trending_days';
 
+    public const KEY_REMOTE_POST_PERTINENT_RETENTION_DAYS = 'remote_post_pertinent_retention_days';
+
+    public const KEY_REMOTE_POST_NON_PERTINENT_RETENTION_DAYS = 'remote_post_non_pertinent_retention_days';
+
     public const KEY_SHOW_HOME_STAFF = 'show_home_staff';
 
     public const KEY_WORLD_HIDE_CONTENT_WARNINGS = 'world_hide_content_warnings';
@@ -221,6 +225,16 @@ final class InstanceSettings
             'max_dimension' => $this->intSetting(self::KEY_VIDEO_MAX_DIMENSION, (int) config('openbook.video.max_dimension', 1080)),
             'max_frame_rate' => $this->intSetting(self::KEY_VIDEO_MAX_FRAME_RATE, (int) config('openbook.video.max_frame_rate', 60)),
         ];
+    }
+
+    public function remotePostPertinentRetentionDays(): int
+    {
+        return max(0, $this->intSetting(self::KEY_REMOTE_POST_PERTINENT_RETENTION_DAYS, 0));
+    }
+
+    public function remotePostNonPertinentRetentionDays(): int
+    {
+        return max(0, $this->intSetting(self::KEY_REMOTE_POST_NON_PERTINENT_RETENTION_DAYS, 0));
     }
 
     /**
