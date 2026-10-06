@@ -102,20 +102,43 @@ rifiuta richieste troppo ravvicinate (`OPENBOOK_WEB_CRON_MIN_INTERVAL`, default 
 secondi, risposta 429) restituendo 404 se la funzione e' disabilitata o 403 se il
 token e' mancante o errato.
 
-### Anteprima retention dei post remoti
+### Retention dei post remoti
 
-Il comando CLI dedicato è attualmente disponibile **solo in dry-run**:
+Il comando CLI dedicato consente di vedere prima i candidati senza cancellarli:
 
 ```bash
-php artisan openbook:prune-remote-posts --dry-run --batch-size=100 --sample=10
+php artisan openbook:prune-remote-posts --dry-run
 ```
 
 Mostra un solo batch per fascia (Pertinenti e Non pertinenti), ordinato dalla
 prima importazione, e fino a `--sample` link locali per fascia. I conteggi
 riguardano il batch, non tutti i post scaduti. `--batch-size` deve essere un
-intero positivo; `--sample` può essere 0 per omettere i link. Il comando non
-modifica dati, non invia attività federate e rifiuta l'esecuzione senza
-`--dry-run`. Non viene richiamato da `openbook:cron` né dall'endpoint HTTP.
+intero positivo; `--sample` può essere 0 per omettere i link. In dry-run il
+comando non modifica dati. Per l'esecuzione ordinaria della retention basta:
+
+```bash
+php artisan openbook:prune-remote-posts
+```
+
+I default sono **100 post per batch per fascia** e **1800 secondi (30 minuti)**
+per esecuzione; l'anteprima mostra fino a 10 link per fascia. I parametri sono
+opzionali e consentono di adattare questi valori alle esigenze dell'istanza.
+
+**Senza `--dry-run` elimina fisicamente i post scaduti e tutto il loro thread**,
+compresi commenti locali e report. I post locali e i loro thread restano; sono
+esclusi messaggi diretti/conversazioni e originali citati da post locali.
+`--batch-size` è il limite **per fascia e per giro**, non un limite totale:
+il comando continua a batch fino all'esaurimento o al limite di tempo.
+`--max-time` deve essere un intero positivo (default 1800 secondi); viene
+controllato fra i batch e il batch già iniziato termina anche se supera la soglia.
+Il riepilogo conta le radici eliminate per fascia, senza sommare i figli.
+Un lock su file impedisce esecuzioni sovrapposte e si libera alla chiusura del
+processo; un nuovo avvio riparte dai candidati ancora presenti. Un errore
+annulla il batch corrente, lasciando confermati quelli già completati.
+
+Non vengono inviate cancellazioni federate. La riconciliazione delle righe
+polimorfiche orfane appartiene alla Database sanity separata. Il comando resta
+esclusivamente CLI, senza richiamo da `openbook:cron` o dall'endpoint HTTP.
 
 Entrambe le durate hanno default **0 (disabilitata)**. Il form amministrativo
 arriverà con il completamento della funzione. Per una verifica anticipata si

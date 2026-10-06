@@ -136,11 +136,11 @@ class PruneRemotePostsCommandTest extends TestCase
         $this->assertStringNotContainsString($outside->id, $output);
     }
 
-    public function test_running_without_dry_run_is_rejected(): void
+    public function test_running_without_dry_run_with_disabled_policies_is_a_noop(): void
     {
         $this->artisan('openbook:prune-remote-posts')
-            ->expectsOutputToContain('aggiungere --dry-run')
-            ->assertExitCode(Command::INVALID);
+            ->expectsOutputToContain('Post eliminati: Non pertinenti 0; Pertinenti 0.')
+            ->assertSuccessful();
     }
 
     #[DataProvider('invalidOptions')]
@@ -156,6 +156,7 @@ class PruneRemotePostsCommandTest extends TestCase
         return [
             ['--batch-size', '0'], ['--batch-size', '-1'], ['--batch-size', '1.5'],
             ['--batch-size', 'foo'], ['--batch-size', '9999999999999999999999999'],
+            ['--max-time', '0'], ['--max-time', '-1'], ['--max-time', 'foo'],
             ['--sample', '-1'], ['--sample', '1.5'], ['--sample', 'foo'],
         ];
     }

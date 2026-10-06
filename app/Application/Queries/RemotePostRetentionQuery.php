@@ -56,10 +56,13 @@ final class RemotePostRetentionQuery
 
         $query->where('retention_posts.created_at', '<', CarbonImmutable::instance($asOf ?? now())->subDays($days));
 
-        // Negate the entire predicate so the two categories cannot overlap.
-        return $query->where(function (Builder $relevance): void {
-            $this->constrainPertinence($relevance);
-        }, boolean: $pertinent ? 'and' : 'and not');
+        // Comparing the same boolean predicate with 0/1 keeps the categories
+        // disjoint and avoids MySQL's full actor scan in the negated antijoin.
+        $relevance = DB::query();
+        $this->constrainPertinence($relevance);
+        $predicate = substr($relevance->getGrammar()->compileWheres($relevance), strlen('where '));
+
+        return $query->whereRaw('('.$predicate.') = ?', [...$relevance->getBindings(), (int) $pertinent]);
     }
 
     private function constrainPertinence(Builder $query): void

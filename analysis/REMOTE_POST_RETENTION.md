@@ -1,6 +1,6 @@
 # Retention dei post remoti — issue #106
 
-Stato: **analisi congelata nel commit `26a090d`; R1 committato, R2 verificato e approvato**.
+Stato: **analisi congelata nel commit `26a090d`; R1/R2 committati, R3 verificato e approvato, R4 prossimo sprint**.
 Aggiornato il 6 ottobre 2026.
 
 Riferimento: [issue #106](https://github.com/insicd/openbook/issues/106).
@@ -360,12 +360,16 @@ comando nel perimetro corrente.
 
 ### Esecuzione CLI della retention
 
-Interfaccia prevista per R3; R2 supporta soltanto `--dry-run`, `--batch-size`
-e `--sample`, senza ancora `--max-time`:
+Interfaccia implementata in R3. Invocazione ordinaria consigliata:
 
 ```sh
-php artisan openbook:prune-remote-posts --batch-size=500 --max-time=1800 --dry-run
+php artisan openbook:prune-remote-posts
 ```
+
+Default: 100 post per batch per fascia e 1800 secondi (30 minuti) per esecuzione.
+I parametri sono opzionali, per adattare l'esecuzione alle esigenze dell'istanza.
+Per l'anteprima basta aggiungere `--dry-run`; `--sample` controlla i link mostrati
+(default 10 per fascia).
 
 - Cron dedicato in un orario poco trafficato, con lock contro sovrapposizioni
   compatibile con l'hosting attuale.
@@ -656,3 +660,111 @@ in sola lettura tutti i 200 candidati dei batch e i 20 link condivisi: date
 precedenti alle soglie, esclusioni rispettate, fasce disgiunte. I 100 pertinenti
 risultano da autori seguiti; i non pertinenti non hanno fonti Home né commenti
 locali. R2 approvato per commit prima di avviare R3.
+
+
+## Avanzamento — R3 verificato e approvato
+
+R2 è stato committato in `ad5e443` dopo le verifiche dell’utente. R3 aggiunge
+la modalità effettiva al comando, delegando a `RemotePostRetention` la scansione
+con cursore `(created_at, id)`, il ricontrollo e la DELETE aggregata delle radici.
+Durate e istante di riferimento sono fissati all’avvio. Ogni giro seleziona fino
+al batch-size per fascia; il totale dell’esecuzione non è limitato al batch-size.
+Il limite di tempo usa un orologio monotono, viene controllato tra i batch e non
+interrompe una DELETE in corso. Un nuovo avvio rivaluta i candidati rimasti.
+
+Concorrenza ed errori:
+
+- Lock di processo con `flock` in `storage/framework/cache/remote-post-retention.lock`,
+  senza scadenza temporale né servizi esterni. La presenza del file non indica
+  un lock attivo: la chiusura del processo libera il lock. Protegge le esecuzioni
+  che condividono lo storage dell’istanza.
+- Selezione iniziale fuori transazione; poi lock delle radici per ID e degli
+  intervalli indicizzati su `comments.post_id` e `posts.quoted_post_id`, seguito
+  dal ricontrollo completo. Commenti e citazioni confermati prima dei lock sono
+  rivalutati; i nuovi inserimenti sugli intervalli attendono la fine del batch.
+- Su MySQL/MariaDB il batch usa REPEATABLE READ, impostato per la sola prossima
+  transazione, senza cambiare i default di sessione o server. Servono lock
+  espliciti degli intervalli: nel MySQL 26.7 locale, con FK gestite al livello SQL,
+  il solo lock del padre non ha bloccato gli inserimenti nella prova concorrente.
+  Il modello di gestione FK è descritto nel [manuale MySQL](https://dev.mysql.com/doc/refman/9.7/en/create-table-foreign-keys.html).
+- Follow, membership e hashtag sono valutati al ricontrollo; non vengono bloccati
+  tutti i grafi sociali dell’istanza. Un cambiamento successivo a tale valutazione
+  non annulla una cancellazione già decisa. Gli ID scartati vengono superati dal
+  cursore per evitare cicli; potranno essere rivalutati al prossimo avvio.
+- Errori DB annullano il batch corrente e terminano il comando; i batch precedenti
+  restano confermati. Nessuna consegna federata, pulizia dei singoli commenti,
+  riconciliazione polimorfica o rimozione di media/file nel servizio.
+
+Compatibilità delle cascade: la prima prova manuale ha eliminato 890 post; il
+successivo avvio ha incontrato l'errore MySQL 6575 su un thread di 14 commenti
+con profondità massima 5. Tutti i commenti fanno già riferimento alla radice
+tramite `post_id`, ma la FK su `parent_comment_id` introduce anche cascade
+ricorsive. Il caso è riproducibile su un database temporaneo; cancellare
+direttamente i commenti, anche con DELETE JOIN, produce lo stesso errore.
+
+Prima della DELETE delle radici, una sola UPDATE aggregata azzera
+`parent_comment_id` nei commenti dei soli post confermati per la cancellazione.
+La DELETE dei post continua a eliminare tutti i commenti tramite `post_id` e
+le altre relazioni tramite cascade. Le due operazioni sono nella stessa
+transazione: in caso di errore vengono ripristinati anche i legami tra commenti.
+Non vengono modificati i thread conservati né introdotte DELETE per commento.
+
+Prestazioni dopo l'esaurimento dei non pertinenti: nella prova manuale successiva
+la SELECT di questa fascia ha superato 130 secondi. EXPLAIN sul DB locale mostra
+che l'indice cronologico dei post viene usato, ma la negazione del predicato
+di pertinenza viene trasformata in un antijoin che scansiona tutti gli attori
+(`retention_viewers`: ALL, stima 30.793 righe). Il ramo positivo usa invece
+l'indice dei pochi utenti locali. Quando non restano candidati, LIMIT 10 non
+evita di esaminare i post vecchi per dimostrare che il risultato è vuoto.
+
+Prova di sola lettura, stesso cutoff e stessi dati: esprimendo il predicato
+booleano come `(pertinenza) = 0` anziché `NOT (pertinenza)`, MySQL usa
+`actors_user_id_unique` per gli utenti locali (stima 5 righe); la fascia non
+pertinente restituisce zero righe in 1,401 secondi. La fascia pertinente
+restituisce 10 righe in 0,005 secondi. La SELECT originale è stata interrotta
+dal timeout di prova a 5 secondi. Nessun nuovo indice necessario nella prova.
+Variante integrata nel codice: un unico predicato compilato con la grammatica
+del DB e parametri associati, confrontato con 0/1 senza cambiare le policy.
+Verifica della query effettivamente generata: entrambe le fasce usano
+`actors_is_local_index` (stima 7 attori locali), con indice cronologico sui post;
+zero non pertinenti in 1,434 secondi e 10 pertinenti in 0,002 secondi.
+Selettori, servizio e comando: 41 test passati, 165 asserzioni. Pint superato.
+
+Verifica dei contatori: l’attuale `communities.posts_count` viene incrementato
+soltanto da `PostComposer`; l’importazione remota non lo incrementa. La retention
+remota non lo decrementa né ricalcola includendovi contenuti diversi. Un test
+verifica che la rimozione remota preservi il contatore dei post locali.
+
+Verifiche effettuate:
+
+- **133 test passati, 588 asserzioni** su SQLite, comprendendo selettori, comando,
+  servizio, feed, community e condivisione nei messaggi. Coperti batch multipli,
+  cascade di commenti annidati locali/remoti e report, esclusioni, rollback,
+  rilascio del lock anche su errore, limite di tempo, durate fisse, reimportazione
+  con nuovo ID/data, assenza di job federati, conservazione di media/file e righe
+  polimorfiche in attesa della sanity. Pint e revisione del diff superati.
+- Prova su database MySQL temporaneo: 2.000 post remoti e 20 quote locali,
+  con relazioni di follow, commenti, boost, hashtag, report e allegati. Eliminati
+  esattamente **1.179 non pertinenti e 608 pertinenti**, secondo le selezioni
+  iniziali allo stesso istante; originale delle quote conservato, seconda
+  esecuzione senza ulteriori eliminazioni. Cascade, media e assenza di job
+  verificati anche su MySQL.
+- Due connessioni MySQL reali: inserimenti concorrenti di commenti/citazioni
+  attendono i lock; una citazione locale già confermata protegge la radice.
+  Verificato anche con default di sessione READ COMMITTED: il batch protegge
+  gli intervalli e lascia invariato il default della sessione.
+- EXPLAIN dei cursori per entrambe le fasce: indice cronologico per il ramo non
+  pertinente; sulle fixture più piccole il ramo pertinente sceglie l’accesso per
+  autore con ordinamento. Lock su indici già presenti di commenti e citazioni;
+  DELETE per PK. Nessun ulteriore indice o hint introdotto.
+- Regressione MySQL 6575: servizio verificato su database temporaneo con la
+  struttura dei 14 commenti del thread problematico. Cancellazione e cascade
+  completate; un errore provocato dopo la DELETE ripristina tutti i commenti e
+  i legami originari. EXPLAIN della nuova UPDATE sul DB locale usa
+  `comments_post_id_created_at_index`, accesso range sui 14 commenti.
+
+Documentazione EN/IT e changelog aggiornati. Nessuna cancellazione eseguita sul
+DB locale dell’utente: le prove effettive sono state effettuate solo su database
+temporaneo. L'utente ha verificato con successo entrambe le fasce, incluse le
+correzioni alle cascade e al piano della SELECT, e approvato il commit R3.
+R4 inizierà dopo il commit dello sprint e completerà UI e documentazione operativa.

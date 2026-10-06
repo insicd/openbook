@@ -103,20 +103,43 @@ rejects requests that are too close together (`OPENBOOK_WEB_CRON_MIN_INTERVAL`,
 default 55 seconds, 429 response), returning 404 if the feature is disabled or
 403 if the token is missing or wrong.
 
-### Remote post retention preview
+### Remote post retention
 
-The dedicated CLI command currently supports **dry-run only**:
+The dedicated CLI command lets you preview candidates before deleting them:
 
 ```bash
-php artisan openbook:prune-remote-posts --dry-run --batch-size=100 --sample=10
+php artisan openbook:prune-remote-posts --dry-run
 ```
 
 It displays one batch per category (relevant and non-relevant posts), ordered
 by first import time, and up to `--sample` local links per category. Counts
 refer to the batch, not all expired posts. `--batch-size` must be a positive
-integer; `--sample` may be 0 to omit links. The command does not modify data
-or send federation activities, and rejects execution without `--dry-run`.
-It is not invoked by `openbook:cron` or the HTTP cron endpoint.
+integer; `--sample` may be 0 to omit links. In dry-run the command does not
+modify data. For routine retention runs, simply use:
+
+```bash
+php artisan openbook:prune-remote-posts
+```
+
+Defaults are **100 posts per batch per category** and **1800 seconds (30 minutes)**
+per run; previews show up to 10 links per category. Parameters are optional and
+let you adjust these values to your instance's needs.
+
+**Without `--dry-run`, it physically deletes expired posts and their entire
+threads**, including local comments and reports. Local posts and their threads
+remain; direct messages/conversations and originals quoted by local posts are
+excluded. `--batch-size` limits **each category per iteration**, not the total:
+the command keeps processing batches until exhaustion or the time limit.
+`--max-time` must be a positive integer (default 1800 seconds); it is checked
+between batches, and an ongoing batch completes even if it exceeds the limit.
+The summary counts deleted roots per category, without adding child rows.
+A file lock prevents overlapping runs and releases when the process closes;
+a new run resumes from remaining candidates. An error rolls back the current
+batch while previously completed batches remain committed.
+
+No federated deletion activities are sent. Reconciling orphaned polymorphic
+rows belongs to the separate Database sanity process. The command remains
+CLI-only, without invocation from `openbook:cron` or the HTTP cron endpoint.
 
 Both retention periods default to **0 (disabled)**. The administration form
 will arrive when the feature is completed. For early verification, the two

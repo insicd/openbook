@@ -19,10 +19,12 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Anteprima retention dei post remoti**: nuovo comando CLI
-  `openbook:prune-remote-posts --dry-run` per esaminare un batch limitato di
-  post Pertinenti e Non pertinenti, con campioni di link locali, senza
-  cancellazioni. Le due durate sono disabilitate per default.
+- **Retention dei post remoti**: comando CLI `openbook:prune-remote-posts`
+  per eliminare a batch i post Pertinenti e Non pertinenti scaduti, con
+  limite di tempo, lock anti-sovrapposizione e anteprima `--dry-run` con link
+  locali. La cancellazione comprende l'intero thread, anche commenti locali
+  e report, senza attività federate; sono esclusi post locali, conversazioni
+  dirette e originali citati localmente. Le due durate sono disabilitate per default.
 - **Anteprime dei link nei post**: i post pubblici con un solo link idoneo e
   senza immagini allegate mostrano una card Open Graph con titolo, eventuale
   immagine e descrizione, caricata senza bloccare la pagina. I link Markdown
