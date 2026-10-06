@@ -164,11 +164,69 @@ trafficato, indicando i percorsi assoluti di PHP e della propria installazione:
 ```
 
 La Database sanity resta un processo separato, anche quando la retention è
-disabilitata; non è ancora inclusa in questa funzione.
+disabilitata; si esegue con il comando descritto sotto.
 Un campione vuoto è normale se non
 esistono post importati prima della soglia. I link rispettano `APP_URL`; aprirli
 con il proprio account per verificare i contenuti visibili. I post già segnati
 come cancellati possono comparire nel batch ma non avere una pagina consultabile.
+
+### Database sanity
+
+La riconciliazione elimina **like, menzioni e notifiche orfani**, cioè riferiti
+a un oggetto padre che non esiste più fisicamente. Funziona anche con entrambe
+le durate di retention a 0 e può ripulire residui di qualsiasi cancellazione.
+Non elimina padri ancora presenti, anche se segnati come `deleted`, e conserva
+il registro audit, media e file. I push collegati alle notifiche eliminate
+spariscono tramite FK; le revisioni dei destinatari vengono aggiornate nella
+stessa transazione. Nessuna attività federata viene generata.
+
+Per verificare prima della pulizia:
+
+```bash
+php artisan openbook:database-sanity --dry-run
+```
+
+L'anteprima esegue soltanto SELECT e mostra una riga per tabella e tipo padre,
+ad esempio `likes / post: 12 orfani nel campione (massimo 100).` Seleziona un
+solo batch per coppia: i numeri **non sono totali globali**. I tipi non
+supportati sono segnalati e conservati; il loro conteggio è invece un totale
+per tipo, con al massimo 100 tipi segnalati per tabella. Nessun corpo o altro
+contenuto degli oggetti viene mostrato.
+
+L'invocazione ordinaria per pulire è:
+
+```bash
+php artisan openbook:database-sanity
+```
+
+Default: **100 righe per batch e per tabella/tipo**, **1.800 secondi** per la
+pulizia. Le coppie vengono percorse a turno fino all'esaurimento o al limite
+di tempo, verificato fra i batch; il batch in corso termina. Il report finale
+indica le righe realmente eliminate in questa esecuzione. Se si raggiunge
+il limite, rilanciare il comando; una pulizia già conclusa è ripetibile senza
+ulteriori cancellazioni. Per cambiare i limiti:
+
+```bash
+php artisan openbook:database-sanity --batch-size=500 --max-time=300
+```
+
+`--max-time` riguarda la pulizia, non l'anteprima o il report dei tipi sconosciuti.
+Un lock su file impedisce sovrapposizioni fra due pulizie sanity, senza scadenza
+mentre il processo è attivo, e viene rilasciato anche in caso di errore. È
+indipendente dal lock della retention. Ogni batch notifiche è transazionale;
+in caso di errore i batch precedenti già completati restano applicati.
+
+Il comando è **CLI autonomo**, senza richiamo obbligatorio da retention,
+`openbook:cron`, purge delle tabelle operative o endpoint HTTP. Può essere
+eseguito periodicamente con un cron dedicato:
+
+```cron
+30 3 * * * cd /percorso/openbook && /usr/bin/php artisan openbook:database-sanity >> storage/logs/database-sanity.log 2>&1
+```
+
+Se si desidera pulire subito dopo la retention, i due comandi possono essere
+eseguiti in successione nello stesso script cron. Non servono worker permanenti
+o Redis. Il tab amministrativo Database sanity è previsto in uno sprint successivo.
 
 ### Worker video (solo quando il supporto video e' abilitato)
 

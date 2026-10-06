@@ -1,6 +1,6 @@
 # Retention dei post remoti — issue #106
 
-Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity S1/S2 committati, S3 completato e approvato**.
+Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity S1/S2/S3 committati, S4 completato e approvato**.
 Aggiornato il 6 ottobre 2026.
 
 Riferimento: [issue #106](https://github.com/insicd/openbook/issues/106).
@@ -1033,3 +1033,68 @@ L'utente ha approvato S3, autorizzando il commit e l'avvio di S4.
 Come concordato, la verifica manuale complessiva sarà effettuata con il comando
 CLI di S4, con e senza dry-run. Nessuna interfaccia operativa o documentazione
 d'uso aggiunta in questo sprint interno; il tab web resta previsto in S5.
+
+## Avanzamento — S4 completato e approvato
+
+S3 committato in `fd35017` dopo approvazione dell'utente. Implementato il comando
+autonomo `openbook:database-sanity`, senza collegamenti obbligatori a retention,
+cron ordinario, purge operativo o HTTP. Invocazione ordinaria:
+
+```sh
+php artisan openbook:database-sanity
+```
+
+Default: batch di 100 righe per tabella/tipo e 1.800 secondi. Il servizio
+percorre a turno tutte le 15 coppie supportate, con un cursore distinto per
+coppia e batch aggregati S2/S3, fino all'esaurimento o al limite monotono di
+tempo verificato fra i batch. Un batch già in corso termina. Il riepilogo
+indica per tabella/tipo quante righe sono state eliminate in questa esecuzione;
+se il tempo termina è possibile rilanciare il comando. I candidati preservati
+dal ricontrollo fanno comunque avanzare il cursore, evitando cicli sullo stesso
+batch. Orfani arrivati durante la pulizia prima del cursore potranno essere
+raccolti nell'esecuzione successiva.
+
+`--dry-run` seleziona un solo batch per tabella/tipo e non scrive sul database.
+Formato concordato con l'utente: `likes / post: 12 orfani nel campione (massimo
+100).` Il limite è esplicito e questi conteggi non sono totali globali. I tipi
+non supportati sono segnalati e conservati: il loro conteggio è un totale per
+tipo, con al massimo 100 tipi segnalati per tabella. Non si mostrano corpi o
+metadati dei contenuti; il nome del tipo sconosciuto è rappresentato come stringa
+JSON, così eventuali caratteri di controllo non diventano righe di output.
+
+Lock su file dedicato `database-sanity.lock`, senza scadenza mentre il processo
+è attivo; impedisce sovrapposizioni fra pulizie sanity e viene chiuso anche
+su errore. È indipendente dalla retention e non serve per il dry-run. Validati
+interi positivi per `--batch-size` e `--max-time`. Quest'ultimo limita il ciclo
+di pulizia, non l'anteprima o il report dei tipi non supportati.
+
+Guide EN/IT e changelog aggiornati con comando ordinario, anteprima, limiti,
+semantica dei report, indipendenza dalla retention e cron CLI autonomo. Chi
+desidera può eseguire retention e sanity in successione nello stesso script.
+Il tab amministrativo resta da definire e implementare in S5.
+
+Verifiche completate:
+
+- **17 test CLI passati, 94 asserzioni**: dry-run senza scritture, tutte le
+  coppie nel report, campioni limitati/default, tipi sconosciuti conservati,
+  limiti invalidi, timeout fra batch e ripresa, lock/indipendenza dalla
+  retention/rilascio su errore. Percorso integrato retention → cascade →
+  orfani → dry-run sanity → pulizia sanity, con entrambe le retention a 0
+  durante la sanity e ripetizione a vuoto senza incrementi di revisione.
+- Comando dry-run reale sul MySQL locale: campioni di like/menzioni orfani di
+  post e commenti, notifiche orfane di post/commenti/follow, nessun tipo
+  sconosciuto. Nessuna cancellazione effettuata sull'istanza.
+- CLI reale con e senza dry-run su schema MySQL temporaneo isolato: anteprima
+  senza modifiche, pulizia corretta con batch da una riga e ripetizione vuota,
+  notifiche valide e sconosciute preservate. Lo schema è stato rimosso.
+  Verificati anche i piani delle DELETE e dell'UPDATE revisioni riusati da S3;
+  nessuna query nuova di selezione o cancellazione richiede altri indici.
+  MariaDB non verificato su server separato.
+
+Suite completa: **1.265 test passati, 5.732 asserzioni**, con 2 test installer
+MySQL saltati perché il database di test non è raggiungibile nell'ambiente
+della suite. Le prove MySQL della sanity sono state eseguite separatamente.
+Pint, diff check e review finale completati senza problemi critici individuati.
+L'utente ha verificato con successo il comando con e senza dry-run e approvato
+il commit di S4 e l'avvio di S5. Per S5 richiede la tabella equivalente al
+dry-run e propone anche la pulizia reale da web, con limiti adatti a HTTP.

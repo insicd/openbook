@@ -19,6 +19,11 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Database sanity**: comando autonomo `openbook:database-sanity` per ripulire
+  like, menzioni e notifiche con padre fisicamente assente, anche con retention
+  disabilitata. Dry-run con campioni per tabella/tipo, batch, limite di tempo e
+  lock dedicato; tipi sconosciuti e registro audit conservati. La pulizia delle
+  notifiche include i push collegati e aggiorna le revisioni dei destinatari.
 - **Retention dei post remoti**: comando CLI `openbook:prune-remote-posts`
   per eliminare a batch i post Pertinenti e Non pertinenti scaduti, con
   limite di tempo, lock anti-sovrapposizione e anteprima `--dry-run` con link

@@ -165,10 +165,68 @@ paths to PHP and your installation:
 ```
 
 Database sanity remains a separate process, even when retention is disabled;
-it is not yet included in this feature.
+run it with the command described below.
 An empty sample is expected if no posts were imported before the cutoff. Links use `APP_URL`;
 open them while signed in to check content visible to your account. Posts
 already marked as deleted may appear in the batch without a viewable page.
+
+### Database sanity
+
+Reconciliation removes **orphaned likes, mentions and notifications**: references
+to a parent object that no longer physically exists. It works with both
+retention durations set to 0 and can clean up leftovers from any deletion.
+Existing parents, including those marked `deleted`, are preserved, as are
+audit logs, media and files. Push rows linked to deleted notifications are
+removed by their FK; recipients' notification revisions are updated in the
+same transaction. No federated activities are generated.
+
+To preview cleanup:
+
+```bash
+php artisan openbook:database-sanity --dry-run
+```
+
+The preview runs SELECTs only and prints one line per table and parent type,
+for example `likes / post: 12 orfani nel campione (massimo 100).` It selects
+one batch per pair: these numbers **are not global totals**. Unsupported
+types are reported and preserved; their counts are totals per type, with
+at most 100 unsupported types reported per table. No object bodies or other
+content are displayed. Command output follows the existing Italian CLI style.
+
+The ordinary cleanup invocation is:
+
+```bash
+php artisan openbook:database-sanity
+```
+
+Defaults: **100 rows per batch and table/type**, **1,800 seconds** for cleanup.
+Pairs are processed in turn until exhausted or the time limit is reached.
+The limit is checked between batches; the current batch finishes. The final
+report shows rows actually deleted during this invocation. If the limit is
+reached, run the command again; completed cleanup can be repeated without
+further deletions. To change the limits:
+
+```bash
+php artisan openbook:database-sanity --batch-size=500 --max-time=300
+```
+
+`--max-time` applies to cleanup, not the preview or unsupported-type report.
+A process-held file lock prevents overlapping sanity cleanups, without expiry
+while the process is active, and is released even on failure. It is independent
+of the retention lock. Each notification batch is transactional; on failure,
+previously completed batches remain applied.
+
+This is an **autonomous CLI command**, with no mandatory invocation from
+retention, `openbook:cron`, operational-table purge or an HTTP endpoint.
+It can run periodically through a dedicated cron:
+
+```cron
+30 3 * * * cd /path/to/openbook && /usr/bin/php artisan openbook:database-sanity >> storage/logs/database-sanity.log 2>&1
+```
+
+To clean up immediately after retention, run the two commands sequentially
+in the same cron script. No permanent workers or Redis are needed. The
+Database sanity admin tab is planned for a later sprint.
 
 ### Video worker (only when video support is enabled)
 

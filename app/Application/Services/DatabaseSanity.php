@@ -11,6 +11,42 @@ final class DatabaseSanity
 {
     public function __construct(private readonly DatabaseSanityQuery $query) {}
 
+    /** @return array{deleted: array<string, array<string, int>>, timed_out: bool} */
+    public function reconcile(int $batchSize, int $maxTime): array
+    {
+        if ($batchSize < 1 || $maxTime < 1) {
+            throw new InvalidArgumentException('Batch size and time limit must be positive.');
+        }
+
+        $deadline = hrtime(true) + $maxTime * 1_000_000_000;
+        $targets = [];
+        $totals = [];
+        foreach ($this->query->relations() as $table => $relation) {
+            foreach (array_keys($relation['parents']) as $type) {
+                $targets[$table.'/'.$type] = [$table, $type, null];
+                $totals[$table][$type] = 0;
+            }
+        }
+
+        while ($targets !== []) {
+            foreach ($targets as $key => [$table, $type, $cursor]) {
+                if (hrtime(true) >= $deadline) {
+                    return ['deleted' => $totals, 'timed_out' => true];
+                }
+
+                $result = $this->reconcileBatch($table, $type, $batchSize, $cursor);
+                $totals[$table][$type] += $result['deleted'];
+                if ($result['cursor'] === null) {
+                    unset($targets[$key]);
+                } else {
+                    $targets[$key][2] = $result['cursor'];
+                }
+            }
+        }
+
+        return ['deleted' => $totals, 'timed_out' => false];
+    }
+
     /** @return array{deleted: int, cursor: ?string} */
     public function reconcileBatch(string $table, string $type, int $batchSize, ?string $afterId = null): array
     {
