@@ -1,6 +1,6 @@
 # Retention dei post remoti — issue #106
 
-Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity non ancora avviata**.
+Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity S1 completato e approvato**.
 Aggiornato il 6 ottobre 2026.
 
 Riferimento: [issue #106](https://github.com/insicd/openbook/issues/106).
@@ -352,8 +352,12 @@ ma slegati e il comando di sanity non deve fare un ritorno anticipato sulla base
 delle due durate. L'esecuzione può seguire
 il comando di retention nel cron CLI oppure essere periodica e autonoma. Non
 richiede worker permanenti, Redis o un nuovo ciclo di vita dei contenuti.
-La collocazione nella manutenzione esistente va definita senza confondere la
-sanity degli orfani con l'abilitazione della retention.
+La pagina Amministrazione → Database avrà un tab dedicato «Database sanity»,
+previsto in S5, senza confondere la sanity degli orfani con l'abilitazione della
+retention. Contenuti e azioni web saranno definiti prima di quello sprint:
+prime ipotesi sono un'anteprima equivalente al dry-run e un report delle tabelle
+e dei tipi su cui opera il comando. L'eventuale esecuzione di cancellazioni da
+web resta da decidere; il comando CLI rimane autonomo.
 
 La cancellazione delle notifiche orfane deve mantenere coerenti le revisioni
 delle notifiche secondo le convenzioni esistenti; le FK eliminano eventuali
@@ -399,7 +403,7 @@ Verificare anche le migrazioni e le FK sui database supportati.
 InnoDB può riusare lo spazio eliminato senza ridurre subito il file del database.
 Niente OPTIMIZE TABLE automatico: compattazione fisica e retention sono separate.
 
-## Piano di lavoro: due macrofasi, quattro sprint ciascuna
+## Piano di lavoro: due macrofasi, quattro sprint Retention e cinque Database sanity
 
 Gli sprint sono incrementi verificabili, non stime di settimane. Non si avvia
 in questa fase alcuna implementazione. Ogni sprint futuro aggiorna qui lo stato,
@@ -560,7 +564,7 @@ Attività:
   worker obbligatori. Nome indicativo: `openbook:database-sanity`.
 - Documentare un cron autonomo, eseguibile anche senza retention; chi desidera
   può eseguire i due comandi in successione senza dipendenza applicativa.
-- Aggiornare docs IT/EN e changelog. Niente pulsanti HTTP di esecuzione e niente
+- Aggiornare docs IT/EN e changelog. L'interfaccia web è rimandata a S5; niente
   aggancio obbligatorio al cron di retention o al purge esistente.
 
 Verifica / uscita:
@@ -572,12 +576,33 @@ Verifica / uscita:
 - Risultato: due comandi autonomi, operativi e documentati; nessuna rigenerazione
   di contenuti, nessuna attività federata, nessuna perdita del registro audit.
 
+#### S5 — Tab Database sanity e interazione web
+
+Attività:
+
+- Definire con l'utente le informazioni e le azioni da offrire, a partire da
+  anteprima dry-run e report delle tabelle/tipi interessati e delle righe orfane.
+  Decidere in questa fase se prevedere anche un'azione di pulizia da web.
+- Aggiungere il tab «Database sanity» alla pagina Amministrazione → Database,
+  coerente con Retention e Maintenance e con accesso riservato agli admin.
+- Riutilizzare i servizi del comando, senza duplicare le regole di
+  riconciliazione; definire limiti e caricamento dei report adatti a HTTP.
+- Aggiornare docs IT/EN e changelog secondo le funzionalità concordate.
+
+Verifica / uscita:
+
+- Test mirati di autorizzazione, coerenza con il dry-run CLI e comportamento
+  delle azioni concordate; le anteprime non modificano il database.
+- Verifica manuale dell'interfaccia e review finale della macrofase.
+- Risultato: tab amministrativo per interagire con la Database sanity, con
+  perimetro web concordato prima dell'implementazione e CLI sempre autonomo.
+
 ### Modalità di avanzamento
 
 Alla fine di ogni sprint riportare: attività completate, risultato verificabile,
 test eseguiti, eventuali problemi reali e stato dei criteri d'uscita. I test mirati
 accompagnano le modifiche fin dall'inizio, non vengono rimandati allo sprint finale.
-La suite completa chiude R4 e S4; altre esecuzioni si giustificano con cambiamenti
+La suite completa chiude R4, S4 e S5; altre esecuzioni si giustificano con cambiamenti
 o regressioni. Nessun commit o apertura PR viene effettuato in questa fase di
 pianificazione. La gestione futura dei commit si concorda durante il lavoro.
 
@@ -830,3 +855,67 @@ L'utente ha verificato e approvato il pannello, compresi il riordino in tab e
 l'anteprima, autorizzando il commit conclusivo di R4. La macrofase Retention
 è completata. Su richiesta dell'utente ci fermiamo prima della macrofase
 Database sanity, che resta da avviare.
+
+## Avanzamento — S1 completato e approvato
+
+Implementato `DatabaseSanityQuery`, senza DELETE, comando CLI o interfaccia web.
+La definizione esplicita usa gli alias del morph map dei modelli e le rispettive
+tabelle, senza risolvere nomi arbitrari provenienti dai dati:
+
+| Tabella | Relazione | Tipi padre supportati |
+| --- | --- | --- |
+| `likes` | `likeable` | `post`, `comment`, `event`, `event_comment` |
+| `mentions` | `mentionable` | `post`, `comment`, `event`, `event_comment` |
+| `notifications` | `notifiable` | `post`, `comment`, `follow`, `actor`, `event`, `event_comment`, `event_participation` |
+
+Il tipo `actor` serve alle notifiche di rifiuto di una richiesta follow: il
+servizio esistente usa l'attore come oggetto della notifica, non il follow
+rimosso. L'inventario comprende tutte le relazioni polimorfiche operative;
+`audit_logs` resta escluso, anche con soggetto mancante o nullo.
+
+`orphans(table, type, limit, afterId)` seleziona soltanto gli ID delle righe
+figlie con padre fisicamente assente, tramite NOT EXISTS, ordine per ID e
+cursore `id > afterId`. Nessun filtro di stato, origine o visibilità sul padre,
+nessuna lettura delle durate di retention. `unknownTypes(table, limit)` riporta
+tipi non supportati e relative quantità; non li tratta come orfani. Anche un
+alias presente nel morph map generale ma non previsto per quella relazione
+resta da segnalare. Tabelle/tipi non supportati e limiti non positivi sono
+rifiutati prima di costruire la selezione.
+
+Indici: aggiunta una migrazione reversibile con indice
+`(tipo polimorfico, id figlio, id padre)` su ciascuna delle tre tabelle, per
+supportare filtro, cursore, ordine e lettura del riferimento. Conservati gli
+indici precedenti, usati anche dalle normali relazioni dell'applicazione.
+
+Verifiche effettuate:
+
+- **48 test mirati passati, 251 asserzioni**, includendo i test della retention.
+  I 24 casi di sanity coprono tutti i 15 abbinamenti tabella/tipo, padri con
+  stato deleted ancora presenti, ID esistente soltanto in un'altra tabella,
+  tipi sconosciuti, limiti/cursori e integrità delle righe dopo le selezioni.
+  Provati anche cancellazione fisica e reinserimento del medesimo ID padre:
+  la selezione successiva riflette la sua presenza attuale. Migrazione SQLite
+  verificata in applicazione, rollback e riapplicazione.
+- EXPLAIN MySQL e selezioni reali prima della migrazione su tutte le famiglie,
+  inclusa la segnalazione dei tipi sconosciuti; nessuna modifica all'istanza.
+  Trovati orfani di post/commenti e follow, nessun tipo sconosciuto nel DB locale.
+- Migrazione MySQL up/down e 30 piani di selezione, iniziali e con cursore
+  successivo, verificati su copia temporanea isolata delle tabelle locali,
+  rimossa al termine. Lookup del padre normalmente `eq_ref` sulla PRIMARY;
+  MySQL può materializzare l'insieme dei follow quando lo considera conveniente.
+  Il nuovo indice viene scelto per alcune selezioni; per altre il motore
+  preferisce PRIMARY o l'indice polimorfico precedente, con filesort su insiemi
+  piccoli. Non si presume quindi che l'indice nuovo sia sempre usato.
+  I batch verificati restano inferiori a 10 ms sui dati della prova.
+  Non effettuata una prova separata su server MariaDB.
+- Pint e diff check superati; review senza problemi critici individuati.
+
+S1 è ancora interno: il comando utilizzabile dall'amministratore arriva in S4,
+il tab web in S5. È possibile verificare le selezioni in sola lettura tramite
+Tinker; non è necessario applicare la migrazione per provarne la correttezza,
+ma gli indici serviranno per il percorso operativo. Nessun changelog o manuale
+operativo aggiornato in questo sprint, che non introduce funzionalità esposte.
+L'utente ha verificato e approvato S1, autorizzando commit e avvio di S2.
+Confermato come riferimento per il dry-run CLI e il futuro tab web il report
+per tabella e tipo di padre, con numero di orfani e limite del campione
+esplicito, distinto da un eventuale conteggio totale.
