@@ -140,25 +140,35 @@ Non vengono inviate cancellazioni federate. La riconciliazione delle righe
 polimorfiche orfane appartiene alla Database sanity separata. Il comando resta
 esclusivamente CLI, senza richiamo da `openbook:cron` o dall'endpoint HTTP.
 
-Entrambe le durate hanno default **0 (disabilitata)**. Il form amministrativo
-arriverà con il completamento della funzione. Per una verifica anticipata si
-possono impostare le due chiavi tramite `php artisan tinker`:
+La pagina **Amministrazione → Database** mostra nella testata la dimensione
+stimata dell'intero database, inclusi dati e indici. Il tab **Maintenance**
+contiene le statistiche e le azioni delle sole tabelle operative da pulire.
+Le durate si configurano nel tab **Retention**, aperto inizialmente, e hanno
+default **0 (disabilitata)**, indipendente per ciascuna fascia.
+Il form salva soltanto le impostazioni: non esegue cancellazioni.
+Il pulsante **Anteprima** usa le durate già salvate e mostra fino a 10 candidati
+per fascia con le stesse query del dry-run CLI, senza modificare dati. I link
+aprono il dettaglio del post in una nuova scheda.
+I **Pertinenti** sono post remoti che possono comparire nella Home di almeno un
+utente locale o hanno commenti di attori locali; i **Non pertinenti** sono quelli
+che comparirebbero soltanto in Mondo, senza commenti locali. L'età decorre dalla
+prima importazione, senza rinnovi per nuovi commenti o interazioni.
+Con entrambe le fasce attive il form richiede una durata dei Pertinenti almeno
+pari a quella dei Non pertinenti. Per disabilitare tutto, riportare entrambe a 0.
 
-```php
-use App\Infrastructure\Database\SystemSetting;
-SystemSetting::get('remote_post_non_pertinent_retention_days', '0');
-SystemSetting::get('remote_post_pertinent_retention_days', '0');
-// Esempio: annotare prima i valori precedenti per poterli ripristinare.
-SystemSetting::put('remote_post_non_pertinent_retention_days', '30');
-SystemSetting::put('remote_post_pertinent_retention_days', '90');
+Per una pulizia giornaliera, aggiungere un **cron dedicato** in un orario poco
+trafficato, indicando i percorsi assoluti di PHP e della propria installazione:
+
+```cron
+0 3 * * * cd /percorso/openbook && /usr/bin/php artisan openbook:prune-remote-posts >> storage/logs/remote-post-retention.log 2>&1
 ```
 
-Sono impostazioni persistenti, espresse in giorni: con entrambe attive usare
-una durata lunga almeno pari alla breve. Un campione vuoto è normale se non
+La Database sanity resta un processo separato, anche quando la retention è
+disabilitata; non è ancora inclusa in questa funzione.
+Un campione vuoto è normale se non
 esistono post importati prima della soglia. I link rispettano `APP_URL`; aprirli
 con il proprio account per verificare i contenuti visibili. I post già segnati
 come cancellati possono comparire nel batch ma non avere una pagina consultabile.
-Per tornare al default, ripristinare entrambe le chiavi a `'0'`.
 
 ### Worker video (solo quando il supporto video e' abilitato)
 

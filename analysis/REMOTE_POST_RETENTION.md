@@ -1,6 +1,6 @@
 # Retention dei post remoti — issue #106
 
-Stato: **analisi congelata nel commit `26a090d`; R1/R2 committati, R3 verificato e approvato, R4 prossimo sprint**.
+Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity non ancora avviata**.
 Aggiornato il 6 ottobre 2026.
 
 Riferimento: [issue #106](https://github.com/insicd/openbook/issues/106).
@@ -143,6 +143,8 @@ dell'autore. Non richiamare implicitamente i suoi flussi di delivery.
   lo stato non li esenta dalla retention e non introduce una terza categoria.
 - Cron CLI dedicato, separato da quello ordinario, **senza accesso HTTP**.
   L'esecuzione può durare anche mezz'ora; le transazioni restano brevi.
+  Il pannello offre soltanto l'anteprima HTTP in lettura richiesta in R4:
+  riusa i selettori del dry-run, senza avviare il comando o il servizio DELETE.
 
 Ridurre una durata rende eleggibili al cron successivo i post già abbastanza
 vecchi. Disabilitarla non ripristina dati eliminati. Prima della prima esecuzione
@@ -768,3 +770,63 @@ DB locale dell’utente: le prove effettive sono state effettuate solo su databa
 temporaneo. L'utente ha verificato con successo entrambe le fasce, incluse le
 correzioni alle cascade e al piano della SELECT, e approvato il commit R3.
 R4 inizierà dopo il commit dello sprint e completerà UI e documentazione operativa.
+
+## Avanzamento — R4 completato e approvato
+
+R3 è stato committato in `d72c072` dopo le verifiche dell'utente. R4 aggiunge
+alla pagina Amministrazione → Database il form «Conservazione dei post remoti»:
+
+- Testata comune con dimensione stimata di tutto il database (dati e indici),
+  tab Retention iniziale e tab Maintenance per le sole tabelle operative.
+  Navigazione con query string, senza JavaScript; dopo salvataggio o errore
+  si resta in Retention, dopo pulizia o errore relativo in Maintenance.
+  Pulsanti principali in fondo alle rispettive sezioni.
+- Su MySQL/MariaDB il totale somma `data_length` e `index_length` delle tabelle
+  dello schema corrente in `information_schema.tables`; su SQLite misura le
+  pagine allocate. È una stima della dimensione allocata, non dello spazio
+  immediatamente recuperabile cancellando righe. EXPLAIN locale: accesso allo
+  schema e alle sue tabelle tramite indici dei metadati, senza scansioni dei
+  contenuti. Totale verificato su tutte le 58 tabelle del DB locale.
+  Le query dei conteggi di manutenzione si eseguono soltanto nel relativo tab.
+- Due durate persistenti in giorni dalla prima importazione, inizialmente 0;
+  ciascuno zero disabilita soltanto la propria fascia. Con entrambe attive,
+  la durata dei Pertinenti deve essere almeno pari a quella dei Non pertinenti.
+- PUT dedicata, protetta dallo stesso middleware admin della pagina; validazione
+  lato server, messaggi e mantenimento dei valori inseriti in caso di errore.
+  Salvataggio delle sole due chiavi tramite `InstanceSettings`, transazionale
+  e registrato nell'audit. Nessuna invocazione del servizio di cancellazione.
+- Testi italiano/inglese organizzati in Non pertinenti, Pertinenti e Contenuti
+  sempre conservati. Definizioni sotto i titoli, giorni accanto agli input e
+  nota separata sul vincolo delle durate. Una frase indica che i commenti
+  seguono il post; dettagli su report, federazione e comandi restano nel manuale.
+  Gli input numerici riusano gli stili dei form, limitando il CSS alla nuova card.
+- Su richiesta dell'utente, pulsante Anteprima nel tab Retention: GET admin
+  esplicita, durate già salvate, stesso istante per le due query del dry-run,
+  LIMIT 10 per fascia e link al dettaglio in nuova scheda. Mostra solo ID,
+  senza corpi o metadati privati; il dettaglio conserva i controlli di visibilità.
+  Fasce a 0 ed esaurite hanno messaggi distinti. Nessun salvataggio, job o DELETE;
+  il campione si carica soltanto su richiesta e mai nel tab Maintenance.
+  Due colonne, una su schermi piccoli. Eliminato il margine tra le card della
+  griglia statistiche che rendeva più basso il secondo box Maintenance.
+- Guide EN/IT aggiornate con configurazione da pannello, invocazione ordinaria
+  senza parametri e cron dedicato. Nessun collegamento al cron HTTP o ai pulsanti
+  di pulizia delle tabelle operative. Changelog aggiornato.
+
+Verifiche dell'anteprima: **53 test mirati passati, 311 asserzioni**, su pannello,
+selettori e comando CLI; coperti ordine/limite, assenza di scritture, accesso
+admin, link in nuova scheda, fasce disabilitate/esaurite e caricamento esplicito.
+Suite completa finale, inclusa l'anteprima HTTP: **1.193 test passati,
+5.147 asserzioni**, con 2 test installer MySQL saltati per server di test non
+raggiungibile nell'ambiente della suite. I controlli MySQL della retention
+documentati in R1/R3 sono stati effettuati separatamente. Pint e diff check
+superati. Review della macrofase senza ulteriori problemi critici individuati.
+
+Verifica visiva del template Blade e CSS reali nel browser integrato, con dati
+di esempio e senza salvataggi sull'istanza; Safari non accessibile tramite
+automazione. Cache locale delle route rimossa per rendere disponibile la nuova
+PUT. Dopo il riordino in tab, verificati visivamente entrambi i template con
+dati di esempio, testata comune, tab attivo e ordine dei pulsanti.
+L'utente ha verificato e approvato il pannello, compresi il riordino in tab e
+l'anteprima, autorizzando il commit conclusivo di R4. La macrofase Retention
+è completata. Su richiesta dell'utente ci fermiamo prima della macrofase
+Database sanity, che resta da avviare.

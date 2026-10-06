@@ -25,6 +25,27 @@ final class DatabaseMaintenanceService
         private readonly AuditLogger $auditLogger,
     ) {}
 
+    public function databaseSizeBytes(): ?int
+    {
+        $driver = DB::connection()->getDriverName();
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            $row = DB::selectOne(
+                'SELECT COALESCE(SUM(COALESCE(data_length, 0) + COALESCE(index_length, 0)), 0) AS size_bytes
+                 FROM information_schema.tables WHERE table_schema = DATABASE()',
+            );
+
+            return (int) $row->size_bytes;
+        }
+
+        if ($driver === 'sqlite') {
+            return (int) DB::selectOne('PRAGMA page_count')->page_count
+                * (int) DB::selectOne('PRAGMA page_size')->page_size;
+        }
+
+        return null;
+    }
+
     /**
      * @return list<array{
      *     key: string,

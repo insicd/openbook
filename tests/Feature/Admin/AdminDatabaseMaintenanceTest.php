@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Application\Services\DatabaseMaintenanceService;
 use App\Domain\Posts\ExternalLinkPreview;
 use App\Domain\Posts\PendingPostAttachment;
 use App\Domain\Posts\PendingPostPublication;
+use App\Domain\Posts\Post;
 use App\Federation\Inbox\InboxItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +37,57 @@ class AdminDatabaseMaintenanceTest extends TestCase
         $this->actingAs($mod)
             ->get(route('admin.database.index'))
             ->assertForbidden();
+    }
+
+    public function test_tabs_keep_retention_and_maintenance_separate_with_a_common_database_size(): void
+    {
+        $admin = $this->createFullAccount('admindbtabs');
+        $admin->forceFill(['is_admin' => true])->save();
+        $retention = $this->actingAs($admin)->get(route('admin.database.index'))
+            ->assertOk()->assertViewHas('activeTab', 'retention')->assertViewHas('tables', [])
+            ->assertSee(__('openbook.admin.database.retention_title'))
+            ->assertDontSee('name="table"', false);
+        $maintenance = $this->get(route('admin.database.index', ['tab' => 'maintenance']))
+            ->assertOk()->assertViewHas('activeTab', 'maintenance')
+            ->assertSee(__('openbook.admin.database.maintenance_size'))
+            ->assertSee('inbox_items')->assertDontSee('name="remote_post_pertinent_retention_days"', false);
+        $this->assertSame($retention->viewData('totalSizeLabel'), $maintenance->viewData('totalSizeLabel'));
+        $this->assertNotEmpty($maintenance->viewData('tables'));
+        $this->get(route('admin.database.index', ['tab' => 'unknown']))
+            ->assertOk()->assertViewHas('activeTab', 'retention');
+    }
+
+    public function test_database_size_includes_the_whole_sqlite_database(): void
+    {
+        $user = $this->createFullAccount('admindbsize');
+        $service = app(DatabaseMaintenanceService::class);
+        $before = $service->databaseSizeBytes();
+        $this->assertGreaterThan(0, $before);
+        Post::query()->create(['actor_id' => $user->actor->id, 'body' => str_repeat('Post content. ', 10000), 'published_at' => now()]);
+        $this->assertGreaterThan($before, $service->databaseSizeBytes());
+    }
+
+    public function test_maintenance_action_is_after_table_and_redirects_to_its_tab(): void
+    {
+        $admin = $this->createFullAccount('admindbbottom');
+        $admin->forceFill(['is_admin' => true])->save();
+        $payload = json_encode(['type' => 'Like']);
+        InboxItem::query()->create([
+            'is_shared' => true, 'remote_activity_uri' => 'https://remote.test/like/bottom',
+            'activity_type' => 'Like', 'actor_uri' => 'https://remote.test/users/alice',
+            'payload' => $payload, 'signature_valid' => true,
+            'status' => InboxItem::STATUS_PROCESSED, 'received_at' => now()->subHours(25),
+        ]);
+        $page = $this->actingAs($admin)->get(route('admin.database.index', ['tab' => 'maintenance']))->assertOk();
+        $this->assertGreaterThan(strpos($page->getContent(), '</table>'),
+            strpos($page->getContent(), __('openbook.admin.database.purge_all', ['hours' => 24])));
+        $this->post(route('admin.database.purge'), ['table' => 'inbox_items'])
+            ->assertRedirect(route('admin.database.index', ['tab' => 'maintenance']))->assertSessionHas('status');
+        $this->post(route('admin.database.purge'))
+            ->assertRedirect(route('admin.database.index', ['tab' => 'maintenance']));
+        $this->from(route('admin.database.index', ['tab' => 'maintenance']))
+            ->post(route('admin.database.purge'), ['table' => 'posts'])
+            ->assertRedirect(route('admin.database.index', ['tab' => 'maintenance']))->assertSessionHasErrors('table');
     }
 
     public function test_purge_removes_old_inbox_items_but_keeps_recent_and_pending(): void

@@ -8,6 +8,7 @@ use App\Infrastructure\Database\SystemSetting;
 use App\Infrastructure\Locations\GeoNamesCityImporter;
 use App\Infrastructure\Media\InstanceIconUploader;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -337,6 +338,23 @@ final class InstanceSettings
                 'css_length' => mb_strlen($css),
             ]);
         }
+    }
+
+    public function updateRemotePostRetention(int $nonPertinentDays, int $pertinentDays, User $actor): void
+    {
+        if ($nonPertinentDays < 0 || $pertinentDays < 0
+            || ($nonPertinentDays > 0 && $pertinentDays > 0 && $pertinentDays < $nonPertinentDays)) {
+            throw new \InvalidArgumentException('Invalid remote post retention periods.');
+        }
+
+        DB::transaction(function () use ($nonPertinentDays, $pertinentDays, $actor): void {
+            SystemSetting::put(self::KEY_REMOTE_POST_NON_PERTINENT_RETENTION_DAYS, (string) $nonPertinentDays);
+            SystemSetting::put(self::KEY_REMOTE_POST_PERTINENT_RETENTION_DAYS, (string) $pertinentDays);
+            $this->auditLogger->log($actor, 'settings.retention.update', null, [
+                self::KEY_REMOTE_POST_NON_PERTINENT_RETENTION_DAYS => $nonPertinentDays,
+                self::KEY_REMOTE_POST_PERTINENT_RETENTION_DAYS => $pertinentDays,
+            ]);
+        });
     }
 
     /**

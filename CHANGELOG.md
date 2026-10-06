@@ -24,7 +24,14 @@ la [roadmap](docs/roadmap.md).
   limite di tempo, lock anti-sovrapposizione e anteprima `--dry-run` con link
   locali. La cancellazione comprende l'intero thread, anche commenti locali
   e report, senza attività federate; sono esclusi post locali, conversazioni
-  dirette e originali citati localmente. Le due durate sono disabilitate per default.
+  dirette e originali citati localmente. Le due durate, disabilitate per default,
+  si configurano in Amministrazione → Database; il form salva soltanto e verifica
+  che, con entrambe le fasce attive, i Pertinenti durino almeno quanto i Non pertinenti.
+- **Pannello Database**: tab Retention e Maintenance separano configurazione e
+  pulizia delle tabelle operative; la testata mostra la dimensione stimata
+  dell'intero database, dati e indici inclusi. Le azioni principali sono in fondo
+  alla rispettiva sezione; Anteprima mostra i primi 10 candidati per fascia in
+  sola lettura, con link al dettaglio in una nuova scheda.
 - **Anteprime dei link nei post**: i post pubblici con un solo link idoneo e
   senza immagini allegate mostrano una card Open Graph con titolo, eventuale
   immagine e descrizione, caricata senza bloccare la pagina. I link Markdown

@@ -141,25 +141,34 @@ No federated deletion activities are sent. Reconciling orphaned polymorphic
 rows belongs to the separate Database sanity process. The command remains
 CLI-only, without invocation from `openbook:cron` or the HTTP cron endpoint.
 
-Both retention periods default to **0 (disabled)**. The administration form
-will arrive when the feature is completed. For early verification, the two
-settings can be configured through `php artisan tinker`:
+The **Administration → Database** header shows the estimated size of the whole
+database, including data and indexes. The **Maintenance** tab contains statistics
+and cleanup actions for the operational tables only. Configure retention periods
+in the **Retention** tab, which opens by default.
+Both default to **0 (disabled)**, independently for each category. The form
+only saves settings; it does not run deletion.
+**Preview** uses saved periods and shows up to 10 candidates per category with
+the same queries as the CLI dry-run, without modifying data. Links open the
+post detail in a new tab.
+**Relevant** remote posts can appear in at least one local user's Home or have
+comments from local actors; **non-relevant** posts would only appear in World,
+without local comments. Age starts at first import and is not renewed by new
+comments or interactions. When both categories are enabled, the form requires
+the relevant period to be at least as long as the non-relevant period.
+To disable retention entirely, set both periods to 0.
 
-```php
-use App\Infrastructure\Database\SystemSetting;
-SystemSetting::get('remote_post_non_pertinent_retention_days', '0');
-SystemSetting::get('remote_post_pertinent_retention_days', '0');
-// Example: record previous values first so you can restore them.
-SystemSetting::put('remote_post_non_pertinent_retention_days', '30');
-SystemSetting::put('remote_post_pertinent_retention_days', '90');
+For daily cleanup, add a **dedicated cron** at a quiet time, using the absolute
+paths to PHP and your installation:
+
+```cron
+0 3 * * * cd /path/to/openbook && /usr/bin/php artisan openbook:prune-remote-posts >> storage/logs/remote-post-retention.log 2>&1
 ```
 
-These settings persist and are expressed in days: when both are enabled, the
-longer period must be at least as long as the shorter period. An empty sample
-is expected if no posts were imported before the cutoff. Links use `APP_URL`;
+Database sanity remains a separate process, even when retention is disabled;
+it is not yet included in this feature.
+An empty sample is expected if no posts were imported before the cutoff. Links use `APP_URL`;
 open them while signed in to check content visible to your account. Posts
 already marked as deleted may appear in the batch without a viewable page.
-To return to defaults, restore both settings to `'0'`.
 
 ### Video worker (only when video support is enabled)
 
