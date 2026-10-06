@@ -114,7 +114,9 @@ const server = http.createServer((request, response) => {
         await page.setViewportSize({ width: 767, height: 844 });
         assert.equal(await page.locator('[data-post-back]').isVisible(), true);
         await page.setViewportSize({ width: 768, height: 844 });
-        assert.equal(await page.locator('[data-post-back]').isVisible(), false);
+        assert.equal(await page.locator('[data-post-back]').isVisible(), true);
+        await page.setViewportSize({ width: 1280, height: 900 });
+        assert.equal(await page.locator('[data-post-back]').isVisible(), true);
         await page.setViewportSize({ width: 390, height: 844 });
         assert.ok(await page.locator('[data-post-back-button]').evaluate(el => el.getBoundingClientRect().height >= 44));
         await page.click('#submit'); // Native required validation does not submit.
@@ -198,7 +200,7 @@ const server = http.createServer((request, response) => {
 
         await openPost();
         if (process.env.SCREENSHOT_PATH) await page.screenshot({ path: process.env.SCREENSHOT_PATH });
-        console.log('PASS: header background, author/time/menu links, keyboard, comments, validation, refresh, native back, anchors, reset, breakpoint, direct/external access, new tab and denied storage');
+        console.log('PASS: header background, author/time/menu links, keyboard, comments, validation, refresh, native back, anchors, reset, mobile/desktop visibility, direct/external access, new tab and denied storage');
     } finally {
         if (browser) await browser.close();
         await new Promise(resolve => server.close(resolve));

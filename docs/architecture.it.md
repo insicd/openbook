@@ -275,7 +275,7 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   lo scroll oltre il composer, appare al centro della header un pulsante **+**
   che riporta il focus sul composer (o alla Home se si e' altrove); su mobile lo stesso
   controllo e' un FAB discreto in basso a destra (`compose-shortcut.js`).
-- **Indietro nel dettaglio post**: sotto i 768 px, `/posts/{post}` mostra una
+- **Indietro nel dettaglio post**: su desktop e mobile, `/posts/{post}` mostra una
   riga dedicata nella testata sticky se aperto da un'altra pagina della stessa
   origine. `post-back.js` conserva in `sessionStorage` un piccolo contesto con
   distanza e submit in corso, e marca l'entrata corrente della cronologia per

@@ -86,12 +86,11 @@ Nessuna destinazione di riserva automatica. Aggiungere un'icona SVG
 `arrow-left` nel componente esistente: oggi non è presente. Etichetta
 accessibile «Indietro» e traduzioni italiane/inglesi.
 
-Mostrare la riga sulle pagine abilitate sotto 768 px, usando esattamente
-`@media (max-width: 767px)`, lo stesso breakpoint del menu mobile e della
-sidebar sinistra. Da 768 px in su la riga non compare. Il breakpoint della
-sidebar destra (1023 px) non viene usato per questo controllo.
-Criterio concordato: larghezza dello schermo, sia nel browser
-ordinario sia nella modalità installata, senza rilevazione specifica di iOS.
+Mostrare la riga sulle pagine abilitate a tutte le larghezze, sia su desktop
+sia su mobile, nel browser ordinario e nella modalità installata. Dopo la
+preview desktop l'utente ha approvato la rimozione del vincolo iniziale a
+767 px. La visibilità dipende soltanto dal contesto di ritorno disponibile,
+senza rilevazione specifica di iOS o breakpoint del layout.
 Lasciare i link gerarchici
 esistenti: «Torna al post» e «Indietro» possono avere destinazioni diverse.
 
@@ -101,7 +100,7 @@ più scuro della testata bianca, bordo sottile `--ob-color-border` e link
 ma area cliccabile alta almeno 44 px; variabili esistenti e focus visibile.
 Questa riga deve apparire come navigazione secondaria, senza imitare un
 avviso o un titolo di sezione. Non cambiare globalmente pulsanti o z-index.
-Verificare il confine 767/768 px e l'assenza della riga nelle larghezze superiori.
+Verificare la presenza della riga anche alle larghezze desktop.
 
 ### Flusso concordato: contesto limitato alla UI
 
@@ -207,7 +206,7 @@ post e non applicare loro il contatore del dettaglio del post.
 - Pulizia: ritorno tramite pulsante, marchio/menu, riapertura dello stesso
   post, accesso diretto/esterno, nuova scheda, logout e storage indisponibile.
 - UI: larghezze 320/375/390/767/768 px, landscape, nome istanza lungo e CSS
-  personalizzato; pulsante accessibile e riga assente da 768 px in su.
+  personalizzato; pulsante accessibile e riga presente anche su desktop.
 - PHPUnit: markup delle pagine abilitate/escluse e regole di accesso invariate.
   I test server non dimostrano il recupero dello scroll o la cronologia.
 
@@ -290,3 +289,15 @@ fallimento, due test MySQL saltati); nessuna modifica funzionale successiva.
 L'utente ha riferito una prova positiva del pulsante Indietro. Dispositivo
 e versione browser non sono stati specificati, quindi questa segnalazione
 non sostituisce una verifica automatizzata Safari/iOS.
+
+## Visibilità desktop approvata dopo la preview
+
+Il controllo ora compare a tutte le larghezze quando esiste il contesto di
+ritorno. Aggiornate documentazione, changelog e aspettative della fixture
+browser (768 e 1280 px). Dopo l'approvazione della preview sono stati eseguiti
+i test mirati `PostControllerTest` e `PostCardActionsTest`: 24 test e 126
+asserzioni, tutti superati. Anche la fixture Chromium è passata, verificando
+la visibilità a 390, 767, 768 e 1280 px e i flussi di navigazione esistenti.
+La suite completa non è stata ripetuta per questa piccola modifica CSS,
+come richiesto dall'utente; il risultato completo precedente resta riportato
+sopra.

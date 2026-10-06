@@ -269,8 +269,9 @@ and "Edit profile" button on your own profile) makes them editable:
   past the composer, a **+** button appears in the center of the header that
   returns focus to the composer (or to Home if you are elsewhere); on mobile the same
   control is a discreet FAB at the bottom right (`compose-shortcut.js`).
-- **Post detail back navigation**: below 768 px, `/posts/{post}` has a separate
-  Back row inside the sticky header when opened from another same-origin page.
+- **Post detail back navigation**: on desktop and mobile, `/posts/{post}` has
+  a separate Back row inside the sticky header when opened from another
+  same-origin page.
   `post-back.js` stores a small distance/pending-submit context in
   `sessionStorage` and marks the current history entry so reloads and native
   back/forward do not inflate it. Normal form redirects, including validation
