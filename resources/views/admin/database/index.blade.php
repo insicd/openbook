@@ -120,7 +120,7 @@
                 </thead>
                 <tbody>
                     @foreach ($tables as $table)
-                        <tr style="border-top:1px solid var(--ob-border, #e5e7eb)">
+                        <tr style="border-top:1px solid var(--ob-color-border)">
                             <td style="padding:0.75rem 0;vertical-align:top">
                                 <strong>{{ $table['label'] }}</strong>
                                 <p class="ob-field__help" style="margin:0.35rem 0 0">{{ $table['description'] }}</p>

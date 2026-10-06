@@ -15,10 +15,6 @@ use Illuminate\Validation\Rule;
 
 final class DatabaseMaintenanceController extends Controller
 {
-    private const SANITY_BATCH_SIZE = 100;
-
-    private const SANITY_MAX_TIME = 5;
-
     public function index(Request $request, DatabaseMaintenanceService $maintenance, InstanceSettings $settings, RemotePostRetentionQuery $retention, DatabaseSanityQuery $sanity): View
     {
         $activeTab = in_array($request->query('tab'), ['maintenance', 'sanity'], true) ? $request->query('tab') : 'retention';
@@ -38,10 +34,10 @@ final class DatabaseMaintenanceController extends Controller
             'tables' => $tables,
             'activeTab' => $activeTab,
             'preview' => $preview,
-            'sanityPreview' => $activeTab === 'sanity' ? $sanity->samples(self::SANITY_BATCH_SIZE) : null,
+            'sanityPreview' => $activeTab === 'sanity' ? $sanity->samples(DatabaseSanity::SHORT_RUN_BATCH_SIZE) : null,
             'sanityUnknown' => $activeTab === 'sanity' ? $sanity->unsupportedCounts() : [],
             'sanityResult' => $request->session()->get('sanityResult'),
-            'sanityBatchSize' => self::SANITY_BATCH_SIZE,
+            'sanityBatchSize' => DatabaseSanity::SHORT_RUN_BATCH_SIZE,
             'retentionHours' => DatabaseMaintenanceService::RETENTION_HOURS,
             'totalSizeLabel' => $totalSizeBytes === null ? __('openbook.admin.database.size_unavailable') : $this->formatBytes($totalSizeBytes),
             'maintenanceSizeLabel' => $this->formatBytes(array_sum(array_column($tables, 'size_bytes'))),
@@ -53,7 +49,7 @@ final class DatabaseMaintenanceController extends Controller
 
     public function runSanity(Request $request, DatabaseSanity $sanity): RedirectResponse
     {
-        $result = $sanity->run(self::SANITY_BATCH_SIZE, self::SANITY_MAX_TIME, $request->user());
+        $result = $sanity->run(DatabaseSanity::SHORT_RUN_BATCH_SIZE, DatabaseSanity::SHORT_RUN_MAX_TIME, $request->user());
         $redirect = redirect()->route('admin.database.index', ['tab' => 'sanity']);
         if ($result === null) {
             return $redirect->with('status', __('openbook.admin.database.sanity_busy'));

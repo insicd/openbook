@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Application\Services\DatabaseSanity;
 use App\Http\Controllers\CronController;
+use App\Infrastructure\Database\SystemSetting;
 use Illuminate\Console\Command;
 
 /**
@@ -42,7 +44,16 @@ class CronCommand extends Command
             '--per-follow' => 8,
             '--max-time' => max(2, $slice),
         ]);
-        $this->call('openbook:purge-database');
+        $lastPurge = SystemSetting::get(PurgeDatabaseCommand::LAST_RUN_SETTING_KEY);
+        $purgeStatus = $this->call('openbook:purge-database');
+        // Separate the two daily cleanups across cron invocations.
+        if ($purgeStatus === self::SUCCESS && $lastPurge === SystemSetting::get(PurgeDatabaseCommand::LAST_RUN_SETTING_KEY)) {
+            $this->call('openbook:database-sanity', [
+                '--scheduled' => true,
+                '--batch-size' => DatabaseSanity::SHORT_RUN_BATCH_SIZE,
+                '--max-time' => DatabaseSanity::SHORT_RUN_MAX_TIME,
+            ]);
+        }
 
         return self::SUCCESS;
     }

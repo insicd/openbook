@@ -21,7 +21,7 @@
         <tbody>
             @foreach ($sanityPreview as $table => $types)
                 @foreach ($types as $type => $count)
-                    <tr style="border-top:1px solid var(--ob-border, #e5e7eb)">
+                    <tr style="border-top:1px solid var(--ob-color-border)">
                         <td style="padding:0.75rem 0"><code>{{ $table }}</code></td>
                         <td style="padding:0.75rem"><code>{{ $type }}</code></td>
                         <td style="padding:0.75rem 0;text-align:right">{{ number_format($count) }}</td>

@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 final class DatabaseSanityCommand extends Command
 {
     protected $signature = 'openbook:database-sanity
+        {--scheduled : Esegue al massimo una volta ogni 24 ore, per il cron ordinario}
         {--dry-run : Mostra gli orfani senza modificare il database}
         {--batch-size=100 : Numero massimo di righe selezionate per tabella/tipo in ogni batch}
         {--max-time=1800 : Tempo massimo in secondi; il batch in corso viene completato}';
@@ -38,9 +39,13 @@ final class DatabaseSanityCommand extends Command
             return self::SUCCESS;
         }
 
-        $result = $sanity->run($batchSize, $maxTime);
+        $result = $sanity->run($batchSize, $maxTime, scheduled: (bool) $this->option('scheduled'));
         if ($result === null) {
-            $this->warn('Database sanity già in esecuzione: nessuna pulizia avviata.');
+            if ($this->option('scheduled')) {
+                $this->comment('Database sanity saltata: intervallo minimo non trascorso o pulizia già in esecuzione.');
+            } else {
+                $this->warn('Database sanity già in esecuzione: nessuna pulizia avviata.');
+            }
 
             return self::SUCCESS;
         }

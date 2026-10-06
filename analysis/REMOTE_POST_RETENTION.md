@@ -1,6 +1,6 @@
 # Retention dei post remoti — issue #106
 
-Stato: **analisi congelata nel commit `26a090d`; macrofase Retention completata e verificata, Database sanity S1/S2/S3/S4 committati, S5 completato e approvato**.
+Stato: **analisi congelata nel commit `26a090d`; Retention e Database sanity completate e verificate; automatismo cron, review complessiva e documentazione finale approvati**.
 Aggiornato il 7 ottobre 2026.
 
 Riferimento: [issue #106](https://github.com/insicd/openbook/issues/106).
@@ -142,7 +142,8 @@ dell'autore. Non richiamare implicitamente i suoi flussi di delivery.
 - I post remoti già `deleted` seguono le stesse policy e le stesse esclusioni:
   lo stato non li esenta dalla retention e non introduce una terza categoria.
 - Cron CLI dedicato, separato da quello ordinario, **senza accesso HTTP**.
-  L'esecuzione può durare anche mezz'ora; le transazioni restano brevi.
+  L’esecuzione può durare anche mezz’ora; ogni transazione copre un batch,
+  la cui durata dipende anche dai commenti e dalle altre associazioni coinvolte.
   Il pannello offre soltanto l'anteprima HTTP in lettura richiesta in R4:
   riusa i selettori del dry-run, senza avviare il comando o il servizio DELETE.
 
@@ -352,12 +353,10 @@ ma slegati e il comando di sanity non deve fare un ritorno anticipato sulla base
 delle due durate. L'esecuzione può seguire
 il comando di retention nel cron CLI oppure essere periodica e autonoma. Non
 richiede worker permanenti, Redis o un nuovo ciclo di vita dei contenuti.
-La pagina Amministrazione → Database avrà un tab dedicato «Database sanity»,
-previsto in S5, senza confondere la sanity degli orfani con l'abilitazione della
-retention. Contenuti e azioni web saranno definiti prima di quello sprint:
-prime ipotesi sono un'anteprima equivalente al dry-run e un report delle tabelle
-e dei tipi su cui opera il comando. L'eventuale esecuzione di cancellazioni da
-web resta da decidere; il comando CLI rimane autonomo.
+La pagina Amministrazione → Database offre il tab dedicato «Database sanity»,
+realizzato in S5, senza confondere la sanity degli orfani con l’abilitazione della
+retention. Offre anteprima equivalente al dry-run, pulizia reale e report delle tabelle
+e dei tipi su cui opera il comando; il comando CLI rimane autonomo.
 
 La cancellazione delle notifiche orfane deve mantenere coerenti le revisioni
 delle notifiche secondo le convenzioni esistenti; le FK eliminano eventuali
@@ -1161,3 +1160,125 @@ mantiene invio dei campi, validazione del browser e protezione CSRF. Anche con
 l’anteprima aperta le azioni restano in fondo. Nessuna modifica alle operazioni
 sui dati. I 34 test mirati del pannello sono passati (269 asserzioni);
 l’utente ha approvato la rifinitura e autorizzato il commit dello sprint.
+
+
+## Rifinitura finale — Sanity nel cron ordinario
+
+Dopo S5 (`e11ddf4`), l’utente ha richiesto e approvato l’aggancio della Database
+sanity al cron ordinario, incluso l’innesco web, seguendo l’approccio della
+Maintenance. Questa decisione aggiorna la precedente scelta di un cron
+esclusivamente dedicato alla sanity; la retention dei post resta CLI dedicata.
+
+- `openbook:cron` richiama la sanity con `--scheduled`, batch da 100 e limite
+  di 5 secondi verificato fra i batch. Un batch iniziato termina.
+- Se `openbook:purge-database` aggiorna la propria data di esecuzione in quel
+  giro, la sanity viene rimandata alla successiva chiamata cron. Non vengono
+  avviate entrambe le manutenzioni nello stesso giro; un errore della
+  Maintenance impedisce anche l’avvio della sanity in quel giro.
+- La sanity conserva `database_sanity_last_run_at` in `system_settings`:
+  esegue al massimo una volta ogni 24 ore, controllando la data dopo aver
+  acquisito il lock condiviso con CLI e pannello. Lock occupato o errore non
+  registrano una nuova esecuzione. Anche una pulizia parziale registra il giro:
+  il lavoro restante torna nel giro giornaliero successivo.
+- Comando CLI ordinario e pulsante web ignorano la cadenza automatica e non
+  aggiornano il relativo timestamp: restano disponibili per pulire subito o
+  completare un giro parziale. Il dry-run resta in sola lettura, anche con
+  `--scheduled`. Non ci sono nuove migrazioni, endpoint o query di selezione
+  degli orfani. La nuova lettura usa la chiave univoca di `system_settings`.
+
+Verifiche mirate: 7 nuovi test, 42 asserzioni, per periodicità e confine delle
+24 ore, rinvio dopo Maintenance, cron web, lock occupato, errori e rilascio del
+lock, dry-run e ripresa manuale di una pulizia parziale. Regressioni CLI e
+pannello verificate insieme durante lo sviluppo. Guide EN/IT e changelog
+aggiornati. Verifica manuale e commit di questa rifinitura ancora da approvare.
+
+
+Suite completa della rifinitura cron: **1.281 test passati, 5.840 asserzioni**,
+con i consueti 2 test installer MySQL saltati per database di test non
+raggiungibile. Pint, diff check e review completati. Nessuna cancellazione
+eseguita dall’assistente sui dati dell’istanza locale.
+
+
+## Review complessiva del branch rispetto a issue_107 — 7 ottobre 2026
+
+Perimetro: tutti i commit di issue_106 rispetto a issue_107, più le modifiche
+non committate dell’automatismo sanity e le rifiniture della review. Verifica
+per flussi completi, oltre ai singoli sprint: criteri di pertinenza, cancellazioni,
+concorrenza, polimorfismo, notifiche, configurazione, cron, accessi al pannello,
+migrazioni, test e coerenza delle guide EN/IT.
+
+Esito: nessun problema bloccante individuato e nessuna necessità di un refactor
+strutturale. La selezione della retention riusa i vincoli di visibilità del
+feed e la distinzione fra boost e citazioni di #107; i criteri delle sorgenti
+Home sono verificati contro il feed reale. Il predicato unico mantiene
+separate le due fasce e le condizioni sono ricontrollate prima della DELETE.
+La gestione MySQL dei lock sui thread e sulle citazioni, l’isolamento del batch
+e il distacco aggregato delle risposte sono giustificati dalle prove precedenti,
+non sono un meccanismo astratto di navigazione o cancellazione parallela.
+
+La sanity ha una sola mappa dei tipi ammessi e una sola selezione degli orfani,
+riusata da anteprima, pulizia CLI, pannello e cron. Il ricontrollo nella DELETE
+preserva padri ripristinati dopo la selezione; le notifiche conservano la propria
+transazione per push e revisioni. La differenza rispetto a like e menzioni è
+necessaria. Registro audit e tipi non supportati restano preservati. Nessuna
+pulizia aggiuntiva di media/file né attività federata.
+
+Controllati autorizzazione admin, CSRF, GET in sola lettura, escaping dei tipi
+non supportati, attribuzione del pulsante Retention al form esterno, accesso
+alle anteprime tramite le normali pagine autorizzate dei post. Cron automatico
+e lanci manuali usano lo stesso lock; il controllo giornaliero avviene sotto
+lock, mentre i lanci manuali restano liberi dalla cadenza. Il rinvio dopo
+Maintenance non cambia la sua policy esistente.
+
+Rifiniture effettuate durante la review:
+
+- Centralizzati nel servizio sanity i limiti dei giri brevi usati da cron e
+  pannello (100 righe, 5 secondi). I default del CLI autonomo restano invariati.
+- Uniformata la variabile CSS dei bordi delle due tabelle al token effettivo
+  del tema, evitando un fallback fisso che ignorava il colore configurato.
+- Allineato il riepilogo del cron nelle guide EN/IT a tutti i task realmente
+  eseguiti. Precisato nell’analisi che un batch di post non garantisce una
+  transazione breve quando il thread ha molti figli.
+
+Controverifiche MySQL della review: entrambe le fasce usano l’indice
+`posts_retention_created_id_index` sul database locale; controllo esclusivamente
+in lettura, con zero candidati residui per le soglie del campione. La fascia
+non pertinente ha impiegato circa 0,73 secondi, la pertinente circa 0,001 secondi;
+questi numeri descrivono il campione attuale e non costituiscono un benchmark
+generale. Ripetuta anche la prova sanity su schema MySQL temporaneo isolato:
+recheck concorrente, cascade push, revisioni, rollback, CLI dry-run e pulizia
+ripetibile corretti; schema rimosso. Nessuna cancellazione sull’istanza locale.
+
+Una verifica aggiuntiva della durata numerica massima accettata dal form ha
+prodotto un insieme vuoto anche su MySQL, senza errore: non è stata introdotta
+una restrizione arbitraria del prodotto. Restano i limiti operativi già
+concordati: il tempo è controllato fra i batch, un singolo batch/query può
+superarlo; il giro giornaliero breve può lasciare lavoro per il giorno dopo
+oppure per CLI/pannello. MariaDB non provato su un server separato.
+
+Le modifiche del cron e le rifiniture restano non committate; nessun push o PR
+è stato eseguito durante la review.
+
+
+Verifica finale dopo le rifiniture: suite completa **1.281 test passati,
+5.840 asserzioni**, 2 test installer MySQL saltati per server di test non
+raggiungibile. Le prove MySQL della review sono state eseguite separatamente.
+Pint e diff check passati. Non sono emersi ulteriori problemi bloccanti.
+
+
+## Chiusura — Documentazione operativa e commit finale
+
+L’utente ha autorizzato il commit finale dopo la review complessiva, chiedendo
+che il manuale sia orientato all’amministratore. Rilette e riordinate le sezioni
+Retention e Database sanity delle guide EN/IT: impostazioni, effetto della
+cancellazione, anteprima, comando ordinario, parametri opzionali e cron.
+Rimossi i dettagli di implementazione su FK, query, revisioni, CSRF e lock;
+conservate le informazioni operative su campioni, limiti fra batch, errori,
+concorrenza e ripresa. Indice documentazione e collegamenti README aggiornati;
+changelog reso più sintetico e allineato ai tre tab e al cron automatico.
+
+Il controllo finale riusa la suite completa appena passata nella review
+(1.281 test, 5.840 asserzioni; 2 installer MySQL saltati), poiché dopo tale
+esecuzione sono cambiati soltanto file Markdown. Verificati diff, formattazione,
+collegamenti locali e coerenza dei comandi con le firme CLI. Nessun push:
+l’utente invierà il branch dopo il commit.

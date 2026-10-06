@@ -19,26 +19,21 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Database sanity**: comando autonomo `openbook:database-sanity` per ripulire
-  like, menzioni e notifiche con padre fisicamente assente, anche con retention
-  disabilitata. Dry-run con campioni per tabella/tipo, batch, limite di tempo e
-  lock dedicato; tipi sconosciuti e registro audit conservati. La pulizia delle
-  notifiche include i push collegati e aggiorna le revisioni dei destinatari.
-  Il tab amministrativo dedicato mostra la stessa anteprima in tabella e offre
-  la pulizia reale con limiti web, conferma, audit e lock condiviso con il CLI.
-- **Retention dei post remoti**: comando CLI `openbook:prune-remote-posts`
-  per eliminare a batch i post Pertinenti e Non pertinenti scaduti, con
-  limite di tempo, lock anti-sovrapposizione e anteprima `--dry-run` con link
-  locali. La cancellazione comprende l'intero thread, anche commenti locali
-  e report, senza attività federate; sono esclusi post locali, conversazioni
-  dirette e originali citati localmente. Le due durate, disabilitate per default,
-  si configurano in Amministrazione → Database; il form salva soltanto e verifica
-  che, con entrambe le fasce attive, i Pertinenti durino almeno quanto i Non pertinenti.
-- **Pannello Database**: tab Retention e Maintenance separano configurazione e
-  pulizia delle tabelle operative; la testata mostra la dimensione stimata
-  dell'intero database, dati e indici inclusi. Le azioni principali sono in fondo
-  alla rispettiva sezione; Anteprima mostra i primi 10 candidati per fascia in
-  sola lettura, con link al dettaglio in una nuova scheda.
+- **Database sanity**: pulizia di like, menzioni e notifiche rimasti senza
+  oggetto di riferimento, anche con retention disabilitata. Il cron ordinario,
+  anche via web, la esegue una volta al giorno in un giro distinto dalla
+  Maintenance. Anteprima e pulizia manuale sono disponibili nel pannello Database
+  e con `openbook:database-sanity`; registro audit e contenuti presenti restano.
+- **Retention dei post remoti**: due durate configurabili per Pertinenti e
+  Non pertinenti, inizialmente disabilitate. Il comando dedicato
+  `openbook:prune-remote-posts` offre anteprima e pulizia a batch. Alla scadenza
+  elimina il thread remoto, compresi commenti locali e segnalazioni; conserva
+  post locali, conversazioni dirette e originali citati da contenuti locali,
+  senza inviare cancellazioni alle altre istanze.
+- **Pannello Database**: tab Retention, Maintenance e Database sanity, con
+  dimensione stimata dell'intero database nella testata e azioni in fondo a
+  ciascuna sezione. L'anteprima retention mostra fino a 10 post per fascia,
+  con link al dettaglio in una nuova scheda.
 - **Anteprime dei link nei post**: i post pubblici con un solo link idoneo e
   senza immagini allegate mostrano una card Open Graph con titolo, eventuale
   immagine e descrizione, caricata senza bloccare la pagina. I link Markdown

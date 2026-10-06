@@ -69,20 +69,22 @@ Geographical data is provided by GeoNames under
 
 ## Cron and periodic tasks
 
-Openbook uses Laravel's **database** queue (`jobs`/`failed_jobs` tables, no
-Redis/RabbitMQ and, except for the optional video worker described below, no
-permanent process): inbox processing and outgoing
-activity delivery happen only when someone periodically runs the
-`openbook:cron` command, which in turn invokes in sequence:
+Configure `openbook:cron` every minute to process pending work and run periodic
+maintenance. The command coordinates these tasks:
 
-- `openbook:process-inbox` — processes the `inbox` queue (`InboxActivityProcessor`);
-- `openbook:deliver` — processes the `delivery` queue (`DeliverActivityJob`);
+- `openbook:process-inbox` — processes the `inbox` queue;
+- `openbook:deliver` — processes the `delivery` queue;
+- `openbook:deliver-push` — delivers pending Web Push notifications;
 - `openbook:confirm-outgoing-follows` — confirms remote Follows still pending
-  if we already appear in the target's `followers` collection (missing Accept).
+  if we already appear in the target's `followers` collection (missing Accept);
+- `openbook:fetch-feeds` — imports RSS/Atom feeds;
+- `openbook:auto-announce` — performs configured automatic shares;
+- `openbook:purge-database` — cleans expired operational rows once every 24 hours;
+- `openbook:database-sanity --scheduled` — reconciles orphans once every 24
+  hours, deferred to the next invocation when operational Maintenance runs.
 
-The first two sub-commands run with `queue:work --stop-when-empty`, so they
-exit on their own instead of listening indefinitely: suitable for a classic
-cron, never for a permanent process supervisor.
+Each invocation processes pending work and finishes on its own. For these
+tasks, configure the periodic cron; no permanent worker is needed.
 
 **With access to a real system cron:**
 
@@ -98,149 +100,142 @@ secret token and enables an equivalent HTTP endpoint, to be called with any
 GET https://your-domain.example.org/cron/run?token=YOUR_TOKEN
 ```
 
-The token is compared with `hash_equals()` (no timing attack) and the endpoint
-rejects requests that are too close together (`OPENBOOK_WEB_CRON_MIN_INTERVAL`,
+The endpoint requires the correct token and rejects requests that are too close
+together (`OPENBOOK_WEB_CRON_MIN_INTERVAL`,
 default 55 seconds, 429 response), returning 404 if the feature is disabled or
 403 if the token is missing or wrong.
 
 ### Remote post retention
 
-The dedicated CLI command lets you preview candidates before deleting them:
+Retention keeps remote posts for a configurable period. Open
+**Administration → Database → Retention** and set the days for the two categories:
+
+- **Relevant:** can appear in at least one local user's Home or have comments
+  from local actors.
+- **Non-relevant:** meet neither criterion; a typical example is a post that
+  only appears in World.
+
+Periods start at first import into Openbook. New comments or interactions do
+not restart the clock. Both categories are initially **disabled (0)** and can
+be enabled independently. When both are active, relevant posts must be kept
+at least as long as non-relevant posts.
+
+**Expiry permanently deletes the remote post and all its comments, including
+local comments, together with associated reports.** Local posts and their
+comments, direct conversations, and remote posts quoted by local content are
+excluded. This cleanup does not remove media or files. Other instances receive
+no deletion requests.
+
+**Save retention periods** only saves settings. **Preview** uses saved periods
+and shows up to 10 posts per category, with links opening in a new tab. An empty
+list is expected when the category is disabled or no posts are old enough.
+Posts already marked as deleted may still need cleanup even if their page
+can no longer be viewed.
+
+Cleanup runs from the terminal or a dedicated cron; **it is not included in
+the ordinary cron**, including when that cron is triggered through the web.
+To preview a sample of posts before deleting them:
 
 ```bash
 php artisan openbook:prune-remote-posts --dry-run
 ```
 
-It displays one batch per category (relevant and non-relevant posts), ordered
-by first import time, and up to `--sample` local links per category. Counts
-refer to the batch, not all expired posts. `--batch-size` must be a positive
-integer; `--sample` may be 0 to omit links. In dry-run the command does not
-modify data. For routine retention runs, simply use:
+To run cleanup with the ordinary parameters:
 
 ```bash
 php artisan openbook:prune-remote-posts
 ```
 
-Defaults are **100 posts per batch per category** and **1800 seconds (30 minutes)**
-per run; previews show up to 10 links per category. Parameters are optional and
-let you adjust these values to your instance's needs.
+The command processes batches until no candidates remain or approximately
+30 minutes have elapsed. The current batch finishes even if it exceeds the
+limit. Run the command again to continue; the summary counts deleted posts
+per category, without adding comments. Deletion is permanent: keep a backup
+if you need to recover local contributions from removed threads.
 
-**Without `--dry-run`, it physically deletes expired posts and their entire
-threads**, including local comments and reports. Local posts and their threads
-remain; direct messages/conversations and originals quoted by local posts are
-excluded. `--batch-size` limits **each category per iteration**, not the total:
-the command keeps processing batches until exhaustion or the time limit.
-`--max-time` must be a positive integer (default 1800 seconds); it is checked
-between batches, and an ongoing batch completes even if it exceeds the limit.
-The summary counts deleted roots per category, without adding child rows.
-A file lock prevents overlapping runs and releases when the process closes;
-a new run resumes from remaining candidates. An error rolls back the current
-batch while previously completed batches remain committed.
+Optional parameters let you adjust cleanup:
 
-No federated deletion activities are sent. Reconciling orphaned polymorphic
-rows belongs to the separate Database sanity process. The command remains
-CLI-only, without invocation from `openbook:cron` or the HTTP cron endpoint.
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `--batch-size` | 100 | Posts per category in each batch, not the total run limit. |
+| `--max-time` | 1800 | Available seconds, checked between batches. |
+| `--sample` | 10 | Links shown per category in dry-run; 0 hides them. |
 
-The **Administration → Database** header shows the estimated size of the whole
-database, including data and indexes. The **Maintenance** tab contains statistics
-and cleanup actions for the operational tables only. Configure retention periods
-in the **Retention** tab, which opens by default.
-Both default to **0 (disabled)**, independently for each category. The form
-only saves settings; it does not run deletion.
-**Preview** uses saved periods and shows up to 10 candidates per category with
-the same queries as the CLI dry-run, without modifying data. Links open the
-post detail in a new tab.
-**Relevant** remote posts can appear in at least one local user's Home or have
-comments from local actors; **non-relevant** posts would only appear in World,
-without local comments. Age starts at first import and is not renewed by new
-comments or interactions. When both categories are enabled, the form requires
-the relevant period to be at least as long as the non-relevant period.
-To disable retention entirely, set both periods to 0.
+Dry-run counts refer to one batch per category, **not the total** posts awaiting
+deletion. Links use `APP_URL`: open them while signed in to view content your
+account can access. If a deleted post is imported again, it receives a new
+import date and a new local link.
 
-For daily cleanup, add a **dedicated cron** at a quiet time, using the absolute
-paths to PHP and your installation:
+For daily cleanup, add a dedicated cron at a quiet time, adjusting the PHP
+and installation paths:
 
 ```cron
 0 3 * * * cd /path/to/openbook && /usr/bin/php artisan openbook:prune-remote-posts >> storage/logs/remote-post-retention.log 2>&1
 ```
 
-Database sanity remains a separate process, even when retention is disabled;
-run it with the command described below.
-An empty sample is expected if no posts were imported before the cutoff. Links use `APP_URL`;
-open them while signed in to check content visible to your account. Posts
-already marked as deleted may appear in the batch without a viewable page.
+The **Administration → Database** header shows the estimated size of the whole
+database, including data and indexes. **Maintenance** contains operational-table
+statistics and cleanup; **Database sanity** handles references left after a
+deletion, as described below.
 
 ### Database sanity
 
-Reconciliation removes **orphaned likes, mentions and notifications**: references
-to a parent object that no longer physically exists. It works with both
-retention durations set to 0 and can clean up leftovers from any deletion.
-Existing parents, including those marked `deleted`, are preserved, as are
-audit logs, media and files. Push rows linked to deleted notifications are
-removed by their FK; recipients' notification revisions are updated in the
-same transaction. No federated activities are generated.
+Database sanity removes **orphaned likes, mentions and notifications**: references
+to content or other objects no longer present in the database. It preserves
+references to objects still present, even if marked as deleted, and does not
+remove content, audit logs, media or files. It also removes push notifications
+linked to deleted notifications and updates notification counts. It works
+even with both retention categories disabled.
 
-To preview cleanup:
+The ordinary cron, from either the terminal or the web, runs it automatically
+**at most once every 24 hours**, with 100-row batches and 5 seconds available
+between batches. When Maintenance runs in the same invocation, sanity is deferred
+to the next cron invocation. A partial run leaves remaining work for the next
+day; you can complete it immediately from the panel or terminal. No additional
+cron is required.
+
+Open **Administration → Database → Database sanity** to view the preview.
+The table shows up to 100 orphans per table and object type: these are
+**samples, not global totals**. **Refresh preview** reloads the numbers without
+changing data. Unsupported types are listed separately and preserved; their
+numbers are totals per type instead.
+
+After confirmation, **Clean up orphans** runs cleanup immediately. The panel
+uses 100-row batches and a 5-second limit checked between batches; the current
+batch finishes. On return, it shows refreshed samples and rows deleted during
+that invocation. Partial cleanup can be repeated. The action is recorded in
+the audit log.
+
+From the terminal, preview or run cleanup:
 
 ```bash
 php artisan openbook:database-sanity --dry-run
-```
-
-The preview runs SELECTs only and prints one line per table and parent type,
-for example `likes / post: 12 orfani nel campione (massimo 100).` It selects
-one batch per pair: these numbers **are not global totals**. Unsupported
-types are reported and preserved; their counts are totals per type, with
-at most 100 unsupported types reported per table. No object bodies or other
-content are displayed. Command output follows the existing Italian CLI style.
-
-The ordinary cleanup invocation is:
-
-```bash
 php artisan openbook:database-sanity
 ```
 
-Defaults: **100 rows per batch and table/type**, **1,800 seconds** for cleanup.
-Pairs are processed in turn until exhausted or the time limit is reached.
-The limit is checked between batches; the current batch finishes. The final
-report shows rows actually deleted during this invocation. If the limit is
-reached, run the command again; completed cleanup can be repeated without
-further deletions. To change the limits:
+The command uses **100 rows per batch and table/type** and a limit of
+**1800 seconds (30 minutes)**, checked between batches. The preview shows
+one batch per table/type; cleanup continues until exhausted or the time limit
+is reached and reports rows actually deleted. To adjust the parameters:
 
 ```bash
 php artisan openbook:database-sanity --batch-size=500 --max-time=300
 ```
 
-`--max-time` applies to cleanup, not the preview or unsupported-type report.
-A process-held file lock prevents overlapping sanity cleanups, without expiry
-while the process is active, and is released even on failure. It is independent
-of the retention lock. Each notification batch is transactional; on failure,
-previously completed batches remain applied.
+The panel and dedicated command can be used at any time, independently of the
+automatic schedule. When sanity cleanup is already running, a second invocation
+is skipped. On failure, previously completed batches remain applied; run cleanup
+again to continue. `--max-time` limits cleanup, not reading the preview or the
+unsupported-type report.
 
-This is an **autonomous CLI command**, with no mandatory invocation from
-retention, `openbook:cron` or operational-table purge.
-It can run periodically through a dedicated cron:
+The `--scheduled` option, used by the ordinary cron, applies the daily interval.
+Manual runs without this option do not shift the automatic run; dry-run changes
+neither data nor the schedule. If you prefer a full cleanup at a specific time,
+you may add a dedicated cron, or run the command immediately after retention
+in the same script:
 
 ```cron
 30 3 * * * cd /path/to/openbook && /usr/bin/php artisan openbook:database-sanity >> storage/logs/database-sanity.log 2>&1
 ```
-
-To clean up immediately after retention, run the two commands sequentially
-in the same cron script. No permanent workers or Redis are needed.
-
-In **Administration → Database → Database sanity**, the preview loads when
-the tab opens and uses the same selectors and 100-row samples as the CLI
-dry-run. The table shows table name, object type and orphan count in the
-sample; **Refresh preview** only reloads these reads. Unsupported types are
-reported separately and preserved.
-
-After confirmation, **Clean up orphans** runs the sanity service through a
-CSRF-protected POST restricted to administrators. Web limits are fixed:
-100 rows per batch and 5 seconds checked between batches; the current batch
-finishes even if it exceeds the limit. Partial cleanup can be repeated or
-completed through the CLI. The lock is shared with the command, preventing
-web and CLI cleanups from overlapping. The action and counts are recorded
-in the audit log. After cleanup, the same tab shows refreshed samples and
-an additional column for rows actually deleted during the last invocation.
 
 ### Video worker (only when video support is enabled)
 

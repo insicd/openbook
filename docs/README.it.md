@@ -7,7 +7,7 @@ Guide ricavate dal vecchio README di progetto, divise per argomento.
 | Argomento | File |
 |---|---|
 | Installazione, requisiti, server web, aggiornamenti | [`install.it.md`](install.it.md) |
-| Configurazione, posizioni nei post, cron | [`configuration.it.md`](configuration.it.md) |
+| Configurazione, posizioni nei post, cron, manutenzione database | [`configuration.it.md`](configuration.it.md) |
 | Architettura, profili, Mondo | [`architecture.it.md`](architecture.it.md) |
 | Federazione, community, eventi | [`federation.it.md`](federation.it.md) |
 | Test e sviluppo locale | [`development.it.md`](development.it.md) |

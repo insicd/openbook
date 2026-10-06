@@ -4,17 +4,25 @@ namespace App\Application\Services;
 
 use App\Application\Queries\DatabaseSanityQuery;
 use App\Domain\Accounts\User;
+use App\Infrastructure\Database\SystemSetting;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use RuntimeException;
 
 final class DatabaseSanity
 {
+    public const LAST_RUN_SETTING_KEY = 'database_sanity_last_run_at';
+
+    public const SHORT_RUN_BATCH_SIZE = 100;
+
+    public const SHORT_RUN_MAX_TIME = 5;
+
     public function __construct(private readonly DatabaseSanityQuery $query) {}
 
     /** @return ?array{deleted: array<string, array<string, int>>, timed_out: bool} */
-    public function run(int $batchSize, int $maxTime, ?User $operator = null): ?array
+    public function run(int $batchSize, int $maxTime, ?User $operator = null, bool $scheduled = false): ?array
     {
         $lock = fopen(storage_path('framework/cache/database-sanity.lock'), 'c');
         if ($lock === false) {
@@ -25,7 +33,16 @@ final class DatabaseSanity
             if (! flock($lock, LOCK_EX | LOCK_NB)) {
                 return null;
             }
+            if ($scheduled) {
+                $lastRun = SystemSetting::get(self::LAST_RUN_SETTING_KEY);
+                if ($lastRun !== null && Carbon::parse($lastRun)->addHours(24)->isFuture()) {
+                    return null;
+                }
+            }
             $result = $this->reconcile($batchSize, $maxTime);
+            if ($scheduled) {
+                SystemSetting::put(self::LAST_RUN_SETTING_KEY, now()->toIso8601String());
+            }
             if ($operator !== null) {
                 app(AuditLogger::class)->log($operator, 'database.sanity', null, $result);
             }
