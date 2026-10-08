@@ -263,7 +263,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/audit', [AdminAuditLogController::class, 'index'])->name('audit.index');
 
             Route::get('/database', [AdminDatabaseMaintenanceController::class, 'index'])->name('database.index');
+            Route::put('/database/retention', [AdminDatabaseMaintenanceController::class, 'updateRetention'])->name('database.retention.update');
             Route::post('/database/pulisci', [AdminDatabaseMaintenanceController::class, 'purge'])->name('database.purge');
+            Route::post('/database/sanity', [AdminDatabaseMaintenanceController::class, 'runSanity'])->name('database.sanity.run');
         });
     });
 });

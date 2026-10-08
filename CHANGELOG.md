@@ -19,6 +19,21 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Database sanity**: pulizia di like, menzioni e notifiche rimasti senza
+  oggetto di riferimento, anche con retention disabilitata. Il cron ordinario,
+  anche via web, la esegue una volta al giorno in un giro distinto dalla
+  Maintenance. Anteprima e pulizia manuale sono disponibili nel pannello Database
+  e con `openbook:database-sanity`; registro audit e contenuti presenti restano.
+- **Retention dei post remoti**: due durate configurabili per Pertinenti e
+  Non pertinenti, inizialmente disabilitate. Il comando dedicato
+  `openbook:prune-remote-posts` offre anteprima e pulizia a batch. Alla scadenza
+  elimina il thread remoto, compresi commenti locali e segnalazioni; conserva
+  post locali, conversazioni dirette e originali citati da contenuti locali,
+  senza inviare cancellazioni alle altre istanze.
+- **Pannello Database**: tab Retention, Maintenance e Database sanity, con
+  dimensione stimata dell'intero database nella testata e azioni in fondo a
+  ciascuna sezione. L'anteprima retention mostra fino a 10 post per fascia,
+  con link al dettaglio in una nuova scheda.
 - **Anteprime dei link nei post**: i post pubblici con un solo link idoneo e
   senza immagini allegate mostrano una card Open Graph con titolo, eventuale
   immagine e descrizione, caricata senza bloccare la pagina. I link Markdown

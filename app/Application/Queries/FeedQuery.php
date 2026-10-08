@@ -594,7 +594,7 @@ final class FeedQuery
         return $query;
     }
 
-    private function constrainTimelineAnnounces(QueryBuilder $query, string $alias = 'announces'): void
+    public function constrainTimelineAnnounces(QueryBuilder $query, string $alias = 'announces'): void
     {
         // Le citazioni dei Person non sono boost. I Group usano invece
         // Announce non diretti per distribuire i post delle community.

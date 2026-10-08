@@ -1130,6 +1130,7 @@ html.ob-compose-modal-open {
 .ob-field input[type='url'],
 .ob-field input[type='search'],
 .ob-field input[type='datetime-local'],
+.ob-admin-retention .ob-field input[type='number'],
 .ob-field textarea,
 .ob-field select {
   width: 100%;
@@ -1140,6 +1141,50 @@ html.ob-compose-modal-open {
   font-family: inherit;
   background: #fff;
   color: var(--ob-color-text);
+}
+
+.ob-admin-retention__duration {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.ob-admin-database-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 1.25rem 0;
+  border-bottom: 1px solid var(--ob-color-border);
+}
+
+.ob-admin-retention .ob-admin-retention__duration input[type='number'] {
+  width: 7rem;
+  max-width: 100%;
+}
+
+.ob-admin-retention__duration label {
+  margin: 0;
+  font-weight: 400;
+}
+
+.ob-admin-retention__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.ob-admin-retention__preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  .ob-admin-retention__preview {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ob-field textarea {
@@ -3474,6 +3519,10 @@ a.ob-post__menu-item {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 1rem;
   margin-top: 1.25rem;
+}
+
+.ob-admin-stats > .ob-card {
+  margin-top: 0;
 }
 
 .ob-admin-stat {

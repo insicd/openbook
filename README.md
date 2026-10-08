@@ -46,7 +46,7 @@ Requirements, git/Composer install, web server layouts, and updates:
 ## Documentation
 
 - [Install and updates](docs/install.md)
-- [Configuration and cron](docs/configuration.md)
+- [Configuration, cron and database maintenance](docs/configuration.md)
 - [Architecture](docs/architecture.md)
 - [Federation](docs/federation.md)
 - [Development and tests](docs/development.md)

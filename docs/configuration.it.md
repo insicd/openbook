@@ -68,20 +68,22 @@ forniti da GeoNames con licenza
 
 ## Cron e attivita periodiche
 
-Openbook usa la coda **database** di Laravel (tabelle `jobs`/`failed_jobs`, nessun
-Redis/RabbitMQ e, salvo il worker video opzionale descritto sotto, nessun processo
-permanente): l'elaborazione dell'inbox e la consegna delle
-attivita' in uscita avvengono solo quando qualcuno esegue periodicamente il comando
-`openbook:cron`, che a sua volta invoca in sequenza:
+Configura `openbook:cron` ogni minuto per elaborare le attività in attesa e
+eseguire le manutenzioni periodiche. Il comando coordina questi task:
 
-- `openbook:process-inbox` — processa la coda `inbox` (`InboxActivityProcessor`);
-- `openbook:deliver` — processa la coda `delivery` (`DeliverActivityJob`);
+- `openbook:process-inbox` — processa la coda `inbox`;
+- `openbook:deliver` — processa la coda `delivery`;
+- `openbook:deliver-push` — consegna le notifiche Web Push in attesa;
 - `openbook:confirm-outgoing-follows` — conferma Follow remoti ancora pending
-  se risultiamo gia' nella collection `followers` del target (Accept mancante).
+  se risultiamo gia' nella collection `followers` del target (Accept mancante);
+- `openbook:fetch-feeds` — importa i feed RSS/Atom;
+- `openbook:auto-announce` — esegue le condivisioni automatiche configurate;
+- `openbook:purge-database` — pulisce le righe operative scadute ogni 24 ore;
+- `openbook:database-sanity --scheduled` — riconcilia gli orfani ogni 24 ore,
+  rimandando al giro successivo quando viene eseguita la Maintenance operativa.
 
-I primi due sotto-comandi girano con `queue:work --stop-when-empty`, cosi' terminano da
-soli invece di restare in ascolto indefinitamente: adatto a un cron classico, mai a un
-supervisore di processi permanenti.
+Ogni chiamata elabora il lavoro in attesa e termina autonomamente. Per questi
+task basta configurare il cron periodico; non serve un worker permanente.
 
 **Con accesso a un vero cron di sistema:**
 
@@ -97,10 +99,141 @@ servizio di "cron esterno" (es. cron-job.org) puntato a intervalli regolari:
 GET https://tuo-dominio.example.org/cron/run?token=IL_TUO_TOKEN
 ```
 
-Il token viene confrontato con `hash_equals()` (nessun timing attack) e l'endpoint
-rifiuta richieste troppo ravvicinate (`OPENBOOK_WEB_CRON_MIN_INTERVAL`, default 55
+L’endpoint richiede il token corretto e rifiuta richieste troppo ravvicinate (`OPENBOOK_WEB_CRON_MIN_INTERVAL`, default 55
 secondi, risposta 429) restituendo 404 se la funzione e' disabilitata o 403 se il
 token e' mancante o errato.
+
+### Retention dei post remoti
+
+La retention permette di conservare i post remoti per un periodo configurabile.
+Apri **Amministrazione → Database → Retention** e imposta i giorni per le due fasce:
+
+- **Pertinenti:** possono comparire nella Home di almeno un utente locale oppure
+  hanno commenti di attori locali.
+- **Non pertinenti:** non soddisfano questi criteri; il caso tipico è un post
+  che compare soltanto in Mondo.
+
+Le durate decorrono dalla prima importazione in Openbook. Nuovi commenti o
+interazioni non fanno ripartire il conteggio. Entrambe le fasce sono inizialmente
+**disabilitate (0)**; puoi abilitarle separatamente. Quando sono entrambe attive,
+i Pertinenti devono essere conservati almeno quanto i Non pertinenti.
+
+**Alla scadenza si eliminano definitivamente il post remoto e tutti i suoi
+commenti, anche locali, insieme alle segnalazioni collegate.** Restano esclusi
+post locali e relativi commenti, conversazioni dirette e post remoti citati da
+contenuti locali. Media e file non vengono rimossi da questa pulizia. Le altre
+istanze non ricevono richieste di cancellazione.
+
+**Salva durate di conservazione** salva soltanto le impostazioni. **Anteprima**
+usa le durate già salvate e mostra fino a 10 post per fascia, con link apribili
+in una nuova scheda. Un elenco vuoto è normale quando la fascia è disabilitata
+o non ci sono post abbastanza vecchi. I post già segnati come cancellati possono
+essere ancora da ripulire, anche se la loro pagina non è più consultabile.
+
+La pulizia si esegue da terminale o con un cron dedicato; **non è inclusa nel
+cron ordinario**, neppure quando quest'ultimo viene richiamato via web.
+Per vedere prima un campione dei post da eliminare:
+
+```bash
+php artisan openbook:prune-remote-posts --dry-run
+```
+
+Per eseguire la pulizia con i parametri ordinari:
+
+```bash
+php artisan openbook:prune-remote-posts
+```
+
+Il comando procede a batch fino a esaurimento dei candidati o per un massimo
+indicativo di 30 minuti. Il batch in corso termina anche se supera il limite.
+Puoi rilanciare il comando per continuare; il riepilogo conta i post eliminati
+per fascia, senza sommare i commenti. La cancellazione è definitiva: conserva
+un backup se vuoi poter recuperare anche i contributi locali dei thread rimossi.
+
+I parametri opzionali consentono di adattare la pulizia:
+
+| Parametro | Default | Significato |
+| --- | --- | --- |
+| `--batch-size` | 100 | Post per fascia in ciascun batch, non limite totale dell'esecuzione. |
+| `--max-time` | 1800 | Secondi disponibili, controllati fra i batch. |
+| `--sample` | 10 | Link mostrati per fascia nel dry-run; 0 li nasconde. |
+
+I conteggi del dry-run riguardano un solo batch per fascia, **non il totale** dei
+post da eliminare. I link usano `APP_URL`: aprili con il tuo account per vedere
+soltanto i contenuti ai quali hai accesso. Se un post eliminato viene importato
+nuovamente, riceve una nuova data d'importazione e un nuovo link locale.
+
+Per una pulizia giornaliera, aggiungi un cron dedicato in un orario poco trafficato,
+adattando i percorsi di PHP e dell'installazione:
+
+```cron
+0 3 * * * cd /percorso/openbook && /usr/bin/php artisan openbook:prune-remote-posts >> storage/logs/remote-post-retention.log 2>&1
+```
+
+La testata di **Amministrazione → Database** mostra la dimensione stimata
+dell'intero database, dati e indici inclusi. Il tab **Maintenance** contiene
+statistiche e pulizia delle tabelle operative; **Database sanity** gestisce
+invece i riferimenti rimasti dopo una cancellazione, come descritto sotto.
+
+### Database sanity
+
+La Database sanity elimina **like, menzioni e notifiche orfani**, cioè riferiti
+a contenuti o altri oggetti che non esistono più nel database. Conserva i
+riferimenti a oggetti ancora presenti, anche se segnati come cancellati, e
+non rimuove contenuti, registro audit, media o file. Elimina anche i push
+collegati alle notifiche rimosse e aggiorna i contatori delle notifiche.
+Funziona anche con entrambe le fasce di retention disabilitate.
+
+Il cron ordinario, sia da terminale sia via web, la esegue automaticamente
+**al massimo una volta ogni 24 ore**, con batch da 100 righe e 5 secondi
+disponibili fra i batch. Se nello stesso giro esegue la Maintenance, rimanda
+la sanity alla chiamata successiva. Un giro parziale lascia il lavoro restante
+al giorno successivo; puoi completarlo subito dal pannello o da terminale.
+Non serve configurare un altro cron.
+
+Apri **Amministrazione → Database → Database sanity** per vedere l'anteprima.
+La tabella riporta fino a 100 orfani per tabella e tipo di oggetto: sono
+**campioni, non totali globali**. **Aggiorna anteprima** ricarica i numeri senza
+modificare dati. I tipi non supportati sono elencati separatamente e conservati;
+i loro numeri indicano invece il totale per tipo.
+
+**Pulisci gli orfani**, dopo conferma, esegue subito la pulizia. Il pannello
+usa batch da 100 e un limite di 5 secondi controllato fra i batch: quello già
+iniziato termina. Al ritorno mostra i campioni aggiornati e le righe eliminate
+durante quell'esecuzione. Se la pulizia è parziale, puoi ripeterla. L'operazione
+viene registrata nel registro audit.
+
+Da terminale, per vedere l'anteprima oppure eseguire la pulizia:
+
+```bash
+php artisan openbook:database-sanity --dry-run
+php artisan openbook:database-sanity
+```
+
+Il comando usa **100 righe per batch e per tabella/tipo** e un limite di
+**1800 secondi (30 minuti)**, controllato fra i batch. L'anteprima mostra un
+solo batch per tabella/tipo; la pulizia prosegue fino a esaurimento o al limite
+e riporta le righe effettivamente eliminate. Per adattare i parametri:
+
+```bash
+php artisan openbook:database-sanity --batch-size=500 --max-time=300
+```
+
+Pannello e comando dedicato possono essere usati in qualsiasi momento,
+indipendentemente dalla cadenza automatica. Se una pulizia sanity è già in corso,
+un secondo avvio viene saltato. In caso di errore restano applicati i batch già
+completati; puoi rilanciare la pulizia. `--max-time` limita la pulizia, non la
+lettura dell'anteprima o del report dei tipi non supportati.
+
+L'opzione `--scheduled`, usata dal cron ordinario, applica la cadenza giornaliera.
+I lanci manuali senza questa opzione non spostano il giro automatico; il dry-run
+non cambia dati né la cadenza. Se preferisci una pulizia completa in un orario
+specifico, puoi aggiungere un cron dedicato, oppure lanciare il comando subito
+dopo la retention nello stesso script:
+
+```cron
+30 3 * * * cd /percorso/openbook && /usr/bin/php artisan openbook:database-sanity >> storage/logs/database-sanity.log 2>&1
+```
 
 ### Worker video (solo quando il supporto video e' abilitato)
 

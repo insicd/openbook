@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Carbon;
 
 /**
@@ -305,52 +306,64 @@ class Post extends Model
      */
     public function scopeVisibleTo(Builder $query, ?Actor $viewer): Builder
     {
+        return $this->scopeVisibleToActorId($query, $viewer?->id);
+    }
+
+    /**
+     * Also accepts a correlated actor ID for maintenance queries, using the
+     * same visibility rules as the user-facing feed.
+     *
+     * @param  Builder<Post>  $query
+     * @return Builder<Post>
+     */
+    public function scopeVisibleToActorId(Builder $query, string|Expression|null $viewerId): Builder
+    {
         return $query
-            ->where(function (Builder $query) use ($viewer) {
+            ->where(function (Builder $query) use ($viewerId) {
                 $query->where('visibility', self::VISIBILITY_PUBLIC)
                     ->orWhere('visibility', self::VISIBILITY_UNLISTED);
 
-                if ($viewer === null) {
+                if ($viewerId === null) {
                     return;
                 }
 
-                $query->orWhere('actor_id', $viewer->id);
+                $query->orWhere('actor_id', $viewerId);
 
-                $query->orWhere(function (Builder $query) use ($viewer) {
+                $query->orWhere(function (Builder $query) use ($viewerId) {
                     $query->where('visibility', self::VISIBILITY_FOLLOWERS)
-                        ->whereIn('actor_id', function ($sub) use ($viewer) {
+                        ->whereIn('actor_id', function ($sub) use ($viewerId) {
                             $sub->select('following_id')
                                 ->from('follows')
-                                ->where('follower_id', $viewer->id)
+                                ->where('follower_id', $viewerId)
                                 ->where('status', 'accepted');
                         });
                 });
 
-                $query->orWhere(function (Builder $query) use ($viewer) {
+                $query->orWhere(function (Builder $query) use ($viewerId) {
                     $query->where('visibility', self::VISIBILITY_DIRECT)
-                        ->whereExists(function ($sub) use ($viewer) {
+                        ->whereExists(function ($sub) use ($viewerId) {
                             $sub->selectRaw('1')
                                 ->from('mentions')
                                 ->whereColumn('mentions.mentionable_id', 'posts.id')
                                 ->where('mentions.mentionable_type', 'post')
-                                ->where('mentions.actor_id', $viewer->id);
+                                ->where('mentions.actor_id', $viewerId);
                         });
                 });
             })
-            ->where(function (Builder $query) use ($viewer) {
+            ->where(function (Builder $query) use ($viewerId) {
                 $query->whereDoesntHave('community', fn (Builder $community) => $community->where('is_private', true));
 
-                if ($viewer === null) {
+                if ($viewerId === null) {
                     return;
                 }
 
-                $query->orWhere('actor_id', $viewer->id)
-                    ->orWhereHas('community', function (Builder $community) use ($viewer) {
+                $query->orWhere('actor_id', $viewerId)
+                    ->orWhereHas('community', function (Builder $community) use ($viewerId) {
                         $community->where('is_private', true)
-                            ->whereIn('actor_id', function ($sub) use ($viewer) {
+                            ->whereIn('actor_id', function ($sub) use ($viewerId) {
                                 $sub->select('following_id')
                                     ->from('follows')
-                                    ->where('follower_id', $viewer->id)
+                                    ->where('follower_id', $viewerId)
                                     ->where('status', 'accepted');
                             });
                     });

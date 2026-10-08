@@ -8,6 +8,7 @@ use App\Infrastructure\Database\SystemSetting;
 use App\Infrastructure\Locations\GeoNamesCityImporter;
 use App\Infrastructure\Media\InstanceIconUploader;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -57,6 +58,10 @@ final class InstanceSettings
     public const KEY_VIDEO_MAX_FRAME_RATE = 'video_max_frame_rate';
 
     public const KEY_TRENDING_DAYS = 'trending_days';
+
+    public const KEY_REMOTE_POST_PERTINENT_RETENTION_DAYS = 'remote_post_pertinent_retention_days';
+
+    public const KEY_REMOTE_POST_NON_PERTINENT_RETENTION_DAYS = 'remote_post_non_pertinent_retention_days';
 
     public const KEY_SHOW_HOME_STAFF = 'show_home_staff';
 
@@ -223,6 +228,16 @@ final class InstanceSettings
         ];
     }
 
+    public function remotePostPertinentRetentionDays(): int
+    {
+        return max(0, $this->intSetting(self::KEY_REMOTE_POST_PERTINENT_RETENTION_DAYS, 0));
+    }
+
+    public function remotePostNonPertinentRetentionDays(): int
+    {
+        return max(0, $this->intSetting(self::KEY_REMOTE_POST_NON_PERTINENT_RETENTION_DAYS, 0));
+    }
+
     /**
      * Giorni considerati per gli hashtag in tendenza (sidebar e pagina).
      * Default 7 se la chiave non e' ancora in DB.
@@ -323,6 +338,23 @@ final class InstanceSettings
                 'css_length' => mb_strlen($css),
             ]);
         }
+    }
+
+    public function updateRemotePostRetention(int $nonPertinentDays, int $pertinentDays, User $actor): void
+    {
+        if ($nonPertinentDays < 0 || $pertinentDays < 0
+            || ($nonPertinentDays > 0 && $pertinentDays > 0 && $pertinentDays < $nonPertinentDays)) {
+            throw new \InvalidArgumentException('Invalid remote post retention periods.');
+        }
+
+        DB::transaction(function () use ($nonPertinentDays, $pertinentDays, $actor): void {
+            SystemSetting::put(self::KEY_REMOTE_POST_NON_PERTINENT_RETENTION_DAYS, (string) $nonPertinentDays);
+            SystemSetting::put(self::KEY_REMOTE_POST_PERTINENT_RETENTION_DAYS, (string) $pertinentDays);
+            $this->auditLogger->log($actor, 'settings.retention.update', null, [
+                self::KEY_REMOTE_POST_NON_PERTINENT_RETENTION_DAYS => $nonPertinentDays,
+                self::KEY_REMOTE_POST_PERTINENT_RETENTION_DAYS => $pertinentDays,
+            ]);
+        });
     }
 
     /**

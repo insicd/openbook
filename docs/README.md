@@ -7,7 +7,7 @@ Guides extracted from the former project README, grouped by topic.
 | Topic | File |
 |---|---|
 | Install, requirements, web server, updates | [`install.md`](install.md) |
-| Configuration, post locations, cron | [`configuration.md`](configuration.md) |
+| Configuration, post locations, cron, database maintenance | [`configuration.md`](configuration.md) |
 | Architecture, profiles, World | [`architecture.md`](architecture.md) |
 | Federation, communities, events | [`federation.md`](federation.md) |
 | Tests and local development | [`development.md`](development.md) |
