@@ -49,7 +49,16 @@ final class AnnounceManager
 
             if ($existing !== null) {
                 if ($direct && ! $existing->is_direct) {
-                    $existing->forceFill(['is_direct' => true])->save();
+                    $changes = ['is_direct' => true];
+
+                    if ($actor->isLocal() && ! $actor->isGroup()) {
+                        // Un nuovo boost dopo Undo deve avere un id nuovo,
+                        // altrimenti le inbox remote lo scartano come duplicato.
+                        $changes['id'] = $existing->newUniqueId();
+                        $changes['created_at'] = $occurredAt ?? now();
+                    }
+
+                    $existing->forceFill($changes)->save();
                     $upgradedToDirect = true;
 
                     if ($notify) {
@@ -82,7 +91,11 @@ final class AnnounceManager
             return $announce;
         });
 
-        if ($announce->wasRecentlyCreated && $actor->isLocal()) {
+        // Le sole citazioni contano come share, ma non pubblicano un boost.
+        // Gli Announce dei Group restano necessari per distribuire i post.
+        $newBoost = $announce->wasRecentlyCreated || ($upgradedToDirect && ! $actor->isGroup());
+
+        if ($newBoost && $actor->isLocal() && ($direct || $actor->isGroup())) {
             $this->delivery->deliverAnnounce($actor, $post, ActivitySerializer::announce($announce, $post));
         }
 

@@ -2,13 +2,20 @@
 
 namespace Tests\Feature\Posts;
 
+use App\Application\Queries\FeedCursor;
+use App\Application\Queries\FeedQuery;
 use App\Application\Services\AnnounceManager;
+use App\Application\Services\CommunityRegistrar;
+use App\Application\Services\FollowManager;
 use App\Application\Services\PostComposer;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Announce;
+use App\Domain\SocialGraph\Follow;
+use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -88,6 +95,13 @@ class QuotePostTest extends TestCase
         $feed = $this->actingAs($quoter)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
         $feed->assertOk();
         $feed->assertSee('La mia opinione sulla citazione.', false);
+
+        $this->assertSame([$quote->id], app(FeedQuery::class)->forActor($quoter->actor)->getCollection()->pluck('id')->all());
+        $this->assertSame([$quote->id], app(FeedQuery::class)->forProfile($quoter->actor, $quoter->actor)->getCollection()->pluck('id')->all());
+
+        $follower = $this->createFullAccount('lettorecitazione');
+        app(FollowManager::class)->follow($follower->actor, $quoter->actor);
+        $this->assertSame([$quote->id], app(FeedQuery::class)->forActor($follower->actor)->getCollection()->pluck('id')->all());
 
         $this->assertDatabaseHas('notifications', [
             'recipient_id' => $author->id,
@@ -231,6 +245,7 @@ class QuotePostTest extends TestCase
         $this->assertSame($original->id, $quote->quoted_post_id);
         $original->refresh();
         $this->assertSame(1, $original->announces_count);
+        Queue::assertNotPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Announce');
     }
 
     public function test_an_invisible_post_cannot_be_quoted(): void
@@ -249,5 +264,128 @@ class QuotePostTest extends TestCase
             'visibility' => Post::VISIBILITY_PUBLIC,
             'quoted_post_id' => $original->id,
         ])->assertSessionHasErrors('quoted_post_id');
+    }
+
+    public function test_a_quote_does_not_reorder_or_hide_an_original_from_a_followed_author(): void
+    {
+        $author = $this->createFullAccount('autoreordine');
+        $quoter = $this->createFullAccount('citatoreordine');
+        $viewer = $this->createFullAccount('lettoreordine');
+        app(FollowManager::class)->follow($viewer->actor, $author->actor);
+        app(FollowManager::class)->follow($viewer->actor, $quoter->actor);
+        $original = app(PostComposer::class)->compose($author->actor, ['body' => 'Originale.']);
+        $original->update(['published_at' => now()->subDays(3)]);
+        $quote = app(PostComposer::class)->compose($quoter->actor, [
+            'body' => 'Citazione recente.',
+            'quoted_post_id' => $original->id,
+        ]);
+
+        $first = app(FeedQuery::class)->forActor($viewer->actor, perPage: 1);
+        $this->assertSame($quote->id, $first->getCollection()->sole()->id);
+        $second = app(FeedQuery::class)->forActor($viewer->actor, FeedCursor::fromPost($first->getCollection()->sole(), useShareSort: true), perPage: 1);
+        $this->assertSame($original->id, $second->getCollection()->sole()->id);
+        $this->assertNull($second->getCollection()->sole()->sharedBy);
+        $this->assertNull($second->getCollection()->sole()->shared_at);
+        $this->assertFalse($second->hasMorePages());
+
+        $ownOriginal = app(FeedQuery::class)->forActor($author->actor)->getCollection()->sole();
+        $this->assertSame($original->id, $ownOriginal->id);
+        $this->assertNull($ownOriginal->shared_at);
+
+        // La citazione piu' recente non deve sopprimere un vero boost precedente.
+        app(AnnounceManager::class)->announce($viewer->actor, $original);
+        Announce::query()->where('actor_id', $viewer->actor->id)->update(['created_at' => now()->subDay()]);
+        $items = app(FeedQuery::class)->forActor($viewer->actor)->getCollection();
+        $this->assertSame([$quote->id, $original->id], $items->pluck('id')->all());
+        $this->assertSame($viewer->actor->id, $items->last()->sharedBy->id);
+
+        $profile = app(FeedQuery::class)->forProfile($author->actor, $viewer->actor)->getCollection()->sole();
+        $this->assertSame($original->id, $profile->id);
+        $this->assertNull($profile->shared_at);
+    }
+
+    public function test_quote_delivery_skips_the_boost_but_later_direct_shares_and_undo_are_delivered(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('autoreconsegna');
+        $quoter = $this->createFullAccount('citatoreconsegna');
+        $remoteFollower = $this->createRemoteActor('lettorecitazioneremoto');
+        Follow::query()->create([
+            'follower_id' => $remoteFollower->id,
+            'following_id' => $quoter->actor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+        $original = app(PostComposer::class)->compose($author->actor, ['body' => 'Originale federato.']);
+        $quote = app(PostComposer::class)->compose($quoter->actor, [
+            'body' => 'Citazione federata.',
+            'quoted_post_id' => $original->id,
+        ]);
+
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Create'
+            && $job->activity['object']['id'] === url('/posts/'.$quote->id)
+            && $job->activity['object']['quoteUrl'] === url('/posts/'.$original->id)
+        );
+        Queue::assertNotPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Announce');
+
+        app(AnnounceManager::class)->announce($quoter->actor, $original);
+        app(AnnounceManager::class)->announce($quoter->actor, $original);
+        $boosts = Queue::pushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Announce');
+        $this->assertCount(1, $boosts);
+        $this->assertSame(url('/posts/'.$original->id), $boosts->first()->activity['object']);
+        $this->assertSame(1, $original->fresh()->announces_count);
+        $this->assertCount(2, app(FeedQuery::class)->forProfile($quoter->actor, $quoter->actor)->getCollection());
+
+        Announce::query()->where('actor_id', $quoter->actor->id)->update(['created_at' => now()->subDay()]);
+        config(['openbook.feed.per_page' => 1]);
+        $first = app(FeedQuery::class)->forProfile($quoter->actor, $quoter->actor);
+        $second = app(FeedQuery::class)->forProfile($quoter->actor, $quoter->actor, FeedCursor::fromPost($first->getCollection()->sole(), useShareSort: true));
+        $this->assertSame($quote->id, $first->getCollection()->sole()->id);
+        $this->assertSame($original->id, $second->getCollection()->sole()->id);
+        $this->assertFalse($second->hasMorePages());
+
+        app(AnnounceManager::class)->unannounce($quoter->actor, $original);
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Undo' && $job->activity['object']['type'] === 'Announce');
+        $this->assertSame([$quote->id], app(FeedQuery::class)->forActor($quoter->actor)->getCollection()->pluck('id')->all());
+        $this->assertSame([$quote->id], app(FeedQuery::class)->forProfile($quoter->actor, $quoter->actor)->getCollection()->pluck('id')->all());
+        $this->assertSame(1, $original->fresh()->announces_count);
+
+        app(AnnounceManager::class)->announce($quoter->actor, $original);
+        $boosts = Queue::pushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Announce');
+        $this->assertCount(2, $boosts);
+        $this->assertNotSame($boosts->first()->activity['id'], $boosts->last()->activity['id']);
+        $this->assertSame(1, $original->fresh()->announces_count);
+        $this->assertSame(1, Announce::query()->where('actor_id', $quoter->actor->id)->where('post_id', $original->id)->count());
+    }
+
+    public static function communityVisibility(): array
+    {
+        return ['public' => [false], 'private' => [true]];
+    }
+
+    #[DataProvider('communityVisibility')]
+    public function test_community_announces_still_appear_in_the_feed_and_profile_and_are_delivered(bool $private): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('proprietariocommunityquote');
+        $community = app(CommunityRegistrar::class)->register($owner, ['slug' => 'communityquote', 'name' => 'Community', 'is_private' => $private]);
+        $remoteFollower = $this->createRemoteActor('lettorecommunityquote');
+        Follow::query()->create([
+            'follower_id' => $remoteFollower->id,
+            'following_id' => $community->actor_id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+        $post = app(PostComposer::class)->compose($owner->actor, ['body' => 'Post della community.', 'community_id' => $community->id]);
+
+        $this->assertSame([$post->id], app(FeedQuery::class)->forActor($owner->actor)->getCollection()->pluck('id')->all());
+        $this->assertSame([$post->id], app(FeedQuery::class)->forProfile($community->actor, $owner->actor)->getCollection()->pluck('id')->all());
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Announce' && $job->signingActorId === $community->actor_id
+        );
+
+        app(AnnounceManager::class)->announce($community->actor, $post, notify: false);
+        $this->assertCount(1, Queue::pushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Announce'));
     }
 }

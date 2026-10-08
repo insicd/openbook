@@ -9,6 +9,7 @@ use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxActivityProcessor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -58,11 +59,15 @@ final class FeedQuery
         };
 
         $isRelevantAnnounce = function ($query, string $announceAlias) use ($viewer, $isFollowedByViewer): void {
-            $query->where($announceAlias.'.actor_id', $viewer->id)
-                ->orWhereExists(fn ($following) => $isFollowedByViewer($following, $announceAlias.'.actor_id'));
+            $this->constrainTimelineAnnounces($query, $announceAlias);
+            $query->where(function ($relevant) use ($viewer, $isFollowedByViewer, $announceAlias): void {
+                $relevant->where($announceAlias.'.actor_id', $viewer->id)
+                    ->orWhereExists(fn ($following) => $isFollowedByViewer($following, $announceAlias.'.actor_id'));
+            });
         };
 
         $onlyLatestRelevantAnnounce = function ($query, string $announceAlias) use ($isRelevantAnnounce): void {
+            $this->constrainTimelineAnnounces($query, $announceAlias);
             $query->whereNotExists(function ($newerAnnounce) use ($announceAlias, $isRelevantAnnounce): void {
                 $newerAnnounce->selectRaw('1')
                     ->from('announces as newer_announces')
@@ -374,8 +379,9 @@ final class FeedQuery
     public function forProfile(Actor $profileActor, ?Actor $viewer, ?FeedCursor $cursor = null): FeedPage
     {
         $announcedPostIds = DB::table('announces')
-            ->where('actor_id', $profileActor->id)
-            ->pluck('post_id');
+            ->where('actor_id', $profileActor->id);
+        $this->constrainTimelineAnnounces($announcedPostIds);
+        $announcedPostIds = $announcedPostIds->pluck('post_id');
 
         $query = Post::query()
             ->with(Post::CARD_RELATIONS)
@@ -565,6 +571,7 @@ final class FeedQuery
             ->whereIn('actor_id', $sharerIds)
             ->orderByDesc('created_at')
             ->limit(1);
+        $this->constrainTimelineAnnounces($announcerId);
 
         return $query
             ->addSelect(['shared_by_actor_id' => $announcerId])
@@ -574,13 +581,31 @@ final class FeedQuery
     /**
      * @param  Collection<int, string>  $sharerIds
      */
-    private function sharedAtSubquery(Collection $sharerIds): \Illuminate\Database\Query\Builder
+    private function sharedAtSubquery(Collection $sharerIds): QueryBuilder
     {
-        return DB::table('announces')
+        $query = DB::table('announces')
             ->select('created_at')
             ->whereColumn('post_id', 'posts.id')
             ->whereIn('actor_id', $sharerIds)
             ->orderByDesc('created_at')
             ->limit(1);
+        $this->constrainTimelineAnnounces($query);
+
+        return $query;
+    }
+
+    private function constrainTimelineAnnounces(QueryBuilder $query, string $alias = 'announces'): void
+    {
+        // Le citazioni dei Person non sono boost. I Group usano invece
+        // Announce non diretti per distribuire i post delle community.
+        $query->where(function (QueryBuilder $shares) use ($alias): void {
+            $shares->where($alias.'.is_direct', true)
+                ->orWhereExists(function (QueryBuilder $group) use ($alias): void {
+                    $group->selectRaw('1')
+                        ->from('actors as sharing_actor')
+                        ->whereColumn('sharing_actor.id', $alias.'.actor_id')
+                        ->where('sharing_actor.type', Actor::TYPE_GROUP);
+                });
+        });
     }
 }

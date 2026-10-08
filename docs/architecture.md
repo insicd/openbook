@@ -344,9 +344,12 @@ and "Edit profile" button on your own profile) makes them editable:
   on publish a new post is created (`quoted_post_id`) that in the feed shows
   the original card inside its own. The quote also increments the original's
   share counter (the same `announces` row as a direct share; if the user had
-  already shared, it is not doubled). Outgoing federation: `quoteUrl` on the
-  Note plus a fallback link in `content`, and Announce to followers. Comments
-  have no share (only like/reply).
+  already shared, it is not doubled). Quote-only shares do not add a separate
+  boost to the personal feed or profile. Outgoing federation sends the new
+  Note with `quoteUrl` and a fallback link in `content`, without an Announce
+  of the original. An explicit direct share still sends an Announce, including
+  when made after a quote. Group Announce delivery for community posts remains
+  unchanged. Comments have no share (only like/reply).
 
 ### "World" section
 

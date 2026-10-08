@@ -144,6 +144,11 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Condivisione con citazione** (#107): pubblicare una citazione non aggiunge
+  piu' un boost separato dell'originale nel feed personale, nel profilo o
+  nelle consegne federate. Restano il contatore delle condivisioni e la
+  notifica della citazione; i boost espliciti e i post delle community
+  mantengono il proprio comportamento.
 - Lo sfondo dell'intestazione delle card nelle liste apre il dettaglio del
   post senza anchor. Autore, data e menu mantengono i propri collegamenti;
   il nuovo link non compare nel dettaglio gia' aperto o nelle citazioni.

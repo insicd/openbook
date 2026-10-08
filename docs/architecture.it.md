@@ -357,9 +357,13 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   nasce un nuovo post (`quoted_post_id`) che nel feed mostra la card
   originale dentro la propria. La citazione alimenta anche il contatore
   di condivisione dell'originale (stessa riga `announces` della share
-  diretta; se l'utente aveva gia' condiviso, non si doppia). Federazione
-  in uscita: `quoteUrl` sulla Note piu' link di fallback nel `content`,
-  e Announce ai follower. I commenti non hanno share (solo like/risposta).
+  diretta; se l'utente aveva gia' condiviso, non si doppia). Le sole citazioni
+  non aggiungono un boost separato al feed personale o al profilo. In
+  federazione viene inviata la nuova Note con `quoteUrl` e un link di fallback
+  nel `content`, senza Announce dell'originale. Una condivisione diretta
+  esplicita continua a inviare l'Announce, anche dopo una citazione. La
+  distribuzione dei post delle community tramite Announce del Group resta
+  invariata. I commenti non hanno share (solo like/risposta).
 
 ### Sezione "Mondo"
 
