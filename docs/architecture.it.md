@@ -260,6 +260,11 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   sui post locali continua a portare alla pagina Openbook del post. Lo stesso
   schema (icone + menu a tre puntini per Elimina, mai sui remoti) e' applicato
   anche ai commenti (`comments/_comment.blade.php`, `CommentPolicy`).
+- **Intestazione delle card post**: nelle liste, un link nativo copre lo
+  sfondo dell'intestazione e apre il dettaglio locale senza fragment. Autore,
+  data e menu restano sopra il link e conservano il proprio comportamento.
+  Il link sovrapposto non compare nel dettaglio aperto o nelle citazioni;
+  non serve JavaScript.
 - **Navbar**: l'icona campanella apre un dropdown con le notifiche recenti
   (la pagina completa resta nella sidebar sinistra); l'icona search apre un
   campo di input inline invece di andare subito a `/cerca` (l'invio del form
@@ -270,6 +275,16 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   lo scroll oltre il composer, appare al centro della header un pulsante **+**
   che riporta il focus sul composer (o alla Home se si e' altrove); su mobile lo stesso
   controllo e' un FAB discreto in basso a destra (`compose-shortcut.js`).
+- **Indietro nel dettaglio post**: su desktop e mobile, `/posts/{post}` mostra una
+  riga dedicata nella testata sticky se aperto da un'altra pagina della stessa
+  origine. `post-back.js` conserva in `sessionStorage` un piccolo contesto con
+  distanza e submit in corso, e marca l'entrata corrente della cronologia per
+  non contare refresh e ritorni nativi. I redirect dei form normali, anche per
+  errori di validazione, aggiungono un passo; le azioni AJAX no. Indietro
+  cancella il contesto e chiama `history.go(-depth)`. Le altre pagine azzerano
+  il contesto; accessi diretti/esterni e nuove schede senza un'entrata precedente
+  non mostrano il controllo. Gli endpoint commenti restano invariati. Cache
+  della pagina e recupero dello scroll sono gestiti dal browser.
 - **Notifiche dei messaggi diretti**: i messaggi in arrivo nella stessa
   conversazione riutilizzano la sua notifica, spostandola sul messaggio più
   recente e segnandola di nuovo come non letta. Aprire la conversazione

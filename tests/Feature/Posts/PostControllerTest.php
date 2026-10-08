@@ -92,6 +92,27 @@ class PostControllerTest extends TestCase
         $this->get(route('posts.show', $post))->assertOk()->assertSee('Post pubblico visibile a tutti.');
     }
 
+    public function test_the_post_back_bar_is_initially_hidden_and_only_in_the_post_detail_header(): void
+    {
+        $author = $this->createFullAccount('navigazionepost');
+        $post = $this->publishPost($author, 'Post con navigazione mobile.');
+
+        foreach ([null, $author] as $viewer) {
+            if ($viewer !== null) {
+                $this->actingAs($viewer);
+            }
+
+            $html = $this->get(route('posts.show', $post))->assertOk()->getContent();
+            $this->assertStringContainsString('data-post-back hidden', $html);
+            $this->assertStringContainsString('data-post-back-button', $html);
+            $this->assertLessThan(strpos($html, '</header>'), strpos($html, 'data-post-back hidden'));
+        }
+
+        $this->get(route('feed.index'))->assertOk()->assertDontSee('data-post-back-button', false);
+        $this->get(route('posts.edit', $post))->assertOk()->assertDontSee('data-post-back-button', false);
+        $this->get(route('posts.likes', $post))->assertOk()->assertDontSee('data-post-back-button', false);
+    }
+
     public function test_a_public_post_exposes_open_graph_metadata(): void
     {
         $author = $this->createFullAccount('anteprima');

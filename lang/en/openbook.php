@@ -323,6 +323,8 @@ return [
     ],
 
     'posts' => [
+        'back' => 'Back',
+        'open_post' => 'Open post',
         'video_queued' => 'The video was uploaded and the post will be published when processing is complete.',
         'video_queue_title' => 'Videos being published',
         'video_status_pending' => 'waiting',

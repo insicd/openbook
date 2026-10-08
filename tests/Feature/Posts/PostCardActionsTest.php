@@ -62,6 +62,35 @@ class PostCardActionsTest extends TestCase
         $response->assertDontSee(__('openbook.posts.open_original'), false);
     }
 
+    public function test_the_list_card_header_background_links_to_the_post_without_nesting_other_links(): void
+    {
+        $author = $this->createFullAccount('headerlink');
+        $post = app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Post con intestazione cliccabile.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        $html = $this->actingAs($author)
+            ->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()->getContent();
+        $document = new \DOMDocument;
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $xpath = new \DOMXPath($document);
+        $link = $xpath->query('//a[@class="ob-post__header-link"]')->item(0);
+
+        $this->assertNotNull($link);
+        $this->assertSame(route('posts.show', $post), $link->getAttribute('href'));
+        $this->assertSame(__('openbook.posts.open_post'), $link->getAttribute('aria-label'));
+        $this->assertSame(0, $xpath->query('.//a | .//button | .//details', $link)->length);
+        $this->assertStringContainsString('href="'.$author->actor->profileUrl().'" class="ob-post__author"', $html);
+        $this->assertStringContainsString('href="'.route('posts.show', $post).'">', $html);
+
+        $this->get(route('posts.show', $post))->assertOk()->assertDontSee('ob-post__header-link', false);
+        $post->load(Post::CARD_RELATIONS);
+        $embedded = view('posts._card', ['post' => $post, 'embed' => true])->render();
+        $this->assertStringNotContainsString('ob-post__header-link', $embedded);
+    }
+
     public function test_the_share_menu_offers_copy_link_for_guests_and_authors(): void
     {
         $author = $this->createFullAccount('copylink');

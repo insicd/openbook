@@ -323,6 +323,8 @@ return [
     ],
 
     'posts' => [
+        'back' => 'Indietro',
+        'open_post' => 'Apri post',
         'video_queued' => 'Il video è stato caricato e il post verrà pubblicato al termine dell\'elaborazione.',
         'video_queue_title' => 'Video in pubblicazione',
         'video_status_pending' => 'in attesa',

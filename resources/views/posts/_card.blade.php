@@ -22,7 +22,10 @@
         </div>
     @endif
 
-    <div class="ob-post__header">
+    <div class="ob-post__header{{ $linkToPost && ! $embed ? ' ob-post__header--linked' : '' }}">
+        @if ($linkToPost && ! $embed)
+            <a href="{{ $timeHref }}" class="ob-post__header-link" aria-label="{{ __('openbook.posts.open_post') }}"></a>
+        @endif
         <x-avatar :actor="$author" />
         <div class="ob-post__meta">
             @if ($author)
