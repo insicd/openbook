@@ -23,8 +23,7 @@ la [roadmap](docs/roadmap.md).
   dichiarata dall'autore, con nome localizzato e codice di fallback.
   L'informazione viene importata e aggiornata quando attribuibile senza
   ambiguità al testo; nessuna etichetta in caso di lingua assente o multipla.
-  La stessa informazione viene conservata anche per i commenti remoti, per ora
-  senza visualizzazione nell'interfaccia.
+  La stessa indicazione compare anche accanto alla data dei commenti remoti.
 - **Database sanity**: pulizia di like, menzioni e notifiche rimasti senza
   oggetto di riferimento, anche con retention disabilitata. Il cron ordinario,
   anche via web, la esegue una volta al giorno in un giro distinto dalla

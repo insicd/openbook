@@ -26,8 +26,8 @@ mantiene un solo testo importato per post; la gestione di più traduzioni dello
 stesso post è esclusa dal perimetro attuale.
 
 L'intervento riguarda nuove importazioni e aggiornamenti ordinari dei post.
-La macrofase 1 include anche il solo salvataggio della lingua dei commenti
-remoti, senza modifiche alla loro UI o alla composizione (sezione 14).
+La macrofase 1 include anche il salvataggio e la visualizzazione della lingua
+dei commenti remoti, senza modifiche alla composizione (sezione 14).
 Non è previsto un recupero massivo dei metadati dei post già presenti. Un post
 preesistente può acquisire o perdere la lingua attraverso un successivo upsert
 ordinario accettato dal sistema.
@@ -292,9 +292,9 @@ La stessa regola si applica ai post salvati da inbox, outbox e refresh tramite
 i servizi condivisi. Include i messaggi privati memorizzati in
 `posts`; la presentazione nelle conversazioni private può essere definita
 separatamente dalla card dei post, senza impedire il salvataggio del metadato.
-I commenti nella tabella dedicata ricevono il solo salvataggio del metadato;
-la loro presentazione e composizione restano escluse. Gli eventi e i relativi
-commenti rimangono fuori dal perimetro.
+I commenti nella tabella dedicata ricevono il salvataggio del metadato e la
+stessa indicazione accanto alla data. La loro composizione, gli eventi e i
+relativi commenti rimangono fuori dal perimetro.
 
 La card mostra un nome localizzato con codice di fallback; non mostra nulla
 per `NULL`. La preferenza locale è separata dal locale dell'interfaccia e parte
@@ -626,7 +626,7 @@ migrazione resta bloccato se esistono tag più lunghi di otto caratteri.
 Il ramo è pronto per una PR dedicata alla macrofase 1; profilo e composer
 restano esclusi, con i requisiti della macrofase 2 già definiti nella sezione 6.
 
-## 14. Estensione minima: salvataggio della lingua dei commenti
+## 14. Estensione minima: lingua dei commenti
 
 Il perimetro della macrofase 1 comprende anche `comments.language`, nullable
 e lungo 255 caratteri, senza indici aggiuntivi o backfill. I commenti remoti
@@ -640,14 +640,22 @@ percorso conserva ora il contesto dei `Create` incorporati tramite l'helper
 introdotti percorsi paralleli o dipendenze. Autorizzazione e visibilità restano
 quelle dei flussi esistenti.
 
-I commenti locali continuano con lingua `NULL`. UI, composer, serializzazione
+Il componente condiviso `content-language` presenta la lingua accanto alla
+data dei post e dei commenti, sia nel dettaglio del post sia nel thread del
+commento. Riutilizza nomi localizzati, codice di fallback e descrizione
+accessibile; i commenti senza lingua o eliminati non mostrano etichette.
+
+I commenti locali continuano con lingua `NULL`. Composer, serializzazione
 in uscita e commenti degli eventi restano esclusi. La protezione contro update
 obsoleti dei commenti non viene modificata: il lavoro separato è registrato in
 [`TODO.md`](TODO.md#ordinamento-degli-aggiornamenti-dei-commenti-federati).
 
 Verifiche: test mirati su inbox e recupero risposte (17 test, 79 asserzioni),
 inclusi cambio, rimozione, ambiguità, testo discordante e default ereditato.
-Suite completa: 1.382 test, 6.036 asserzioni, nessun fallimento; due test
+Verifiche UI su dettaglio post e thread del commento: nomi localizzati,
+varianti, fallback, valori assenti, escaping e risposte a commenti eliminati;
+anche i test delle card dei post restano verdi dopo la condivisione del componente.
+Suite completa: 1.391 test, 6.120 asserzioni, nessun fallimento; due test
 dell'installer MySQL saltati per il limite del sandbox. La suite usa un
 `APP_CONFIG_CACHE` temporaneo dedicato per evitare interferenze con la cache
 rigenerata dell'istanza locale, oltre agli override già descritti nella

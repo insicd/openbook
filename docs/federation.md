@@ -140,7 +140,8 @@ The same extraction rules store the language in `comments.language`
 (nullable, 255 characters), through both inbox processing and reply fetching.
 Each upsert may change or clear it. Existing comment update ordering remains
 unchanged: it does not apply the stale-version protection used for posts.
-No backfill, display or language selection is added for comments; local
+The language appears next to the comment date, using the same presentation
+rules as posts. No backfill or language selection is added for comments; local
 comments continue without a declaration. Event comments use a separate path.
 
 ### Social federation (Phase 4)

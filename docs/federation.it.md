@@ -130,9 +130,10 @@ Le stesse regole di estrazione salvano la lingua in `comments.language`
 (nullable, 255 caratteri), sia dall'inbox sia dal recupero delle risposte.
 Ogni upsert può cambiarla o rimuoverla. La gestione preesistente dell'ordine
 degli aggiornamenti dei commenti rimane invariata: non applica la protezione
-contro versioni obsolete prevista per i post. Non sono introdotti backfill,
-visualizzazione o selezione della lingua dei commenti; quelli locali restano
-senza dichiarazione. I commenti degli eventi seguono un percorso distinto.
+contro versioni obsolete prevista per i post. La lingua viene mostrata accanto
+alla data dei commenti, con le stesse regole di presentazione dei post. Non sono
+introdotti backfill o selezione della lingua dei commenti; quelli locali
+restano senza dichiarazione. I commenti degli eventi seguono un percorso distinto.
 
 ### Federazione sociale (Fase 4)
 
