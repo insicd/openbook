@@ -51,6 +51,17 @@
                 <div class="ob-profile-bio">{{ \App\Domain\Posts\PostBodyRenderer::render(\App\Federation\Inbox\RemoteContentSanitizer::toPlainText($profileActor->summary), $profileActor->custom_emojis) }}</div>
             @endif
 
+            @if (! empty($profileActor->links))
+                <dl class="ob-profile-fields" aria-label="{{ __('openbook.profile.additional_fields') }}">
+                    @foreach ($profileActor->links as $field)
+                        <div class="ob-profile-fields__row">
+                            <dt>{{ $field['label'] }}</dt>
+                            <dd>{{ \App\Domain\Posts\PostBodyRenderer::render($field['value']) }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
+            @endif
+
             @if ($feedSource)
                 <p class="ob-field__help">
                     @if ($feedSource->site_url)

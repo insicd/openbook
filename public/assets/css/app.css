@@ -1516,6 +1516,32 @@ body.ob-css-preview #ob-compose-modal {
   overflow-wrap: anywhere;
 }
 
+.ob-profile-fields {
+  margin: 0.75rem 0;
+  font-size: 0.95rem;
+}
+
+.ob-profile-fields__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  overflow-wrap: anywhere;
+}
+
+.ob-profile-fields dt {
+  color: var(--ob-color-text-muted);
+}
+
+.ob-profile-fields dd,
+.ob-profile-fields dd > :first-child {
+  margin: 0;
+}
+
+.ob-profile-fields dd > :last-child {
+  margin-bottom: 0;
+}
+
 .ob-profile-stats {
   display: flex;
   gap: 1.5rem;

@@ -40,6 +40,7 @@ use Illuminate\Support\HtmlString;
  * @property string $uri
  * @property string|null $name
  * @property string|null $summary
+ * @property array<int, array{label: string, value: string}>|null $links
  * @property array<string, string>|null $custom_emojis
  * @property string|null $icon_url
  * @property string|null $image_url
@@ -88,6 +89,7 @@ class Actor extends Model
         'uri',
         'name',
         'summary',
+        'links',
         'custom_emojis',
         'icon_url',
         'image_url',
@@ -113,6 +115,7 @@ class Actor extends Model
         return [
             'is_local' => 'boolean',
             'custom_emojis' => 'array',
+            'links' => 'array',
             'manually_approves_followers' => 'boolean',
             'discoverable' => 'boolean',
             'indexable' => 'boolean',

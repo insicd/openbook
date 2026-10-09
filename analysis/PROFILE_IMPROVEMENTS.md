@@ -4,7 +4,7 @@ Aggiornato il 10 ottobre 2026.
 
 Stato: priorità e macrofasi concordate; subsprint proposti e dettagli dei
 requisiti da consolidare prima della rispettiva implementazione. Subsprint 1.1
-completato e verificato. Nessun altro subsprint applicativo avviato.
+e 1.2 completati e verificati. Subsprint 1.3 non avviato.
 
 Branch: `improve_profile`, creato dalla testa locale di
 `multilanguage_support` al commit `8f42ea5`.
@@ -389,16 +389,250 @@ Verifica: test mirati superati (32 test, 150 asserzioni); suite completa con
 di test non raggiungibile nell'ambiente. Controlli di stile Pint e revisione
 del diff completati.
 
-### Decisioni residue per i subsprint 1.2 e 1.3
+### Requisiti del subsprint 1.2
 
-- Consolidare limiti e trattamento dei valori dei campi aggiuntivi elencati
-  nella sezione 4.1.
-- Definire il modello dati compatibile con i link locali esistenti e la
-  presentazione dei campi locali e remoti.
-- Definire quando aggiornare i profili remoti già in cache, senza assumere
-  un'importazione retroattiva massiva.
+- Nuova colonna nullable JSON `actors.links`, riservata in questo intervento
+  ai campi remoti. Nessuna copia o sincronizzazione dei link locali.
+- Struttura: elenco ordinato di coppie `label`/`value`; il valore conserva
+  testo e collegamenti nella forma sicura già usata dalla pipeline remota,
+  senza conservare HTML arbitrario. Le etichette sono testo semplice.
+- Importazione dei soli attachment `PropertyValue`, anche in forma di oggetto
+  singolo. Ignorare attachment di altro tipo e valori non stringa o vuoti.
+  Conservare ordine ed etichette ripetute.
+- Limiti applicativi: 16 campi, 100 caratteri per etichetta e 1.000 per valore
+  normalizzato, con limiti anche agli input elaborati. Sono limiti del sistema,
+  non vincoli dello standard ActivityPub.
+- Ogni documento Actor valido sostituisce l'elenco precedente: attachment
+  assente, vuoto o senza campi validi azzera i dati precedentemente importati.
+  Documenti non validi o con identità incongruente non devono modificarli.
+- Visualizzazione sotto la bio, come coppie etichetta/valore, nella pagina
+  remota già protetta da autenticazione. Nessuna verifica `rel="me"`, né
+  riproduzione di media, effetti o emoji personalizzate nei campi.
+- Profili già in cache aggiornati dai normali fetch o dagli Update ricevuti,
+  senza recupero massivo o nuove richieste dedicate ai campi.
+- Migrazione senza query di scansione/backfill e senza nuovo indice: lettura
+  dalla riga Actor già individuata. Verificare lo schema su SQLite e MySQL.
 
-## 8. Riferimenti
+### Avanzamento del subsprint 1.2
+
+Implementazione del 10 ottobre 2026:
+
+- aggiunta colonna JSON nullable `actors.links` e cast sul modello;
+- estrazione dei campi nel percorso condiviso `applyRemoteDocument`, usato
+  da fetch e Update Actor, senza modificare la fonte dei profili locali;
+- normalizzazione tramite la pipeline remota esistente e visualizzazione
+  sotto la bio come elenco etichetta/valore, con layout adattabile e label
+  accessibile localizzata;
+- nessun fetch dedicato ai soli campi, backfill o nuovo indice;
+- test mirati: 85 test, 327 asserzioni, inclusi ordine, campi ripetuti, limiti,
+  input malformati, link non sicuri, refresh, Update e protezione Actor locali;
+- suite completa: 1.402 test, 6.166 asserzioni, nessun errore e 2 test
+  dell'installer MySQL saltati per server di test non raggiungibile;
+- migrazione verificata su MySQL locale con tabella di prova isolata tramite
+  prefisso casuale, rimossa al termine: up/down, dati preesistenti, valori NULL
+  e JSON Unicode. Verifica SQLite inclusa nella suite;
+- nuova migrazione applicata al database locale, senza elaborare o recuperare
+  retroattivamente i profili remoti;
+- controlli Pint e revisione del diff completati; documentazione bilingue
+  e voce di changelog della macrofase aggiornate.
+
+### Riscontro reale — refresh del profilo
+
+Verifica del 10 ottobre 2026 su `@skeybu@mastodon.uno`: il documento remoto
+restituisce quattro campi validi (Website, Pixelfed, Gravatar, Medium), tutti
+correttamente estratti da `RemoteProfileFields`. In cache locale `links` era
+NULL e l'ultimo recupero del documento Actor risaliva all'11 settembre 2026,
+mentre outbox e collection erano state recuperate il 9 ottobre.
+
+La visita tramite `ActorProfileController` aggiornava outbox e collection,
+ma non richiedeva normalmente un refresh del documento Actor anche a TTL
+scaduto. Correzione: prima del recupero dei contenuti, i profili remoti attivi
+passano anche da `RemoteActorResolver::resolveByUri`, che riusa la cache fresca
+o recupera il documento scaduto. Gli errori lasciano consultabile la copia
+in cache. I feed e gli Actor non attivi sono esclusi dal nuovo passaggio;
+nessuna riattivazione viene richiesta dalla visita del profilo.
+
+Test dedicati per refresh e visualizzazione nella stessa visita, riuso della
+cache fresca, fallback dopo risposta 503 e mancato refresh degli Actor sospesi.
+Verifica reale del resolver su skeybu completata: i quattro campi sono stati
+importati nella cache locale attraverso il normale flusso di risoluzione.
+Verifica della correzione: 47 test mirati e 151 asserzioni; suite completa
+con 1.405 test, 6.185 asserzioni e nessun errore (2 test installer MySQL
+saltati). Controlli di stile e revisione del diff superati.
+
+### Vincolo dell'ambiente locale — authorized fetch
+
+Verifica del 10 ottobre 2026 su `@arstechnica@mastodon.social`: il documento
+Actor restituisce HTTP 401. Il GET anonimo riceve `Request not signed`; il
+GET firmato viene rifiutato perché l'identità firmataria locale espone la
+chiave su `http://127.0.0.1:8000/users/skeyby#main-key`, un indirizzo privato
+che mastodon.social non può interrogare per verificare la firma.
+
+Il record locale conserva quindi i dati precedenti (`links` NULL e ultimo
+fetch dell'Actor del 12 settembre), mentre il tentativo di recuperare outbox
+e collection aggiorna separatamente i rispettivi timestamp. Questo caso
+non prova un errore di estrazione dei campi: il documento Actor non viene
+restituito dal server remoto. Per una verifica end-to-end su istanze con
+fetch autenticato, l'identità firmataria e la sua chiave pubblica devono
+essere raggiungibili dal server remoto. Nessuna configurazione o dato è
+stato modificato durante questa verifica.
+
+### Decisioni residue per il subsprint 1.3
+
+- Definire limiti ed editor dei campi testuali locali, preservando i link già
+  presenti e la separazione concordata fra `profiles` e `actors`.
+- Definire il modello dei valori locali e la relativa pubblicazione, mantenendo
+  coerente il significato dei campi nelle due direzioni della federazione.
+
+## 8. Conservazione dei campi — decisione e unificazione futura
+
+### 8.1 Decisione per il perimetro corrente
+
+La separazione attuale fra `profiles` e `actors` viene mantenuta. Il subsprint
+1.2 aggiungerà `actors.links` per conservare i campi aggiuntivi remoti e ne
+implementerà importazione, aggiornamento, rimozione e visualizzazione.
+
+- I link locali restano autorevoli in `profiles.links`, con i flussi di
+  compilazione e pubblicazione completati nel subsprint 1.1.
+- Non vengono copiati o sincronizzati su `actors.links` i link locali.
+- Nome, bio, avatar e copertina mantengono persistenza e comportamento attuali.
+- Il nome della nuova colonna è `actors.links`; la struttura dei valori remoti,
+  testuali e collegamenti, va definita nel subsprint 1.2.
+- L'estensione locale ai campi testuali resta prevista nel subsprint 1.3 sul
+  modello locale, senza dipendere dall'unificazione delle tabelle.
+
+Lo spostamento di `profiles` in `actors` è rinviato a un task dedicato e non
+costituisce un prerequisito di 1.2 o 1.3. Le sezioni successive conservano la
+ricognizione come materiale preparatorio per quel task: non sono un piano di
+implementazione approvato per il ramo corrente.
+
+### 8.2 Inventario verificato e corrispondenze
+
+`profiles` contiene soltanto i cinque dati pubblici elencati di seguito, oltre
+a `id`, `user_id`, `created_at` e `updated_at`. Non contiene credenziali,
+preferenze dell'account o dati privati da preservare in un contenitore separato.
+
+| Fonte locale attuale | Destinazione candidata | Differenza da gestire |
+| --- | --- | --- |
+| `profiles.links` | Nuovo `actors.links` JSON | Nessuna colonna corrispondente esiste oggi. I link locali sono coppie `label`/`url`; i campi remoti possono avere valori testuali e HTML. |
+| `profiles.display_name` | `actors.name` | Il nome è già copiato da registrazione e aggiornamento, ma `Actor::displayName()` legge ancora il profilo locale. |
+| `profiles.bio` | `actors.summary` | La bio locale è testo/Markdown; il valore remoto è HTML non fidato. Un'unica colonna non implica un unico trattamento di rendering. |
+| `profiles.avatar_path` | Nuovo `actors.avatar_path` | `actors.icon_url` conserva un URL remoto, non il percorso di un upload gestito dall'istanza. |
+| `profiles.cover_path` | Nuovo `actors.cover_path` | `actors.image_url` ha la stessa differenza rispetto al percorso della copertina locale. |
+
+Gli identificativi e i timestamp della riga `profiles` non hanno un equivalente
+funzionale da copiare sui dati pubblici. `actors.created_at` non deve essere
+sovrascritto con la data del profilo. Se occorre conservare una data specifica
+di modifica del profilo, va definita separatamente, senza equipararla a
+`actors.updated_at`, modificato anche da altri flussi.
+
+### 8.3 Ipotesi futura — Spostamento dei soli link
+
+Intervento circoscritto, con effort relativo basso rispetto all'unificazione
+completa:
+
+1. Aggiungere `actors.links` e il relativo cast, quindi copiare i link dei
+   profili sugli Actor locali corrispondenti tramite `user_id`.
+2. Adeguare `ProfileUpdater`, impostazioni, vista del profilo locale,
+   `ActorSerializer` e `MastodonAccountSerializer` alla nuova fonte.
+3. Adeguare fixture e test; rimuovere `profiles.links` quando tutte le letture
+   e scritture sono state trasferite e la migrazione dati è verificata.
+4. Proseguire con importazione e visualizzazione dei campi remoti, quindi
+   estensione dell'editor locale ai valori testuali.
+
+Il form mantiene inizialmente gli stessi nomi, limiti e comportamento.
+`profiles` resta necessario per nome, bio e immagini: questa opzione unifica
+soltanto i campi aggiuntivi, non l'intero profilo.
+
+**Contratto JSON da consolidare:** il nome `links` è appropriato ai dati
+attuali, ma meno espressivo se conterrà anche campi testuali. Prima della
+migrazione scegliere fra mantenerlo per tutti i campi oppure usare un nome
+come `profile_fields`. Scegliere anche una struttura comune che rappresenti
+valori testuali e link senza obbligare a memorizzare HTML locale. Evitare una
+prima struttura remota incompatibile con la successiva estensione locale.
+La scelta di un nome più generale non comporta un sottosistema aggiuntivo.
+
+### 8.4 Ipotesi futura — Unificare tutti i dati pubblici del profilo
+
+Obiettivo architetturale plausibile e circoscritto ai cinque dati pubblici,
+con effort relativo medio e una superficie di regressione più ampia.
+
+- Nome e bio diventano autorevoli su `Actor`; per i locali l'input continua
+  a essere testo/Markdown, per i remoti conserva il trattamento sicuro già
+  previsto per i documenti federati. Anche la serializzazione deve rispettare
+  queste differenze, evitando doppio rendering o pubblicazione di HTML remoto
+  non sanificato attraverso nuovi percorsi.
+- I percorsi di avatar e copertina locali passano su `Actor`; gli URL remoti
+  restano in `icon_url` e `image_url`. `avatarUrl()` e `coverUrl()` risolvono la
+  sorgente corretta. I path sono metadati di gestione del file, non una copia
+  sincronizzata dell'URL; non si memorizza un URL locale derivato da APP_URL.
+- `ProfileUpdater` aggiorna la fonte unica attraverso il servizio applicativo;
+  `AccountRegistrar` crea il profilo pubblico direttamente sull'Actor.
+- Dopo la conversione di tutte le dipendenze, `Profile`, `User::profile()` e
+  la tabella `profiles` possono essere eliminati. Non serve una tabella vuota
+  né una facade permanente che simuli la vecchia persistenza.
+
+L'impatto verificato comprende:
+
+- helper di presentazione su `Actor`, entrambi i serializer e gestione upload;
+- impostazioni, profilo pubblico, staff/suggerimenti, amministrazione;
+- ricerca persone e suggerimenti per bio: `PeopleSearchQuery` e
+  `SuggestedActorsByBioQuery` leggono o ordinano esplicitamente su `profiles`;
+- eager loading `user.profile` in feed, commenti, eventi, notifiche, messaggi,
+  follow, risoluzione Actor e altre viste;
+- registrazione, factory/fixture, test e documentazione architetturale.
+
+I riferimenti caricati con `user.profile` non implicano altrettanti comportamenti
+indipendenti da riscrivere, ma vanno rimossi o adattati una volta eliminata la
+relazione. L'eliminazione dei join deve mantenere visibilità, filtri e ranking:
+non deve ampliare implicitamente la ricerca alle bio remote, oggi trattate in
+modo diverso dalla ricerca locale. Verificare i nuovi piani MySQL con `EXPLAIN`.
+
+Il modello e i commenti architetturali oggi descrivono `Actor` come
+rappresentazione federata e `Profile` come dominio locale. L'opzione B modifica
+esplicitamente questo confine di persistenza: aggiornare la documentazione e
+le responsabilità dichiarate, conservando la logica applicativa nei servizi.
+Non spostare account, credenziali, preferenze o notifiche dentro `Actor`.
+
+### 8.5 Vincoli per l’eventuale migrazione futura
+
+- Usare nuove migrazioni, senza riscrivere quelle storiche. Preparare schema e
+  copia dati prima della rimozione delle colonne o della tabella precedente.
+- La fonte autorevole per i locali è il profilo: conservare anche valori vuoti
+  e `NULL`, senza ripristinare vecchie copie presenti su Actor con un fallback.
+- Copiare solo sugli Actor locali collegati allo stesso utente. Verificare
+  profili senza Actor e discrepanze prima di eliminare la fonte; nessuna perdita
+  silenziosa e nessuna modifica a Group, feed, applicazioni o Actor remoti.
+- Eseguire la copia a batch compatibili con MySQL/MariaDB e SQLite, sfruttando
+  le chiavi uniche `profiles.user_id` e `actors.user_id`; verificare il piano
+  delle query effettive. Non sono necessari indici JSON per la sola lettura
+  dei campi dal profilo già identificato.
+- Pianificare aggiornamento di schema e codice in manutenzione, fermando
+  temporaneamente anche eventuali worker opzionali. Non mantenere due fonti
+  scrivibili permanenti; eventuali passi di transizione devono avere una
+  durata e una rimozione definite.
+- Definire il rollback dati prima della rimozione della fonte. Dopo aver
+  accettato campi testuali remoti/locali, tornare al solo formato `label`/`url`
+  può essere una conversione con perdita: non promettere una reversibilità
+  automatica e completa di quel passaggio.
+- Conservare i file di avatar/copertina senza spostarli o cancellarli durante
+  la migrazione. Il successivo upload deve continuare a rimuovere il precedente
+  file gestito localmente, senza trattare URL remoti come percorsi del disco.
+- Verificare equivalenza della UI, documenti Actor e Update, API Mastodon,
+  registrazione, ricerca, suggerimenti, notifiche e messaggi. Suite completa
+  e prove di migrazione con dati preesistenti su SQLite e MySQL/MariaDB.
+
+### 8.6 Collocazione del task futuro
+
+L'eventuale unificazione potrà essere suddivisa in trasferimento dei campi
+aggiuntivi, nome/bio e immagini, seguito dalla rimozione delle dipendenze da
+`Profile`. La sequenza e la migrazione verranno definite nel task dedicato,
+considerando anche i campi remoti introdotti nel frattempo.
+
+Il percorso corrente prosegue direttamente con il subsprint 1.2 secondo la
+decisione della sezione 8.1, senza preparazioni di unificazione.
+
+## 9. Riferimenti
 
 ### Codice verificato
 

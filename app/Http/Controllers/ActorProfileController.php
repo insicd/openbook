@@ -14,6 +14,7 @@ use App\Domain\Feeds\FeedImporter;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Outbox\RemoteOutboxFetcher;
 use App\Federation\SocialGraph\RemoteFollowCollectionsFetcher;
 use App\Http\Controllers\Concerns\RendersFollowLists;
@@ -42,6 +43,7 @@ class ActorProfileController extends Controller
         private readonly RemoteFollowCollectionsFetcher $collectionsFetcher,
         private readonly FeedImporter $feedImporter,
         private readonly QuotedActorResolver $quotedActorResolver,
+        private readonly RemoteActorResolver $actorResolver,
     ) {}
 
     public function show(Actor $actor, Request $request): View|RedirectResponse
@@ -117,6 +119,14 @@ class ActorProfileController extends Controller
 
         if ($activeTab === 'activity' && ($actor->isGroup() || $actor->isFeed())) {
             return redirect()->route('actors.show', $actor);
+        }
+
+        if (! $actor->isFeed() && $actor->isActive()) {
+            try {
+                $actor = $this->actorResolver->resolveByUri($actor->uri) ?? $actor;
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
         $actor->loadMissing('feedSource');

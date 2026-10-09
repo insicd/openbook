@@ -106,6 +106,28 @@ aggiornamento del profilo; non viene avviato un invio massivo. Questo intervento
 non introduce importazione dei campi remoti, compilazione di campi testuali o
 verifica dei collegamenti in Openbook.
 
+### Campi dei profili remoti
+
+Openbook importa gli elementi `attachment` di tipo `PropertyValue` dell'Actor
+in `actors.links`, come coppie ordinate `label`/`value`. Testo e link HTTP(S)
+passano dalla pipeline esistente di sanificazione e rendering dei contenuti
+remoti; HTML remoto, media inline ed effetti delle emoji personalizzate non
+vengono riprodotti. La pagina del profilo remoto mostra i campi sotto la bio.
+Una dichiarazione remota o un attributo `rel="me"` non implicano una verifica
+del collegamento da parte di Openbook.
+
+Il sistema conserva al massimo 16 campi validi, con etichette fino a 100
+caratteri e valori normalizzati fino a 1.000. Campi vuoti o malformati e
+attachment di altro tipo vengono ignorati; etichette ripetute mantengono
+l'ordine originale. Ogni documento Actor valido sostituisce l'elenco in cache,
+anche azzerandolo quando `attachment` è assente o non contiene campi validi.
+Questo vale sia per i normali refresh sia per le attività `Update` del profilo
+ricevute. Aprendo il profilo di un Actor remoto attivo viene verificata anche
+la cache del documento Actor, con il TTL ordinario (24 ore per impostazione
+predefinita); se il recupero fallisce, resta disponibile la copia in cache. I profili già in cache acquisiscono i campi al successivo refresh o
+Update ordinario, senza fetch massivi o richieste separate. I link locali
+restano in `profiles.links`, con editor e pubblicazione federata invariati.
+
 ### Lingua dei post remoti
 
 Openbook conserva in `posts.language` la lingua dichiarata del testo importato

@@ -1660,6 +1660,7 @@ class InboxActivityProcessorTest extends TestCase
                 'type' => 'Person',
                 'preferredUsername' => 'nadia',
                 'name' => 'Nadia Rinominata',
+                'attachment' => [['type' => 'PropertyValue', 'name' => 'Professione', 'value' => 'Insegnante']],
                 'summary' => '<p>Nuova biografia.</p>',
                 'icon' => ['type' => 'Image', 'url' => 'https://remoto.example/avatars/nadia.png'],
                 'manuallyApprovesFollowers' => true,
@@ -1682,11 +1683,16 @@ class InboxActivityProcessorTest extends TestCase
         $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
         $remote->refresh();
         $this->assertSame('Nadia Rinominata', $remote->name);
+        $this->assertSame([['label' => 'Professione', 'value' => 'Insegnante']], $remote->links);
         $this->assertSame('<p>Nuova biografia.</p>', $remote->summary);
         $this->assertSame('https://remoto.example/avatars/nadia.png', $remote->icon_url);
         $this->assertTrue($remote->manually_approves_followers);
         $this->assertFalse($remote->discoverable);
         $this->assertTrue($remote->indexable);
+        unset($activity['object']['attachment']);
+        $activity['id'] = $remote->uri.'/aggiornamenti/2';
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process($activity, $remote));
+        $this->assertSame([], $remote->fresh()->links);
     }
 
     public function test_an_update_person_impersonating_another_actor_is_ignored(): void

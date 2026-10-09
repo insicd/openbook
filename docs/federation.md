@@ -114,6 +114,28 @@ Existing profiles expose their links on the next Actor fetch or profile update;
 no bulk delivery is triggered. This does not add remote profile-field import,
 free-text field editing, or link verification in Openbook.
 
+### Remote profile fields
+
+Openbook imports Actor `attachment` entries of type `PropertyValue` into
+`actors.links`, as ordered `label`/`value` pairs. Text and HTTP(S) links pass
+through the existing remote-content sanitization and rendering pipeline;
+remote HTML, inline media and custom emoji effects are not reproduced.
+The remote profile page shows these fields below the biography. Link
+verification is not implied by a remote claim or by a `rel="me"` attribute.
+
+The application keeps up to 16 valid fields, with labels up to 100 characters
+and normalized values up to 1,000 characters. Empty or malformed fields and
+other attachment types are ignored; duplicate labels retain their order.
+Each valid Actor document replaces the cached list, including clearing it
+when `attachment` is absent or has no usable fields. This applies both to
+ordinary Actor refreshes and incoming profile `Update` activities. Visiting
+an active remote profile also checks the Actor document cache, using its
+normal TTL (24 hours by default); a failed fetch keeps the cached profile
+available. Existing
+cached profiles acquire fields on their next normal refresh or Update;
+there is no bulk fetch or separate field request. Local links remain in
+`profiles.links`, with their existing editor and federation behavior.
+
 ### Remote post language
 
 Openbook stores the declared language of the imported text in `posts.language`

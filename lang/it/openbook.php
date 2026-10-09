@@ -196,6 +196,7 @@ return [
     ],
 
     'profile' => [
+        'additional_fields' => 'Informazioni aggiuntive del profilo',
         'followers' => 'Follower',
         'following' => 'Seguiti',
         'communities' => 'Community',

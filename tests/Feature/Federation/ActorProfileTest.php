@@ -48,6 +48,107 @@ class ActorProfileTest extends TestCase
         $response->assertSee('@peter@remoto.example');
     }
 
+    public function test_visiting_a_stale_profile_refreshes_the_actor_fields_and_reuses_the_fresh_cache(): void
+    {
+        $viewer = $this->createFullAccount('refreshviewer');
+        $remote = $this->createRemoteActor('staleprofile', overrides: [
+            'last_fetched_at' => now()->subDays(2),
+            'collections_fetched_at' => now(),
+        ]);
+        Http::fake([
+            $remote->uri => Http::response([
+                'id' => $remote->uri,
+                'type' => 'Person',
+                'preferredUsername' => $remote->preferred_username,
+                'name' => 'Profilo aggiornato',
+                'published' => $remote->published_at->toAtomString(),
+                'inbox' => $remote->uri.'/inbox',
+                'outbox' => $remote->uri.'/outbox',
+                'publicKey' => [
+                    'id' => $remote->uri.'#main-key',
+                    'owner' => $remote->uri,
+                    'publicKeyPem' => $remote->key->public_key,
+                ],
+                'attachment' => [['type' => 'PropertyValue', 'name' => 'Website', 'value' => '<a href="https://example.test/about">Sito personale</a>']],
+            ]),
+            '*' => Http::response('', 404),
+        ]);
+
+        foreach (range(1, 2) as $visit) {
+            $this->actingAs($viewer)->get(route('actors.show', $remote))
+                ->assertOk()->assertSee('Profilo aggiornato')->assertSee('Website')
+                ->assertSee('href="https://example.test/about"', false);
+        }
+
+        $this->assertSame([['label' => 'Website', 'value' => '[Sito personale](https://example.test/about)']], $remote->fresh()->links);
+        $actorRequests = Http::recorded(fn ($request): bool => $request->url() === $remote->uri);
+        $this->assertCount(1, $actorRequests);
+    }
+
+    public function test_a_failed_actor_refresh_keeps_the_cached_profile_visible(): void
+    {
+        Http::fake(['*' => Http::response('', 503)]);
+        $viewer = $this->createFullAccount('failedrefreshviewer');
+        $remote = $this->createRemoteActor('failedrefresh', overrides: [
+            'last_fetched_at' => now()->subDays(2),
+            'links' => [['label' => 'Professione', 'value' => 'Insegnante']],
+        ]);
+
+        $this->actingAs($viewer)->get(route('actors.show', $remote))
+            ->assertOk()->assertSee('Failedrefresh')->assertSee('Professione')->assertSee('Insegnante');
+        $this->assertSame([['label' => 'Professione', 'value' => 'Insegnante']], $remote->fresh()->links);
+        Http::assertSent(fn ($request): bool => $request->url() === $remote->uri);
+    }
+
+    public function test_visiting_a_suspended_profile_does_not_refresh_or_reactivate_its_actor(): void
+    {
+        Http::fake(['*' => Http::response('', 404)]);
+        $viewer = $this->createFullAccount('suspendedrefreshviewer');
+        $remote = $this->createRemoteActor('suspendedrefresh', overrides: [
+            'status' => Actor::STATUS_SUSPENDED,
+            'last_fetched_at' => now()->subDays(2),
+        ]);
+
+        $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
+
+        Http::assertNotSent(fn ($request): bool => $request->url() === $remote->uri);
+        $this->assertSame(Actor::STATUS_SUSPENDED, $remote->fresh()->status);
+    }
+
+    public function test_it_shows_remote_profile_fields_as_safe_text_and_links_below_the_bio(): void
+    {
+        Http::fake(['*' => Http::response('', 404)]);
+        $viewer = $this->createFullAccount('fieldsviewer');
+        $remote = $this->createRemoteActor('fieldsremote', overrides: [
+            'summary' => '<p>Biografia remota</p>',
+            'links' => [
+                ['label' => 'Professione', 'value' => 'Insegnante'],
+                ['label' => '<script>alert(1)</script>', 'value' => '[Il mio sito](https://example.test/about)'],
+                ['label' => 'Non sicuro', 'value' => '[clicca](javascript:alert(1))<img src="https://evil.example/tracker" onerror="alert(1)">'],
+            ],
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('actors.show', $remote));
+
+        $response->assertOk()
+            ->assertSeeInOrder(['Biografia remota', 'Professione', 'Insegnante', 'Il mio sito'])
+            ->assertSee('<script>alert(1)</script>')
+            ->assertSee('href="https://example.test/about"', false)
+            ->assertDontSee('<script>alert(1)</script>', false)
+            ->assertDontSee('href="javascript:', false)
+            ->assertDontSee('src="https://evil.example/tracker"', false);
+    }
+
+    public function test_it_omits_the_profile_fields_section_when_no_fields_are_cached(): void
+    {
+        Http::fake(['*' => Http::response('', 404)]);
+        $viewer = $this->createFullAccount('emptyfieldsviewer');
+        $remote = $this->createRemoteActor('emptyfields');
+
+        $this->actingAs($viewer)->get(route('actors.show', $remote))
+            ->assertOk()->assertDontSee('class="ob-profile-fields"', false);
+    }
+
     public function test_it_labels_a_remote_application_as_an_automated_account(): void
     {
         Http::fake(['*' => Http::response('', 404)]);
