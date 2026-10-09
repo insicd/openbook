@@ -79,7 +79,7 @@ final class AutoAnnounceFanout
     /**
      * @return Collection<int, Post>
      */
-    private function eligiblePosts(Follow $follow, int $limit)
+    private function eligiblePosts(Follow $follow, int $limit): Collection
     {
         $target = $follow->following;
         $since = $follow->auto_announce_since;

@@ -5,7 +5,8 @@ Aggiornato il 10 ottobre 2026.
 Stato: priorità e macrofasi concordate; subsprint proposti e dettagli dei
 requisiti da consolidare prima della rispettiva implementazione. Subsprint 1.1
 e 1.2 completati e verificati. Subsprint 1.3 completato e verificato.
-Subsprint 2.1, 2.2, 2.3 e 2.4 completati e verificati.
+Subsprint 2.1, 2.2, 2.3 e 2.4 completati e verificati. Review complessiva delle
+macrofasi 1 e 2 completata; il prossimo subsprint è 3.1.
 
 Branch: `improve_profile`, creato dalla testa locale di
 `multilanguage_support` al commit `8f42ea5`.
@@ -452,6 +453,28 @@ rimozioni, endpoint, invalidazione autenticata, visibilità e community private.
 Suite completa rinviata alla review finale. Documentazione bilingue e changelog
 aggiornati.
 
+### Review complessiva delle macrofasi 1 e 2
+
+Revisione dell'intero diff rispetto alla base `8f42ea5`: responsabilità dei
+servizi, riuso dei flussi di importazione e serializzazione, compatibilità con
+i campi locali preesistenti, sanificazione e limiti degli input, autorizzazioni,
+visibilità dei contenuti e conservazione della moderazione locale. Nessun
+problema bloccante individuato. Rimossi un controllo duplicato nella card dei
+commenti agli eventi e un riferimento documentale a uno sprint già concluso;
+completata la tipizzazione del servizio di condivisione automatica.
+
+Suite completa: 1.444 test, 6.428 asserzioni, nessun errore; saltati soltanto i
+due test dell'installer che richiedono un database MySQL di test dedicato.
+Pint supera il controllo su tutti i file PHP modificati dal ramo; nessun errore
+di whitespace. Riconfermato sul MySQL locale il piano della query dei fissati:
+range sulla chiave primaria dei post e lookup sugli indici esistenti delle
+relazioni, senza scansioni complete o necessità di nuovi indici.
+
+Documentazione inglese e italiana e changelog risultano coerenti con il
+perimetro implementato. Le note di rilascio sono organizzate per funzionalità.
+La review non introduce verifica `rel="me"`, gestione dei fissati locali o
+migrazione di `profiles`: restano nei rispettivi perimetri successivi.
+
 ### Macrofase 3 — Verifica dei collegamenti reciproci (P07)
 
 **Obiettivo:** indicare quando un collegamento del profilo ha una relazione
@@ -810,8 +833,9 @@ aggiuntivi, nome/bio e immagini, seguito dalla rimozione delle dipendenze da
 `Profile`. La sequenza e la migrazione verranno definite nel task dedicato,
 considerando anche i campi remoti introdotti nel frattempo.
 
-Il percorso corrente prosegue direttamente con il subsprint 1.2 secondo la
-decisione della sezione 8.1, senza preparazioni di unificazione.
+I subsprint 1.2 e 1.3 sono stati completati secondo la decisione della sezione
+8.1, senza preparazioni di unificazione. L'eventuale migrazione rimane un task
+separato e non è un prerequisito delle macrofasi successive.
 
 ## 9. Riferimenti
 

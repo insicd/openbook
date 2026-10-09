@@ -81,7 +81,7 @@
                         <span class="ob-post__action-count">{{ $comment->likes_count }}</span>
                     </button>
                 </form>
-                @if ($event->isOpenForInteractions() && ! $comment->actor?->isRemotelySuspended())
+                @if ($event->isOpenForInteractions())
                     <button type="button" class="ob-post__action" aria-label="{{ __('openbook.actions.reply') }}"
                         onclick="(function(){var c=document.getElementById('risposta-evento-{{ $comment->id }}');if(!c)return;c.hidden=false;var t=document.getElementById('risposta-evento-testo-{{ $comment->id }}');if(t)t.focus();}())">
                         <x-icon name="comment" />
