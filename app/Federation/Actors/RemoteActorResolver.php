@@ -651,6 +651,7 @@ final class RemoteActorResolver
                 'manually_approves_followers' => (bool) ($document['manuallyApprovesFollowers'] ?? false),
                 'discoverable' => self::documentBoolean($document, 'discoverable', true),
                 'indexable' => self::documentBoolean($document, 'indexable', false),
+                'memorial' => self::documentBoolean($document, 'memorial', false),
                 'remote_suspended' => self::documentBoolean($document, 'suspended', false),
                 'last_fetched_at' => now(),
             ];

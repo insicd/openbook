@@ -202,6 +202,7 @@ return [
         'communities' => 'Community',
         'joined_on' => 'Iscritto dal :date',
         'protected' => 'Account protetto',
+        'memorial_badge' => 'Profilo commemorativo',
         'remote_suspended_notice' => 'Account sospeso sul server di origine.',
         'suspended_notice' => 'Questo account è stato sospeso dallo staff dell\'istanza. Il profilo è temporaneamente non disponibile.',
         'pinned_posts' => 'Post fissati',

@@ -19,6 +19,9 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Profili commemorativi remoti**: indicazione discreta nel profilo quando
+  dichiarato commemorativo dal server di origine, senza limitare follow e
+  interazioni.
 - **Sospensione degli account remoti**: il profilo indica quando un account è
   sospeso sul server di origine e impedisce nuove interazioni, conservando i
   contenuti già importati. La riattivazione ripristina le interazioni senza

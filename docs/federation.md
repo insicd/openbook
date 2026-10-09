@@ -169,6 +169,21 @@ does not replace ordinary Delete/Undo processing or introduce an inbound ban.
 The schema update requires running `php artisan migrate` as usual; no new service
 or worker is required.
 
+### Remote memorial profiles
+
+The remote Actor's `memorial` flag is cached in `actors.memorial` (false by
+default), using the same Actor fetch/refresh and incoming Update flow. A valid
+document without the flag or with `false` clears it; failed fetches and invalid
+documents preserve the cached value. Existing cached profiles acquire the flag
+on their next ordinary refresh or Update, without a bulk fetch.
+
+The remote profile displays a discreet “Memorial profile” badge near its name.
+The flag is informational: it does not change visibility, follow approval,
+messages, likes, comments or shares. Any remote suspension or local moderation
+restrictions still apply independently. Creating memorial profiles for local
+accounts is outside this feature. The added boolean column requires the usual
+`php artisan migrate` and adds no service or worker requirement.
+
 ### Remote post language
 
 Openbook stores the declared language of the imported text in `posts.language`

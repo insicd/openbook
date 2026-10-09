@@ -5,7 +5,7 @@ Aggiornato il 10 ottobre 2026.
 Stato: priorità e macrofasi concordate; subsprint proposti e dettagli dei
 requisiti da consolidare prima della rispettiva implementazione. Subsprint 1.1
 e 1.2 completati e verificati. Subsprint 1.3 completato e verificato.
-Subsprint 2.1 completato e verificato.
+Subsprint 2.1 e 2.2 completati e verificati.
 
 Branch: `improve_profile`, creato dalla testa locale di
 `multilanguage_support` al commit `8f42ea5`.
@@ -365,6 +365,39 @@ Riferimenti del comportamento remoto: [flag suspended di Mastodon](https://docs.
 e [serializzazione dell'Actor](https://github.com/mastodon/mastodon/blob/main/app/serializers/activitypub/actor_serializer.rb).
 Il divieto delle nuove interazioni e la conservazione dei contenuti sono scelte
 di prodotto Openbook, non una cancellazione imposta dal flag del protocollo.
+
+### Decisioni consolidate per il subsprint 2.2
+
+Il flag remoto `memorial` è informativo e viene conservato come boolean in
+`actors.memorial`, con default false. L'importazione usa il medesimo flusso
+Actor per fetch, refresh e Update, incluse le forme booleane JSON-LD già
+supportate. Un documento valido senza flag o con false rimuove l'indicazione;
+fetch falliti o documenti invalidi non modificano il dato conosciuto.
+
+La pagina del profilo remoto mostra «Profilo commemorativo» vicino al nome e
+all'handle, usando lo stile discreto dei badge esistenti. Il flag non modifica
+follow, approvazione delle richieste, messaggi, like, commenti o condivisioni.
+Gli eventuali stati di sospensione remota e moderazione locale continuano ad
+applicarsi indipendentemente. Nessuna modifica alla visibilità o cancellazione
+dei contenuti e nessuna gestione dei profili commemorativi locali in questo
+subsprint. Verifica con test mirati; suite completa rinviata alla review finale.
+
+### Esito del subsprint 2.2
+
+Implementati persistenza di `actors.memorial`, aggiornamento tramite il resolver
+Actor condiviso e badge localizzato nel profilo remoto. Nessun controllo di
+interazione dipende dal flag commemorativo. La colonna boolean con default
+false è stata aggiunta con una migrazione applicata sul MySQL locale e verificata
+su SQLite; non sono cambiate query o indici.
+
+Tre test nuovi verificano importazione/refresh e forme JSON-LD, false/assenza,
+errori di fetch e documenti discordanti, Update ricevuti e indipendenza dagli
+stati di sospensione/moderazione, visualizzazione/rimozione del badge e follow,
+like, risposte e permessi dei messaggi. Test mirati eseguiti: `MemorialProfileTest`,
+`RemoteActorResolverTest`, `ActorProfileTest`, `RemoteSuspensionTest`: 61 test,
+269 asserzioni, nessun fallimento. Pint e controllo diff superati. Suite
+completa intenzionalmente rinviata alla review finale come concordato.
+Documentazione di federazione italiano/inglese e changelog aggiornati.
 
 ### Macrofase 3 — Verifica dei collegamenti reciproci (P07)
 

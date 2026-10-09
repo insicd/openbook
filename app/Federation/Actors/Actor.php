@@ -47,6 +47,7 @@ use Illuminate\Support\HtmlString;
  * @property bool $manually_approves_followers
  * @property bool $discoverable
  * @property bool $indexable
+ * @property bool $memorial
  * @property bool $remote_suspended
  * @property string $status
  * @property Carbon|null $deleted_at
@@ -97,6 +98,7 @@ class Actor extends Model
         'manually_approves_followers',
         'discoverable',
         'indexable',
+        'memorial',
         'remote_suspended',
         'status',
         'deleted_at',
@@ -116,6 +118,7 @@ class Actor extends Model
     {
         return [
             'is_local' => 'boolean',
+            'memorial' => 'boolean',
             'remote_suspended' => 'boolean',
             'custom_emojis' => 'array',
             'links' => 'array',

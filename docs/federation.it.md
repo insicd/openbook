@@ -165,6 +165,22 @@ Delete/Undo e non introduce un ban delle attività in ingresso. L'aggiornamento
 dello schema richiede il consueto `php artisan migrate`; non servono nuovi
 servizi o worker.
 
+### Profili commemorativi remoti
+
+Il flag `memorial` dell'Actor remoto viene conservato in `actors.memorial`
+(false per default), usando il medesimo flusso di fetch/refresh e Update
+ricevuti. Un documento valido senza flag o con `false` lo rimuove; fetch
+falliti e documenti invalidi preservano il valore in cache. I profili già
+conservati acquisiscono il flag al successivo refresh o Update ordinario,
+senza recuperi massivi.
+
+Il profilo remoto mostra un badge discreto “Profilo commemorativo” vicino al
+nome. Il flag è informativo: non modifica visibilità, approvazione dei follow,
+messaggi, like, commenti o condivisioni. Sospensione remota e restrizioni di
+moderazione locale continuano ad applicarsi indipendentemente. La gestione dei
+profili commemorativi locali è fuori perimetro. La nuova colonna boolean
+richiede il consueto `php artisan migrate`, senza nuovi servizi o worker.
+
 ### Lingua dei post remoti
 
 Openbook conserva in `posts.language` la lingua dichiarata del testo importato

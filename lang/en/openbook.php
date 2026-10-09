@@ -202,6 +202,7 @@ return [
         'communities' => 'Communities',
         'joined_on' => 'Joined on :date',
         'protected' => 'Protected account',
+        'memorial_badge' => 'Memorial profile',
         'remote_suspended_notice' => 'Account suspended on its originating server.',
         'suspended_notice' => 'This account has been suspended by the instance staff. The profile is temporarily unavailable.',
         'pinned_posts' => 'Pinned posts',

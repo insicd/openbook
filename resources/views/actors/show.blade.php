@@ -35,6 +35,10 @@
             <h1 class="ob-profile-name">{!! $profileActor->displayNameHtml() !!}</h1>
             <p class="ob-profile-handle">{{ $isGroup ? '!'.$profileActor->handle() : $handle }}</p>
 
+            @if ($profileActor->memorial)
+                <span class="ob-badge">{{ __('openbook.profile.memorial_badge') }}</span>
+            @endif
+
             @if ($isFeed)
                 <span class="ob-badge">{{ __('openbook.actors.feed_badge') }}</span>
             @elseif ($isGroup)
