@@ -103,6 +103,17 @@ browsers:
   apply. Unlisted, followers-only, direct, remote and private-community content
   is never published to a LitePub relay.
 
+### Local profile links
+
+The links already entered in local profiles are published in the Actor's
+`attachment` array as `PropertyValue` fields (label and HTML link), using the
+schema.org context mapping compatible with Mastodon. The same representation
+is included in profile `Update` activities sent to remote followers. Removing
+all links publishes an empty array so that peers can clear their cached fields.
+Existing profiles expose their links on the next Actor fetch or profile update;
+no bulk delivery is triggered. This does not add remote profile-field import,
+free-text field editing, or link verification in Openbook.
+
 ### Remote post language
 
 Openbook stores the declared language of the imported text in `posts.language`

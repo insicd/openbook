@@ -19,6 +19,8 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Link del profilo federati**: i collegamenti dei profili locali vengono
+  pubblicati anche alle altre istanze, incluse modifiche e rimozioni.
 - **Lingua del post originale**: le card mostrano accanto alla data la lingua
   dichiarata dall'autore, con nome localizzato e codice di fallback.
   L'informazione viene importata e aggiornata quando attribuibile senza

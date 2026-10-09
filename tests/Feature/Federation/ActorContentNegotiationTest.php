@@ -73,6 +73,43 @@ class ActorContentNegotiationTest extends TestCase
         $this->assertStringNotContainsString("Prima riga\nSeconda riga", $summary);
     }
 
+    public function test_local_profile_links_are_published_as_ordered_property_values(): void
+    {
+        $user = $this->createFullAccount('profilelinks');
+        $user->profile->update(['links' => [
+            ['label' => 'Sito & lavoro', 'url' => 'https://example.test/?a=1&b="quoted"'],
+            ['label' => '<b>Blog</b>', 'url' => 'https://blog.example.test'],
+        ]]);
+
+        $response = $this->get('/users/profilelinks', ['Accept' => 'application/activity+json']);
+
+        $response->assertOk()
+            ->assertJsonPath('@context.2.schema', 'http://schema.org#')
+            ->assertJsonPath('@context.2.PropertyValue', 'schema:PropertyValue')
+            ->assertJsonPath('@context.2.value', 'schema:value')
+            ->assertJsonPath('attachment', [
+                [
+                    'type' => 'PropertyValue',
+                    'name' => 'Sito & lavoro',
+                    'value' => '<a href="https://example.test/?a=1&amp;b=&quot;quoted&quot;" rel="me nofollow noopener" target="_blank">https://example.test/?a=1&amp;b=&quot;quoted&quot;</a>',
+                ],
+                [
+                    'type' => 'PropertyValue',
+                    'name' => '<b>Blog</b>',
+                    'value' => '<a href="https://blog.example.test" rel="me nofollow noopener" target="_blank">https://blog.example.test</a>',
+                ],
+            ]);
+    }
+
+    public function test_a_profile_without_links_publishes_an_empty_attachment_list(): void
+    {
+        $this->createFullAccount('nolinks');
+
+        $this->get('/users/nolinks', ['Accept' => 'application/activity+json'])
+            ->assertOk()
+            ->assertJsonPath('attachment', []);
+    }
+
     public function test_an_activity_json_request_to_at_path_redirects_to_users_path(): void
     {
         $this->createFullAccount('redirectap');

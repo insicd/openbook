@@ -59,6 +59,9 @@ final class ActorSerializer
                     'discoverable' => 'toot:discoverable',
                     'indexable' => 'toot:indexable',
                     'manuallyApprovesFollowers' => 'as:manuallyApprovesFollowers',
+                    'schema' => 'http://schema.org#',
+                    'PropertyValue' => 'schema:PropertyValue',
+                    'value' => 'schema:value',
                 ],
             ],
             'id' => $id,
@@ -76,6 +79,13 @@ final class ActorSerializer
             'indexable' => $actor->isFeed() ? false : self::indexableFlag($actor),
             'published' => optional($actor->created_at)->toAtomString() ?? now()->toAtomString(),
         ];
+
+        if ($actor->isLocal() && $profile !== null) {
+            $document['attachment'] = array_map(
+                static fn (array $field): array => ['type' => 'PropertyValue', ...$field],
+                ProfileFieldSerializer::links($profile->links ?? []),
+            );
+        }
 
         if ($urls !== null && ($actor->isFeed() || ($actor->isLocal() && $actor->isApplication()))) {
             $document['inbox'] = $urls['inbox'];

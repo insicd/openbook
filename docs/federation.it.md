@@ -93,6 +93,19 @@ essere consumati da altri server e non da browser:
   followers-only, diretti, remoti o di community private non vengono mai
   pubblicati verso un relay LitePub.
 
+### Link dei profili locali
+
+I link già compilati nei profili locali vengono pubblicati nell'array
+`attachment` dell'Actor come campi `PropertyValue` (etichetta e link HTML), con
+la mappatura del contesto schema.org compatibile con Mastodon. La stessa
+rappresentazione è inclusa nelle attività `Update` del profilo inviate ai
+follower remoti. La rimozione di tutti i link pubblica un array vuoto, così le
+altre istanze possono rimuovere i campi dalla propria cache.
+I profili esistenti espongono i link al successivo recupero dell'Actor o
+aggiornamento del profilo; non viene avviato un invio massivo. Questo intervento
+non introduce importazione dei campi remoti, compilazione di campi testuali o
+verifica dei collegamenti in Openbook.
+
 ### Lingua dei post remoti
 
 Openbook conserva in `posts.language` la lingua dichiarata del testo importato

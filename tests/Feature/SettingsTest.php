@@ -87,6 +87,38 @@ class SettingsTest extends TestCase
         });
     }
 
+    public function test_profile_link_changes_and_removal_are_federated_to_remote_followers(): void
+    {
+        Queue::fake();
+        $user = $this->createFullAccount('alice');
+        $remoteFollower = $this->createRemoteActor('marco');
+        app(FollowManager::class)->follow($remoteFollower, $user->actor);
+        $user->profile->update(['links' => [['label' => 'Vecchio', 'url' => 'https://old.example.test']]]);
+
+        $this->actingAs($user)->put(route('settings.profile.update'), [
+            'display_name' => 'Alice',
+            'links' => [['label' => 'Sito', 'url' => 'https://new.example.test']],
+        ])->assertSessionHasNoErrors()->assertRedirect(route('settings.edit'));
+
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Update'
+            && $job->activity['object']['attachment'] === [[
+                'type' => 'PropertyValue',
+                'name' => 'Sito',
+                'value' => '<a href="https://new.example.test" rel="me nofollow noopener" target="_blank">https://new.example.test</a>',
+            ]]);
+
+        Queue::fake();
+        $this->actingAs($user->fresh())->put(route('settings.profile.update'), [
+            'display_name' => 'Alice',
+            'links' => [],
+        ])->assertSessionHasNoErrors()->assertRedirect(route('settings.edit'));
+
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Update'
+            && $job->activity['object']['attachment'] === []);
+        $this->get('/users/alice', ['Accept' => 'application/activity+json'])
+            ->assertOk()->assertJsonPath('attachment', []);
+    }
+
     public function test_a_user_can_upload_an_avatar_and_the_previous_one_is_removed(): void
     {
         Storage::fake('public');
