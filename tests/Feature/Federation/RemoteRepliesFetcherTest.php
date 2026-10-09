@@ -93,6 +93,7 @@ class RemoteRepliesFetcherTest extends TestCase
         $this->fakeNoteWithReplies($post, [
             $this->replyNote($replier, $post->uri, 'Ciao dal fediverso', [
                 'published' => $publishedAt->toAtomString(),
+                'contentMap' => ['it' => '<p>Ciao dal fediverso</p>'],
             ]),
         ]);
 
@@ -103,9 +104,27 @@ class RemoteRepliesFetcherTest extends TestCase
 
         $comment = Comment::query()->where('post_id', $post->id)->firstOrFail();
         $this->assertTrue($comment->created_at->equalTo($publishedAt));
+        $this->assertSame('it', $comment->language);
         $this->assertSame(1, $post->fresh()->comments_count);
         $this->assertNotNull($post->fresh()->replies_fetched_at);
         $this->assertSame(0, Notification::query()->count());
+    }
+
+    public function test_fetched_reply_inherits_its_create_language_context(): void
+    {
+        $viewer = $this->createFullAccount('replylanguagereader');
+        $author = $this->createRemoteActor('postlanguageauthor');
+        $replier = $this->createRemoteActor('replylanguageauthor');
+        $post = $this->createRemotePost($author);
+        $note = $this->replyNote($replier, $post->uri, 'Reply text.');
+        $this->fakeNoteWithReplies($post, [[
+            '@context' => ['https://www.w3.org/ns/activitystreams', ['@language' => 'zh-Hant-TW']],
+            'id' => $note['id'].'/create', 'type' => 'Create',
+            'actor' => $replier->uri, 'object' => $note,
+        ]]);
+
+        $this->actingAs($viewer)->get(route('posts.show', $post))->assertOk();
+        $this->assertDatabaseHas('comments', ['uri' => $note['id'], 'language' => 'zh-hant-tw']);
     }
 
     public function test_refreshing_replies_corrects_the_timestamp_of_an_existing_remote_comment(): void

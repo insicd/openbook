@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property string $actor_id
  * @property string|null $uri
  * @property string $body
+ * @property string|null $language
  * @property array<string, string>|null $custom_emojis
  * @property string $status
  * @property int $likes_count
@@ -50,6 +51,7 @@ class Comment extends Model
         'actor_id',
         'uri',
         'body',
+        'language',
         'custom_emojis',
         'status',
     ];

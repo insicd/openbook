@@ -329,6 +329,7 @@ final class RemoteNoteUpserter
             'parent_comment_id' => $parentComment?->id,
             'actor_id' => $actor->id,
             'body' => $body,
+            'language' => RemotePostObject::language($note),
             'custom_emojis' => RemoteCustomEmoji::extract($note) ?: null,
             'status' => Comment::STATUS_PUBLISHED,
         ]);

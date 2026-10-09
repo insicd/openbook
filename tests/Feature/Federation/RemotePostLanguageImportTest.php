@@ -3,6 +3,7 @@
 namespace Tests\Feature\Federation;
 
 use App\Application\Services\FollowManager;
+use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -156,5 +157,48 @@ class RemotePostLanguageImportTest extends TestCase
 
         $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
         $this->assertDatabaseHas('posts', ['uri' => $uri, 'actor_id' => $author->id, 'language' => 'fr']);
+    }
+
+    public function test_inbox_comments_save_change_and_clear_the_declared_language(): void
+    {
+        $local = $this->createFullAccount('commentreader');
+        $remote = $this->createRemoteActor('commentauthor');
+        $parent = Post::query()->create([
+            'actor_id' => $local->actor->id, 'body' => 'Parent post.',
+            'visibility' => Post::VISIBILITY_PUBLIC, 'published_at' => now(),
+        ]);
+        $note = [
+            'id' => $remote->uri.'/comments/language', 'type' => 'Note',
+            'attributedTo' => $remote->uri, 'inReplyTo' => route('posts.show', $parent),
+            'content' => '<p>Comment text.</p>', 'published' => now()->toAtomString(),
+            'to' => [NoteSerializer::PUBLIC_STREAM],
+        ];
+        $cases = [
+            [['contentMap' => ['IT-ch' => $note['content']]], 'it-ch'],
+            [['contentMap' => ['zh-Hant-TW' => $note['content']]], 'zh-hant-tw'],
+            [['contentMap' => ['it' => $note['content'], 'en' => $note['content']]], null],
+            [['contentMap' => ['en' => '<p>Different text.</p>']], null],
+            [[], 'fr'],
+        ];
+
+        foreach ($cases as $index => [$metadata, $expected]) {
+            $status = $this->process([
+                '@context' => ['https://www.w3.org/ns/activitystreams', ['@language' => 'fr']],
+                'id' => $remote->uri.'/activities/comment-language-'.$index,
+                'type' => $index === 0 ? 'Create' : 'Update', 'actor' => $remote->uri,
+                'object' => array_merge($note, $metadata),
+            ], $remote);
+            $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+            $this->assertSame($expected, Comment::query()->where('uri', $note['id'])->sole()->language);
+        }
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process([
+            'id' => $remote->uri.'/activities/comment-language-remove', 'type' => 'Update',
+            'actor' => $remote->uri, 'object' => $note,
+        ], $remote));
+        $comment = Comment::query()->where('uri', $note['id'])->sole();
+        $this->assertNull($comment->language);
+        $this->assertSame('Comment text.', $comment->body);
+        $this->assertSame(1, $parent->fresh()->comments_count);
     }
 }

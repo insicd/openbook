@@ -1,5 +1,14 @@
 # TODO
 
+## Ordinamento degli aggiornamenti dei commenti federati
+
+- `RemoteNoteUpserter::upsertComment()` non conserva un timestamp della versione
+  remota e non scarta aggiornamenti obsoleti, a differenza dell'upsert dei post.
+  Valutare una protezione condivisa fra inbox e recupero delle risposte, per
+  evitare che una versione precedente sovrascriva testo e metadati più recenti.
+  Definire anche il comportamento con timestamp assenti o uguali e aggiungere
+  test di arrivo fuori ordine. Intervento separato dal salvataggio della lingua.
+
 ## Notifiche e messaggi non letti nelle chat
 
 1. **Evitare una notifica generale per ogni messaggio ricevuto.** Se arrivano

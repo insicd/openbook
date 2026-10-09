@@ -26,6 +26,8 @@ mantiene un solo testo importato per post; la gestione di più traduzioni dello
 stesso post è esclusa dal perimetro attuale.
 
 L'intervento riguarda nuove importazioni e aggiornamenti ordinari dei post.
+La macrofase 1 include anche il solo salvataggio della lingua dei commenti
+remoti, senza modifiche alla loro UI o alla composizione (sezione 14).
 Non è previsto un recupero massivo dei metadati dei post già presenti. Un post
 preesistente può acquisire o perdere la lingua attraverso un successivo upsert
 ordinario accettato dal sistema.
@@ -290,7 +292,9 @@ La stessa regola si applica ai post salvati da inbox, outbox e refresh tramite
 i servizi condivisi. Include i messaggi privati memorizzati in
 `posts`; la presentazione nelle conversazioni private può essere definita
 separatamente dalla card dei post, senza impedire il salvataggio del metadato.
-Commenti nella tabella dedicata ed eventi rimangono fuori dal perimetro.
+I commenti nella tabella dedicata ricevono il solo salvataggio del metadato;
+la loro presentazione e composizione restano escluse. Gli eventi e i relativi
+commenti rimangono fuori dal perimetro.
 
 La card mostra un nome localizzato con codice di fallback; non mostra nulla
 per `NULL`. La preferenza locale è separata dal locale dell'interfaccia e parte
@@ -596,11 +600,9 @@ test, dipendenze e documentazione. Il salvataggio resta nell'upsert condiviso;
 la risoluzione dei nomi è separata dalla validazione BCP 47. Nessun controller,
 route, criterio di autorizzazione o selezione della visibilità viene modificato.
 
-La review finale rimuove una propagazione di contesto superflua nel percorso
-dei commenti, che non memorizza la lingua ed è fuori perimetro. Le request
-condividono il limite tramite `PostLanguage::MAX_LENGTH`; la migrazione mantiene
-il valore fisso del proprio schema. Un test aggiuntivo copre l'ereditarietà
-del contesto più vicino in `Announce → Create → Note`; il test outbox Lemmy
+Le request condividono il limite tramite `PostLanguage::MAX_LENGTH`; la
+migrazione mantiene il valore fisso del proprio schema. Un test aggiuntivo
+copre l'ereditarietà del contesto più vicino in `Announce → Create → Note`; il test outbox Lemmy
 verifica inoltre che un default non attribuisca una lingua all'URL di fallback.
 
 La verifica web sui post realmente importati è confermata; si aggiunge ai
@@ -623,3 +625,36 @@ migrazione resta bloccato se esistono tag più lunghi di otto caratteri.
 
 Il ramo è pronto per una PR dedicata alla macrofase 1; profilo e composer
 restano esclusi, con i requisiti della macrofase 2 già definiti nella sezione 6.
+
+## 14. Estensione minima: salvataggio della lingua dei commenti
+
+Il perimetro della macrofase 1 comprende anche `comments.language`, nullable
+e lungo 255 caratteri, senza indici aggiuntivi o backfill. I commenti remoti
+usano `RemotePostObject::language()` nell'upsert condiviso, con le stesse regole
+su lingua unica, default locale e ambiguità. Ogni upsert ricalcola il valore,
+consentendone cambio e rimozione; la selezione del testo non cambia.
+
+Inbox e recupero delle risposte convergono già su `upsertComment()`. Il secondo
+percorso conserva ora il contesto dei `Create` incorporati tramite l'helper
+`JsonLdLanguage::inherit()`, necessario per il default `@language`. Non sono
+introdotti percorsi paralleli o dipendenze. Autorizzazione e visibilità restano
+quelle dei flussi esistenti.
+
+I commenti locali continuano con lingua `NULL`. UI, composer, serializzazione
+in uscita e commenti degli eventi restano esclusi. La protezione contro update
+obsoleti dei commenti non viene modificata: il lavoro separato è registrato in
+[`TODO.md`](TODO.md#ordinamento-degli-aggiornamenti-dei-commenti-federati).
+
+Verifiche: test mirati su inbox e recupero risposte (17 test, 79 asserzioni),
+inclusi cambio, rimozione, ambiguità, testo discordante e default ereditato.
+Suite completa: 1.382 test, 6.036 asserzioni, nessun fallimento; due test
+dell'installer MySQL saltati per il limite del sandbox. La suite usa un
+`APP_CONFIG_CACHE` temporaneo dedicato per evitare interferenze con la cache
+rigenerata dell'istanza locale, oltre agli override già descritti nella
+sezione 10. Nessuna modifica permanente alla configurazione.
+
+Migrazione verificata su SQLite dalla suite e su una tabella temporanea MySQL:
+aggiunta della colonna, valore iniziale `NULL` per una riga preesistente,
+conservazione di un tag lungo e rimozione della colonna al rollback. La tabella
+reale del database locale non è stata modificata. Pint e controllo whitespace
+superati.

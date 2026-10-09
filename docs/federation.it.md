@@ -126,6 +126,14 @@ restano previste in una fase successiva.
 La migrazione amplia `posts.language` da 8 a 255 caratteri. Il rollback viene
 rifiutato se esistono tag più lunghi di 8 caratteri, per evitare troncamenti.
 
+Le stesse regole di estrazione salvano la lingua in `comments.language`
+(nullable, 255 caratteri), sia dall'inbox sia dal recupero delle risposte.
+Ogni upsert può cambiarla o rimuoverla. La gestione preesistente dell'ordine
+degli aggiornamenti dei commenti rimane invariata: non applica la protezione
+contro versioni obsolete prevista per i post. Non sono introdotti backfill,
+visualizzazione o selezione della lingua dei commenti; quelli locali restano
+senza dichiarazione. I commenti degli eventi seguono un percorso distinto.
+
 ### Federazione sociale (Fase 4)
 
 Le attivita' accettate nell'inbox (Fase 3) vengono ora **elaborate**, e le azioni

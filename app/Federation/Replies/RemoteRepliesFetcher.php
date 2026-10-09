@@ -11,6 +11,7 @@ use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Federation\Inbox\RemotePostObject;
 use App\Federation\Posts\RemoteReactionCountSync;
 use App\Federation\Resolution\ObjectResolver;
+use App\Federation\Support\JsonLdLanguage;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use Illuminate\Support\Carbon;
@@ -301,7 +302,7 @@ final class RemoteRepliesFetcher
         }
 
         if ($this->isType($note['type'] ?? null, 'Create') && is_array($note['object'] ?? null)) {
-            $note = $note['object'];
+            $note = JsonLdLanguage::inherit($note['object'], $note);
         }
 
         if (! $this->isType($note['type'] ?? null, 'Note')) {

@@ -136,6 +136,13 @@ the profile's writing preference are planned for a subsequent phase.
 The migration widens `posts.language` from 8 to 255 characters. Rollback is
 refused while tags longer than 8 characters exist, preventing truncation.
 
+The same extraction rules store the language in `comments.language`
+(nullable, 255 characters), through both inbox processing and reply fetching.
+Each upsert may change or clear it. Existing comment update ordering remains
+unchanged: it does not apply the stale-version protection used for posts.
+No backfill, display or language selection is added for comments; local
+comments continue without a declaration. Event comments use a separate path.
+
 ### Social federation (Phase 4)
 
 Activities accepted in the inbox (Phase 3) are now **processed**, and relevant
