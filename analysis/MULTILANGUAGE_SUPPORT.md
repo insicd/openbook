@@ -162,8 +162,10 @@ presente una mappa linguistica e il contesto applicabile è risolvibile localmen
 Una mappa ambigua o discordante non viene risolta tramite il default.
 I contesti incorporati sono elaborati in ordine: il contesto dell’oggetto può
 sovrascrivere quello dell’attività e un reset o `@language: null` annulla il
-default. Contesti remoti non riconosciuti non vengono scaricati; in assenza di
-un successivo default esplicito affidabile la lingua resta `NULL`.
+default. Contesti remoti non riconosciuti non vengono scaricati: rendono
+il default non affidabile fino a un reset esplicito del contesto, anche se
+seguiti da `@language`. Un contesto sconosciuto potrebbe infatti ridefinire
+anche i termini, non soltanto il default.
 Non è prevista una completa espansione JSON-LD o il supporto di alias e contesti
 scoped; ridefinizioni rilevanti devono essere trattate conservativamente.
 
@@ -258,7 +260,7 @@ ogni sottotag né la lingua effettiva del testo.
 La colonna `posts.language` viene ampliata a 255 caratteri; questo è il limite
 applicativo, con rifiuto dei valori più lunghi senza troncamento. Anche le request
 locali dovranno essere coerenti con tale capacità. I valori `und`, `mul`, `zxx`,
-le loro forme con sottotag, la dichiarazione anomala `unknown` e i tag di solo uso
+le loro forme con sottotag, il tag generico `i-default`, la dichiarazione anomala `unknown` e i tag di solo uso
 privato non attribuiscono una lingua determinata e producono `NULL` in ingresso.
 
 Laravel 12 installato offre regole generiche e regole custom, ma nessuna regola
@@ -419,3 +421,120 @@ una `Note` da `nixnet.social`, con `@language: "und"` nel contesto dell'attivit�
 Nessun oggetto post esaminato dichiara direttamente un default nel proprio
 `@context`. Nessuno dei dodici casi a due lingue ha un default incorporato.
 Gli altri tre messaggi con `@language` non sono stati approfonditi.
+
+## 10. Stato di avanzamento e verifica del subsprint 1.1
+
+Analisi consolidata nel commit `6ae0209`. Il subsprint 1.1 è completato e
+verificato; non comprende il rendering nella card (subsprint 1.2).
+La prova con un nuovo dump dell'inbox di produzione è stata eseguita nel
+database locale; i risultati del controllo successivo sono nella sezione 11.
+
+Sono implementati validazione sintattica BCP 47 e normalizzazione, estrazione
+conservativa da `contentMap`, default espliciti locali `@language`, propagazione
+dei contesti delle attività incorporate e ricalcolo della lingua nell'upsert
+condiviso. Il metadato viene salvato anche sui messaggi privati. La migrazione
+amplia la colonna a 255 caratteri e blocca rollback che troncherebbero dati.
+
+Verifiche eseguite:
+
+- test mirati di importazione, upsert, DM, outbox, refresh e gestione dei contesti;
+- suite completa: 1.357 test, 5.948 asserzioni, nessun fallimento; i due test
+  dell’installer MySQL sono saltati perché la connessione è bloccata dal sandbox;
+  la migrazione specifica è stata verificata separatamente su MySQL;
+- suite eseguita con `memory_limit=512M` e `OPENBOOK_FEED_BODY_EXCERPT=150`:
+  il limite locale di 128 MB non basta per l'intera suite e il `.env` imposta
+  l'excerpt a 400, incompatibile con il test del feed che presuppone 150;
+  nessuna modifica permanente al `.env`;
+- migrazione reale MySQL su tabella temporanea isolata nella connessione:
+  ampliamento, conservazione di un tag lungo, blocco del rollback non sicuro,
+  restringimento dopo rimozione del valore lungo;
+- `EXPLAIN` del controllo di rollback: scansione con arresto al primo risultato,
+  attesa per il predicato sulla lunghezza, senza nuovi indici applicativi;
+- Pint e controllo whitespace superati; documentazione federazione italiana e
+  inglese e changelog aggiornati.
+
+Durante i controlli iniziali la migrazione non era stata applicata alla tabella
+`posts` del database locale esistente. Il controllo successivo al replay
+conferma ora `posts.language` come `varchar(255) NULL`. Per altri replay resta
+necessario migrare il database di prova e verificare la configurazione di
+isolamento descritta nella sezione 7.4.
+
+### Strumento operativo per il replay locale
+
+`openbook:reprocess-inbox` accoda ora sia `ignored` sia `pending`, escludendo
+`processed` e `failed`. Questo permette di ricostruire i job per righe importate
+senza la tabella `jobs`. Il comando esegue operazioni reali, non un dry-run, e
+non deduplica i job già presenti. Con il driver database l'elaborazione avviene
+successivamente tramite `openbook:process-inbox`; con `sync` è immediata.
+
+Tre test mirati verificano gli stati, il batching e la creazione effettiva di un
+job `inbox` per un record pending importato. Sul MySQL locale, `EXPLAIN` verifica
+l'accesso tramite `PRIMARY` per lettura ordinata, chunk successivi e UPDATE,
+e tramite `inbox_items_status_index` per il recheck del batch; non sono necessari
+nuovi indici. I payload non vengono caricati durante la selezione dei candidati.
+Il reprocessing dell'inbox importata non è stato eseguito durante questi
+controlli iniziali; il replay successivo è verificato nella sezione 11.
+
+## 11. Verifica sui dati reali dopo il replay locale
+
+Controllo del 9 ottobre 2026, eseguito in una transazione MySQL di sola lettura
+dopo l'elaborazione locale dell'inbox importata da produzione. Nessun record
+modificato e nessuna richiesta HTTP verso server federati. I risultati sono
+una fotografia del database, non una misura della copertura dell'intera rete.
+
+### Distribuzione dei valori salvati
+
+Su 47.479 post, 552 hanno una lingua valorizzata: `en` 306, `it` 159, `fi` 47,
+`fr` 15, `de` 11, `es` 8, `ru` 3, `ja` 2, `da` 1. Tutti i valori rispettano
+la validazione e la normalizzazione previste. I restanti 46.927 `NULL`
+comprendono lo storico non rielaborato: il rapporto sul totale non misura
+l'efficacia dell'importazione nuova. La colonna risulta `varchar(255) NULL`.
+
+### Confronto fra payload e post persistiti
+
+Gli oggetti incorporati nelle attività `Create`, `Update` e `Announce` sono
+associati ai post tramite `uri` o `source_uri`. Il confronto richiede che il
+timestamp remoto (`updated`, oppure `published`) corrisponda al
+`remote_updated_at` persistito, convertito nel fuso applicativo. In presenza
+di più payload della stessa versione viene considerato quello con
+`processed_at` più recente. Questo evita di attribuire al replay metadati
+provenienti da vecchie attività già elaborate in produzione.
+
+Il confronto comprende 639 post distinti e non rileva discrepanze:
+
+| Situazione del payload | Post | Lingua persistita |
+| --- | ---: | --- |
+| Mappa con una lingua valida e testo corrispondente | 545 | Lingua della mappa |
+| Nessuna mappa né default locale utilizzabile | 71 | `NULL` |
+| Mappa con più lingue | 9 | `NULL` |
+| Mappa con una lingua, ma testo vuoto | 13 | `NULL` |
+| Mappa con una lingua e valore diverso da `content` | 1 | `NULL` |
+
+Per tutti i 545 valori non nulli è verificata anche direttamente la presenza
+di una sola chiave, la corrispondenza della chiave normalizzata alla lingua
+salvata e l'uguaglianza del valore non vuoto al contenuto selezionato, oltre
+al confronto con l'estrattore applicativo.
+
+Dieci di questi post hanno anche vecchi `Announce` senza mappa, elaborati in
+settembre: i successivi `Create`/`Update` rielaborati in ottobre dichiarano
+`it` e il valore persistito concorda. Non sono casi di mappa multilingua.
+
+### Limiti e stato dell'inbox
+
+Sette dei 552 post con lingua non hanno un oggetto incorporato già elaborato
+con lo stesso timestamp remoto. La lingua di questi sette post non è
+verificabile direttamente con questo confronto: una versione diversa o un
+documento recuperato via HTTP non sono ricostruibili dal solo payload
+incorporato. Non viene dedotto un errore né certificata la corrispondenza.
+
+La fotografia dell'inbox comprende 23.707 `processed`, 11.719 `pending`,
+1.101 `ignored` e tre `failed`. Il controllo non modifica né rielabora questi
+stati; il replay non copre quindi tutta l'inbox. Non emergono default
+`@language` utilizzabili negli oggetti incorporati esaminati: quel percorso
+resta verificato dai test dedicati.
+
+Le query di audit leggono integralmente le tabelle e aggregano i risultati;
+`EXPLAIN` conferma le scansioni previste e l'indice di stato per il
+raggruppamento dell'inbox. Non sono introdotti indici per query diagnostiche
+occasionali. Nei risultati conservati non sono inclusi testi o identificativi
+personali dei messaggi.

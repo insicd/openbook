@@ -19,6 +19,16 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Recupero inbox importata**: `openbook:reprocess-inbox` accoda anche le righe
+  `pending`, oltre alle `ignored`, per ricostruire i job dopo un'importazione
+  della sola tabella `inbox_items`; restano esclusi gli stati `processed` e `failed`.
+- **Lingua dei post remoti**: importazione della dichiarazione BCP 47 quando
+  attribuibile senza ambiguità al testo salvato, anche per i messaggi privati.
+  Gli aggiornamenti possono cambiarla o rimuoverla; mappe multilingua e metadati
+  incoerenti restano senza lingua. Supportati i default `@language` espliciti
+  nei contesti incorporati risolvibili localmente, senza fetch dei contesti
+  remoti. Nessun recupero dello storico; la migrazione amplia `posts.language`
+  a 255 caratteri.
 - **Database sanity**: pulizia di like, menzioni e notifiche rimasti senza
   oggetto di riferimento, anche con retention disabilitata. Il cron ordinario,
   anche via web, la esegue una volta al giorno in un giro distinto dalla

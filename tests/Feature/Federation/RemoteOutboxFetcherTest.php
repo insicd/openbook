@@ -133,7 +133,7 @@ class RemoteOutboxFetcherTest extends TestCase
         $remote = $this->createRemoteActor('silvano');
 
         $this->fakeOutbox($remote, [
-            $this->noteActivity($remote, ['content' => '<p>Primo post pubblico.</p>']),
+            $this->noteActivity($remote, ['content' => '<p>Primo post pubblico.</p>', 'contentMap' => ['it' => '<p>Primo post pubblico.</p>']]),
             $this->noteActivity($remote, ['content' => '<p>Secondo post, non elencato.</p>', 'to' => [], 'cc' => ['https://www.w3.org/ns/activitystreams#Public']]),
         ]);
 
@@ -143,7 +143,20 @@ class RemoteOutboxFetcherTest extends TestCase
         $response->assertSee('Primo post pubblico.');
         $response->assertSee('Secondo post, non elencato.');
         $this->assertSame(2, Post::query()->where('actor_id', $remote->id)->count());
+        $this->assertDatabaseHas('posts', ['actor_id' => $remote->id, 'body' => 'Primo post pubblico.', 'language' => 'it']);
         $this->assertNotNull($remote->fresh()->posts_fetched_at);
+    }
+
+    public function test_outbox_create_preserves_the_activity_language_default(): void
+    {
+        $viewer = $this->createFullAccount('languagereader');
+        $remote = $this->createRemoteActor('languageauthor');
+        $activity = $this->noteActivity($remote);
+        $activity['@context'] = ['https://www.w3.org/ns/activitystreams', ['@language' => 'yue']];
+        $this->fakeOutbox($remote, [$activity]);
+
+        $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
+        $this->assertDatabaseHas('posts', ['uri' => $activity['object']['id'], 'language' => 'yue']);
     }
 
     public function test_outbox_notes_copy_origin_like_and_share_totals_onto_cached_posts(): void

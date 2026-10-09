@@ -25,6 +25,7 @@ use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\NoteSerializer;
 use App\Federation\Support\ActivityPubTimestamp;
 use App\Federation\Support\ActivityPubUri;
+use App\Federation\Support\JsonLdLanguage;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -627,7 +628,11 @@ final class InboxActivityProcessor
             }
         }
 
-        [$targetUri, $embeddedNote] = $this->announceObject($activity['object'] ?? null);
+        [$targetUri, $embeddedNote] = $this->announceObject(
+            is_array($activity['object'] ?? null)
+                ? JsonLdLanguage::inherit($activity['object'], $activity)
+                : ($activity['object'] ?? null),
+        );
         $embeddedNote ??= $fetchedAnnouncedNote;
 
         $post = $targetUri !== null ? $this->objects->resolvePost($targetUri) : null;
@@ -949,6 +954,10 @@ final class InboxActivityProcessor
             return $this->eventIngester->ingest($eventDocument, $actor, 'Create', $inboxTarget) !== null
                 ? InboxItem::STATUS_PROCESSED
                 : InboxItem::STATUS_IGNORED;
+        }
+
+        if (is_array($object) && $resolvedDocument !== null) {
+            $resolvedDocument = JsonLdLanguage::inherit($resolvedDocument, $activity);
         }
 
         $note = $this->resolveCreateObject($resolvedDocument ?? $object);

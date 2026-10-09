@@ -93,6 +93,32 @@ essere consumati da altri server e non da browser:
   followers-only, diretti, remoti o di community private non vengono mai
   pubblicati verso un relay LitePub.
 
+### Lingua dei post remoti
+
+Openbook conserva in `posts.language` la lingua dichiarata del testo importato
+quando non è ambigua. Una `contentMap` con una sola chiave BCP 47 utilizzabile
+fornisce la lingua se il valore coincide esattamente con `content`, oppure se è
+il testo effettivamente scelto dal fallback in assenza di `content`. Mappe con
+più lingue, testi discordanti, tag malformati o indeterminati restano `NULL`;
+il sistema non analizza linguisticamente il testo. I tag sono normalizzati in
+minuscolo senza perdere regioni o alfabeti, con limite applicativo di 255 caratteri.
+
+In assenza di mappa, un `@language` esplicito nei contesti incorporati può
+etichettare `content`. Il contesto dell'oggetto può sostituire il default ereditato
+dall'attività; `null` lo azzera. Contesti remoti sconosciuti e ridefinizioni che
+richiedono espansione JSON-LD non vengono interpretati né scaricati: il default
+resta non utilizzabile fino a un reset esplicito. I documenti recuperati tramite
+HTTP hanno un contesto indipendente da quello dell'attività che li riferisce.
+
+La regola è condivisa da inbox, importazione outbox e refresh, inclusi i messaggi
+privati memorizzati come post. Gli aggiornamenti accettati possono cambiare o
+rimuovere la lingua; quelli obsoleti non la modificano. Non è previsto un backfill
+dello storico, né cambiano autorizzazione e criteri di rilevanza dei post.
+Questa fase salva il metadato; la visualizzazione nelle card è uno sprint successivo.
+
+La migrazione amplia `posts.language` da 8 a 255 caratteri. Il rollback viene
+rifiutato se esistono tag più lunghi di 8 caratteri, per evitare troncamenti.
+
 ### Federazione sociale (Fase 4)
 
 Le attivita' accettate nell'inbox (Fase 3) vengono ora **elaborate**, e le azioni
@@ -270,15 +296,19 @@ anche al calcolo delle tendenze, insieme a quelli dei post.
 Non serve un worker aggiuntivo: le attivita' degli eventi usano le code di
 inbox e delivery gia' elaborate da `openbook:cron`. Dopo aver distribuito
 il supporto a un nuovo tipo di oggetto in inbox, un amministratore puo'
-ritentare le righe conservate classificate come `ignored` con:
+ritentare le righe conservate classificate come `ignored` e riaccodare quelle
+`pending` prive di job, per esempio dopo un'importazione del database, con:
 
 ```bash
 php artisan openbook:reprocess-inbox
 ```
 
-Il comando rimette in coda ogni elemento ignored conservato ed e' sicuro
-da eseguire piu' di una volta; le attivita' non supportate tornano semplicemente
-nello stato ignored.
+Il comando accoda gli elementi `ignored` e `pending`, senza includere quelli
+`processed` o `failed`. Con la coda database, eseguire poi
+`php artisan openbook:process-inbox`; con `QUEUE_CONNECTION=sync` l'elaborazione
+avviene subito. Non è un dry-run e non deduplica job già presenti in coda: è
+un comando di recupero manuale. I job controllano lo stato `pending` prima
+dell'elaborazione; le attività non supportate tornano `ignored`.
 
 Non fanno ancora parte del prodotto maturo: un vero sistema di destinatari per i
 messaggi diretti (oltre menzioni), e tool avanzati di debug federazione (oltre al

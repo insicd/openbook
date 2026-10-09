@@ -39,7 +39,7 @@ class UpdatePostRequest extends FormRequest
                 Post::VISIBILITY_FOLLOWERS,
                 Post::VISIBILITY_DIRECT,
             ])],
-            'language' => ['nullable', 'string', 'max:8'],
+            'language' => ['nullable', 'string', 'max:255'],
             'images' => ['nullable', 'array', 'max:'.$maxNew],
             'images.*' => ['file', 'mimetypes:'.$allowedMimes, 'max:'.$maxKb],
             'alt_texts' => ['nullable', 'array'],
