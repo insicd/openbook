@@ -3,6 +3,7 @@
 namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
+use App\Domain\Profiles\ProfileFields;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Serialization\ActivitySerializer;
@@ -29,7 +30,7 @@ final class ProfileUpdater
     ) {}
 
     /**
-     * @param  array{display_name: string, bio?: string|null, links?: array<int, array{label?: string|null, url?: string|null}>|null}  $data
+     * @param  array{display_name: string, bio?: string|null, links?: array<int, array{label?: string|null, value?: string|null, url?: string|null}>|null}  $data
      */
     public function update(User $user, array $data, ?UploadedFile $avatar, ?UploadedFile $cover): void
     {
@@ -58,14 +59,14 @@ final class ProfileUpdater
     }
 
     /**
-     * @param  array<int, array{label?: string|null, url?: string|null}>  $links
-     * @return array<int, array{label: string, url: string}>
+     * @param  array<int, array{label?: string|null, value?: string|null, url?: string|null}>  $links
+     * @return array<int, array{label: string, value: string}>
      */
     private function normalizeLinks(array $links): array
     {
         return collect($links)
-            ->filter(fn (array $link) => filled($link['label'] ?? null) && filled($link['url'] ?? null))
-            ->map(fn (array $link) => ['label' => $link['label'], 'url' => $link['url']])
+            ->filter(fn (array $link) => filled($link['label'] ?? null) && filled(ProfileFields::value($link)))
+            ->map(fn (array $link) => ['label' => $link['label'], 'value' => ProfileFields::value($link)])
             ->values()
             ->all();
     }

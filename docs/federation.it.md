@@ -93,18 +93,29 @@ essere consumati da altri server e non da browser:
   followers-only, diretti, remoti o di community private non vengono mai
   pubblicati verso un relay LitePub.
 
-### Link dei profili locali
+### Campi dei profili locali
 
-I link già compilati nei profili locali vengono pubblicati nell'array
-`attachment` dell'Actor come campi `PropertyValue` (etichetta e link HTML), con
-la mappatura del contesto schema.org compatibile con Mastodon. La stessa
-rappresentazione è inclusa nelle attività `Update` del profilo inviate ai
-follower remoti. La rimozione di tutti i link pubblica un array vuoto, così le
-altre istanze possono rimuovere i campi dalla propria cache.
-I profili esistenti espongono i link al successivo recupero dell'Actor o
-aggiornamento del profilo; non viene avviato un invio massivo. Questo intervento
-non introduce importazione dei campi remoti, compilazione di campi testuali o
-verifica dei collegamenti in Openbook.
+L'editor del profilo distingue Link e Informazioni aggiuntive, con pulsanti
+per aggiungere/rimuovere righe e un limite condiviso di otto campi. Le etichette
+accettano fino a 50 caratteri, gli URL HTTP(S) fino a 255 e il testo semplice
+fino a 1.000. Alla riapertura dell'editor, i valori HTTP(S) validi compaiono nei
+Link; gli altri nelle Informazioni aggiuntive. Il salvataggio mantiene l'ordine
+interno delle sezioni, con i link per primi.
+
+I campi locali restano in `profiles.links`, come coppie `label`/`value`; i
+vecchi record `label`/`url` restano leggibili senza migrazione dei dati. Il
+profilo pubblico mostra etichette e valori sotto la bio. Il testo viene reso
+con escaping, senza interpretare Markdown o HTML.
+
+I campi sono pubblicati nell'array `attachment` dell'Actor come elementi
+`PropertyValue`, con la mappatura del contesto schema.org compatibile con
+Mastodon. I valori HTTP(S) diventano link HTML; gli altri diventano testo con
+escaping, preservando gli a capo. La stessa rappresentazione è inclusa nelle
+attività `Update` del profilo inviate ai follower remoti. La rimozione di tutti
+i campi pubblica un array vuoto, così le altre istanze possono svuotare la
+propria cache. I profili esistenti espongono i campi al successivo recupero
+dell'Actor o aggiornamento del profilo; non viene avviato un invio massivo.
+Pubblicare `rel="me"` non implica una verifica del collegamento in Openbook.
 
 ### Campi dei profili remoti
 
@@ -124,9 +135,10 @@ anche azzerandolo quando `attachment` è assente o non contiene campi validi.
 Questo vale sia per i normali refresh sia per le attività `Update` del profilo
 ricevute. Aprendo il profilo di un Actor remoto attivo viene verificata anche
 la cache del documento Actor, con il TTL ordinario (24 ore per impostazione
-predefinita); se il recupero fallisce, resta disponibile la copia in cache. I profili già in cache acquisiscono i campi al successivo refresh o
-Update ordinario, senza fetch massivi o richieste separate. I link locali
-restano in `profiles.links`, con editor e pubblicazione federata invariati.
+predefinita); se il recupero fallisce, resta disponibile la copia in cache.
+I profili già in cache acquisiscono i campi al successivo refresh o Update
+ordinario, senza fetch massivi o richieste separate. I campi locali restano in
+`profiles.links`, con editor e pubblicazione descritti sopra.
 
 ### Lingua dei post remoti
 

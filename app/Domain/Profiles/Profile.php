@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $bio
  * @property string|null $avatar_path
  * @property string|null $cover_path
- * @property array<int, array{label: string, url: string}>|null $links
+ * @property array<int, array{label: string, value?: string, url?: string}>|null $links
  */
 class Profile extends Model
 {

@@ -4,7 +4,7 @@ Aggiornato il 10 ottobre 2026.
 
 Stato: priorità e macrofasi concordate; subsprint proposti e dettagli dei
 requisiti da consolidare prima della rispettiva implementazione. Subsprint 1.1
-e 1.2 completati e verificati. Subsprint 1.3 non avviato.
+e 1.2 completati e verificati. Subsprint 1.3 completato e verificato.
 
 Branch: `improve_profile`, creato dalla testa locale di
 `multilanguage_support` al commit `8f42ea5`.
@@ -477,28 +477,68 @@ fetch autenticato, l'identità firmataria e la sua chiave pubblica devono
 essere raggiungibili dal server remoto. Nessuna configurazione o dato è
 stato modificato durante questa verifica.
 
-### Decisioni residue per il subsprint 1.3
+### Requisiti concordati per il subsprint 1.3
 
-- Definire limiti ed editor dei campi testuali locali, preservando i link già
-  presenti e la separazione concordata fra `profiles` e `actors`.
-- Definire il modello dei valori locali e la relativa pubblicazione, mantenendo
-  coerente il significato dei campi nelle due direzioni della federazione.
+- Due sezioni nell'editor: **Link** e **Informazioni aggiuntive**, entrambe
+  con coppie etichetta/valore e pulsanti per aggiungere e rimuovere righe.
+- Limite complessivo di **8 campi**, condiviso tra le sezioni. È una scelta
+  di prodotto Openbook, non un vincolo del protocollo.
+- La sezione Link accetta URL validi HTTP/HTTPS; Informazioni aggiuntive
+  accetta testo libero. I link già salvati vengono preservati.
+- Persistenza in un unico elenco sul profilo locale, senza duplicazioni in
+  `actors.links` e senza spostare `profiles` in `actors`.
+- Alla riapertura dell'editor, un valore che costituisce un URL valido
+  HTTP/HTTPS viene presentato nei Link; gli altri valori nelle Informazioni
+  aggiuntive. Non basta un controllo del solo prefisso `http`.
+- Un URL inserito nelle Informazioni aggiuntive viene quindi riclassificato
+  nei Link alla riapertura dell'editor.
+- Visualizzazione pubblica e serializzazione ActivityPub gestiscono coppie
+  etichetta/valore testuali o collegamenti. La separazione del form guida la
+  compilazione e non introduce due categorie federate distinte.
+
+Decisioni implementative: nuovi salvataggi in `profiles.links` come coppie
+`label`/`value`, con lettura compatibile dei vecchi `label`/`url` e senza
+migrazione massiva. Etichette fino a 50 caratteri, URL HTTP/HTTPS fino a 255,
+testo fino a 1.000. Al salvataggio, ordine dei Link seguito da quello delle
+Informazioni aggiuntive, mantenendo l'ordine interno di ciascuna sezione.
+Il tipo della sezione serve solo alla validazione del form, non è persistito.
+Valori testuali resi come testo semplice con escaping, senza Markdown o HTML.
+Le righe completamente vuote vengono ignorate; quelle parziali generano errori.
+
+### Esito del subsprint 1.3
+
+Editor dinamico implementato con due sezioni e limite condiviso, validazione
+server e lettura dei dati preesistenti. Il profilo pubblico, il documento Actor,
+le attività Update e la rappresentazione dei campi nell'API compatibile Mastodon
+usano i nuovi valori testuali e i link. Nessuna migrazione o nuova dipendenza
+di runtime. Documentazione bilingue e voce unitaria del changelog aggiornate.
+
+Verifiche: suite completa con 1.416 test, 6.243 asserzioni e nessun fallimento;
+due test dell'installer MySQL saltati per server di test non disponibile.
+Verifica browser sul partial Blade e sugli asset di produzione a 1280 e 375 px:
+aggiunta/rimozione, limite condiviso, indici univoci, valori preesistenti e
+assenza di overflow orizzontale. Test mirati coprono validazione, compatibilità,
+riapertura del form, escaping e pubblicazione federata.
+
+Il salvataggio del profilo pubblico torna alla pagina di visualizzazione,
+preservando il messaggio di conferma. Verifica successiva della modifica:
+27 test mirati e 105 asserzioni senza fallimenti.
 
 ## 8. Conservazione dei campi — decisione e unificazione futura
 
 ### 8.1 Decisione per il perimetro corrente
 
 La separazione attuale fra `profiles` e `actors` viene mantenuta. Il subsprint
-1.2 aggiungerà `actors.links` per conservare i campi aggiuntivi remoti e ne
-implementerà importazione, aggiornamento, rimozione e visualizzazione.
+1.2 ha aggiunto `actors.links` per conservare i campi aggiuntivi remoti e ne
+ha implementato importazione, aggiornamento, rimozione e visualizzazione.
 
 - I link locali restano autorevoli in `profiles.links`, con i flussi di
-  compilazione e pubblicazione completati nel subsprint 1.1.
+  pubblicazione completati nel subsprint 1.1 e l’editor esteso nel subsprint 1.3.
 - Non vengono copiati o sincronizzati su `actors.links` i link locali.
 - Nome, bio, avatar e copertina mantengono persistenza e comportamento attuali.
 - Il nome della nuova colonna è `actors.links`; la struttura dei valori remoti,
-  testuali e collegamenti, va definita nel subsprint 1.2.
-- L'estensione locale ai campi testuali resta prevista nel subsprint 1.3 sul
+  testuali e collegamenti, è costituita da coppie `label`/`value`.
+- L'estensione locale ai campi testuali è completata nel subsprint 1.3 sul
   modello locale, senza dipendere dall'unificazione delle tabelle.
 
 Lo spostamento di `profiles` in `actors` è rinviato a un task dedicato e non

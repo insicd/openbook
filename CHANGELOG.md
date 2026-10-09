@@ -19,10 +19,11 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Campi dei profili federati**: i collegamenti dei profili locali vengono
-  pubblicati anche alle altre istanze; i campi testuali e i link dei profili
-  remoti vengono importati e mostrati sotto la bio. Entrambi i flussi gestiscono
-  modifiche e rimozioni.
+- **Campi dei profili federati**: i profili locali permettono di compilare
+  fino a 8 link e informazioni aggiuntive, pubblicati anche alle altre istanze.
+  I campi testuali e i link dei profili remoti vengono importati e mostrati
+  sotto la bio. Entrambi i flussi gestiscono modifiche e rimozioni. Il salvataggio
+  del profilo torna alla sua visualizzazione con un messaggio di conferma.
 - **Lingua del post originale**: le card mostrano accanto alla data la lingua
   dichiarata dall'autore, con nome localizzato e codice di fallback.
   L'informazione viene importata e aggiornata quando attribuibile senza

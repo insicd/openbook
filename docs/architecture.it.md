@@ -102,8 +102,10 @@ dell'account (`profiles.avatar_path`/`cover_path`/`bio`/`links`,
 /`discoverable`); la pagina **Impostazioni** (`/impostazioni`, link nel menu utente e
 pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
 
-- **Profilo pubblico**: nome visualizzato, biografia (max 500 caratteri), fino a 4 link
-  con etichetta, avatar e immagine di copertina. Il caricamento delle immagini
+- **Profilo pubblico**: nome visualizzato, biografia (max 500 caratteri), fino a 8 campi
+  con etichetta condivisi fra Link e Informazioni aggiuntive, avatar e immagine
+  di copertina. Il salvataggio del profilo pubblico torna alla pagina di
+  visualizzazione con un messaggio di conferma. Il caricamento delle immagini
   (`ProfileImageUploader`) valida il tipo effettivo del file (mai la sola estensione),
   rimuove i metadati EXIF e ridimensiona con GD quando disponibile (avatar max 512px,
   copertina max 1600px sul lato piu' lungo), riusando la stessa logica di base gia'

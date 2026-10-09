@@ -10,6 +10,11 @@ hosting requirements. `BROWSER_TYPE` (default `chromium`) and
 `BROWSER_EXECUTABLE_PATH` can select an existing browser. This check complements
 PHPUnit and does not replace a test on an actual iOS installed web app.
 
+For the profile editor, `node tests/Browser/profile-fields.cjs` checks the
+production Blade partial, JS and CSS with legacy values, add/remove buttons,
+the shared eight-field limit and desktop/mobile layouts. It also requires PHP
+and uses the same optional browser tooling described above.
+
 The project uses PHPUnit. The suite runs by default on in-memory SQLite (see
 `phpunit.xml`), so it does not need a MySQL database to run:
 
@@ -82,7 +87,7 @@ discover, profile photo roll). In particular:
   state per row, redirect of a remote Actor's list when it actually corresponds
   to a local account, authentication required for a remote Actor's list.
 - the Settings page (`SettingsTest`): authentication required, update of
-  name/biography/links with synchronization of the name on the federated Actor,
+  name/biography/profile fields with synchronization of the name on the federated Actor,
   upload and replacement of the avatar (with removal of the previous file),
   rejection of a non-image file, change of interface language actually applied
   by the middleware, propagation of default visibility to the composer,

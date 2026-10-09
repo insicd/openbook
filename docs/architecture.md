@@ -102,8 +102,10 @@ customization (`profiles.avatar_path`/`cover_path`/`bio`/`links`,
 /`discoverable`); the **Settings** page (`/impostazioni`, link in the user menu
 and "Edit profile" button on your own profile) makes them editable:
 
-- **Public profile**: display name, biography (max 500 characters), up to 4
-  labeled links, avatar and cover image. Image upload (`ProfileImageUploader`)
+- **Public profile**: display name, biography (max 500 characters), up to 8
+  labeled fields shared between Link and Additional information, avatar and
+  cover image. Saving the public profile returns to its display page with a
+  confirmation message. Image upload (`ProfileImageUploader`)
   validates the file's actual type (never the extension alone), strips EXIF
   metadata, and resizes with GD when available (avatar max 512px, cover max
   1600px on the longest side), reusing the same base logic already used for

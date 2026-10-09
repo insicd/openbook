@@ -103,16 +103,27 @@ browsers:
   apply. Unlisted, followers-only, direct, remote and private-community content
   is never published to a LitePub relay.
 
-### Local profile links
+### Local profile fields
 
-The links already entered in local profiles are published in the Actor's
-`attachment` array as `PropertyValue` fields (label and HTML link), using the
-schema.org context mapping compatible with Mastodon. The same representation
-is included in profile `Update` activities sent to remote followers. Removing
-all links publishes an empty array so that peers can clear their cached fields.
-Existing profiles expose their links on the next Actor fetch or profile update;
-no bulk delivery is triggered. This does not add remote profile-field import,
-free-text field editing, or link verification in Openbook.
+The profile editor has separate Link and Additional information sections with
+add/remove buttons and a shared limit of eight fields. Labels accept up to 50
+characters, HTTP(S) URLs up to 255, and plain text up to 1,000. When reopening
+the editor, valid HTTP(S) values appear under Link; other values appear under
+Additional information. Saving preserves each section's order, with links first.
+
+Local fields remain in `profiles.links`, as `label`/`value` pairs; existing
+`label`/`url` records remain readable without a data migration. The public
+profile shows labels and values below the biography. Plain text is escaped,
+without interpreting Markdown or HTML.
+
+Fields are published in the Actor's `attachment` array as `PropertyValue`
+entries, using the schema.org context mapping compatible with Mastodon.
+HTTP(S) values become HTML links; other values become escaped text, preserving
+line breaks. The same representation is included in profile `Update`
+activities sent to remote followers. Removing all fields publishes an empty
+array so peers can clear their cached fields. Existing profiles expose their
+fields on the next Actor fetch or profile update; no bulk delivery is triggered.
+Publishing `rel="me"` does not mean Openbook has verified the link.
 
 ### Remote profile fields
 
@@ -131,10 +142,9 @@ when `attachment` is absent or has no usable fields. This applies both to
 ordinary Actor refreshes and incoming profile `Update` activities. Visiting
 an active remote profile also checks the Actor document cache, using its
 normal TTL (24 hours by default); a failed fetch keeps the cached profile
-available. Existing
-cached profiles acquire fields on their next normal refresh or Update;
-there is no bulk fetch or separate field request. Local links remain in
-`profiles.links`, with their existing editor and federation behavior.
+available. Existing cached profiles acquire fields on their next normal
+refresh or Update; there is no bulk fetch or separate field request. Local fields remain in
+`profiles.links`, with the editor and publication behavior described above.
 
 ### Remote post language
 

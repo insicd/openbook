@@ -1305,17 +1305,25 @@ html.ob-compose-modal-open {
 /* Impostazioni */
 
 .ob-settings-link-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
+  align-items: start;
 }
 
-.ob-settings-link-row input[type='text'] {
-  flex: 0 0 35%;
+.ob-settings-link-row input {
+  min-width: 0;
 }
 
-.ob-settings-link-row input[type='url'] {
-  flex: 1;
+@media (max-width: 600px) {
+  .ob-settings-link-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ob-settings-link-row [data-profile-field-label] {
+    grid-column: 1 / -1;
+  }
 }
 
 .ob-settings-avatar-picker {
@@ -1527,6 +1535,10 @@ body.ob-css-preview #ob-compose-modal {
   gap: 0.75rem;
   padding: 0.4rem 0;
   overflow-wrap: anywhere;
+}
+
+.ob-profile-field-text {
+  white-space: pre-wrap;
 }
 
 .ob-profile-fields dt {

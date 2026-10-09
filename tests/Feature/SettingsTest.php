@@ -47,12 +47,16 @@ class SettingsTest extends TestCase
             ],
         ]);
 
-        $response->assertRedirect(route('settings.edit'));
+        $response->assertRedirect(route('profile.show', $user->username));
+
+        $response->assertSessionHas('status', __('openbook.settings.profile_updated'));
+        $this->get(route('profile.show', $user->username))->assertOk()
+            ->assertSee(__('openbook.settings.profile_updated'));
 
         $user->profile->refresh();
         $this->assertSame('Alice Wonderland', $user->profile->display_name);
         $this->assertSame('Curiouser and curiouser.', $user->profile->bio);
-        $this->assertSame([['label' => 'Sito', 'url' => 'https://example.test']], $user->profile->links);
+        $this->assertSame([['label' => 'Sito', 'value' => 'https://example.test']], $user->profile->links);
     }
 
     public function test_updating_the_display_name_also_updates_the_federated_actor_name(): void
@@ -98,7 +102,7 @@ class SettingsTest extends TestCase
         $this->actingAs($user)->put(route('settings.profile.update'), [
             'display_name' => 'Alice',
             'links' => [['label' => 'Sito', 'url' => 'https://new.example.test']],
-        ])->assertSessionHasNoErrors()->assertRedirect(route('settings.edit'));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('profile.show', $user->username));
 
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Update'
             && $job->activity['object']['attachment'] === [[
@@ -111,7 +115,7 @@ class SettingsTest extends TestCase
         $this->actingAs($user->fresh())->put(route('settings.profile.update'), [
             'display_name' => 'Alice',
             'links' => [],
-        ])->assertSessionHasNoErrors()->assertRedirect(route('settings.edit'));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('profile.show', $user->username));
 
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Update'
             && $job->activity['object']['attachment'] === []);

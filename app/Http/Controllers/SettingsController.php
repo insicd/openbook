@@ -45,7 +45,7 @@ class SettingsController extends Controller
             $request->file('cover'),
         );
 
-        return redirect()->route('settings.edit')->with('status', __('openbook.settings.profile_updated'));
+        return redirect()->route('profile.show', $request->user()->username)->with('status', __('openbook.settings.profile_updated'));
     }
 
     public function updateAccount(UpdateAccountRequest $request): RedirectResponse

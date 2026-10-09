@@ -54,24 +54,7 @@
                 @enderror
             </div>
 
-            <div class="ob-field">
-                <label>{{ __('openbook.settings.links_label') }}</label>
-                @php $existingLinks = old('links', $viewer->profile?->links ?: []); @endphp
-                @for ($i = 0; $i < 4; $i++)
-                    <div class="ob-settings-link-row">
-                        <input type="text" name="links[{{ $i }}][label]" maxlength="50"
-                            placeholder="{{ __('openbook.settings.link_label_placeholder') }}"
-                            value="{{ $existingLinks[$i]['label'] ?? '' }}">
-                        <input type="url" name="links[{{ $i }}][url]" maxlength="255"
-                            placeholder="https://..."
-                            value="{{ $existingLinks[$i]['url'] ?? '' }}">
-                    </div>
-                @endfor
-                <p class="ob-field__help">{{ __('openbook.settings.links_help') }}</p>
-                @error('links.*.url')
-                    <p class="ob-field__error">{{ $message }}</p>
-                @enderror
-            </div>
+            @include('settings._profile_fields')
 
             <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.settings.save') }}</button>
         </form>
@@ -219,5 +202,6 @@
             previewImage('settings-cover-input', 'settings-cover-preview', 'ob-settings-cover-preview');
         })();
     </script>
+    <script src="{{ \App\Support\Assets::url('assets/js/profile-fields.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/push-notifications.js') }}" defer></script>
 @endsection

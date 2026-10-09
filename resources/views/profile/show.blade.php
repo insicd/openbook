@@ -37,11 +37,21 @@
             @endif
 
             @if (! empty($profileUser->profile?->links))
-                <ul aria-label="Collegamenti">
-                    @foreach ($profileUser->profile->links as $link)
-                        <li><a href="{{ $link['url'] }}" rel="me nofollow ugc">{{ $link['label'] ?? $link['url'] }}</a></li>
+                <dl class="ob-profile-fields" aria-label="{{ __('openbook.profile.additional_fields') }}">
+                    @foreach ($profileUser->profile->links as $field)
+                        @php $value = \App\Domain\Profiles\ProfileFields::value($field); @endphp
+                        <div class="ob-profile-fields__row">
+                            <dt>{{ $field['label'] }}</dt>
+                            <dd>
+                                @if (\App\Domain\Profiles\ProfileFields::isLink($value))
+                                    <a href="{{ $value }}" rel="me nofollow ugc">{{ $value }}</a>
+                                @else
+                                    <span class="ob-profile-field-text">{{ $value }}</span>
+                                @endif
+                            </dd>
+                        </div>
                     @endforeach
-                </ul>
+                </dl>
             @endif
 
             <div class="ob-profile-toolbar">
