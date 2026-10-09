@@ -681,12 +681,18 @@ final class RemoteActorResolver
                 ['public_key' => (string) $document['publicKey']['publicKeyPem']]
             );
 
+            $featured = $this->actorCollectionUrl($document, 'featured');
+            if ($actor->endpoints?->featured !== $featured) {
+                $actor->forceFill(['featured_post_ids' => null, 'featured_fetched_at' => null])->saveQuietly();
+            }
+
             ActorEndpoint::query()->updateOrCreate(
                 ['actor_id' => $actor->id],
                 [
                     'inbox' => isset($document['inbox']) ? (string) $document['inbox'] : null,
                     'outbox' => isset($document['outbox']) ? (string) $document['outbox'] : null,
                     'events' => $this->actorCollectionUrl($document, 'events'),
+                    'featured' => $featured,
                     'followers' => isset($document['followers']) ? (string) $document['followers'] : null,
                     'following' => isset($document['following']) ? (string) $document['following'] : null,
                     'shared_inbox' => isset($document['endpoints']['sharedInbox']) ? (string) $document['endpoints']['sharedInbox'] : null,
@@ -700,7 +706,10 @@ final class RemoteActorResolver
     /** @param array<string, mixed> $document */
     private function actorCollectionUrl(array $document, string $name): ?string
     {
-        $value = $document[$name] ?? ($document['endpoints'][$name] ?? null);
+        $value = $document[$name] ?? $document['http://joinmastodon.org/ns#'.$name] ?? ($document['endpoints'][$name] ?? null);
+        if (is_array($value)) {
+            $value = $value['id'] ?? $value['@id'] ?? null;
+        }
 
         if (! is_string($value) || filter_var($value, FILTER_VALIDATE_URL) === false) {
             return null;

@@ -181,6 +181,31 @@ moderazione locale continuano ad applicarsi indipendentemente. La gestione dei
 profili commemorativi locali è fuori perimetro. La nuova colonna boolean
 richiede il consueto `php artisan migrate`, senza nuovi servizi o worker.
 
+### Post fissati remoti
+
+Il campo Actor `featured` identifica la collection dei post fissati. Openbook
+conserva l'endpoint e una piccola cache ordinata dei post importati; la pagina
+profilo mostra «Post fissati» fra «Post» e «Foto e video» soltanto se almeno un
+post è visibile al lettore. I post usano le card ordinarie e non vengono
+anteposti alla timeline.
+
+Il recupero avviene alla visita del profilo, con richieste HTTP sicure e firmate
+quando disponibili, usando `OPENBOOK_POSTS_CACHE_TTL_HOURS` (default 6 ore).
+Si leggono al massimo 3 documenti di collection e 20 elementi; collection inline,
+pagine `first`/`next`, `items`/`orderedItems` e riferimenti URI sono supportati.
+Si importano gli originali pubblici/non elencati nei tipi post già supportati,
+con controllo dell'autore e senza notifiche. Risposte, oggetti privati e post
+cancellati non vengono ricreati; valgono anche i controlli delle community private.
+
+Un elenco vuoto valido rimuove i fissati dalla scheda, senza cancellare i post.
+Errori o paginazioni incomplete preservano l'ultimo elenco valido; il tentativo
+viene registrato anche in caso di errore. Add/Remove ricevuti dal firmatario
+verso la propria collection invalidano la cache per la visita successiva.
+Cambio o rimozione dell'endpoint nell'Actor azzerano l'elenco precedente.
+I profili già in cache scoprono l'endpoint al successivo refresh Actor ordinario.
+La migrazione richiede `php artisan migrate`; non occorrono nuovi servizi.
+La gestione dei fissati dei profili locali resta fuori perimetro.
+
 ### Lingua dei post remoti
 
 Openbook conserva in `posts.language` la lingua dichiarata del testo importato

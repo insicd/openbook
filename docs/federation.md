@@ -184,6 +184,31 @@ restrictions still apply independently. Creating memorial profiles for local
 accounts is outside this feature. The added boolean column requires the usual
 `php artisan migrate` and adds no service or worker requirement.
 
+### Remote pinned posts
+
+The Actor's `featured` field identifies its pinned-post collection. Openbook
+stores the endpoint and a small ordered snapshot of imported posts. A “Pinned
+posts” tab appears between “Posts” and “Photos and videos” only when at least one
+post is visible to the viewer. It uses ordinary post cards and does not prepend
+pins to the timeline.
+
+The collection is fetched on profile visits using safe HTTP and signed requests
+when available, with `OPENBOOK_POSTS_CACHE_TTL_HOURS` (default 6 hours).
+At most 3 collection documents and 20 entries are read. Inline collections,
+`first`/`next` pages, `items`/`orderedItems` and URI references are supported.
+Only original public/unlisted posts of already-supported types are imported,
+checking authorship and without notifications. Replies, private objects and
+deleted posts are not recreated; private-community visibility still applies.
+
+A valid empty snapshot removes pins from the tab without deleting the posts.
+Errors or incomplete pagination preserve the last valid snapshot; failed
+attempts are cached too. Incoming Add/Remove activities by the signer targeting
+its own collection invalidate the cache for the next visit. Changing or removing
+the Actor endpoint clears the previous snapshot. Existing cached profiles
+discover the endpoint on their next ordinary Actor refresh.
+Run `php artisan migrate` for the schema change; no new service is needed.
+Managing pins for local profiles remains outside this feature.
+
 ### Remote post language
 
 Openbook stores the declared language of the imported text in `posts.language`

@@ -19,6 +19,9 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Post fissati remoti**: nuova scheda «Post fissati» nei profili remoti,
+  con i contenuti scelti dall'autore nel loro ordine, senza alterarli nella
+  timeline ordinaria. La scheda compare solo quando ci sono post visibili.
 - **Profili commemorativi remoti**: indicazione discreta nel profilo quando
   dichiarato commemorativo dal server di origine, senza limitare follow e
   interazioni.

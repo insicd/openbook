@@ -205,6 +205,7 @@ return [
         'memorial_badge' => 'Memorial profile',
         'remote_suspended_notice' => 'Account suspended on its originating server.',
         'suspended_notice' => 'This account has been suspended by the instance staff. The profile is temporarily unavailable.',
+        'no_featured_posts' => 'No pinned posts available.',
         'pinned_posts' => 'Pinned posts',
         'no_posts_yet' => 'There are no posts to show yet.',
         'tabs_aria' => 'Profile sections',

@@ -8,6 +8,12 @@
        class="ob-profile-tabs__tab {{ $activeTab === 'posts' ? 'is-active' : '' }}"
        role="tab"
        aria-selected="{{ $activeTab === 'posts' ? 'true' : 'false' }}">{{ __('openbook.profile.tab_posts') }}</a>
+    @if ($hasFeaturedPosts ?? false)
+        <a href="{{ $featuredUrl }}"
+           class="ob-profile-tabs__tab {{ $activeTab === 'featured' ? 'is-active' : '' }}"
+           role="tab"
+           aria-selected="{{ $activeTab === 'featured' ? 'true' : 'false' }}">{{ __('openbook.profile.pinned_posts') }}</a>
+    @endif
     <a href="{{ $photosUrl }}"
        class="ob-profile-tabs__tab {{ $activeTab === 'photos' ? 'is-active' : '' }}"
        role="tab"

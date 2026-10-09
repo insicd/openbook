@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Application\Queries\ActorActivityQuery;
 use App\Application\Queries\ActorEventsQuery;
+use App\Application\Queries\ActorFeaturedPostsQuery;
 use App\Application\Queries\ActorMediaQuery;
 use App\Application\Queries\FeedCursor;
+use App\Application\Queries\FeedPage;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
 use App\Application\Services\FollowManager;
@@ -15,6 +17,7 @@ use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
+use App\Federation\Outbox\RemoteFeaturedPostsFetcher;
 use App\Federation\Outbox\RemoteOutboxFetcher;
 use App\Federation\SocialGraph\RemoteFollowCollectionsFetcher;
 use App\Http\Controllers\Concerns\RendersFollowLists;
@@ -44,11 +47,18 @@ class ActorProfileController extends Controller
         private readonly FeedImporter $feedImporter,
         private readonly QuotedActorResolver $quotedActorResolver,
         private readonly RemoteActorResolver $actorResolver,
+        private readonly RemoteFeaturedPostsFetcher $featuredFetcher,
+        private readonly ActorFeaturedPostsQuery $featuredQuery,
     ) {}
 
     public function show(Actor $actor, Request $request): View|RedirectResponse
     {
         return $this->renderRemoteProfile($actor, 'posts', $request);
+    }
+
+    public function featured(Actor $actor, Request $request): View|RedirectResponse
+    {
+        return $this->renderRemoteProfile($actor, 'featured', $request);
     }
 
     public function photos(Actor $actor, Request $request): View|RedirectResponse
@@ -149,6 +159,12 @@ class ActorProfileController extends Controller
             report($exception);
         }
 
+        try {
+            $this->featuredFetcher->refreshIfStale($actor);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+
         $actor = $actor->fresh() ?? $actor;
         $actor->loadMissing('feedSource');
 
@@ -169,13 +185,16 @@ class ActorProfileController extends Controller
             $autoAnnounce = $isFollowing && $this->followManager->autoAnnounces($viewerActor, $actor);
         }
 
+        $featuredPosts = $this->featuredQuery->forActor($actor, $viewerActor);
         $posts = null;
         $media = null;
         $activity = null;
         $events = null;
         $eventsArchive = $request->boolean('archivio');
 
-        if ($activeTab === 'photos') {
+        if ($activeTab === 'featured') {
+            $posts = new FeedPage($featuredPosts, null);
+        } elseif ($activeTab === 'photos') {
             $media = $this->mediaQuery->forActor($actor, $viewerActor);
         } elseif ($activeTab === 'activity') {
             $activity = $this->activityQuery->forActor($actor, $viewerActor, $request);
@@ -190,6 +209,7 @@ class ActorProfileController extends Controller
             'profileActor' => $actor,
             'activeTab' => $activeTab,
             'posts' => $posts,
+            'hasFeaturedPosts' => $featuredPosts->isNotEmpty(),
             'media' => $media,
             'activity' => $activity,
             'events' => $events,
@@ -199,7 +219,7 @@ class ActorProfileController extends Controller
             'isFollowing' => $isFollowing,
             'hasPendingRequest' => $hasPendingRequest,
             'autoAnnounce' => $autoAnnounce,
-            'emptyPostsMessage' => $this->emptyPostsMessage($actor, $isFollowing, $hasPendingRequest),
+            'emptyPostsMessage' => $activeTab === 'featured' ? __('openbook.profile.no_featured_posts') : $this->emptyPostsMessage($actor, $isFollowing, $hasPendingRequest),
         ]);
     }
 

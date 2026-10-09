@@ -536,7 +536,7 @@ final class RemoteOutboxFetcher
     /**
      * @param  array<string, mixed>  $note
      */
-    private function upsertPublicPost(array $note, Actor $author): ?Post
+    public function upsertPublicPost(array $note, Actor $author): ?Post
     {
         $noteUri = $note['id'] ?? null;
 

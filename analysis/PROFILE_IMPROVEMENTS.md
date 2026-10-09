@@ -5,7 +5,7 @@ Aggiornato il 10 ottobre 2026.
 Stato: priorità e macrofasi concordate; subsprint proposti e dettagli dei
 requisiti da consolidare prima della rispettiva implementazione. Subsprint 1.1
 e 1.2 completati e verificati. Subsprint 1.3 completato e verificato.
-Subsprint 2.1 e 2.2 completati e verificati.
+Subsprint 2.1, 2.2, 2.3 e 2.4 completati e verificati.
 
 Branch: `improve_profile`, creato dalla testa locale di
 `multilanguage_support` al commit `8f42ea5`.
@@ -398,6 +398,59 @@ like, risposte e permessi dei messaggi. Test mirati eseguiti: `MemorialProfileTe
 269 asserzioni, nessun fallimento. Pint e controllo diff superati. Suite
 completa intenzionalmente rinviata alla review finale come concordato.
 Documentazione di federazione italiano/inglese e changelog aggiornati.
+
+### Decisioni consolidate per i subsprint 2.3 e 2.4
+
+Il profilo remoto presenta i tab «Post», «Post fissati», «Foto e video» in
+quest'ordine, seguiti dagli altri tab esistenti. Il tab dei fissati compare
+soltanto quando almeno un post importato risulta visibile al lettore; la timeline
+ordinaria mantiene l'ordinamento attuale. Accesso diretto a una scheda vuota:
+stato vuoto, senza contenuti riservati.
+
+L'endpoint `featured` viene conservato tra gli endpoint Actor. Una cache JSON
+limitata conserva in `actors` gli identificativi dei post nell'ordine ricevuto,
+con timestamp dell'ultimo tentativo. Non occorre una relazione interrogabile
+trasversalmente: l'elenco è piccolo e appartiene soltanto al profilo. Il recupero
+riusa HTTP sicuro, firma federata e importazione dei post dell'outbox, senza
+notifiche o nuove dipendenze. TTL uguale alla cache dei post (default 6 ore),
+limite 20 elementi e 3 pagine per visita. Gli Add/Remove autenticati verso la
+collection dichiarata invalidano la cache; un cambio o rimozione dell'endpoint
+la azzera. Errori di collection preservano l'ultimo elenco valido.
+
+Sono importabili gli originali pubblici/non elencati dell'autore, nei tipi già
+supportati; risposte, contenuti privati, oggetti di altri autori e post cancellati
+non vengono trasformati in nuovi post. La lettura applica inoltre le regole
+ordinarie di visibilità, incluse le community private. Rimozioni dalla collection
+non cancellano il post dalla cache generale. Collection inline, riferimenti URI,
+`items`/`orderedItems` e pagine `first`/`next` vengono gestiti entro i limiti;
+una collection più ampia viene rappresentata dai primi 20 elementi. La barra
+dei tab conserva lo scorrimento orizzontale; l'allineamento sicuro evita di
+tagliare il primo tab quando lo spazio mobile non basta.
+
+### Esito dei subsprint 2.3 e 2.4
+
+Implementati endpoint `featured`, cache ordinata degli identificativi dei post,
+recupero limitato e tab dedicato con le card esistenti. La query applica visibilità,
+esclusione dei messaggi privati e controllo dell'autore; l'ordinamento della
+collection viene ricostruito in memoria su al massimo 20 post. Add/Remove ricevuti
+invalidano soltanto la collection del firmatario. Nessuna modifica ai fissati
+locali o al criterio di ordinamento della timeline.
+
+Migrazione applicata sul MySQL locale e verificata dai test SQLite. EXPLAIN su
+20 post reali: range sulla chiave primaria `posts`, lookup sugli indici esistenti
+`communities.PRIMARY`, `follows_follower_id_following_id_unique` e
+`mentions_target_actor_unique`; non sono necessari nuovi indici. Prova reale:
+refresh del profilo `gubi@sociale.network` e importazione di 5 post fissati dalla
+collection dichiarata. Verifica visiva interattiva non completata: il browser
+integrato richiede login e non è disponibile accesso al browser nativo.
+
+Test mirati: `RemoteFeaturedPostsTest`, `RemoteOutboxFetcherTest`,
+`RemoteActorResolverTest`, `ActorProfileTest`, `RemoteSuspensionTest`,
+`InboxActivityProcessorTest` e `ProfileTest`: 135 test, 598 asserzioni, superati.
+Nove test nuovi coprono ordine, pagine/riferimenti, limiti, firma, TTL/errori,
+rimozioni, endpoint, invalidazione autenticata, visibilità e community private.
+Suite completa rinviata alla review finale. Documentazione bilingue e changelog
+aggiornati.
 
 ### Macrofase 3 — Verifica dei collegamenti reciproci (P07)
 

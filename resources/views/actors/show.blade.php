@@ -137,6 +137,8 @@
                 'showActivityTab' => ! $isGroup && ! $isFeed,
                 'postsUrl' => route('actors.show', $profileActor),
                 'activityUrl' => route('actors.activity', $profileActor),
+                'hasFeaturedPosts' => $hasFeaturedPosts ?? false,
+                'featuredUrl' => route('actors.featured', $profileActor),
                 'photosUrl' => route('actors.photos', $profileActor),
                 'eventsUrl' => route('actors.events', $profileActor),
             ])

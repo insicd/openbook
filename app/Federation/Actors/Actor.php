@@ -52,6 +52,8 @@ use Illuminate\Support\HtmlString;
  * @property string $status
  * @property Carbon|null $deleted_at
  * @property Carbon|null $last_fetched_at
+ * @property list<string>|null $featured_post_ids
+ * @property Carbon|null $featured_fetched_at
  * @property Carbon|null $posts_fetched_at
  * @property Carbon|null $published_at
  * @property int|null $followers_count
@@ -103,6 +105,8 @@ class Actor extends Model
         'status',
         'deleted_at',
         'last_fetched_at',
+        'featured_post_ids',
+        'featured_fetched_at',
         'posts_fetched_at',
         'published_at',
         'followers_count',
@@ -126,6 +130,8 @@ class Actor extends Model
             'discoverable' => 'boolean',
             'indexable' => 'boolean',
             'last_fetched_at' => 'datetime',
+            'featured_post_ids' => 'array',
+            'featured_fetched_at' => 'datetime',
             'posts_fetched_at' => 'datetime',
             'published_at' => 'datetime',
             'deleted_at' => 'datetime',

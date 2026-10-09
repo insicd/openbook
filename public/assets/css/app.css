@@ -2775,7 +2775,8 @@ a.ob-post__menu-item {
 
 .ob-profile-tabs {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
+  justify-content: safe center;
   align-items: stretch;
   gap: 0.25rem;
   margin-top: 1.25rem;

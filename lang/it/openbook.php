@@ -205,6 +205,7 @@ return [
         'memorial_badge' => 'Profilo commemorativo',
         'remote_suspended_notice' => 'Account sospeso sul server di origine.',
         'suspended_notice' => 'Questo account è stato sospeso dallo staff dell\'istanza. Il profilo è temporaneamente non disponibile.',
+        'no_featured_posts' => 'Nessun post fissato disponibile.',
         'pinned_posts' => 'Post fissati',
         'no_posts_yet' => 'Non ci sono ancora post da mostrare.',
         'tabs_aria' => 'Sezioni del profilo',
