@@ -9,6 +9,7 @@
     $threadParentId = $threadParentId ?? null;
     $focusedId = $focusedId ?? null;
     $showReplyForm = $showReplyForm ?? true;
+    $canInteract = ! $author?->isRemotelySuspended() && ! $post->actor?->isRemotelySuspended();
     $isFocused = $focusedId !== null && $focusedId === $comment->id;
     $parent = $comment->parent;
     $showInReplyTo = $parent !== null
@@ -90,7 +91,7 @@
         @endif
 
         <div class="ob-post__actions">
-            @auth
+            @if (auth()->check() && $canInteract)
                 <form
                     method="POST"
                     action="{{ $comment->liked_by_viewer ? route('comments.unlike', $comment) : route('comments.like', $comment) }}"
@@ -130,11 +131,11 @@
                     <x-icon name="heart" />
                     <span class="ob-post__action-count">{{ $comment->likes_count }}</span>
                 </span>
-            @endauth
+            @endif
         </div>
 
         @auth
-            @if ($showReplyForm)
+            @if ($showReplyForm && $canInteract)
                 <div style="margin-top:0.6rem">
                     @include('composer.form', [
                         'mode' => 'reply',

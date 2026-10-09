@@ -50,6 +50,8 @@ final class CommentComposer
         array $images = [],
         array $altTexts = [],
     ): Comment {
+        RemoteInteractionGuard::assertAllowed($author, $post->actor, $parent?->actor);
+
         if ($parent !== null && $parent->post_id !== $post->id) {
             throw new InvalidArgumentException('Il commento padre non appartiene a questo post.');
         }

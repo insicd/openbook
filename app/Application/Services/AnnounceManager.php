@@ -39,6 +39,8 @@ final class AnnounceManager
         ?Carbon $occurredAt = null,
         bool $direct = true,
     ): Announce {
+        RemoteInteractionGuard::assertAllowed($actor, $post->actor);
+
         $upgradedToDirect = false;
 
         $announce = DB::transaction(function () use ($actor, $post, $notify, $occurredAt, $direct, &$upgradedToDirect) {

@@ -17,7 +17,7 @@
             <div class="ob-post__handle">{{ '@'.$quotedActor->handle() }}</div>
         </div>
     </a>
-    @if ($showFollow && $viewerActor && ! $isSelf && ! $alreadyFollowing)
+    @if ($showFollow && $viewerActor && ! $isSelf && ! $alreadyFollowing && ! $quotedActor->isRemotelySuspended())
         <form method="POST" action="{{ $followAction }}">
             @csrf
             <button type="submit" class="ob-btn ob-btn--primary ob-btn--small">{{ __('openbook.follow.follow') }}</button>

@@ -2,7 +2,7 @@
     $actor = $actor ?? null;
     $autoAnnounce = $autoAnnounce ?? false;
     $showAutoAnnounce = (bool) ($showAutoAnnounce ?? false);
-    $showShareToUser = $actor !== null && $actor->isPerson() && $actor->isActive();
+    $showShareToUser = $actor !== null && $actor->isPerson() && $actor->isActive() && ! $actor->isRemotelySuspended();
     $shareUrl = null;
 
     if ($showShareToUser) {

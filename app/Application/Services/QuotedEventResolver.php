@@ -13,11 +13,13 @@ final class QuotedEventResolver
             return null;
         }
 
-        return Event::query()
+        $event = Event::query()
             ->with(['actor.user.profile', 'location', 'media.thumbnail', 'attributions.user.profile'])
             ->whereKey($eventId)
             ->where('status', '!=', Event::STATUS_DELETED)
             ->visibleTo($viewer)
             ->first();
+
+        return $event?->actor?->isRemotelySuspended() ? null : $event;
     }
 }

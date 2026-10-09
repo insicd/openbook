@@ -651,7 +651,7 @@ final class RemoteActorResolver
                 'manually_approves_followers' => (bool) ($document['manuallyApprovesFollowers'] ?? false),
                 'discoverable' => self::documentBoolean($document, 'discoverable', true),
                 'indexable' => self::documentBoolean($document, 'indexable', false),
-                'status' => Actor::STATUS_ACTIVE,
+                'remote_suspended' => self::documentBoolean($document, 'suspended', false),
                 'last_fetched_at' => now(),
             ];
 
@@ -672,7 +672,8 @@ final class RemoteActorResolver
                 $attributes['following_count'] = $followingCount;
             }
 
-            $actor = Actor::query()->updateOrCreate(['uri' => $uri], $attributes);
+            $actor = Actor::query()->firstOrCreate(['uri' => $uri], $attributes + ['status' => Actor::STATUS_ACTIVE]);
+            $actor->fill($attributes)->save();
 
             ActorKey::query()->updateOrCreate(
                 ['actor_id' => $actor->id],

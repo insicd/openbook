@@ -140,6 +140,31 @@ I profili già in cache acquisiscono i campi al successivo refresh o Update
 ordinario, senza fetch massivi o richieste separate. I campi locali restano in
 `profiles.links`, con editor e pubblicazione descritti sopra.
 
+### Sospensione degli account remoti
+
+Il flag `suspended` di un documento Actor remoto valido viene conservato in
+`actors.remote_suspended`, separatamente dalla moderazione locale in
+`actors.status`. Lo aggiornano sia i normali refresh sia gli Update del profilo
+ricevuti. Un documento completo valido senza flag, o con `false`, rimuove la
+sospensione remota; fetch falliti e documenti invalidi lasciano intatta la cache.
+
+Il profilo remoto mostra un avviso di sospensione sul server di origine. Sono
+impediti nuovi follow, messaggi, like, condivisioni/citazioni, risposte e
+partecipazioni agli eventi, comprese le risposte a commenti di un autore sospeso
+sotto post o eventi altrui. Il controllo è applicato nell'interfaccia e nei
+servizi applicativi. Le condivisioni automatiche si fermano senza perdere la
+preferenza. Post, commenti, eventi e relazioni di follow/reazione esistenti
+restano conservati con la visibilità attuale; è possibile ritirare follow,
+reazioni e partecipazioni precedenti. Consultazione, segnalazione e copia
+dell'URL restano disponibili.
+
+Quando il server di origine dichiara nuovamente attivo l'account, le interazioni
+riprendono. I refresh remoti non annullano mai uno stato locale di blocco,
+sospensione o cancellazione. Il flag non sostituisce la normale gestione di
+Delete/Undo e non introduce un ban delle attività in ingresso. L'aggiornamento
+dello schema richiede il consueto `php artisan migrate`; non servono nuovi
+servizi o worker.
+
 ### Lingua dei post remoti
 
 Openbook conserva in `posts.language` la lingua dichiarata del testo importato

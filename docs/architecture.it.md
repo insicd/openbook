@@ -94,6 +94,14 @@ basato su `APP_KEY`) e non vengono mai esposte da API, log o messaggi di errore.
   non elencata, solo-follower, diretta) e senza alcun algoritmo di raccomandazione:
   ordinamento sempre cronologico inverso.
 
+La sospensione dichiarata dal server di origine di un Actor è conservata
+separatamente in `actors.remote_suspended`, preservando i contenuti importati e
+lo stato di moderazione locale. `RemoteInteractionGuard` impedisce nuove
+interazioni in uscita nei servizi applicativi condivisi; anche i permessi dei
+messaggi diretti e la disponibilità delle interazioni degli eventi rispettano
+il flag. Refresh e Update ordinari possono rimuoverlo quando il server di
+origine riattiva l'account.
+
 ### Personalizzazione del profilo e impostazioni account
 
 Il database predisponeva gia' dalle prime fasi le colonne per la personalizzazione

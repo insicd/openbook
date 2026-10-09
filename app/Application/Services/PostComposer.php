@@ -341,6 +341,8 @@ final class PostComposer
             throw new InvalidArgumentException(__('openbook.communities.errors.not_a_member'));
         }
 
+        RemoteInteractionGuard::assertAllowed($author, $group);
+
         return $group;
     }
 
@@ -360,6 +362,8 @@ final class PostComposer
         if ($quoted === null) {
             throw new InvalidArgumentException('Il post da citare non esiste o non e\' visibile.');
         }
+
+        RemoteInteractionGuard::assertAllowed($author, $quoted->actor);
 
         return $quoted;
     }

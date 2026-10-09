@@ -5,6 +5,7 @@ Aggiornato il 10 ottobre 2026.
 Stato: priorità e macrofasi concordate; subsprint proposti e dettagli dei
 requisiti da consolidare prima della rispettiva implementazione. Subsprint 1.1
 e 1.2 completati e verificati. Subsprint 1.3 completato e verificato.
+Subsprint 2.1 completato e verificato.
 
 Branch: `improve_profile`, creato dalla testa locale di
 `multilanguage_support` al commit `8f42ea5`.
@@ -310,6 +311,60 @@ accessibili i contenuti scelti dall'autore senza alterare la timeline.
 **Completamento:** sospensione e commemorazione correttamente distinguibili;
 post fissati consultabili in uno spazio dedicato. La creazione di post fissati
 locali non è compresa nel perimetro corrente.
+
+### Decisioni consolidate per il subsprint 2.1
+
+La sospensione dichiarata dall'istanza di origine viene conservata in un
+attributo dedicato `actors.remote_suspended`, separato da `actors.status`.
+Un documento Actor valido importato tramite refresh o Update aggiorna il flag;
+assenza del flag equivale a false, come per un profilo ordinario. Errori di
+recupero o documenti invalidi non modificano lo stato conosciuto. Un aggiornamento
+remoto non riattiva Actor bloccati, sospesi o cancellati localmente.
+
+Il profilo mostra «Account sospeso sul server di origine». Sono impedite nuove
+interazioni locali verso l'Actor e i suoi contenuti: follow, messaggi, like,
+condivisioni/citazioni, commenti e partecipazioni agli eventi. Le rimozioni di
+relazioni o reazioni precedenti restano possibili per consentire all'utente di
+ritirarle; non viene avviata una cancellazione automatica di follow o contenuti.
+Le funzioni di consultazione e segnalazione restano disponibili secondo le
+regole di visibilità esistenti. Le risposte a commenti sospesi sono bloccate
+anche quando il post o evento originario è di un altro autore.
+
+La riattivazione dichiarata dal server di origine ripristina le interazioni,
+senza annullare eventuali blocchi o altre decisioni di moderazione locale.
+La sospensione non cancella i contenuti importati, non ne modifica la visibilità
+e non trasforma il profilo in un account cancellato. Il flusso in ingresso di
+Update/Delete/Undo resta operativo; non viene introdotta una nuova politica di
+ban del mittente federato. Nessun worker o servizio esterno necessario.
+
+### Esito del subsprint 2.1
+
+Implementati importazione e aggiornamento del flag, indicazione nel profilo e
+controlli condivisi sulle nuove interazioni locali, inclusi i form di risposta
+ai commenti. Il resolver conserva gli stati di moderazione esistenti durante
+ogni aggiornamento remoto. I contenuti rimangono consultabili e le relazioni
+non vengono eliminate automaticamente. La preferenza di condivisione automatica
+resta conservata durante la pausa.
+
+Migrazione della colonna boolean `remote_suspended`, con default false, applicata
+con successo sul MySQL locale e verificata dalla suite SQLite. Non sono state
+modificate query di scansione, ordinamento o paginazione: il flag viene letto
+sugli Actor già caricati e non richiede un nuovo indice. Nessuna scansione o
+ripopolamento dell'inbox storica; i profili acquisiscono il dato tramite i
+refresh ordinari (TTL attuale) e gli Update ricevuti.
+
+Verifiche finali: 1.432 test, 6.355 asserzioni, nessun fallimento; due test
+dell'installer MySQL saltati per server di test non disponibile. I 16 nuovi test
+coprono flag semplici/JSON-LD, Update e riattivazione, conservazione della
+moderazione locale, errori di fetch e identità discordanti, profili e contenuti
+consultabili, richieste dirette respinte, citazioni, commenti su post/eventi
+altrui e pausa/ripresa delle condivisioni automatiche. Pint e controllo diff
+superati. Documentazione bilingue e changelog aggiornati.
+
+Riferimenti del comportamento remoto: [flag suspended di Mastodon](https://docs.joinmastodon.org/spec/activitypub/#suspended-flag)
+e [serializzazione dell'Actor](https://github.com/mastodon/mastodon/blob/main/app/serializers/activitypub/actor_serializer.rb).
+Il divieto delle nuove interazioni e la conservazione dei contenuti sono scelte
+di prodotto Openbook, non una cancellazione imposta dal flag del protocollo.
 
 ### Macrofase 3 — Verifica dei collegamenti reciproci (P07)
 

@@ -146,6 +146,29 @@ available. Existing cached profiles acquire fields on their next normal
 refresh or Update; there is no bulk fetch or separate field request. Local fields remain in
 `profiles.links`, with the editor and publication behavior described above.
 
+### Remote account suspension
+
+A valid remote Actor document's `suspended` flag is stored in
+`actors.remote_suspended`, independently of local moderation in `actors.status`.
+Both normal refreshes and incoming profile Updates use this field. A valid
+complete document without the flag, or with `false`, clears remote suspension;
+failed fetches and invalid documents leave the cached state intact.
+
+The remote profile displays an originating-server suspension notice. New local
+follows, messages, likes, shares/quotes, replies and event participation are
+blocked, including replies to a suspended author's comment under someone else's
+post or event. UI controls and application services enforce this restriction.
+Automatic sharing pauses without clearing its setting. Existing posts, comments,
+events and follow/reaction records are retained with their existing visibility;
+users can still withdraw earlier follows, reactions and event participation.
+Viewing content, reporting it and copying its URL remain available.
+
+When the origin declares the account active again, interactions resume. Remote
+refreshes never clear a locally blocked, suspended or deleted status. This flag
+does not replace ordinary Delete/Undo processing or introduce an inbound ban.
+The schema update requires running `php artisan migrate` as usual; no new service
+or worker is required.
+
 ### Remote post language
 
 Openbook stores the declared language of the imported text in `posts.language`

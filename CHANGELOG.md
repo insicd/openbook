@@ -19,6 +19,10 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Sospensione degli account remoti**: il profilo indica quando un account è
+  sospeso sul server di origine e impedisce nuove interazioni, conservando i
+  contenuti già importati. La riattivazione ripristina le interazioni senza
+  annullare eventuali blocchi locali.
 - **Campi dei profili federati**: i profili locali permettono di compilare
   fino a 8 link e informazioni aggiuntive, pubblicati anche alle altre istanze.
   I campi testuali e i link dei profili remoti vengono importati e mostrati

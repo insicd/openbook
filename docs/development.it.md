@@ -47,6 +47,11 @@ API blog Wafrn, Accept Lemmy, Mondo/scopri, rullino profilo). In particolare:
   esclusione di follower locali/non ancora accettati, regole di consegna per i
   messaggi diretti, firma HTTP corretta della richiesta in uscita, fallimento
   permanente senza chiave privata, ritentativo su risposta non 2xx;
+- sospensione remota (`RemoteSuspensionTest`): flag di origine e Update ricevuti,
+  riattivazione senza annullare la moderazione locale, conservazione dei contenuti,
+  interfaccia di consultazione, rifiuto delle richieste dirette di interazione,
+  commenti sospesi sotto post/eventi altrui e pausa delle condivisioni automatiche
+  senza perdita della preferenza;
 - `RemoteActorResolver::resolveByUri()`/`resolveByHandle()`: fetch e cache con TTL,
   rifiuto di un documento che dichiara un id diverso da quello richiesto, rifiuto di
   trattare un URI locale come remoto, risoluzione WebFinger;

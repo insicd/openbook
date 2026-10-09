@@ -61,6 +61,13 @@ Every local account has from the start an ActivityPub Actor of type `Person`
 modeled with federation in mind: `follows` and `likes` connect **Actors** (not
 users), so remote actors can be accepted without schema changes.
 
+Remote suspension declared by an Actor's origin is cached separately in
+`actors.remote_suspended`. It preserves imported content and local moderation
+status. `RemoteInteractionGuard` prevents new outgoing user interactions in the
+shared application services; direct-message permissions and event interaction
+availability also respect this flag. Ordinary profile refreshes and Updates can
+clear it when the origin reactivates the account.
+
 Actor private keys are encrypted at rest (Eloquent `encrypted` cast, based on
 `APP_KEY`) and are never exposed by APIs, logs, or error messages.
 

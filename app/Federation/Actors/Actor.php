@@ -47,6 +47,7 @@ use Illuminate\Support\HtmlString;
  * @property bool $manually_approves_followers
  * @property bool $discoverable
  * @property bool $indexable
+ * @property bool $remote_suspended
  * @property string $status
  * @property Carbon|null $deleted_at
  * @property Carbon|null $last_fetched_at
@@ -96,6 +97,7 @@ class Actor extends Model
         'manually_approves_followers',
         'discoverable',
         'indexable',
+        'remote_suspended',
         'status',
         'deleted_at',
         'last_fetched_at',
@@ -114,6 +116,7 @@ class Actor extends Model
     {
         return [
             'is_local' => 'boolean',
+            'remote_suspended' => 'boolean',
             'custom_emojis' => 'array',
             'links' => 'array',
             'manually_approves_followers' => 'boolean',
@@ -241,6 +244,11 @@ class Actor extends Model
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function isRemotelySuspended(): bool
+    {
+        return ! $this->isLocal() && $this->remote_suspended;
     }
 
     public function isSuspended(): bool

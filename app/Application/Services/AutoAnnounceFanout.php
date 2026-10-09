@@ -6,6 +6,7 @@ use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Condivide automaticamente i nuovi post pubblici dei contatti per cui il
@@ -47,11 +48,19 @@ final class AutoAnnounceFanout
                 break;
             }
 
+            if ($follow->following?->isRemotelySuspended()) {
+                continue;
+            }
+
             $posts = $this->eligiblePosts($follow, $perFollow);
 
             foreach ($posts as $post) {
                 if (microtime(true) >= $deadline) {
                     break 2;
+                }
+
+                if ($post->actor?->isRemotelySuspended()) {
+                    continue;
                 }
 
                 $this->announceManager->announce(
@@ -68,7 +77,7 @@ final class AutoAnnounceFanout
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, Post>
+     * @return Collection<int, Post>
      */
     private function eligiblePosts(Follow $follow, int $limit)
     {

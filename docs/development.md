@@ -48,6 +48,11 @@ discover, profile photo roll). In particular:
   exclusion of local/not-yet-accepted followers, delivery rules for direct
   messages, correct HTTP signature of the outgoing request, permanent failure
   without a private key, retry on a non-2xx response;
+- remote suspension (`RemoteSuspensionTest`): origin flags and incoming Updates,
+  reactivation without undoing local moderation, preserved cached content,
+  read-only UI, rejected direct interaction requests, suspended comments under
+  other authors' posts/events, and automatic sharing paused without losing its
+  setting;
 - `RemoteActorResolver::resolveByUri()`/`resolveByHandle()`: fetch and cache
   with TTL, rejection of a document that declares an id different from the one
   requested, refusal to treat a local URI as remote, WebFinger resolution;

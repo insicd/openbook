@@ -62,7 +62,7 @@
         @endif
 
         <div class="ob-post__actions">
-            @auth
+            @if (auth()->check() && ! $author?->isRemotelySuspended() && ! $event->actor?->isRemotelySuspended())
                 <form
                     method="POST"
                     action="{{ $comment->liked_by_viewer ? route('event-comments.unlike', $comment) : route('event-comments.like', $comment) }}"
@@ -81,7 +81,7 @@
                         <span class="ob-post__action-count">{{ $comment->likes_count }}</span>
                     </button>
                 </form>
-                @if ($event->isOpenForInteractions())
+                @if ($event->isOpenForInteractions() && ! $comment->actor?->isRemotelySuspended())
                     <button type="button" class="ob-post__action" aria-label="{{ __('openbook.actions.reply') }}"
                         onclick="(function(){var c=document.getElementById('risposta-evento-{{ $comment->id }}');if(!c)return;c.hidden=false;var t=document.getElementById('risposta-evento-testo-{{ $comment->id }}');if(t)t.focus();}())">
                         <x-icon name="comment" />
@@ -89,11 +89,11 @@
                 @endif
             @else
                 <span class="ob-post__action"><x-icon name="heart" /><span class="ob-post__action-count">{{ $comment->likes_count }}</span></span>
-            @endauth
+            @endif
         </div>
 
         @auth
-            @if ($event->isOpenForInteractions())
+            @if ($event->isOpenForInteractions() && ! $comment->actor?->isRemotelySuspended())
                 <div style="margin-top:0.6rem">
                     @include('composer.form', [
                         'mode' => 'reply',
