@@ -2321,6 +2321,12 @@ a.ob-post__menu-item {
   font-size: 0.85rem;
 }
 
+.ob-post__language {
+  position: relative;
+  z-index: 2;
+  overflow-wrap: anywhere;
+}
+
 .ob-post__title {
   margin: 0 0 0.4rem;
   font-size: inherit;

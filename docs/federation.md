@@ -123,8 +123,15 @@ independent of the referring activity.
 The rule is shared by inbox processing, outbox import and refresh, including
 private messages stored as posts. Accepted updates can change or remove the
 language; stale updates cannot. There is no historical backfill, and post
-authorization and relevance rules remain unchanged. This sprint stores the
-metadata; displaying it in cards is a subsequent sprint.
+authorization and relevance rules remain unchanged.
+
+Cards in feeds, post details and quoted posts display the language beside the
+date, with an accessible “Language declared by the author” description. Names
+follow the reader's interface language; regions and scripts are preserved when
+the catalogue provides the full name, otherwise the code is shown. Presentation
+uses Symfony Intl data without requiring the PHP `intl` extension. No label is
+shown for missing languages or deleted posts. Composer language selection and
+the profile's writing preference are planned for a subsequent phase.
 
 The migration widens `posts.language` from 8 to 255 characters. Rollback is
 refused while tags longer than 8 characters exist, preventing truncation.

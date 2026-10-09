@@ -114,7 +114,14 @@ La regola è condivisa da inbox, importazione outbox e refresh, inclusi i messag
 privati memorizzati come post. Gli aggiornamenti accettati possono cambiare o
 rimuovere la lingua; quelli obsoleti non la modificano. Non è previsto un backfill
 dello storico, né cambiano autorizzazione e criteri di rilevanza dei post.
-Questa fase salva il metadato; la visualizzazione nelle card è uno sprint successivo.
+Le card nei feed, nei dettagli e nei post citati mostrano la lingua vicino alla
+data, con descrizione accessibile «Lingua dichiarata dall’autore». Il nome segue
+la lingua dell'interfaccia del lettore; regioni e alfabeti vengono mantenuti
+quando il catalogo dispone del nome completo, altrimenti compare il codice.
+La presentazione usa i dati di Symfony Intl senza richiedere l'estensione PHP
+`intl`. Non compare alcuna etichetta per lingua assente o post eliminati.
+La selezione della lingua nel composer e la preferenza di scrittura del profilo
+restano previste in una fase successiva.
 
 La migrazione amplia `posts.language` da 8 a 255 caratteri. Il rollback viene
 rifiutato se esistono tag più lunghi di 8 caratteri, per evitare troncamenti.

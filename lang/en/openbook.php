@@ -322,6 +322,10 @@ return [
         'direct' => 'Direct (mentioned people only)',
     ],
 
+    'language_names' => [
+        'cmn' => 'Mandarin Chinese',
+    ],
+
     'posts' => [
         'back' => 'Back',
         'open_post' => 'Open post',
@@ -334,6 +338,7 @@ return [
         'video_processing_cannot_delete' => 'Wait for processing to finish before deleting this publication.',
         'page_title' => 'Posts by :name',
         'edited' => 'edited',
+        'declared_language' => 'Language declared by the author',
         'deleted' => 'This post has been deleted.',
         'content_warning_label' => 'Content warning',
         'forced_content_warning' => 'Sensitive content',

@@ -11,6 +11,9 @@
     // ActivityPub si apre dalla voce di menu "Apri post originale".
     $timeHref = $linkToPost ? route('posts.show', $post) : null;
     $canOpenOriginal = $post->isRemote() && filled($post->uri);
+    $languageLabel = ! $isDeleted && filled($post->language)
+        ? \App\Support\PostLanguageLabel::name($post->language, app()->getLocale())
+        : null;
 @endphp
 
 <article @if (! $embed) id="post-{{ $post->id }}" @endif class="ob-card ob-post{{ $embed ? ' ob-post--embed' : '' }}">
@@ -40,6 +43,12 @@
                 @endif
                 @if ($post->wasEdited())
                     &middot; {{ __('openbook.posts.edited') }}
+                @endif
+                @if ($languageLabel !== null)
+                    <span aria-hidden="true">&middot;</span>
+                    <span class="ob-post__language" title="{{ __('openbook.posts.declared_language') }}: {{ $languageLabel }}">
+                        <span class="sr-only">{{ __('openbook.posts.declared_language') }}: </span><bdi>{{ $languageLabel }}</bdi>
+                    </span>
                 @endif
             </div>
         </div>

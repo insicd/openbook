@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Posts;
 
 use App\Domain\Posts\Post;
+use App\Domain\Posts\PostLanguage;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -41,7 +42,7 @@ class StorePostRequest extends FormRequest
                 Post::VISIBILITY_FOLLOWERS,
                 Post::VISIBILITY_DIRECT,
             ])],
-            'language' => ['nullable', 'string', 'max:255'],
+            'language' => ['nullable', 'string', 'max:'.PostLanguage::MAX_LENGTH],
             'images' => ['nullable', 'array', 'max:'.$maxAttachments],
             'images.*' => ['file', 'mimetypes:'.$allowedMimes, 'max:'.$maxKb],
             'alt_texts' => ['nullable', 'array'],

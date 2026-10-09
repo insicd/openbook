@@ -629,6 +629,7 @@ XML, 200, ['Content-Type' => 'application/atom+xml']),
 
         $pageUri = 'https://lemmy.example/post/42';
         $this->fakeOutbox($group, [[
+            '@context' => ['https://www.w3.org/ns/activitystreams', ['@language' => 'it']],
             'id' => $group->uri.'/activities/announce/1',
             'type' => 'Announce',
             'actor' => $group->uri,
@@ -658,6 +659,7 @@ XML, 200, ['Content-Type' => 'application/atom+xml']),
             'actor_id' => $author->id,
             'title' => 'Link post Lemmy',
             'body' => 'https://example.com/articolo',
+            'language' => null,
         ]);
         $this->assertTrue(
             Announce::query()

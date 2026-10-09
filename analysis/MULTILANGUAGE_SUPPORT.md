@@ -2,7 +2,8 @@
 
 Aggiornato il 9 ottobre 2026.
 
-Stato: analisi pre-implementazione consolidata; piano delle due macrofasi definito.
+Stato: requisiti consolidati; macrofase 1 implementata e verificata nel ramo;
+macrofase 2 pianificata e non avviata.
 
 Branch: `multilanguage_support`, derivato da `main` locale.
 
@@ -264,10 +265,10 @@ le loro forme con sottotag, il tag generico `i-default`, la dichiarazione anomal
 privato non attribuiscono una lingua determinata e producono `NULL` in ingresso.
 
 Laravel 12 installato offre regole generiche e regole custom, ma nessuna regola
-BCP 47 dedicata. Il progetto non include `symfony/intl`; `ext-intl`, presente
-sulla macchina di sviluppo, non è un requisito di installazione e non diventa
-obbligatorio per questa funzionalità. La validazione condivisa deve funzionare
-con le dipendenze già richieste dal progetto.
+BCP 47 dedicata. La validazione condivisa non richiede nuove dipendenze.
+Per i nomi localizzati la macrofase 1 aggiunge `symfony/intl`; `ext-intl`,
+presente sulla macchina di sviluppo, non è un requisito di installazione e
+non diventa obbligatorio per questa funzionalità.
 
 Riferimenti: [validazione Laravel 12](https://laravel.com/docs/12.x/validation),
 [BCP 47 / RFC 5646](https://www.rfc-editor.org/rfc/rfc5646.html),
@@ -285,8 +286,8 @@ presentazione della prima macrofase. Non deve ridursi alle lingue dell'interfacc
 
 ### 7.3 Percorsi di importazione e UI
 
-La stessa regola si applica ai post salvati da inbox, outbox, refresh e recupero
-risposte tramite i servizi condivisi. Include i messaggi privati memorizzati in
+La stessa regola si applica ai post salvati da inbox, outbox e refresh tramite
+i servizi condivisi. Include i messaggi privati memorizzati in
 `posts`; la presentazione nelle conversazioni private può essere definita
 separatamente dalla card dei post, senza impedire il salvataggio del metadato.
 Commenti nella tabella dedicata ed eventi rimangono fuori dal perimetro.
@@ -425,7 +426,8 @@ Gli altri tre messaggi con `@language` non sono stati approfonditi.
 ## 10. Stato di avanzamento e verifica del subsprint 1.1
 
 Analisi consolidata nel commit `6ae0209`. Il subsprint 1.1 è completato e
-verificato; non comprende il rendering nella card (subsprint 1.2).
+verificato nel commit `3d09338`; quel commit non comprende il rendering nella
+card (subsprint 1.2, descritto nella sezione 12).
 La prova con un nuovo dump dell'inbox di produzione è stata eseguita nel
 database locale; i risultati del controllo successivo sono nella sezione 11.
 
@@ -538,3 +540,86 @@ Le query di audit leggono integralmente le tabelle e aggregano i risultati;
 raggruppamento dell'inbox. Non sono introdotti indici per query diagnostiche
 occasionali. Nei risultati conservati non sono inclusi testi o identificativi
 personali dei messaggi.
+
+## 12. Presentazione della lingua: subsprint 1.2
+
+Implementazione della visualizzazione completata insieme alla review finale,
+successiva al commit del subsprint 1.1. La card condivisa mostra «data · lingua»
+nei feed, nel dettaglio e negli incorporamenti dei post citati. Lingua assente e post
+eliminati non mostrano un'etichetta. Il nome è accompagnato da un testo per
+screen reader e da un titolo «Lingua dichiarata dall’autore: …», tradotto
+nella lingua dell'interfaccia del lettore. Non vengono aggiunte bandiere,
+azioni di traduzione o attribuzioni automatiche della lingua al corpo HTML.
+
+### Catalogo e fallback
+
+La dipendenza Composer `symfony/intl` fornisce i nomi localizzati CLDR/ICU
+senza richiedere l'estensione PHP `intl`, servizi esterni o richieste HTTP.
+È compatibile con PHP 8.2; il lock aggiunge un solo pacchetto, senza aggiornare
+le altre dipendenze. Il catalogo non è limitato alle lingue dell'interfaccia.
+
+Il presenter `App\Support\PostLanguageLabel` cerca il nome del tag completo,
+conservando regioni e alfabeti. Per codici di lingua semplici usa anche il
+catalogo delle lingue; `cmn`, assente dal catalogo CLDR, ha un nome esplicito
+in italiano e inglese, distinto da `yue` (cantonese). Se manca un nome per il
+tag completo viene mostrato il codice originale, senza ridurlo alla lingua
+base. Il valore rimane invariato nel database.
+
+Le viste eseguono escaping sia del testo sia del titolo, anche per eventuali
+valori preesistenti non validati. Il testo è isolato tramite `bdi` e i codici
+lunghi possono andare a capo senza allargare la card. Il composer e le
+preferenze di scrittura del profilo restano nel perimetro della macrofase 2.
+
+### Verifiche
+
+- Test dedicati: 22 test e 69 asserzioni su nomi italiani/inglesi, regioni,
+  alfabeti, mandarino/cantonese, codice non riconosciuto, estensioni BCP 47,
+  assenza, escaping e post eliminati. I test HTTP coprono il feed caricato
+  tramite AJAX e la pagina di dettaglio.
+- Controllo Chromium locale su sei card renderizzate dalla vista Blade e dal
+  CSS applicativo, con dati sintetici e richieste esterne bloccate: larghezze
+  320, 375, 768 e 1280 pixel, nessun overflow orizzontale, incluso un tag
+  composto lungo; screenshot mobile e desktop ispezionati.
+- `composer validate`, Pint e controllo whitespace superati.
+- Suite completa: 1.379 test, 6.017 asserzioni, nessun fallimento; gli stessi
+  due test dell'installer MySQL restano saltati per la connessione bloccata
+  dal sandbox. Usati gli override temporanei di memoria ed excerpt descritti
+  nella sezione 10.
+- Lettura dei nomi CLDR verificata anche con le classi native `Locale`,
+  `ResourceBundle` e `Collator` disabilitate.
+
+## 13. Chiusura della macrofase 1: subsprint 1.3
+
+Review complessiva del ramo rispetto a `main`: estrazione, propagazione dei
+contesti, upsert, schema, request, presenter, viste, comando di recupero inbox,
+test, dipendenze e documentazione. Il salvataggio resta nell'upsert condiviso;
+la risoluzione dei nomi è separata dalla validazione BCP 47. Nessun controller,
+route, criterio di autorizzazione o selezione della visibilità viene modificato.
+
+La review finale rimuove una propagazione di contesto superflua nel percorso
+dei commenti, che non memorizza la lingua ed è fuori perimetro. Le request
+condividono il limite tramite `PostLanguage::MAX_LENGTH`; la migrazione mantiene
+il valore fisso del proprio schema. Un test aggiuntivo copre l'ereditarietà
+del contesto più vicino in `Announce → Create → Note`; il test outbox Lemmy
+verifica inoltre che un default non attribuisca una lingua all'URL di fallback.
+
+La verifica web sui post realmente importati è confermata; si aggiunge ai
+controlli automatici e al layout mobile/desktop descritti nella sezione 12.
+Il changelog contiene una sola voce orientata alla funzionalità «Lingua del
+post originale». Dettagli tecnici, migrazione e recupero dell'inbox restano
+nella documentazione operativa e nell'analisi.
+
+Verifica finale dopo le correzioni della review: suite completa con 1.380 test,
+6.019 asserzioni e nessun fallimento; due test dell'installer MySQL saltati
+per il limite del sandbox già documentato. Test mirati: 29 test, 139 asserzioni.
+Pint, `composer validate` e controllo whitespace superati. Restano valide le
+verifiche MySQL della migrazione e dei piani di query registrate nella sezione 10.
+
+Per distribuire la macrofase 1 occorre installare le dipendenze dal lock con
+`composer install --no-dev --optimize-autoloader` ed eseguire le migrazioni con
+`php artisan migrate --force`, secondo il normale aggiornamento dell'istanza.
+Non occorrono nuovi servizi né un replay dello storico. Il rollback della
+migrazione resta bloccato se esistono tag più lunghi di otto caratteri.
+
+Il ramo è pronto per una PR dedicata alla macrofase 1; profilo e composer
+restano esclusi, con i requisiti della macrofase 2 già definiti nella sezione 6.

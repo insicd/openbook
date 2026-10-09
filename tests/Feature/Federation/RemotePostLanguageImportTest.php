@@ -128,4 +128,33 @@ class RemotePostLanguageImportTest extends TestCase
         $this->expectExceptionMessage('Cannot narrow posts.language');
         $migration->down();
     }
+
+    public function test_group_announce_inherits_the_nearest_embedded_language_context(): void
+    {
+        $local = $this->createFullAccount('groupreader');
+        $group = $this->createRemoteActor('group', overrides: ['type' => Actor::TYPE_GROUP]);
+        $author = $this->createRemoteActor('originalauthor');
+        app(FollowManager::class)->follow($local->actor, $group)
+            ->update(['status' => Follow::STATUS_ACCEPTED, 'accepted_at' => now()]);
+        $uri = $author->uri.'/posts/shared-language';
+
+        $status = $this->process([
+            '@context' => ['https://www.w3.org/ns/activitystreams', ['@language' => 'it']],
+            'id' => $group->uri.'/activities/announce-language',
+            'type' => 'Announce', 'actor' => $group->uri,
+            'to' => [NoteSerializer::PUBLIC_STREAM],
+            'object' => [
+                '@context' => ['@language' => 'fr'],
+                'type' => 'Create', 'actor' => $author->uri,
+                'object' => [
+                    'id' => $uri, 'type' => 'Note', 'attributedTo' => $author->uri,
+                    'content' => '<p>Texte partagé.</p>', 'published' => now()->toAtomString(),
+                    'to' => [NoteSerializer::PUBLIC_STREAM],
+                ],
+            ],
+        ], $group);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('posts', ['uri' => $uri, 'actor_id' => $author->id, 'language' => 'fr']);
+    }
 }
