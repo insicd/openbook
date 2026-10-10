@@ -281,7 +281,11 @@ finally bidirectional.
     plain text (`RemoteContentSanitizer`), preserving `<a href>` as
     `[label](url)`; images in `attachment` remain as remote URLs in the
     gallery. Then it goes through the same safe rendering pipeline as local
-    posts;
+    posts. When saving a remote post, its publication timestamp is converted to
+    the application timezone and capped at the current time. Updates with a
+    future timestamp retain the cached publication date if it is already valid,
+    so repeated imports do not push the post back to the top of the timeline.
+    Existing future dates are corrected when the post is next saved;
   - `Update` with a `Person`/`Group` object (another server notifying a change
     to one of its users' profiles) updates the local cache of the remote Actor
     directly (`actors`/`actor_keys`/`actor_endpoints`) by applying the embedded
