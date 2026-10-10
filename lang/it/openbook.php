@@ -445,6 +445,7 @@ return [
     ],
 
     'actors' => [
+        'moved_notice' => 'Questo account si è trasferito. Nuovo profilo:',
         'remote_notice' => 'Profilo remoto: i dati mostrati sono quelli ricevuti dal server di origine e potrebbero non essere aggiornati in tempo reale.',
         'remote_group_notice' => 'Community remota: i dati e i post mostrati arrivano dal server di origine (ritrasmissioni Announce del Group) e potrebbero non essere aggiornati in tempo reale.',
         'feed_notice' => 'Questo è un feed RSS/Atom seguito in sola lettura: puoi seguirlo nella timeline, ma non puoi rispondere né interagire sul sito di origine da qui.',
@@ -538,6 +539,7 @@ return [
             'new_follower' => ':name ha iniziato a seguirti.',
             'follow_request' => ':name ha richiesto di seguirti.',
             'follow_accepted' => ':name ha accettato la tua richiesta di follow.',
+            'account_moved' => ':name si è trasferito su :destination. Visita il nuovo profilo se vuoi continuare a seguirlo.',
             'follow_rejected' => ':name ha rifiutato la tua richiesta di follow.',
             'like' => 'A :name piace un tuo contenuto.',
             'comment' => ':name ha commentato il tuo post.',

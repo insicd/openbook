@@ -445,6 +445,7 @@ return [
     ],
 
     'actors' => [
+        'moved_notice' => 'This account has moved. New profile:',
         'remote_notice' => 'Remote profile: the data shown here comes from the origin server and may not be up to date in real time.',
         'remote_group_notice' => 'Remote community: profile data and posts come from the origin server (Group Announce relays) and may not be up to date in real time.',
         'feed_notice' => 'This is a read-only RSS/Atom feed contact: you can follow it in your timeline, but you cannot reply or interact with the origin site from here.',
@@ -538,6 +539,7 @@ return [
             'new_follower' => ':name started following you.',
             'follow_request' => ':name requested to follow you.',
             'follow_accepted' => ':name accepted your follow request.',
+            'account_moved' => ':name has moved to :destination. Visit the new profile if you want to keep following them.',
             'follow_rejected' => ':name declined your follow request.',
             'like' => ':name liked your content.',
             'comment' => ':name commented on your post.',

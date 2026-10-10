@@ -165,6 +165,24 @@ Delete/Undo e non introduce un ban delle attività in ingresso. L'aggiornamento
 dello schema richiede il consueto `php artisan migrate`; non servono nuovi
 servizi o worker.
 
+### Migrazioni degli account remoti
+
+Un `Move` autentico da un account remoto genera una notifica per ciascun
+follower locale con follow accettato e un avviso sul vecchio profilo.
+Openbook verifica che actor e object corrispondano al mittente autenticato
+e recupera il profilo aggiornato della destinazione, che deve dichiarare
+il vecchio account in `alsoKnownAs`. Un fetch fallito o una verifica negativa
+non produce notifiche. Le copie dello stesso annuncio vengono deduplicate.
+
+La notifica apre il nuovo profilo dentro Openbook, dove l'utente puo'
+scegliere Segui. Nessun follow viene creato o rimosso automaticamente;
+preferenze, post precedenti e regole di retention e visibilita' restano
+invariati. Un Update con il solo `movedTo` non genera notifiche di migrazione.
+Questa funzione riguarda annunci fra account remoti, non la migrazione di
+account da o verso Openbook, community o catene di spostamenti automatici.
+
+Lo schema richiede il consueto `php artisan migrate`; non servono nuovi worker.
+
 ### Profili commemorativi remoti
 
 Il flag `memorial` dell'Actor remoto viene conservato in `actors.memorial`
