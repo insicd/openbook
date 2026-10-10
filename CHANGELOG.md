@@ -183,6 +183,10 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Post remoti dal futuro** (#125): le date di pubblicazione future vengono
+  limitate all'ora corrente al salvataggio, dopo la conversione del fuso orario.
+  Gli aggiornamenti con date future conservano la data valida gia' in cache,
+  evitando che lo stesso post risalga continuamente nella timeline.
 - **Condivisione con citazione** (#107): pubblicare una citazione non aggiunge
   piu' un boost separato dell'originale nel feed personale, nel profilo o
   nelle consegne federate. Restano il contatore delle condivisioni e la

@@ -278,7 +278,12 @@ finalmente bidirezionale.
     viene ridotto a testo semplice (`RemoteContentSanitizer`), preservando gli
     `<a href>` come `[etichetta](url)`; le immagini in `attachment` restano come
     URL remoti in galleria. Poi passa dalla stessa pipeline di rendering sicura
-    dei post locali;
+    dei post locali. Al salvataggio di un post remoto, la data di pubblicazione
+    viene convertita al fuso orario dell'applicazione e limitata all'ora corrente.
+    Gli aggiornamenti con data futura conservano la data di pubblicazione in
+    cache se gia' valida, evitando che importazioni ripetute riportino il post
+    in cima alla timeline. Le date future gia' presenti vengono corrette al
+    successivo salvataggio del post;
   - `Update` con oggetto `Person`/`Group` (un altro server che notifica un cambio al
     profilo di un proprio utente) aggiorna direttamente la cache locale dell'Actor
     remoto (`actors`/`actor_keys`/`actor_endpoints`) applicando il documento
