@@ -19,6 +19,11 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Migrazioni degli account remoti (#116)**: gli annunci `Move` verificati
+  notificano i follower locali e indicano il nuovo profilo. Seguirlo resta
+  una scelta esplicita dell’utente; follow precedenti e retention sono invariati.
+  L’avviso compare anche quando il vecchio profilo dichiara `movedTo` durante
+  la normale consultazione, senza generare notifiche.
 - **Post fissati remoti**: nuova scheda «Post fissati» nei profili remoti,
   con i contenuti scelti dall'autore nel loro ordine, senza alterarli nella
   timeline ordinaria. La scheda compare solo quando ci sono post visibili.
@@ -183,6 +188,10 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Post remoti dal futuro** (#125): le date di pubblicazione future vengono
+  limitate all'ora corrente al salvataggio, dopo la conversione del fuso orario.
+  Gli aggiornamenti con date future conservano la data valida gia' in cache,
+  evitando che lo stesso post risalga continuamente nella timeline.
 - **Condivisione con citazione** (#107): pubblicare una citazione non aggiunge
   piu' un boost separato dell'originale nel feed personale, nel profilo o
   nelle consegne federate. Restano il contatore delle condivisioni e la

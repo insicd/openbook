@@ -169,6 +169,31 @@ does not replace ordinary Delete/Undo processing or introduce an inbound ban.
 The schema update requires running `php artisan migrate` as usual; no new service
 or worker is required.
 
+### Remote account migrations
+
+An authenticated remote `Move` generates a notification for each local
+follower with an accepted follow and a notice on the old profile.
+Openbook checks that actor and object match the authenticated sender and
+fetches the destination's current profile, which must list the old account
+in `alsoKnownAs`. Failed fetches or invalid announcements produce no
+notifications. Repeated copies of the same announcement are deduplicated.
+
+The notification opens the new profile inside Openbook, where the user can
+choose Follow. No follow is created or removed automatically; preferences,
+previous posts, retention and visibility rules remain unchanged. An Update
+containing only `movedTo` does not generate migration notifications.
+This feature handles announcements between remote accounts, not migration
+to or from Openbook, communities or automatic migration chains.
+
+Normal updates to the old profile also import `movedTo`: Openbook looks up
+the destination Actor, fetches it if missing and stores the link in the
+existing `moved_to_actor_id` field. This displays the notice and link without
+generating notifications. Migration chains are not followed. A subsequent
+verified Move can still notify followers; the informational link does not
+replace the announcement.
+
+The schema requires running `php artisan migrate` as usual; no new worker is needed.
+
 ### Remote memorial profiles
 
 The remote Actor's `memorial` flag is cached in `actors.memorial` (false by
@@ -281,7 +306,11 @@ finally bidirectional.
     plain text (`RemoteContentSanitizer`), preserving `<a href>` as
     `[label](url)`; images in `attachment` remain as remote URLs in the
     gallery. Then it goes through the same safe rendering pipeline as local
-    posts;
+    posts. When saving a remote post, its publication timestamp is converted to
+    the application timezone and capped at the current time. Updates with a
+    future timestamp retain the cached publication date if it is already valid,
+    so repeated imports do not push the post back to the top of the timeline.
+    Existing future dates are corrected when the post is next saved;
   - `Update` with a `Person`/`Group` object (another server notifying a change
     to one of its users' profiles) updates the local cache of the remote Actor
     directly (`actors`/`actor_keys`/`actor_endpoints`) by applying the embedded

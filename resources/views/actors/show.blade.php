@@ -21,6 +21,13 @@
         @endif
     </div>
 
+    @if ($profileActor->movedTo !== null)
+        <div class="ob-alert ob-alert--info" role="note">
+            {{ __('openbook.actors.moved_notice') }}
+            <a href="{{ $profileActor->movedTo->profileUrl() }}">{{ '@'.$profileActor->movedTo->handle() }}</a>
+        </div>
+    @endif
+
     <article class="ob-card" style="padding:0;overflow:hidden">
             <div class="ob-profile-cover" @if ($profileActor->coverUrl()) style="background-image:url('{{ $profileActor->coverUrl() }}');background-size:cover;background-position:center" @endif></div>
         <div class="ob-profile-header">

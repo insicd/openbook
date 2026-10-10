@@ -165,6 +165,31 @@ Delete/Undo e non introduce un ban delle attività in ingresso. L'aggiornamento
 dello schema richiede il consueto `php artisan migrate`; non servono nuovi
 servizi o worker.
 
+### Migrazioni degli account remoti
+
+Un `Move` autentico da un account remoto genera una notifica per ciascun
+follower locale con follow accettato e un avviso sul vecchio profilo.
+Openbook verifica che actor e object corrispondano al mittente autenticato
+e recupera il profilo aggiornato della destinazione, che deve dichiarare
+il vecchio account in `alsoKnownAs`. Un fetch fallito o una verifica negativa
+non produce notifiche. Le copie dello stesso annuncio vengono deduplicate.
+
+La notifica apre il nuovo profilo dentro Openbook, dove l'utente puo'
+scegliere Segui. Nessun follow viene creato o rimosso automaticamente;
+preferenze, post precedenti e regole di retention e visibilita' restano
+invariati. Un Update con il solo `movedTo` non genera notifiche di migrazione.
+Questa funzione riguarda annunci fra account remoti, non la migrazione di
+account da o verso Openbook, community o catene di spostamenti automatici.
+
+Anche i normali aggiornamenti del vecchio profilo importano `movedTo`:
+Openbook cerca il nuovo Actor nel database, lo recupera se manca e salva
+il collegamento nel campo esistente `moved_to_actor_id`. Questo mostra
+l'avviso e il link al nuovo profilo senza generare notifiche. Non vengono
+inseguite catene di spostamenti. Un Move verificato successivo puo' comunque
+notificare i follower; il collegamento informativo non lo sostituisce.
+
+Lo schema richiede il consueto `php artisan migrate`; non servono nuovi worker.
+
 ### Profili commemorativi remoti
 
 Il flag `memorial` dell'Actor remoto viene conservato in `actors.memorial`
@@ -278,7 +303,12 @@ finalmente bidirezionale.
     viene ridotto a testo semplice (`RemoteContentSanitizer`), preservando gli
     `<a href>` come `[etichetta](url)`; le immagini in `attachment` restano come
     URL remoti in galleria. Poi passa dalla stessa pipeline di rendering sicura
-    dei post locali;
+    dei post locali. Al salvataggio di un post remoto, la data di pubblicazione
+    viene convertita al fuso orario dell'applicazione e limitata all'ora corrente.
+    Gli aggiornamenti con data futura conservano la data di pubblicazione in
+    cache se gia' valida, evitando che importazioni ripetute riportino il post
+    in cima alla timeline. Le date future gia' presenti vengono corrette al
+    successivo salvataggio del post;
   - `Update` con oggetto `Person`/`Group` (un altro server che notifica un cambio al
     profilo di un proprio utente) aggiorna direttamente la cache locale dell'Actor
     remoto (`actors`/`actor_keys`/`actor_endpoints`) applicando il documento
