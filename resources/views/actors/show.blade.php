@@ -10,21 +10,14 @@
 
 @section('title', $displayName.' ('.$handle.') - '.config('app.name'))
 
-@section('content')
-    <div class="ob-alert ob-alert--info" role="note">
-        @if ($isFeed)
-            {{ __('openbook.actors.feed_notice') }}
-        @elseif ($isGroup)
-            {{ __('openbook.actors.remote_group_notice') }}
-        @else
-            {{ __('openbook.actors.remote_notice') }}
-        @endif
-    </div>
+@push('head')
+    <script src="{{ \App\Support\Assets::url('assets/js/profile-remote-info.js') }}" defer></script>
+@endpush
 
-    @if ($profileActor->movedTo !== null)
+@section('content')
+    @if ($isFeed)
         <div class="ob-alert ob-alert--info" role="note">
-            {{ __('openbook.actors.moved_notice') }}
-            <a href="{{ $profileActor->movedTo->profileUrl() }}">{{ '@'.$profileActor->movedTo->handle() }}</a>
+            {{ __('openbook.actors.feed_notice') }}
         </div>
     @endif
 
@@ -39,8 +32,27 @@
                 @endif
             </div>
 
-            <h1 class="ob-profile-name">{!! $profileActor->displayNameHtml() !!}</h1>
+            <div class="ob-profile-heading">
+                <h1 class="ob-profile-name">{!! $profileActor->displayNameHtml() !!}</h1>
+                @unless ($isFeed)
+                    <details class="ob-profile-remote" data-profile-remote>
+                        <summary class="ob-icon-btn" aria-label="{{ __('openbook.actors.remote_label') }}" aria-describedby="profile-remote-notice">
+                            <x-icon name="globe" />
+                        </summary>
+                        <div id="profile-remote-notice" class="ob-profile-remote__notice ob-alert ob-alert--info" role="note">
+                            {{ __($isGroup ? 'openbook.actors.remote_group_notice' : 'openbook.actors.remote_notice') }}
+                        </div>
+                    </details>
+                @endunless
+            </div>
             <p class="ob-profile-handle">{{ $isGroup ? '!'.$profileActor->handle() : $handle }}</p>
+
+            @if ($profileActor->movedTo !== null)
+                <div class="ob-alert ob-alert--info ob-profile-moved" role="note">
+                    {{ __('openbook.actors.moved_notice') }}
+                    <a href="{{ $profileActor->movedTo->profileUrl() }}">{{ '@'.$profileActor->movedTo->handle() }}</a>
+                </div>
+            @endif
 
             @if ($profileActor->memorial)
                 <span class="ob-badge">{{ __('openbook.profile.memorial_badge') }}</span>

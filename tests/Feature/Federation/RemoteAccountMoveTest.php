@@ -174,6 +174,7 @@ class RemoteAccountMoveTest extends TestCase
 
         $this->actingAs($anna)->get($this->source->profileUrl())
             ->assertOk()->assertSee(__('openbook.actors.moved_notice'))
+            ->assertSeeInOrder(['ob-profile-heading', 'ob-profile-handle', __('openbook.actors.moved_notice')])
             ->assertSee('href="'.$this->target->profileUrl().'"', false);
         $this->assertSame($this->target->id, $this->source->fresh()->moved_to_actor_id);
         $this->assertDatabaseCount('notifications', 0);

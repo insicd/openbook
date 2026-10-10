@@ -191,6 +191,9 @@ existing `moved_to_actor_id` field. This displays the notice and link without
 generating notifications. Migration chains are not followed. A subsequent
 verified Move can still notify followers; the informational link does not
 replace the announcement.
+The migration notice appears inside the card below the name and handle.
+The globe beside the name displays the remote profile information on hover,
+keyboard focus or click/tap.
 
 The schema requires running `php artisan migrate` as usual; no new worker is needed.
 

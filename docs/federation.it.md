@@ -187,6 +187,9 @@ il collegamento nel campo esistente `moved_to_actor_id`. Questo mostra
 l'avviso e il link al nuovo profilo senza generare notifiche. Non vengono
 inseguite catene di spostamenti. Un Move verificato successivo puo' comunque
 notificare i follower; il collegamento informativo non lo sostituisce.
+L'avviso di trasferimento compare nella card sotto nome e handle. Il globo
+accanto al nome apre le informazioni sulla provenienza remota al passaggio
+del mouse, al focus da tastiera o al click/tocco.
 
 Lo schema richiede il consueto `php artisan migrate`; non servono nuovi worker.
 

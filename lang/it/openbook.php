@@ -445,6 +445,7 @@ return [
     ],
 
     'actors' => [
+        'remote_label' => 'Informazioni sul profilo remoto',
         'moved_notice' => 'Questo account si è trasferito. Nuovo profilo:',
         'remote_notice' => 'Profilo remoto: i dati mostrati sono quelli ricevuti dal server di origine e potrebbero non essere aggiornati in tempo reale.',
         'remote_group_notice' => 'Community remota: i dati e i post mostrati arrivano dal server di origine (ritrasmissioni Announce del Group) e potrebbero non essere aggiornati in tempo reale.',

@@ -445,6 +445,7 @@ return [
     ],
 
     'actors' => [
+        'remote_label' => 'Remote profile information',
         'moved_notice' => 'This account has moved. New profile:',
         'remote_notice' => 'Remote profile: the data shown here comes from the origin server and may not be up to date in real time.',
         'remote_group_notice' => 'Remote community: profile data and posts come from the origin server (Group Announce relays) and may not be up to date in real time.',

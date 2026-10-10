@@ -46,6 +46,8 @@ class ActorProfileTest extends TestCase
         $response->assertOk();
         $response->assertSee('Peter');
         $response->assertSee('@peter@remoto.example');
+        $response->assertSee('aria-label="'.__('openbook.actors.remote_label').'"', false);
+        $response->assertSeeInOrder(['ob-profile-heading', __('openbook.actors.remote_notice'), 'ob-profile-handle']);
     }
 
     public function test_visiting_a_stale_profile_refreshes_the_actor_fields_and_reuses_the_fresh_cache(): void
