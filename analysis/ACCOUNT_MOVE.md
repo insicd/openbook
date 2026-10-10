@@ -61,8 +61,9 @@ univoco su `inbox_items.remote_activity_uri`, anche fra inbox diverse.
 Il servizio deve selezionare tutti i follower locali interessati, senza
 limitarsi a `target_actor_id` della prima inbox: Anna e Marco ricevono
 ciascuno la propria notifica, anche se viene elaborata una sola attivita'.
-Il riferimento verificato alla destinazione impedisce di notificare di nuovo
-lo stesso spostamento annunciato con un activity id differente.
+Le notifiche gia' presenti per sorgente, destinazione e destinatario vengono
+riusate come controllo contro annunci ripetuti con un activity id differente.
+Il solo collegamento fra profili non indica che sia arrivato un Move.
 
 ## 2. Riuso del codice esistente
 
@@ -123,10 +124,12 @@ Non serve una tabella delle migrazioni.
 Dati proposti su `actors`:
 
 - `also_known_as`: alias dichiarati, limitati e validati, letti dal resolver;
-- `moved_to_actor_id`: riferimento nullable alla destinazione verificata.
+- `moved_to_actor_id`: riferimento nullable alla destinazione, importato anche
+  dal `movedTo` del profilo remoto.
 
-Il secondo riferimento serve all'avviso, al link della notifica e alla
-deduplicazione degli effetti. Un normale Update che omette movedTo non lo
+Il secondo riferimento serve all'avviso sul profilo. Non prova che un Move
+sia stato ricevuto e non deve sopprimere le notifiche di un Move successivo.
+Un normale Update che omette movedTo non lo
 cancella. La notifica ha Pippo come autore dell'annuncio e Pluto come oggetto
 notificabile: il link punta direttamente alla destinazione senza dipendere
 da successivi aggiornamenti della sorgente.
@@ -139,15 +142,15 @@ concreta dei follower locali. Nessuna modifica alle query delle timeline.
 Recuperare e verificare il profilo della destinazione prima della transazione.
 Poi, in una normale transazione:
 
-1. Rileggere sotto lock la sorgente; se la destinazione e' gia' registrata,
-   evitare nuove notifiche. Un target diverso non sovrascrive automaticamente
-   quello precedente.
+1. Rileggere sotto lock la sorgente. Un target diverso non sovrascrive
+   automaticamente quello precedente. Leggere le notifiche gia' presenti
+   per lo stesso annuncio e saltare i destinatari gia' notificati.
 2. Selezionare i follower accepted dei Person locali con utente attivo.
 3. Creare per ciascuno la notifica di migrazione.
-4. Salvare la destinazione verificata e completare la transazione.
+4. Salvare il riferimento alla destinazione e completare la transazione.
 
 La transazione evita che un errore locale lasci notifiche parziali insieme
-al riferimento di completamento. Riusare il normale accodamento push dopo
+al collegamento alla destinazione. Riusare il normale accodamento push dopo
 il commit. Non introdurre un recupero speciale per Move.
 
 Il Move non genera attivita' federate in uscita, firme per follower o
@@ -167,6 +170,14 @@ non esegue un follow e non apre una conferma aggiuntiva: il profilo offre
 il normale pulsante Segui, con gli stati gia' esistenti se Anna segue gia'
 Pluto o ha una richiesta in attesa.
 
+Anche una normale visita al vecchio profilo importa `movedTo`: si cerca
+l'Actor remoto nel database e lo si recupera tramite il resolver protetto
+solo se manca. Si salva il suo id nel campo esistente, senza notifiche.
+Non si risolvono ricorsivamente gli ulteriori `movedTo` della destinazione.
+Valori non validi, self-move, destinazioni locali o bloccate sono ignorati;
+un fetch fallito non impedisce l'aggiornamento degli altri dati del profilo.
+Non si aggiungono colonne o migrazioni.
+
 Il vecchio profilo resta consultabile con i suoi post e un avviso:
 "Questo account si e' trasferito su Pluto", collegato al nuovo profilo.
 Non introdurre nuove restrizioni ai follow del vecchio profilo in questa issue.
@@ -178,7 +189,7 @@ Non introdurre nuove restrizioni ai follow del vecchio profilo in questa issue.
 | Follow alla sorgente o destinazione | Nessuna modifica automatica, comprese le preferenze di auto-announce. |
 | Follower con richiesta pending alla sorgente | Non notificare: destinatari sono i follower accepted. |
 | Follower che segue gia' la destinazione | Riceve comunque l'informazione; il profilo mostra lo stato esistente. |
-| Move duplicato | Nessuna seconda notifica, anche con activity id diverso. |
+| Move duplicato | Deduplicazione per activity id e notifiche gia' presenti per gli stessi destinatari. |
 | Nuovo target per una sorgente gia' migrata | Non sovrascrivere automaticamente la destinazione registrata. |
 | Catene di migrazioni | Non inseguirle automaticamente. |
 
@@ -212,7 +223,7 @@ invariate. Suite completa e review del diff prima della PR.
 
 ## 10. Verifica dell'implementazione
 
-- Test dedicati: 14 test, 64 asserzioni, inclusa ricezione HTTP firmata dello
+- Verifiche della prima implementazione: 14 test, 64 asserzioni, inclusa ricezione HTTP firmata dello
   stesso Move nelle inbox di Anna e Marco, due notifiche e follow invariati.
 - MySQL 26.7: migrazioni applicate in un database temporaneo isolato; verificati
   down/up della nuova migrazione e null-on-delete del riferimento alla destinazione.
@@ -228,3 +239,24 @@ invariate. Suite completa e review del diff prima della PR.
 - Diff completo rivisto: follow e query delle timeline invariati; nessuna nuova
   route o consegna federata generata dal Move. Documentazione EN/IT e changelog
   aggiornati.
+
+### Estensione mirata: movedTo durante la consultazione
+
+Il collegamento `moved_to_actor_id` viene popolato anche dai normali fetch e
+Update del profilo. Le notifiche restano esclusivamente nel gestore di Move,
+con verifica fresca dell'alias. La deduplicazione considera le notifiche
+esistenti, senza usare il collegamento informativo come prova dell'annuncio.
+Una notifica eliminata non costituisce uno storico permanente di consegna;
+non si introduce un registro aggiuntivo per questa funzione.
+
+Visita del profilo e Move usano lo stesso `RemoteActorResolver::resolveMovedTo`
+per risolvere e controllare la destinazione. Per il Move viene richiesto un
+refresh: la verifica dell'alias prima delle notifiche deve usare il documento
+attuale del nuovo account. Il riferimento salvato resta lo stesso id locale.
+
+- Test mirati Move, resolver e profili: 60 test, 226 asserzioni, tutti passati.
+- Suite completa: 1.472 test, 6.551 asserzioni, 2 saltati e il solo fallimento
+  preesistente di FeedTest sul testo `Altro...` indicato sopra.
+- EXPLAIN MySQL della query di deduplicazione: lookup tramite
+  `notifications_actor_id_foreign`, senza scansione completa della tabella.
+- Pint e controllo del diff superati; nessuna nuova colonna o migrazione.

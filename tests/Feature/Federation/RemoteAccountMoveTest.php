@@ -147,6 +147,94 @@ class RemoteAccountMoveTest extends TestCase
         $this->assertDatabaseCount('notifications', 2);
     }
 
+    private function sourceDocument(array $overrides = []): array
+    {
+        return $this->document(array_replace([
+            'id' => $this->source->uri,
+            'preferredUsername' => 'pippo',
+            'movedTo' => $this->target->uri,
+            'publicKey' => [
+                'id' => $this->source->uri.'#main-key',
+                'owner' => $this->source->uri,
+                'publicKeyPem' => $this->source->key->public_key,
+            ],
+        ], $overrides));
+    }
+
+    public function test_visiting_old_profile_links_cached_destination_without_notifying_and_later_move_still_notifies(): void
+    {
+        $anna = $this->createFullAccount('anna');
+        $this->follow($anna->actor);
+        $this->source->update(['last_fetched_at' => now()->subDays(2)]);
+        Http::swap(new Factory);
+        Http::fake([
+            $this->source->uri => Http::response($this->sourceDocument()),
+            '*' => Http::response('', 404),
+        ]);
+
+        $this->actingAs($anna)->get($this->source->profileUrl())
+            ->assertOk()->assertSee(__('openbook.actors.moved_notice'))
+            ->assertSee('href="'.$this->target->profileUrl().'"', false);
+        $this->assertSame($this->target->id, $this->source->fresh()->moved_to_actor_id);
+        $this->assertDatabaseCount('notifications', 0);
+        $this->assertDatabaseCount('follows', 1);
+        Http::assertNotSent(fn ($request): bool => $request->url() === $this->target->uri);
+        Queue::assertNothingPushed();
+
+        $this->fakeTarget();
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process());
+        $this->assertDatabaseCount('notifications', 1);
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process());
+        $this->assertDatabaseCount('notifications', 1);
+    }
+
+    public function test_unknown_destination_is_fetched_once_without_following_its_moved_to_chain(): void
+    {
+        $targetDocument = $this->document(['movedTo' => 'https://third.example/users/newer']);
+        $targetUri = $this->target->uri;
+        $this->target->delete();
+        Http::swap(new Factory);
+        Http::fake([
+            $targetUri => Http::response($targetDocument),
+            '*' => Http::response('', 404),
+        ]);
+        app(RemoteActorResolver::class)->applyRemoteDocument($this->sourceDocument(), $this->source->uri);
+
+        $target = Actor::query()->where('uri', $targetUri)->sole();
+        $this->assertSame($target->id, $this->source->fresh()->moved_to_actor_id);
+        $this->assertNull($target->moved_to_actor_id);
+        $this->assertDatabaseCount('notifications', 0);
+        $this->assertDatabaseCount('follows', 0);
+        Http::assertSentCount(1);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_invalid_self_local_or_blocked_moved_to_does_not_fetch_or_link(): void
+    {
+        app(DomainBlockManager::class)->block($this->createFullAccount('admin', ['is_admin' => true]), 'blocked.example');
+        foreach ([
+            'javascript:alert(1)', 'ftp://remote.example/users/other',
+            $this->source->uri, url('/users/local'),
+            'https://blocked.example/users/other', ['id' => []], null,
+        ] as $uri) {
+            app(RemoteActorResolver::class)->applyRemoteDocument($this->sourceDocument(['movedTo' => $uri]), $this->source->uri);
+            $this->assertNull($this->source->fresh()->moved_to_actor_id);
+        }
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('notifications', 0);
+    }
+
+    public function test_failed_destination_fetch_preserves_profile_and_sends_no_notification(): void
+    {
+        $this->target->delete();
+        Http::swap(new Factory);
+        Http::fake(['*' => Http::response('', 503)]);
+        $actor = app(RemoteActorResolver::class)->applyRemoteDocument($this->sourceDocument(['name' => 'Updated Pippo']), $this->source->uri);
+        $this->assertSame('Updated Pippo', $actor->name);
+        $this->assertNull($actor->moved_to_actor_id);
+        $this->assertDatabaseCount('notifications', 0);
+    }
+
     public static function invalidDocuments(): array
     {
         return [

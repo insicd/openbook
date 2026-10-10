@@ -185,6 +185,13 @@ containing only `movedTo` does not generate migration notifications.
 This feature handles announcements between remote accounts, not migration
 to or from Openbook, communities or automatic migration chains.
 
+Normal updates to the old profile also import `movedTo`: Openbook looks up
+the destination Actor, fetches it if missing and stores the link in the
+existing `moved_to_actor_id` field. This displays the notice and link without
+generating notifications. Migration chains are not followed. A subsequent
+verified Move can still notify followers; the informational link does not
+replace the announcement.
+
 The schema requires running `php artisan migrate` as usual; no new worker is needed.
 
 ### Remote memorial profiles

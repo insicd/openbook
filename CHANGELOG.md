@@ -22,6 +22,8 @@ la [roadmap](docs/roadmap.md).
 - **Migrazioni degli account remoti (#116)**: gli annunci `Move` verificati
   notificano i follower locali e indicano il nuovo profilo. Seguirlo resta
   una scelta esplicita dell’utente; follow precedenti e retention sono invariati.
+  L’avviso compare anche quando il vecchio profilo dichiara `movedTo` durante
+  la normale consultazione, senza generare notifiche.
 - **Post fissati remoti**: nuova scheda «Post fissati» nei profili remoti,
   con i contenuti scelti dall'autore nel loro ordine, senza alterarli nella
   timeline ordinaria. La scheda compare solo quando ci sono post visibili.

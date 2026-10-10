@@ -181,6 +181,13 @@ invariati. Un Update con il solo `movedTo` non genera notifiche di migrazione.
 Questa funzione riguarda annunci fra account remoti, non la migrazione di
 account da o verso Openbook, community o catene di spostamenti automatici.
 
+Anche i normali aggiornamenti del vecchio profilo importano `movedTo`:
+Openbook cerca il nuovo Actor nel database, lo recupera se manca e salva
+il collegamento nel campo esistente `moved_to_actor_id`. Questo mostra
+l'avviso e il link al nuovo profilo senza generare notifiche. Non vengono
+inseguite catene di spostamenti. Un Move verificato successivo puo' comunque
+notificare i follower; il collegamento informativo non lo sostituisce.
+
 Lo schema richiede il consueto `php artisan migrate`; non servono nuovi worker.
 
 ### Profili commemorativi remoti
