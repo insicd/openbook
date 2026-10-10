@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Application\Services\InstanceSettings;
 use App\Infrastructure\Database\SystemSetting;
+use App\Infrastructure\Media\HomeBackgroundUploader;
 use App\Infrastructure\Media\InstanceIconUploader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -307,6 +308,7 @@ class AdminSettingsTest extends TestCase
             ->get(route('admin.settings.edit'))
             ->assertOk()
             ->assertSee('name="favicon"', false)
+            ->assertSee('name="home_background"', false)
             ->assertSee('name="trending_days"', false)
             ->assertSee('enctype="multipart/form-data"', false);
     }
@@ -399,6 +401,54 @@ class AdminSettingsTest extends TestCase
             ]))
             ->assertRedirect(route('admin.settings.edit'))
             ->assertSessionHasErrors('favicon');
+    }
+
+    public function test_admin_can_upload_and_remove_guest_home_background(): void
+    {
+        Storage::fake('public');
+
+        $admin = $this->createFullAccount('adminhomebg');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'home_background' => UploadedFile::fake()->image('cover.jpg', 1280, 720),
+            ]))
+            ->assertRedirect(route('admin.settings.edit'));
+
+        $directory = app(InstanceSettings::class)->homeBackgroundDirectory();
+        $this->assertNotNull($directory);
+        Storage::disk('public')->assertExists($directory.'/'.HomeBackgroundUploader::FILENAME);
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings.edit'))
+            ->assertOk()
+            ->assertSee('name="remove_home_background"', false);
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'remove_home_background' => '1',
+            ]))
+            ->assertRedirect(route('admin.settings.edit'));
+
+        $this->assertNull(app(InstanceSettings::class)->homeBackgroundDirectory());
+        Storage::disk('public')->assertMissing($directory.'/'.HomeBackgroundUploader::FILENAME);
+    }
+
+    public function test_home_background_upload_rejects_invalid_files(): void
+    {
+        Storage::fake('public');
+
+        $admin = $this->createFullAccount('adminhomebgbad');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->actingAs($admin)
+            ->from(route('admin.settings.edit'))
+            ->put(route('admin.settings.update'), $this->settingsPayload([
+                'home_background' => UploadedFile::fake()->create('script.php', 5, 'application/x-httpd-php'),
+            ]))
+            ->assertRedirect(route('admin.settings.edit'))
+            ->assertSessionHasErrors('home_background');
     }
 
     public function test_guest_home_includes_pwa_icon_tags_when_configured(): void

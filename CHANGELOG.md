@@ -131,6 +131,10 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Homepage ospite**: nome e descrizione dell'istanza sono in evidenza;
+  i riferimenti al software Openbook restano piu' in basso. I box e la
+  navbar sono semitrasparenti. Dalle impostazioni admin si puo' caricare
+  un'immagine di sfondo usata solo su quella pagina.
 - L'elenco `/community` separa le community in «Le tue», «Locali» e
   «Remote». Ogni scheda carica progressivamente venti Group alla volta in
   ordine di handle, inclusi quelli già seguiti. Iscrizione, disiscrizione e

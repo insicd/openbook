@@ -70,6 +70,30 @@
         </div>
 
         <div class="ob-field" style="margin-top:1rem">
+            <label for="home_background">{{ __('openbook.admin.settings.home_background') }}</label>
+            @if ($homeBackgroundUrl)
+                <img
+                    class="ob-admin-home-background-preview"
+                    src="{{ $homeBackgroundUrl }}"
+                    alt=""
+                    width="240"
+                    height="120"
+                >
+            @endif
+            <input type="file" name="home_background" id="home_background" accept="image/jpeg,image/png,image/webp,image/gif">
+            <p class="ob-field__help">{{ __('openbook.admin.settings.home_background_help') }}</p>
+            @if ($homeBackgroundUrl)
+                <label class="ob-checkbox" style="margin-top:0.5rem">
+                    <input type="checkbox" name="remove_home_background" value="1">
+                    {{ __('openbook.admin.settings.home_background_remove') }}
+                </label>
+            @endif
+            @error('home_background')
+                <p class="ob-field__error">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <div class="ob-field" style="margin-top:1rem">
             <label style="display:flex;align-items:center;gap:0.5rem;font-weight:500">
                 <input type="checkbox" name="registration_open" value="1" @checked(old('registration_open', $registrationOpen))>
                 {{ __('openbook.admin.settings.registration_open') }}
