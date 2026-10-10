@@ -2,6 +2,9 @@
 
 namespace App\Federation\Inbox;
 
+use App\Domain\Posts\PostLanguage;
+use App\Federation\Support\JsonLdLanguage;
+
 /**
  * Riconosce e normalizza gli oggetti ActivityStreams usati come "post"
  * federati: Note (Mastodon/Misskey/Friendica/Pixelfed/NodeBB), Page (Lemmy),
@@ -54,7 +57,7 @@ final class RemotePostObject
         if (self::hasType($document['type'] ?? null, 'Create') && is_array($document['object'] ?? null)) {
             $inner = $document['object'];
 
-            return self::isPostable($inner['type'] ?? null) ? $inner : null;
+            return self::isPostable($inner['type'] ?? null) ? JsonLdLanguage::inherit($inner, $document) : null;
         }
 
         return null;
@@ -79,6 +82,40 @@ final class RemotePostObject
         // content come <p><b>…</b></p> (il markdown **grassetto** usa
         // <strong>, quindi non viene scambiato per un titolo).
         return self::titleFromBoldContentPrefix($document);
+    }
+
+    /**
+     * Lingua dichiarata del testo effettivamente selezionato, non del summary
+     * o di un URL di fallback. Una mappa ambigua non viene risolta dal default.
+     *
+     * @param  array<string, mixed>  $document
+     */
+    public static function language(array $document): ?string
+    {
+        $raw = self::rawContent($document);
+
+        if ($raw === '' || RemoteContentSanitizer::toPlainText($raw) === '') {
+            return null;
+        }
+
+        if (array_key_exists('contentMap', $document) && $document['contentMap'] !== null) {
+            $map = $document['contentMap'];
+
+            if (! is_array($map) || count($map) !== 1) {
+                return null;
+            }
+
+            $value = reset($map);
+
+            return is_string($value) && $value !== '' && $value === $raw
+                ? PostLanguage::normalize(array_key_first($map))
+                : null;
+        }
+
+        // @language descrive content, non source.content o altri fallback.
+        return is_string($document['content'] ?? null) && $document['content'] !== ''
+            ? JsonLdLanguage::defaultLanguage($document['@context'] ?? null)
+            : null;
     }
 
     /**

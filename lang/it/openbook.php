@@ -322,6 +322,10 @@ return [
         'direct' => 'Diretta (solo persone menzionate)',
     ],
 
+    'language_names' => [
+        'cmn' => 'Cinese mandarino',
+    ],
+
     'posts' => [
         'back' => 'Indietro',
         'open_post' => 'Apri post',
@@ -334,6 +338,7 @@ return [
         'video_processing_cannot_delete' => 'Attendi il termine dell\'elaborazione prima di eliminare questa pubblicazione.',
         'page_title' => 'Post di :name',
         'edited' => 'modificato',
+        'declared_language' => 'Lingua dichiarata dall’autore',
         'deleted' => 'Questo post è stato eliminato.',
         'content_warning_label' => 'Avviso sul contenuto',
         'forced_content_warning' => 'Contenuto sensibile',

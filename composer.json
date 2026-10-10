@@ -18,7 +18,8 @@
         "friendica/json-ld": "^1.1",
         "laravel/framework": "^12.61",
         "laravel/tinker": "^2.9",
-        "minishlink/web-push": "^11.0"
+        "minishlink/web-push": "^11.0",
+        "symfony/intl": "^7.4"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

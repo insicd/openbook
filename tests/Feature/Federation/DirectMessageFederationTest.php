@@ -50,6 +50,7 @@ class DirectMessageFederationTest extends TestCase
                 'to' => [$local->actor->uri],
                 'cc' => [$remote->uri],
                 'content' => '<p>Ciao da Mastodon</p>',
+                'contentMap' => ['it' => '<p>Ciao da Mastodon</p>'],
                 'published' => now()->toAtomString(),
             ],
         ];
@@ -73,6 +74,7 @@ class DirectMessageFederationTest extends TestCase
         $this->assertNotNull($post);
         $this->assertSame(Post::VISIBILITY_DIRECT, $post->visibility);
         $this->assertSame('Ciao da Mastodon', $post->body);
+        $this->assertSame('it', $post->language);
         $this->assertNotNull($post->conversation_id);
 
         $conversation = Conversation::query()->find($post->conversation_id);

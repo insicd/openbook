@@ -103,6 +103,47 @@ browsers:
   apply. Unlisted, followers-only, direct, remote and private-community content
   is never published to a LitePub relay.
 
+### Remote post language
+
+Openbook stores the declared language of the imported text in `posts.language`
+when it is unambiguous. A `contentMap` with one usable BCP 47 key supplies the
+language if its value exactly matches `content`, or if that value is actually
+selected as the fallback when `content` is unavailable. Multiple languages,
+conflicting texts, malformed or undetermined tags leave `NULL`; Openbook does
+not detect the language of the text. Tags are lowercased without dropping
+regions or scripts, with an application limit of 255 characters.
+
+Without a map, an explicit `@language` in embedded contexts can label `content`.
+The object's context can override the default inherited from the activity;
+`null` clears it. Unknown remote contexts and redefinitions requiring JSON-LD
+expansion are neither interpreted nor fetched: the default remains unusable
+until an explicit context reset. Documents fetched over HTTP have a context
+independent of the referring activity.
+
+The rule is shared by inbox processing, outbox import and refresh, including
+private messages stored as posts. Accepted updates can change or remove the
+language; stale updates cannot. There is no historical backfill, and post
+authorization and relevance rules remain unchanged.
+
+Cards in feeds, post details and quoted posts display the language beside the
+date, with an accessible “Language declared by the author” description. Names
+follow the reader's interface language; regions and scripts are preserved when
+the catalogue provides the full name, otherwise the code is shown. Presentation
+uses Symfony Intl data without requiring the PHP `intl` extension. No label is
+shown for missing languages or deleted posts. Composer language selection and
+the profile's writing preference are planned for a subsequent phase.
+
+The migration widens `posts.language` from 8 to 255 characters. Rollback is
+refused while tags longer than 8 characters exist, preventing truncation.
+
+The same extraction rules store the language in `comments.language`
+(nullable, 255 characters), through both inbox processing and reply fetching.
+Each upsert may change or clear it. Existing comment update ordering remains
+unchanged: it does not apply the stale-version protection used for posts.
+The language appears next to the comment date, using the same presentation
+rules as posts. No backfill or language selection is added for comments; local
+comments continue without a declaration. Event comments use a separate path.
+
 ### Social federation (Phase 4)
 
 Activities accepted in the inbox (Phase 3) are now **processed**, and relevant
@@ -280,14 +321,19 @@ contribute to the trending ranking alongside post hashtags.
 No additional worker is required: event activities use the existing inbox and
 delivery queues processed by `openbook:cron`. After deploying support for a
 new inbox object type, an administrator may retry retained rows previously
-classified as `ignored` with:
+classified as `ignored`, and enqueue `pending` rows missing their jobs
+(for example after a database import), with:
 
 ```bash
 php artisan openbook:reprocess-inbox
 ```
 
-The command requeues every retained ignored inbox item and remains safe to run
-more than once; unsupported activities simply return to the ignored state.
+The command enqueues `ignored` and `pending` items, excluding `processed` and
+`failed` rows. With the database queue, then run
+`php artisan openbook:process-inbox`; with `QUEUE_CONNECTION=sync`, processing
+is immediate. This is not a dry-run and does not deduplicate existing queued
+jobs: it is a manual recovery command. Jobs check for `pending` status before
+processing; unsupported activities return to `ignored`.
 
 Not yet part of the mature product: a real recipient system for direct
 messages (beyond mentions), and advanced federation-debug tools (beyond the

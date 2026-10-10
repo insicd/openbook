@@ -16,6 +16,7 @@ use App\Federation\Inbox\RemoteNoteDocumentFetcher;
 use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Federation\Inbox\RemotePostObject;
 use App\Federation\Support\ActivityPubTimestamp;
+use App\Federation\Support\JsonLdLanguage;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use Illuminate\Support\Carbon;
@@ -494,7 +495,7 @@ final class RemoteOutboxFetcher
         $note = null;
 
         if (is_array($object)) {
-            $note = RemotePostObject::unwrap($object);
+            $note = RemotePostObject::unwrap(JsonLdLanguage::inherit($object, $item));
         }
 
         if ($note === null && is_string($object) && $object !== '') {

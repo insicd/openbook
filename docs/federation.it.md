@@ -93,6 +93,48 @@ essere consumati da altri server e non da browser:
   followers-only, diretti, remoti o di community private non vengono mai
   pubblicati verso un relay LitePub.
 
+### Lingua dei post remoti
+
+Openbook conserva in `posts.language` la lingua dichiarata del testo importato
+quando non è ambigua. Una `contentMap` con una sola chiave BCP 47 utilizzabile
+fornisce la lingua se il valore coincide esattamente con `content`, oppure se è
+il testo effettivamente scelto dal fallback in assenza di `content`. Mappe con
+più lingue, testi discordanti, tag malformati o indeterminati restano `NULL`;
+il sistema non analizza linguisticamente il testo. I tag sono normalizzati in
+minuscolo senza perdere regioni o alfabeti, con limite applicativo di 255 caratteri.
+
+In assenza di mappa, un `@language` esplicito nei contesti incorporati può
+etichettare `content`. Il contesto dell'oggetto può sostituire il default ereditato
+dall'attività; `null` lo azzera. Contesti remoti sconosciuti e ridefinizioni che
+richiedono espansione JSON-LD non vengono interpretati né scaricati: il default
+resta non utilizzabile fino a un reset esplicito. I documenti recuperati tramite
+HTTP hanno un contesto indipendente da quello dell'attività che li riferisce.
+
+La regola è condivisa da inbox, importazione outbox e refresh, inclusi i messaggi
+privati memorizzati come post. Gli aggiornamenti accettati possono cambiare o
+rimuovere la lingua; quelli obsoleti non la modificano. Non è previsto un backfill
+dello storico, né cambiano autorizzazione e criteri di rilevanza dei post.
+Le card nei feed, nei dettagli e nei post citati mostrano la lingua vicino alla
+data, con descrizione accessibile «Lingua dichiarata dall’autore». Il nome segue
+la lingua dell'interfaccia del lettore; regioni e alfabeti vengono mantenuti
+quando il catalogo dispone del nome completo, altrimenti compare il codice.
+La presentazione usa i dati di Symfony Intl senza richiedere l'estensione PHP
+`intl`. Non compare alcuna etichetta per lingua assente o post eliminati.
+La selezione della lingua nel composer e la preferenza di scrittura del profilo
+restano previste in una fase successiva.
+
+La migrazione amplia `posts.language` da 8 a 255 caratteri. Il rollback viene
+rifiutato se esistono tag più lunghi di 8 caratteri, per evitare troncamenti.
+
+Le stesse regole di estrazione salvano la lingua in `comments.language`
+(nullable, 255 caratteri), sia dall'inbox sia dal recupero delle risposte.
+Ogni upsert può cambiarla o rimuoverla. La gestione preesistente dell'ordine
+degli aggiornamenti dei commenti rimane invariata: non applica la protezione
+contro versioni obsolete prevista per i post. La lingua viene mostrata accanto
+alla data dei commenti, con le stesse regole di presentazione dei post. Non sono
+introdotti backfill o selezione della lingua dei commenti; quelli locali
+restano senza dichiarazione. I commenti degli eventi seguono un percorso distinto.
+
 ### Federazione sociale (Fase 4)
 
 Le attivita' accettate nell'inbox (Fase 3) vengono ora **elaborate**, e le azioni
@@ -270,15 +312,19 @@ anche al calcolo delle tendenze, insieme a quelli dei post.
 Non serve un worker aggiuntivo: le attivita' degli eventi usano le code di
 inbox e delivery gia' elaborate da `openbook:cron`. Dopo aver distribuito
 il supporto a un nuovo tipo di oggetto in inbox, un amministratore puo'
-ritentare le righe conservate classificate come `ignored` con:
+ritentare le righe conservate classificate come `ignored` e riaccodare quelle
+`pending` prive di job, per esempio dopo un'importazione del database, con:
 
 ```bash
 php artisan openbook:reprocess-inbox
 ```
 
-Il comando rimette in coda ogni elemento ignored conservato ed e' sicuro
-da eseguire piu' di una volta; le attivita' non supportate tornano semplicemente
-nello stato ignored.
+Il comando accoda gli elementi `ignored` e `pending`, senza includere quelli
+`processed` o `failed`. Con la coda database, eseguire poi
+`php artisan openbook:process-inbox`; con `QUEUE_CONNECTION=sync` l'elaborazione
+avviene subito. Non è un dry-run e non deduplica job già presenti in coda: è
+un comando di recupero manuale. I job controllano lo stato `pending` prima
+dell'elaborazione; le attività non supportate tornano `ignored`.
 
 Non fanno ancora parte del prodotto maturo: un vero sistema di destinatari per i
 messaggi diretti (oltre menzioni), e tool avanzati di debug federazione (oltre al

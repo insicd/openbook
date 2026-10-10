@@ -74,6 +74,7 @@ class RemotePostRefreshTest extends TestCase
                 'type' => 'Note',
                 'attributedTo' => $author->uri,
                 'content' => '<p>Testo aggiornato dal server remoto.</p>',
+                'contentMap' => ['it' => '<p>Testo aggiornato dal server remoto.</p>'],
                 'published' => now()->subDay()->toAtomString(),
                 'to' => ['https://www.w3.org/ns/activitystreams#Public'],
                 'replies' => [
@@ -105,6 +106,7 @@ class RemotePostRefreshTest extends TestCase
             ->assertSessionHas('status', __('openbook.posts.updates_fetched'));
 
         $this->assertSame('Testo aggiornato dal server remoto.', $post->fresh()->body);
+        $this->assertSame('it', $post->fresh()->language);
         $this->assertDatabaseHas('comments', [
             'post_id' => $post->id,
             'uri' => $replyUri,

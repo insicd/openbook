@@ -41,6 +41,7 @@
                 @if ($post->wasEdited())
                     &middot; {{ __('openbook.posts.edited') }}
                 @endif
+                <x-content-language :language="$isDeleted ? null : $post->language" />
             </div>
         </div>
 

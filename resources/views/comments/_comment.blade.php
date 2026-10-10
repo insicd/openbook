@@ -39,6 +39,7 @@
                         <a href="{{ route('comments.show', $comment) }}" class="ob-comment__permalink" aria-label="{{ __('openbook.comments.open_thread') }}">
                             {{ $comment->created_at->diffForHumans() }}
                         </a>
+                        <x-content-language :language="$comment->language" />
                     </div>
                 @endif
                 @if ($showInReplyTo)
