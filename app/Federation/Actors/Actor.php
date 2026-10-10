@@ -40,15 +40,20 @@ use Illuminate\Support\HtmlString;
  * @property string $uri
  * @property string|null $name
  * @property string|null $summary
+ * @property array<int, array{label: string, value: string}>|null $links
  * @property array<string, string>|null $custom_emojis
  * @property string|null $icon_url
  * @property string|null $image_url
  * @property bool $manually_approves_followers
  * @property bool $discoverable
  * @property bool $indexable
+ * @property bool $memorial
+ * @property bool $remote_suspended
  * @property string $status
  * @property Carbon|null $deleted_at
  * @property Carbon|null $last_fetched_at
+ * @property list<string>|null $featured_post_ids
+ * @property Carbon|null $featured_fetched_at
  * @property Carbon|null $posts_fetched_at
  * @property Carbon|null $published_at
  * @property int|null $followers_count
@@ -88,15 +93,20 @@ class Actor extends Model
         'uri',
         'name',
         'summary',
+        'links',
         'custom_emojis',
         'icon_url',
         'image_url',
         'manually_approves_followers',
         'discoverable',
         'indexable',
+        'memorial',
+        'remote_suspended',
         'status',
         'deleted_at',
         'last_fetched_at',
+        'featured_post_ids',
+        'featured_fetched_at',
         'posts_fetched_at',
         'published_at',
         'followers_count',
@@ -112,11 +122,16 @@ class Actor extends Model
     {
         return [
             'is_local' => 'boolean',
+            'memorial' => 'boolean',
+            'remote_suspended' => 'boolean',
             'custom_emojis' => 'array',
+            'links' => 'array',
             'manually_approves_followers' => 'boolean',
             'discoverable' => 'boolean',
             'indexable' => 'boolean',
             'last_fetched_at' => 'datetime',
+            'featured_post_ids' => 'array',
+            'featured_fetched_at' => 'datetime',
             'posts_fetched_at' => 'datetime',
             'published_at' => 'datetime',
             'deleted_at' => 'datetime',
@@ -238,6 +253,11 @@ class Actor extends Model
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function isRemotelySuspended(): bool
+    {
+        return ! $this->isLocal() && $this->remote_suspended;
     }
 
     public function isSuspended(): bool

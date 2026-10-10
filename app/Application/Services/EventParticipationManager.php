@@ -21,6 +21,8 @@ final class EventParticipationManager
 
     public function join(Actor $actor, Event $event): EventParticipation
     {
+        RemoteInteractionGuard::assertAllowed($actor, $event->actor);
+
         if (! in_array($event->join_mode, ['free', 'restricted'], true)) {
             throw new InvalidArgumentException('Questo evento non accetta partecipazioni federate.');
         }

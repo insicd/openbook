@@ -61,6 +61,13 @@ Every local account has from the start an ActivityPub Actor of type `Person`
 modeled with federation in mind: `follows` and `likes` connect **Actors** (not
 users), so remote actors can be accepted without schema changes.
 
+Remote suspension declared by an Actor's origin is cached separately in
+`actors.remote_suspended`. It preserves imported content and local moderation
+status. `RemoteInteractionGuard` prevents new outgoing user interactions in the
+shared application services; direct-message permissions and event interaction
+availability also respect this flag. Ordinary profile refreshes and Updates can
+clear it when the origin reactivates the account.
+
 Actor private keys are encrypted at rest (Eloquent `encrypted` cast, based on
 `APP_KEY`) and are never exposed by APIs, logs, or error messages.
 
@@ -102,8 +109,10 @@ customization (`profiles.avatar_path`/`cover_path`/`bio`/`links`,
 /`discoverable`); the **Settings** page (`/impostazioni`, link in the user menu
 and "Edit profile" button on your own profile) makes them editable:
 
-- **Public profile**: display name, biography (max 500 characters), up to 4
-  labeled links, avatar and cover image. Image upload (`ProfileImageUploader`)
+- **Public profile**: display name, biography (max 500 characters), up to 8
+  labeled fields shared between Link and Additional information, avatar and
+  cover image. Saving the public profile returns to its display page with a
+  confirmation message. Image upload (`ProfileImageUploader`)
   validates the file's actual type (never the extension alone), strips EXIF
   metadata, and resizes with GD when available (avatar max 512px, cover max
   1600px on the longest side), reusing the same base logic already used for

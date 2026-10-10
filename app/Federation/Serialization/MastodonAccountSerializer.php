@@ -37,11 +37,10 @@ final class MastodonAccountSerializer
             'header' => $header,
             'header_static' => $header,
             'locked' => $actor->manually_approves_followers,
-            'fields' => array_map(static fn (array $link): array => [
-                'name' => (string) ($link['label'] ?? $link['url']),
-                'value' => '<a href="'.e($link['url']).'" rel="me nofollow noopener" target="_blank">'.e($link['url']).'</a>',
+            'fields' => array_map(static fn (array $field): array => [
+                ...$field,
                 'verified_at' => null,
-            ], $profile?->links ?? []),
+            ], ProfileFieldSerializer::links($profile?->links ?? [])),
             'emojis' => [],
             'bot' => false,
             'group' => false,

@@ -24,7 +24,7 @@ final class QuotedPostResolver
             ->visibleTo($viewer)
             ->first();
 
-        if ($post === null || $post->isDirectMessage()) {
+        if ($post === null || $post->isDirectMessage() || $post->actor?->isRemotelySuspended()) {
             return null;
         }
 

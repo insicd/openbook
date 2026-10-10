@@ -47,12 +47,16 @@ class SettingsTest extends TestCase
             ],
         ]);
 
-        $response->assertRedirect(route('settings.edit'));
+        $response->assertRedirect(route('profile.show', $user->username));
+
+        $response->assertSessionHas('status', __('openbook.settings.profile_updated'));
+        $this->get(route('profile.show', $user->username))->assertOk()
+            ->assertSee(__('openbook.settings.profile_updated'));
 
         $user->profile->refresh();
         $this->assertSame('Alice Wonderland', $user->profile->display_name);
         $this->assertSame('Curiouser and curiouser.', $user->profile->bio);
-        $this->assertSame([['label' => 'Sito', 'url' => 'https://example.test']], $user->profile->links);
+        $this->assertSame([['label' => 'Sito', 'value' => 'https://example.test']], $user->profile->links);
     }
 
     public function test_updating_the_display_name_also_updates_the_federated_actor_name(): void
@@ -85,6 +89,38 @@ class SettingsTest extends TestCase
                 && $job->activity['object']['type'] === 'Person'
                 && $job->activity['object']['name'] === 'Alice Wonderland';
         });
+    }
+
+    public function test_profile_link_changes_and_removal_are_federated_to_remote_followers(): void
+    {
+        Queue::fake();
+        $user = $this->createFullAccount('alice');
+        $remoteFollower = $this->createRemoteActor('marco');
+        app(FollowManager::class)->follow($remoteFollower, $user->actor);
+        $user->profile->update(['links' => [['label' => 'Vecchio', 'url' => 'https://old.example.test']]]);
+
+        $this->actingAs($user)->put(route('settings.profile.update'), [
+            'display_name' => 'Alice',
+            'links' => [['label' => 'Sito', 'url' => 'https://new.example.test']],
+        ])->assertSessionHasNoErrors()->assertRedirect(route('profile.show', $user->username));
+
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Update'
+            && $job->activity['object']['attachment'] === [[
+                'type' => 'PropertyValue',
+                'name' => 'Sito',
+                'value' => '<a href="https://new.example.test" rel="me nofollow noopener" target="_blank">https://new.example.test</a>',
+            ]]);
+
+        Queue::fake();
+        $this->actingAs($user->fresh())->put(route('settings.profile.update'), [
+            'display_name' => 'Alice',
+            'links' => [],
+        ])->assertSessionHasNoErrors()->assertRedirect(route('profile.show', $user->username));
+
+        Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Update'
+            && $job->activity['object']['attachment'] === []);
+        $this->get('/users/alice', ['Accept' => 'application/activity+json'])
+            ->assertOk()->assertJsonPath('attachment', []);
     }
 
     public function test_a_user_can_upload_an_avatar_and_the_previous_one_is_removed(): void

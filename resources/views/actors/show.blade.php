@@ -35,6 +35,10 @@
             <h1 class="ob-profile-name">{!! $profileActor->displayNameHtml() !!}</h1>
             <p class="ob-profile-handle">{{ $isGroup ? '!'.$profileActor->handle() : $handle }}</p>
 
+            @if ($profileActor->memorial)
+                <span class="ob-badge">{{ __('openbook.profile.memorial_badge') }}</span>
+            @endif
+
             @if ($isFeed)
                 <span class="ob-badge">{{ __('openbook.actors.feed_badge') }}</span>
             @elseif ($isGroup)
@@ -51,6 +55,17 @@
                 <div class="ob-profile-bio">{{ \App\Domain\Posts\PostBodyRenderer::render(\App\Federation\Inbox\RemoteContentSanitizer::toPlainText($profileActor->summary), $profileActor->custom_emojis) }}</div>
             @endif
 
+            @if (! empty($profileActor->links))
+                <dl class="ob-profile-fields" aria-label="{{ __('openbook.profile.additional_fields') }}">
+                    @foreach ($profileActor->links as $field)
+                        <div class="ob-profile-fields__row">
+                            <dt>{{ $field['label'] }}</dt>
+                            <dd>{{ \App\Domain\Posts\PostBodyRenderer::render($field['value']) }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
+            @endif
+
             @if ($feedSource)
                 <p class="ob-field__help">
                     @if ($feedSource->site_url)
@@ -59,6 +74,10 @@
                     @endif
                     <a href="{{ $feedSource->feed_url }}" rel="noopener noreferrer" target="_blank">{{ __('openbook.actors.feed_source') }}</a>
                 </p>
+            @endif
+
+            @if ($profileActor->isRemotelySuspended())
+                <div class="ob-alert" role="status">{{ __('openbook.profile.remote_suspended_notice') }}</div>
             @endif
 
             <div class="ob-profile-toolbar">
@@ -70,7 +89,7 @@
                 </div>
 
                 <div class="ob-profile-toolbar__actions">
-                    @auth
+                    @if (auth()->check())
                         @if ($isFollowing)
                             <form method="POST" action="{{ route('actors.unfollow', $profileActor) }}" class="ob-profile-toolbar__form">
                                 @csrf
@@ -83,13 +102,13 @@
                                 @method('DELETE')
                                 <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ $isGroup ? __('openbook.communities.pending') : __('openbook.follow.cancel_request') }}</button>
                             </form>
-                        @else
+                        @elseif (! $profileActor->isRemotelySuspended())
                             <form method="POST" action="{{ route('actors.follow', $profileActor) }}" class="ob-profile-toolbar__form">
                                 @csrf
                                 <button type="submit" class="ob-btn ob-btn--primary ob-btn--small">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</button>
                             </form>
                         @endif
-                        @if (! $isGroup && ! $isFeed)
+                        @if (! $isGroup && ! $isFeed && ! $profileActor->isRemotelySuspended())
                             <a href="{{ route('messages.open_actor', $profileActor) }}" class="ob-icon-btn ob-profile-toolbar__message"
                                 aria-label="{{ __('openbook.messages.message_aria') }}"
                                 title="{{ __('openbook.messages.message_aria') }}">
@@ -99,11 +118,11 @@
                         @include('profile._actions_menu', [
                             'actor' => $profileActor,
                             'autoAnnounce' => $autoAnnounce ?? false,
-                            'showAutoAnnounce' => $isFollowing,
+                            'showAutoAnnounce' => $isFollowing && ! $profileActor->isRemotelySuspended(),
                         ])
-                    @else
+                    @elseif (! $profileActor->isRemotelySuspended())
                         <a href="{{ route('login') }}" class="ob-btn ob-btn--primary ob-btn--small">{{ $isGroup ? __('openbook.communities.join') : __('openbook.follow.follow') }}</a>
-                    @endauth
+                    @endif
                 </div>
             </div>
 
@@ -118,6 +137,8 @@
                 'showActivityTab' => ! $isGroup && ! $isFeed,
                 'postsUrl' => route('actors.show', $profileActor),
                 'activityUrl' => route('actors.activity', $profileActor),
+                'hasFeaturedPosts' => $hasFeaturedPosts ?? false,
+                'featuredUrl' => route('actors.featured', $profileActor),
                 'photosUrl' => route('actors.photos', $profileActor),
                 'eventsUrl' => route('actors.events', $profileActor),
             ])

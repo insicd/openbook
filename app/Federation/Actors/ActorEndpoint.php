@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $id
  * @property string $actor_id
  * @property string|null $inbox
+ * @property string|null $featured
  * @property string|null $outbox
  * @property string|null $events
  * @property string|null $followers
@@ -32,6 +33,7 @@ class ActorEndpoint extends Model
         'actor_id',
         'inbox',
         'outbox',
+        'featured',
         'events',
         'followers',
         'following',

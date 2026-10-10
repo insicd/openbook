@@ -73,7 +73,7 @@
     @include('posts._card', ['post' => $post, 'linkToPost' => false])
 
     <div id="commenta">
-        @auth
+        @if (auth()->check() && ! $post->actor?->isRemotelySuspended())
             @include('composer.form', [
                 'mode' => 'comment',
                 'formId' => null,
@@ -84,11 +84,13 @@
                 'bodyLabel' => __('openbook.comments.new_label'),
                 'rows' => 3,
             ])
+        @elseif ($post->actor?->isRemotelySuspended())
+            <div class="ob-card"><p>{{ __('openbook.profile.remote_suspended_notice') }}</p></div>
         @else
             <div class="ob-card">
                 <p><a href="{{ route('login') }}">{{ __('openbook.comments.login_to_comment') }}</a></p>
             </div>
-        @endauth
+        @endif
     </div>
 
     <div class="ob-card" id="commenti">

@@ -328,6 +328,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/attori/{actor}', [ActorProfileController::class, 'show'])->name('actors.show');
     Route::get('/attori/{actor}/follower', [ActorProfileController::class, 'followers'])->name('actors.followers');
     Route::get('/attori/{actor}/seguiti', [ActorProfileController::class, 'following'])->name('actors.following');
+    Route::get('/attori/{actor}/fissati', [ActorProfileController::class, 'featured'])->name('actors.featured');
     Route::get('/attori/{actor}/foto', [ActorProfileController::class, 'photos'])->name('actors.photos');
     Route::get('/attori/{actor}/eventi', [ActorProfileController::class, 'events'])->name('actors.events');
     Route::get('/attori/{actor}/attivita', [ActorProfileController::class, 'activity'])->name('actors.activity');

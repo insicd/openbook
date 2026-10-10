@@ -37,6 +37,8 @@ final class FollowManager
 
     public function follow(Actor $follower, Actor $target): Follow
     {
+        RemoteInteractionGuard::assertAllowed($follower, $target);
+
         if ($follower->id === $target->id) {
             throw new InvalidArgumentException('Non puoi seguire te stesso.');
         }
@@ -266,6 +268,10 @@ final class FollowManager
 
         if (! $follower->isLocal() || ! $follower->isPerson()) {
             throw new InvalidArgumentException('Solo un account locale puo\' attivare la condivisione automatica.');
+        }
+
+        if ($enabled) {
+            RemoteInteractionGuard::assertAllowed($follower, $target);
         }
 
         $target->loadMissing('community');

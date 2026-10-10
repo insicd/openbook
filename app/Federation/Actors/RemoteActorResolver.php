@@ -5,6 +5,7 @@ namespace App\Federation\Actors;
 use App\Application\Services\DomainBlockManager;
 use App\Federation\Fetch\FederationFetchSigner;
 use App\Federation\Inbox\RemoteCustomEmoji;
+use App\Federation\Inbox\RemoteProfileFields;
 use App\Federation\Support\ActivityPubTimestamp;
 use App\Federation\Support\ActivityPubUri;
 use App\Infrastructure\Security\Http\SafeHttpClient;
@@ -643,13 +644,15 @@ final class RemoteActorResolver
                 'uri' => $uri,
                 'name' => isset($document['name']) ? (string) $document['name'] : null,
                 'summary' => isset($document['summary']) ? (string) $document['summary'] : null,
+                'links' => RemoteProfileFields::extract($document),
                 'custom_emojis' => RemoteCustomEmoji::extract($document) ?: null,
                 'icon_url' => $this->extractImageUrl($document['icon'] ?? null),
                 'image_url' => $this->extractImageUrl($document['image'] ?? null),
                 'manually_approves_followers' => (bool) ($document['manuallyApprovesFollowers'] ?? false),
                 'discoverable' => self::documentBoolean($document, 'discoverable', true),
                 'indexable' => self::documentBoolean($document, 'indexable', false),
-                'status' => Actor::STATUS_ACTIVE,
+                'memorial' => self::documentBoolean($document, 'memorial', false),
+                'remote_suspended' => self::documentBoolean($document, 'suspended', false),
                 'last_fetched_at' => now(),
             ];
 
@@ -670,12 +673,18 @@ final class RemoteActorResolver
                 $attributes['following_count'] = $followingCount;
             }
 
-            $actor = Actor::query()->updateOrCreate(['uri' => $uri], $attributes);
+            $actor = Actor::query()->firstOrCreate(['uri' => $uri], $attributes + ['status' => Actor::STATUS_ACTIVE]);
+            $actor->fill($attributes)->save();
 
             ActorKey::query()->updateOrCreate(
                 ['actor_id' => $actor->id],
                 ['public_key' => (string) $document['publicKey']['publicKeyPem']]
             );
+
+            $featured = $this->actorCollectionUrl($document, 'featured');
+            if ($actor->endpoints?->featured !== $featured) {
+                $actor->forceFill(['featured_post_ids' => null, 'featured_fetched_at' => null])->saveQuietly();
+            }
 
             ActorEndpoint::query()->updateOrCreate(
                 ['actor_id' => $actor->id],
@@ -683,6 +692,7 @@ final class RemoteActorResolver
                     'inbox' => isset($document['inbox']) ? (string) $document['inbox'] : null,
                     'outbox' => isset($document['outbox']) ? (string) $document['outbox'] : null,
                     'events' => $this->actorCollectionUrl($document, 'events'),
+                    'featured' => $featured,
                     'followers' => isset($document['followers']) ? (string) $document['followers'] : null,
                     'following' => isset($document['following']) ? (string) $document['following'] : null,
                     'shared_inbox' => isset($document['endpoints']['sharedInbox']) ? (string) $document['endpoints']['sharedInbox'] : null,
@@ -696,7 +706,10 @@ final class RemoteActorResolver
     /** @param array<string, mixed> $document */
     private function actorCollectionUrl(array $document, string $name): ?string
     {
-        $value = $document[$name] ?? ($document['endpoints'][$name] ?? null);
+        $value = $document[$name] ?? $document['http://joinmastodon.org/ns#'.$name] ?? ($document['endpoints'][$name] ?? null);
+        if (is_array($value)) {
+            $value = $value['id'] ?? $value['@id'] ?? null;
+        }
 
         if (! is_string($value) || filter_var($value, FILTER_VALIDATE_URL) === false) {
             return null;

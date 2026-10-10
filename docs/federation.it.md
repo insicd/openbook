@@ -93,6 +93,119 @@ essere consumati da altri server e non da browser:
   followers-only, diretti, remoti o di community private non vengono mai
   pubblicati verso un relay LitePub.
 
+### Campi dei profili locali
+
+L'editor del profilo distingue Link e Informazioni aggiuntive, con pulsanti
+per aggiungere/rimuovere righe e un limite condiviso di otto campi. Le etichette
+accettano fino a 50 caratteri, gli URL HTTP(S) fino a 255 e il testo semplice
+fino a 1.000. Alla riapertura dell'editor, i valori HTTP(S) validi compaiono nei
+Link; gli altri nelle Informazioni aggiuntive. Il salvataggio mantiene l'ordine
+interno delle sezioni, con i link per primi.
+
+I campi locali restano in `profiles.links`, come coppie `label`/`value`; i
+vecchi record `label`/`url` restano leggibili senza migrazione dei dati. Il
+profilo pubblico mostra etichette e valori sotto la bio. Il testo viene reso
+con escaping, senza interpretare Markdown o HTML.
+
+I campi sono pubblicati nell'array `attachment` dell'Actor come elementi
+`PropertyValue`, con la mappatura del contesto schema.org compatibile con
+Mastodon. I valori HTTP(S) diventano link HTML; gli altri diventano testo con
+escaping, preservando gli a capo. La stessa rappresentazione è inclusa nelle
+attività `Update` del profilo inviate ai follower remoti. La rimozione di tutti
+i campi pubblica un array vuoto, così le altre istanze possono svuotare la
+propria cache. I profili esistenti espongono i campi al successivo recupero
+dell'Actor o aggiornamento del profilo; non viene avviato un invio massivo.
+Pubblicare `rel="me"` non implica una verifica del collegamento in Openbook.
+
+### Campi dei profili remoti
+
+Openbook importa gli elementi `attachment` di tipo `PropertyValue` dell'Actor
+in `actors.links`, come coppie ordinate `label`/`value`. Testo e link HTTP(S)
+passano dalla pipeline esistente di sanificazione e rendering dei contenuti
+remoti; HTML remoto, media inline ed effetti delle emoji personalizzate non
+vengono riprodotti. La pagina del profilo remoto mostra i campi sotto la bio.
+Una dichiarazione remota o un attributo `rel="me"` non implicano una verifica
+del collegamento da parte di Openbook.
+
+Il sistema conserva al massimo 16 campi validi, con etichette fino a 100
+caratteri e valori normalizzati fino a 1.000. Campi vuoti o malformati e
+attachment di altro tipo vengono ignorati; etichette ripetute mantengono
+l'ordine originale. Ogni documento Actor valido sostituisce l'elenco in cache,
+anche azzerandolo quando `attachment` è assente o non contiene campi validi.
+Questo vale sia per i normali refresh sia per le attività `Update` del profilo
+ricevute. Aprendo il profilo di un Actor remoto attivo viene verificata anche
+la cache del documento Actor, con il TTL ordinario (24 ore per impostazione
+predefinita); se il recupero fallisce, resta disponibile la copia in cache.
+I profili già in cache acquisiscono i campi al successivo refresh o Update
+ordinario, senza fetch massivi o richieste separate. I campi locali restano in
+`profiles.links`, con editor e pubblicazione descritti sopra.
+
+### Sospensione degli account remoti
+
+Il flag `suspended` di un documento Actor remoto valido viene conservato in
+`actors.remote_suspended`, separatamente dalla moderazione locale in
+`actors.status`. Lo aggiornano sia i normali refresh sia gli Update del profilo
+ricevuti. Un documento completo valido senza flag, o con `false`, rimuove la
+sospensione remota; fetch falliti e documenti invalidi lasciano intatta la cache.
+
+Il profilo remoto mostra un avviso di sospensione sul server di origine. Sono
+impediti nuovi follow, messaggi, like, condivisioni/citazioni, risposte e
+partecipazioni agli eventi, comprese le risposte a commenti di un autore sospeso
+sotto post o eventi altrui. Il controllo è applicato nell'interfaccia e nei
+servizi applicativi. Le condivisioni automatiche si fermano senza perdere la
+preferenza. Post, commenti, eventi e relazioni di follow/reazione esistenti
+restano conservati con la visibilità attuale; è possibile ritirare follow,
+reazioni e partecipazioni precedenti. Consultazione, segnalazione e copia
+dell'URL restano disponibili.
+
+Quando il server di origine dichiara nuovamente attivo l'account, le interazioni
+riprendono. I refresh remoti non annullano mai uno stato locale di blocco,
+sospensione o cancellazione. Il flag non sostituisce la normale gestione di
+Delete/Undo e non introduce un ban delle attività in ingresso. L'aggiornamento
+dello schema richiede il consueto `php artisan migrate`; non servono nuovi
+servizi o worker.
+
+### Profili commemorativi remoti
+
+Il flag `memorial` dell'Actor remoto viene conservato in `actors.memorial`
+(false per default), usando il medesimo flusso di fetch/refresh e Update
+ricevuti. Un documento valido senza flag o con `false` lo rimuove; fetch
+falliti e documenti invalidi preservano il valore in cache. I profili già
+conservati acquisiscono il flag al successivo refresh o Update ordinario,
+senza recuperi massivi.
+
+Il profilo remoto mostra un badge discreto “Profilo commemorativo” vicino al
+nome. Il flag è informativo: non modifica visibilità, approvazione dei follow,
+messaggi, like, commenti o condivisioni. Sospensione remota e restrizioni di
+moderazione locale continuano ad applicarsi indipendentemente. La gestione dei
+profili commemorativi locali è fuori perimetro. La nuova colonna boolean
+richiede il consueto `php artisan migrate`, senza nuovi servizi o worker.
+
+### Post fissati remoti
+
+Il campo Actor `featured` identifica la collection dei post fissati. Openbook
+conserva l'endpoint e una piccola cache ordinata dei post importati; la pagina
+profilo mostra «Post fissati» fra «Post» e «Foto e video» soltanto se almeno un
+post è visibile al lettore. I post usano le card ordinarie e non vengono
+anteposti alla timeline.
+
+Il recupero avviene alla visita del profilo, con richieste HTTP sicure e firmate
+quando disponibili, usando `OPENBOOK_POSTS_CACHE_TTL_HOURS` (default 6 ore).
+Si leggono al massimo 3 documenti di collection e 20 elementi; collection inline,
+pagine `first`/`next`, `items`/`orderedItems` e riferimenti URI sono supportati.
+Si importano gli originali pubblici/non elencati nei tipi post già supportati,
+con controllo dell'autore e senza notifiche. Risposte, oggetti privati e post
+cancellati non vengono ricreati; valgono anche i controlli delle community private.
+
+Un elenco vuoto valido rimuove i fissati dalla scheda, senza cancellare i post.
+Errori o paginazioni incomplete preservano l'ultimo elenco valido; il tentativo
+viene registrato anche in caso di errore. Add/Remove ricevuti dal firmatario
+verso la propria collection invalidano la cache per la visita successiva.
+Cambio o rimozione dell'endpoint nell'Actor azzerano l'elenco precedente.
+I profili già in cache scoprono l'endpoint al successivo refresh Actor ordinario.
+La migrazione richiede `php artisan migrate`; non occorrono nuovi servizi.
+La gestione dei fissati dei profili locali resta fuori perimetro.
+
 ### Lingua dei post remoti
 
 Openbook conserva in `posts.language` la lingua dichiarata del testo importato

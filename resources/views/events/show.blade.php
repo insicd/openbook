@@ -223,11 +223,11 @@
                     <details class="ob-post__share-menu">
                         <summary class="ob-btn ob-btn--ghost"><x-icon name="share" /> {{ __('openbook.events.share') }}</summary>
                         <div class="ob-post__menu-panel" role="menu">
-                            @auth
+                            @if (auth()->check() && ! $event->actor?->isRemotelySuspended())
                                 <a href="{{ route('events.share_to_user', $event) }}" class="ob-post__menu-item" role="menuitem">
                                     <x-icon name="message" /> {{ __('openbook.actions.announce_share_user') }}
                                 </a>
-                            @endauth
+                            @endif
                             @if (in_array($event->visibility, [\App\Domain\Events\Event::VISIBILITY_PUBLIC, \App\Domain\Events\Event::VISIBILITY_UNLISTED], true))
                                 <button type="button" class="ob-post__menu-item" role="menuitem"
                                     data-native-share-url="{{ route('events.show', $event) }}" hidden>

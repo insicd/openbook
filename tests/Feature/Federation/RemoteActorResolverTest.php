@@ -51,6 +51,51 @@ class RemoteActorResolverTest extends TestCase
         $this->assertFalse($actor->indexable);
     }
 
+    public function test_it_fetches_profile_fields_and_replaces_or_clears_them_on_refresh(): void
+    {
+        $resolver = app(RemoteActorResolver::class);
+        Http::fake([self::ACTOR_URI => Http::sequence()
+            ->push($this->fakeActorDocument([
+                'attachment' => [
+                    ['type' => 'PropertyValue', 'name' => 'Professione', 'value' => '<p>Insegnante</p>'],
+                    ['type' => 'PropertyValue', 'name' => 'Sito', 'value' => '<a href="https://example.test">Visita</a>'],
+                ],
+            ]))
+            ->push($this->fakeActorDocument([
+                'attachment' => [['type' => 'PropertyValue', 'name' => 'Professione', 'value' => 'Sviluppatore']],
+            ]))
+            ->push($this->fakeActorDocument()),
+        ]);
+
+        $actor = $resolver->resolveByUri(self::ACTOR_URI);
+        $this->assertSame([
+            ['label' => 'Professione', 'value' => 'Insegnante'],
+            ['label' => 'Sito', 'value' => '[Visita](https://example.test)'],
+        ], $actor?->fresh()->links);
+
+        $actor->refresh()->update(['last_fetched_at' => now()->subDays(2)]);
+        $resolver->resolveByUri(self::ACTOR_URI);
+        $this->assertSame([['label' => 'Professione', 'value' => 'Sviluppatore']], $actor->fresh()->links);
+
+        $actor->refresh()->update(['last_fetched_at' => now()->subDays(2)]);
+        $resolver->resolveByUri(self::ACTOR_URI);
+        $this->assertSame([], $actor->fresh()->links);
+    }
+
+    public function test_remote_profile_fields_cannot_overwrite_a_local_actor(): void
+    {
+        $user = $this->createFullAccount('localfields');
+        $user->profile->update(['links' => [['label' => 'Locale', 'url' => 'https://local.example.test']]]);
+        $document = $this->fakeActorDocument([
+            'id' => $user->actor->uri,
+            'attachment' => [['type' => 'PropertyValue', 'name' => 'Falso', 'value' => 'Esterno']],
+        ]);
+
+        $this->assertNull(app(RemoteActorResolver::class)->applyRemoteDocument($document, $user->actor->uri));
+        $this->assertNull($user->actor->fresh()->links);
+        $this->assertSame([['label' => 'Locale', 'url' => 'https://local.example.test']], $user->profile->fresh()->links);
+    }
+
     #[DataProvider('technicalActorTypes')]
     public function test_it_preserves_remote_technical_actor_types(string $remoteType): void
     {

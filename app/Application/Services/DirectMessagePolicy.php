@@ -16,7 +16,7 @@ final class DirectMessagePolicy
 
     public function canSend(Actor $sender, Actor $recipient): bool
     {
-        if ($sender->id === $recipient->id) {
+        if ($recipient->isRemotelySuspended() || $sender->id === $recipient->id) {
             return false;
         }
 

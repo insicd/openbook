@@ -45,6 +45,13 @@ final class ReactionManager
             throw new InvalidArgumentException('Il contenuto indicato non supporta i Mi piace.');
         }
 
+        $threadAuthor = match (true) {
+            $target instanceof Comment => $target->post?->actor,
+            $target instanceof EventComment => $target->event?->actor,
+            default => null,
+        };
+        RemoteInteractionGuard::assertAllowed($actor, $target->actor, $threadAuthor);
+
         $like = DB::transaction(function () use ($actor, $target) {
             $existing = Like::query()
                 ->where('actor_id', $actor->id)

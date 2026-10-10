@@ -10,6 +10,11 @@ hosting requirements. `BROWSER_TYPE` (default `chromium`) and
 `BROWSER_EXECUTABLE_PATH` can select an existing browser. This check complements
 PHPUnit and does not replace a test on an actual iOS installed web app.
 
+For the profile editor, `node tests/Browser/profile-fields.cjs` checks the
+production Blade partial, JS and CSS with legacy values, add/remove buttons,
+the shared eight-field limit and desktop/mobile layouts. It also requires PHP
+and uses the same optional browser tooling described above.
+
 The project uses PHPUnit. The suite runs by default on in-memory SQLite (see
 `phpunit.xml`), so it does not need a MySQL database to run:
 
@@ -43,6 +48,11 @@ discover, profile photo roll). In particular:
   exclusion of local/not-yet-accepted followers, delivery rules for direct
   messages, correct HTTP signature of the outgoing request, permanent failure
   without a private key, retry on a non-2xx response;
+- remote suspension (`RemoteSuspensionTest`): origin flags and incoming Updates,
+  reactivation without undoing local moderation, preserved cached content,
+  read-only UI, rejected direct interaction requests, suspended comments under
+  other authors' posts/events, and automatic sharing paused without losing its
+  setting;
 - `RemoteActorResolver::resolveByUri()`/`resolveByHandle()`: fetch and cache
   with TTL, rejection of a document that declares an id different from the one
   requested, refusal to treat a local URI as remote, WebFinger resolution;
@@ -82,7 +92,7 @@ discover, profile photo roll). In particular:
   state per row, redirect of a remote Actor's list when it actually corresponds
   to a local account, authentication required for a remote Actor's list.
 - the Settings page (`SettingsTest`): authentication required, update of
-  name/biography/links with synchronization of the name on the federated Actor,
+  name/biography/profile fields with synchronization of the name on the federated Actor,
   upload and replacement of the avatar (with removal of the previous file),
   rejection of a non-image file, change of interface language actually applied
   by the middleware, propagation of default visibility to the composer,

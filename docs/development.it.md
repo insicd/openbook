@@ -10,6 +10,11 @@ o dell'hosting. `BROWSER_TYPE` (default `chromium`) e `BROWSER_EXECUTABLE_PATH`
 permettono di scegliere un browser esistente. La verifica integra PHPUnit e
 non sostituisce una prova della web app installata su un dispositivo iOS reale.
 
+Per l’editor del profilo, `node tests/Browser/profile-fields.cjs` verifica il
+partial Blade, JS e CSS di produzione con valori preesistenti, pulsanti di
+aggiunta/rimozione, limite condiviso di otto campi e layout desktop/mobile.
+Richiede anche PHP e usa gli stessi strumenti browser opzionali descritti sopra.
+
 Il progetto usa PHPUnit. La suite gira di default su SQLite in memoria (vedi
 `phpunit.xml`), quindi non richiede un database MySQL per essere eseguita:
 
@@ -42,6 +47,11 @@ API blog Wafrn, Accept Lemmy, Mondo/scopri, rullino profilo). In particolare:
   esclusione di follower locali/non ancora accettati, regole di consegna per i
   messaggi diretti, firma HTTP corretta della richiesta in uscita, fallimento
   permanente senza chiave privata, ritentativo su risposta non 2xx;
+- sospensione remota (`RemoteSuspensionTest`): flag di origine e Update ricevuti,
+  riattivazione senza annullare la moderazione locale, conservazione dei contenuti,
+  interfaccia di consultazione, rifiuto delle richieste dirette di interazione,
+  commenti sospesi sotto post/eventi altrui e pausa delle condivisioni automatiche
+  senza perdita della preferenza;
 - `RemoteActorResolver::resolveByUri()`/`resolveByHandle()`: fetch e cache con TTL,
   rifiuto di un documento che dichiara un id diverso da quello richiesto, rifiuto di
   trattare un URI locale come remoto, risoluzione WebFinger;
@@ -83,7 +93,7 @@ API blog Wafrn, Accept Lemmy, Mondo/scopri, rullino profilo). In particolare:
   corrisponde in realta' a un account locale, obbligo di autenticazione per l'elenco
   di un Actor remoto.
 - la pagina Impostazioni (`SettingsTest`): obbligo di autenticazione, aggiornamento di
-  nome/biografia/link con sincronizzazione del nome sull'Actor federato, caricamento e
+  nome/biografia/campi del profilo con sincronizzazione del nome sull'Actor federato, caricamento e
   sostituzione dell'avatar (con rimozione del file precedente), rifiuto di un file non
   immagine, cambio della lingua dell'interfaccia effettivamente applicato dal
   middleware, propagazione della visibilita' predefinita al composer, sincronizzazione

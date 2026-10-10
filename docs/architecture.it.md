@@ -94,6 +94,14 @@ basato su `APP_KEY`) e non vengono mai esposte da API, log o messaggi di errore.
   non elencata, solo-follower, diretta) e senza alcun algoritmo di raccomandazione:
   ordinamento sempre cronologico inverso.
 
+La sospensione dichiarata dal server di origine di un Actor è conservata
+separatamente in `actors.remote_suspended`, preservando i contenuti importati e
+lo stato di moderazione locale. `RemoteInteractionGuard` impedisce nuove
+interazioni in uscita nei servizi applicativi condivisi; anche i permessi dei
+messaggi diretti e la disponibilità delle interazioni degli eventi rispettano
+il flag. Refresh e Update ordinari possono rimuoverlo quando il server di
+origine riattiva l'account.
+
 ### Personalizzazione del profilo e impostazioni account
 
 Il database predisponeva gia' dalle prime fasi le colonne per la personalizzazione
@@ -102,8 +110,10 @@ dell'account (`profiles.avatar_path`/`cover_path`/`bio`/`links`,
 /`discoverable`); la pagina **Impostazioni** (`/impostazioni`, link nel menu utente e
 pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
 
-- **Profilo pubblico**: nome visualizzato, biografia (max 500 caratteri), fino a 4 link
-  con etichetta, avatar e immagine di copertina. Il caricamento delle immagini
+- **Profilo pubblico**: nome visualizzato, biografia (max 500 caratteri), fino a 8 campi
+  con etichetta condivisi fra Link e Informazioni aggiuntive, avatar e immagine
+  di copertina. Il salvataggio del profilo pubblico torna alla pagina di
+  visualizzazione con un messaggio di conferma. Il caricamento delle immagini
   (`ProfileImageUploader`) valida il tipo effettivo del file (mai la sola estensione),
   rimuove i metadati EXIF e ridimensiona con GD quando disponibile (avatar max 512px,
   copertina max 1600px sul lato piu' lungo), riusando la stessa logica di base gia'

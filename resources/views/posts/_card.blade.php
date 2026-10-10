@@ -152,7 +152,7 @@
 
         @unless ($embed)
             <div class="ob-post__actions">
-                @auth
+                @if (auth()->check() && ! $author?->isRemotelySuspended())
                     <div class="ob-post__action-group">
                         <form
                             method="POST"
@@ -284,7 +284,7 @@
                             'labelTemplate' => __('openbook.actions.announces_list', ['count' => '__COUNT__']),
                         ])
                     </div>
-                @endauth
+                @endif
                 @if ($post->location)
                     <p class="ob-post__location">
                         <x-icon name="map-pin" />

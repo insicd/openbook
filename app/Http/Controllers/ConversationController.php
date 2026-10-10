@@ -138,7 +138,7 @@ class ConversationController extends Controller
     public function openActor(Request $request, Actor $actor): RedirectResponse
     {
         abort_unless(
-            $actor->isActive() && ($actor->isPerson() || (! $actor->isLocal() && $actor->isApplication())),
+            $actor->isActive() && ! $actor->isRemotelySuspended() && ($actor->isPerson() || (! $actor->isLocal() && $actor->isApplication())),
             404,
         );
 

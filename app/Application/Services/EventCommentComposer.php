@@ -37,6 +37,8 @@ final class EventCommentComposer
         array $images = [],
         array $altTexts = [],
     ): EventComment {
+        RemoteInteractionGuard::assertAllowed($author, $event->actor, $parent?->actor);
+
         if (! $event->isOpenForInteractions()) {
             throw new InvalidArgumentException('Questo evento non accetta più commenti.');
         }

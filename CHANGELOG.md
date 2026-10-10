@@ -19,6 +19,21 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Post fissati remoti**: nuova scheda «Post fissati» nei profili remoti,
+  con i contenuti scelti dall'autore nel loro ordine, senza alterarli nella
+  timeline ordinaria. La scheda compare solo quando ci sono post visibili.
+- **Profili commemorativi remoti**: indicazione discreta nel profilo quando
+  dichiarato commemorativo dal server di origine, senza limitare follow e
+  interazioni.
+- **Sospensione degli account remoti**: il profilo indica quando un account è
+  sospeso sul server di origine e impedisce nuove interazioni, conservando i
+  contenuti già importati. La riattivazione ripristina le interazioni senza
+  annullare eventuali blocchi locali.
+- **Campi dei profili federati**: i profili locali permettono di compilare
+  fino a 8 link e informazioni aggiuntive, pubblicati anche alle altre istanze.
+  I campi testuali e i link dei profili remoti vengono importati e mostrati
+  sotto la bio. Entrambi i flussi gestiscono modifiche e rimozioni. Il salvataggio
+  del profilo torna alla sua visualizzazione con un messaggio di conferma.
 - **Lingua del post originale**: le card mostrano accanto alla data la lingua
   dichiarata dall'autore, con nome localizzato e codice di fallback.
   L'informazione viene importata e aggiornata quando attribuibile senza

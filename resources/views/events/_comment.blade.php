@@ -62,7 +62,7 @@
         @endif
 
         <div class="ob-post__actions">
-            @auth
+            @if (auth()->check() && ! $author?->isRemotelySuspended() && ! $event->actor?->isRemotelySuspended())
                 <form
                     method="POST"
                     action="{{ $comment->liked_by_viewer ? route('event-comments.unlike', $comment) : route('event-comments.like', $comment) }}"
@@ -89,11 +89,11 @@
                 @endif
             @else
                 <span class="ob-post__action"><x-icon name="heart" /><span class="ob-post__action-count">{{ $comment->likes_count }}</span></span>
-            @endauth
+            @endif
         </div>
 
         @auth
-            @if ($event->isOpenForInteractions())
+            @if ($event->isOpenForInteractions() && ! $comment->actor?->isRemotelySuspended())
                 <div style="margin-top:0.6rem">
                     @include('composer.form', [
                         'mode' => 'reply',

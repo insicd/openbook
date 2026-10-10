@@ -36,7 +36,7 @@
                     @method('DELETE')
                     <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.communities.list_cancel_request') }}</button>
                 </form>
-            @else
+            @elseif (! $actor->isRemotelySuspended())
                 <form method="POST" action="{{ $community !== null ? route('communities.join', $community) : route('actors.follow', $actor) }}" data-community-membership-form>
                     @csrf
                     <button type="submit" class="ob-btn ob-btn--primary ob-btn--small">{{ $community?->is_private ? __('openbook.communities.request_join') : __('openbook.communities.join') }}</button>

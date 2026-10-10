@@ -68,7 +68,9 @@ class InstanceInfoTest extends TestCase
     {
         $admin = $this->createFullAccount('instancecontact');
         $admin->forceFill(['is_admin' => true])->save();
-        $admin->profile->update(['display_name' => 'Instance Contact', 'bio' => 'Hello **world**']);
+        $admin->profile->update(['display_name' => 'Instance Contact', 'bio' => 'Hello **world**',
+            'links' => [['label' => 'Professione', 'value' => 'Insegnante & autore']],
+        ]);
         foreach ([Post::VISIBILITY_PUBLIC, Post::VISIBILITY_DIRECT] as $visibility) {
             Post::query()->create([
                 'actor_id' => $admin->actor->id,
@@ -86,6 +88,9 @@ class InstanceInfoTest extends TestCase
             ->assertJsonPath('contact_account.id', $admin->id)
             ->assertJsonPath('contact_account.username', 'instancecontact')
             ->assertJsonPath('contact_account.display_name', 'Instance Contact')
+            ->assertJsonPath('contact_account.fields.0.name', 'Professione')
+            ->assertJsonPath('contact_account.fields.0.value', 'Insegnante &amp; autore')
+            ->assertJsonPath('contact_account.fields.0.verified_at', null)
             ->assertJsonPath('contact_account.url', route('profile.show', 'instancecontact'))
             ->assertJsonPath('contact_account.statuses_count', 1)
             ->assertJsonPath('contact_account.followers_count', 0)

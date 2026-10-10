@@ -22,7 +22,7 @@ final class QuotedActorResolver
             ->whereKey($quotedActorId)
             ->first();
 
-        if ($actor === null || ! $actor->isPerson() || ! $actor->isActive()) {
+        if ($actor === null || ! $actor->isPerson() || ! $actor->isActive() || $actor->isRemotelySuspended()) {
             return null;
         }
 

@@ -35,6 +35,8 @@ final class MessageComposer
         ?Actor $quotedActor = null,
         ?Event $quotedEvent = null,
     ): Post {
+        RemoteInteractionGuard::assertAllowed($sender, $recipient, $quotedPost?->actor, $quotedActor, $quotedEvent?->actor);
+
         $body = trim($body);
 
         if ($quotedPost !== null && $quotedPost->isDirectMessage()) {

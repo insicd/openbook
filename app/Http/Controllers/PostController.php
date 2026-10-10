@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Application\Services\PostComposer;
 use App\Application\Services\PostPublicationStager;
 use App\Application\Services\QuotedPostResolver;
+use App\Application\Services\RemoteInteractionGuard;
 use App\Domain\Comments\Comment;
 use App\Domain\Comments\CommentThread;
 use App\Domain\Posts\PendingPostPublication;
@@ -173,6 +174,8 @@ class PostController extends Controller
                 ->exists(),
             404,
         );
+
+        RemoteInteractionGuard::assertAllowed($viewer, $post->actor);
 
         return redirect()->route('feed.index', ['quote' => $post->id]);
     }

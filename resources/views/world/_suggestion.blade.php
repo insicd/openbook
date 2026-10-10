@@ -8,6 +8,6 @@
     </a>
     <form method="POST" action="{{ route('actors.follow', $rowActor) }}">
         @csrf
-        <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.follow.follow') }}</button>
+        <button @disabled($rowActor->isRemotelySuspended()) type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.follow.follow') }}</button>
     </form>
 </div>

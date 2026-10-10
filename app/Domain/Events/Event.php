@@ -203,6 +203,10 @@ class Event extends Model
 
     public function isOpenForInteractions(): bool
     {
+        if ($this->actor?->isRemotelySuspended()) {
+            return false;
+        }
+
         if (! in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_TENTATIVE, self::STATUS_POSTPONED], true)) {
             return false;
         }

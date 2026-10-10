@@ -108,11 +108,26 @@ final class InboxActivityProcessor
             'Update' => $this->handleUpdate($activity, $signer, $inboxTarget, $fromRelay),
             'Delete' => $this->handleDelete($activity, $signer),
             'Like' => $this->handleLike($activity, $signer),
+            'Add', 'Remove' => $this->handleFeaturedChange($activity, $signer),
             'Join' => $this->handleEventJoin($activity, $signer),
             'Leave' => $this->handleEventLeave($activity, $signer),
             'Announce' => $this->handleAnnounce($activity, $signer, $inboxTarget, $fromRelay),
             default => InboxItem::STATUS_IGNORED,
         };
+    }
+
+    /** @param array<string, mixed> $activity */
+    private function handleFeaturedChange(array $activity, Actor $signer): string
+    {
+        $target = $this->objectId($activity['target'] ?? null);
+        $signer->loadMissing('endpoints');
+        if ($target === null || $signer->endpoints?->featured !== $target) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $signer->forceFill(['featured_fetched_at' => null])->saveQuietly();
+
+        return InboxItem::STATUS_PROCESSED;
     }
 
     /**

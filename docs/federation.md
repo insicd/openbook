@@ -103,6 +103,112 @@ browsers:
   apply. Unlisted, followers-only, direct, remote and private-community content
   is never published to a LitePub relay.
 
+### Local profile fields
+
+The profile editor has separate Link and Additional information sections with
+add/remove buttons and a shared limit of eight fields. Labels accept up to 50
+characters, HTTP(S) URLs up to 255, and plain text up to 1,000. When reopening
+the editor, valid HTTP(S) values appear under Link; other values appear under
+Additional information. Saving preserves each section's order, with links first.
+
+Local fields remain in `profiles.links`, as `label`/`value` pairs; existing
+`label`/`url` records remain readable without a data migration. The public
+profile shows labels and values below the biography. Plain text is escaped,
+without interpreting Markdown or HTML.
+
+Fields are published in the Actor's `attachment` array as `PropertyValue`
+entries, using the schema.org context mapping compatible with Mastodon.
+HTTP(S) values become HTML links; other values become escaped text, preserving
+line breaks. The same representation is included in profile `Update`
+activities sent to remote followers. Removing all fields publishes an empty
+array so peers can clear their cached fields. Existing profiles expose their
+fields on the next Actor fetch or profile update; no bulk delivery is triggered.
+Publishing `rel="me"` does not mean Openbook has verified the link.
+
+### Remote profile fields
+
+Openbook imports Actor `attachment` entries of type `PropertyValue` into
+`actors.links`, as ordered `label`/`value` pairs. Text and HTTP(S) links pass
+through the existing remote-content sanitization and rendering pipeline;
+remote HTML, inline media and custom emoji effects are not reproduced.
+The remote profile page shows these fields below the biography. Link
+verification is not implied by a remote claim or by a `rel="me"` attribute.
+
+The application keeps up to 16 valid fields, with labels up to 100 characters
+and normalized values up to 1,000 characters. Empty or malformed fields and
+other attachment types are ignored; duplicate labels retain their order.
+Each valid Actor document replaces the cached list, including clearing it
+when `attachment` is absent or has no usable fields. This applies both to
+ordinary Actor refreshes and incoming profile `Update` activities. Visiting
+an active remote profile also checks the Actor document cache, using its
+normal TTL (24 hours by default); a failed fetch keeps the cached profile
+available. Existing cached profiles acquire fields on their next normal
+refresh or Update; there is no bulk fetch or separate field request. Local fields remain in
+`profiles.links`, with the editor and publication behavior described above.
+
+### Remote account suspension
+
+A valid remote Actor document's `suspended` flag is stored in
+`actors.remote_suspended`, independently of local moderation in `actors.status`.
+Both normal refreshes and incoming profile Updates use this field. A valid
+complete document without the flag, or with `false`, clears remote suspension;
+failed fetches and invalid documents leave the cached state intact.
+
+The remote profile displays an originating-server suspension notice. New local
+follows, messages, likes, shares/quotes, replies and event participation are
+blocked, including replies to a suspended author's comment under someone else's
+post or event. UI controls and application services enforce this restriction.
+Automatic sharing pauses without clearing its setting. Existing posts, comments,
+events and follow/reaction records are retained with their existing visibility;
+users can still withdraw earlier follows, reactions and event participation.
+Viewing content, reporting it and copying its URL remain available.
+
+When the origin declares the account active again, interactions resume. Remote
+refreshes never clear a locally blocked, suspended or deleted status. This flag
+does not replace ordinary Delete/Undo processing or introduce an inbound ban.
+The schema update requires running `php artisan migrate` as usual; no new service
+or worker is required.
+
+### Remote memorial profiles
+
+The remote Actor's `memorial` flag is cached in `actors.memorial` (false by
+default), using the same Actor fetch/refresh and incoming Update flow. A valid
+document without the flag or with `false` clears it; failed fetches and invalid
+documents preserve the cached value. Existing cached profiles acquire the flag
+on their next ordinary refresh or Update, without a bulk fetch.
+
+The remote profile displays a discreet “Memorial profile” badge near its name.
+The flag is informational: it does not change visibility, follow approval,
+messages, likes, comments or shares. Any remote suspension or local moderation
+restrictions still apply independently. Creating memorial profiles for local
+accounts is outside this feature. The added boolean column requires the usual
+`php artisan migrate` and adds no service or worker requirement.
+
+### Remote pinned posts
+
+The Actor's `featured` field identifies its pinned-post collection. Openbook
+stores the endpoint and a small ordered snapshot of imported posts. A “Pinned
+posts” tab appears between “Posts” and “Photos and videos” only when at least one
+post is visible to the viewer. It uses ordinary post cards and does not prepend
+pins to the timeline.
+
+The collection is fetched on profile visits using safe HTTP and signed requests
+when available, with `OPENBOOK_POSTS_CACHE_TTL_HOURS` (default 6 hours).
+At most 3 collection documents and 20 entries are read. Inline collections,
+`first`/`next` pages, `items`/`orderedItems` and URI references are supported.
+Only original public/unlisted posts of already-supported types are imported,
+checking authorship and without notifications. Replies, private objects and
+deleted posts are not recreated; private-community visibility still applies.
+
+A valid empty snapshot removes pins from the tab without deleting the posts.
+Errors or incomplete pagination preserve the last valid snapshot; failed
+attempts are cached too. Incoming Add/Remove activities by the signer targeting
+its own collection invalidate the cache for the next visit. Changing or removing
+the Actor endpoint clears the previous snapshot. Existing cached profiles
+discover the endpoint on their next ordinary Actor refresh.
+Run `php artisan migrate` for the schema change; no new service is needed.
+Managing pins for local profiles remains outside this feature.
+
 ### Remote post language
 
 Openbook stores the declared language of the imported text in `posts.language`
