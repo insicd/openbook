@@ -129,9 +129,7 @@ final class RemoteNoteUpserter
             'custom_emojis' => RemoteCustomEmoji::extract($note) ?: null,
             'visibility' => $visibility,
             'status' => Post::STATUS_PUBLISHED,
-            // Riconverti sempre al TZ app: i caller possono passare un Carbon
-            // ancora con offset remoto (vedi ActivityPubTimestamp).
-            'published_at' => ActivityPubTimestamp::normalize($publishedAt),
+            'published_at' => $this->sanitizePublishedAt($publishedAt, $post),
             'remote_updated_at' => $remoteUpdatedAt ?? $post->remote_updated_at,
         ];
 
@@ -170,6 +168,23 @@ final class RemoteNoteUpserter
         $this->attachments->sync($post, $actor, $note);
 
         return $post;
+    }
+
+    private function sanitizePublishedAt(Carbon $publishedAt, Post $post): Carbon
+    {
+        $publishedAt = ActivityPubTimestamp::normalize($publishedAt);
+        $now = ActivityPubTimestamp::normalize(now());
+
+        if ($publishedAt->lessThanOrEqualTo($now)) {
+            return $publishedAt;
+        }
+
+        // Un refresh della stessa data errata non deve far risalire il post.
+        if ($post->published_at !== null && $post->published_at->lessThanOrEqualTo($now)) {
+            return $post->published_at;
+        }
+
+        return $now;
     }
 
     /** @param array<string, mixed> $note */

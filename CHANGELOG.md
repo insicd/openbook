@@ -183,6 +183,10 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Post remoti dal futuro** (#125): le date di pubblicazione future vengono
+  limitate all'ora corrente al salvataggio, dopo la conversione del fuso orario.
+  Gli aggiornamenti con date future conservano la data valida gia' in cache,
+  evitando che lo stesso post risalga continuamente nella timeline.
 - Il proprio profilo con richieste di follow in attesa non va piu' in errore
   se il richiedente e' un account remoto (senza utente locale): la lista usa
   l'Actor, come gia' fanno le richieste di iscrizione alle community.
