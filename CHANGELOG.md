@@ -183,6 +183,9 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- Il proprio profilo con richieste di follow in attesa non va piu' in errore
+  se il richiedente e' un account remoto (senza utente locale): la lista usa
+  l'Actor, come gia' fanno le richieste di iscrizione alle community.
 - **Condivisione con citazione** (#107): pubblicare una citazione non aggiunge
   piu' un boost separato dell'originale nel feed personale, nel profilo o
   nelle consegne federate. Restano il contatore delle condivisioni e la

@@ -8,11 +8,12 @@ use App\Domain\Notifications\Notification;
 use App\Domain\SocialGraph\Follow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAccounts;
+use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
 
 class FollowTest extends TestCase
 {
-    use CreatesAccounts, RefreshDatabase;
+    use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
     public function test_following_an_open_account_is_immediately_accepted(): void
     {
@@ -168,5 +169,28 @@ class FollowTest extends TestCase
 
         $this->actingAs($target)->post(route('follow.accept', $follow))->assertRedirect();
         $this->assertSame(Follow::STATUS_ACCEPTED, $follow->fresh()->status);
+    }
+
+    public function test_own_protected_profile_lists_remote_pending_follow_requests(): void
+    {
+        $target = $this->createFullAccount('protetto');
+        $target->actor->update(['manually_approves_followers' => true]);
+        $remote = $this->createRemoteActor('ospite', 'altra.example');
+
+        app(FollowManager::class)->follow($remote, $target->actor);
+
+        $this->actingAs($target)
+            ->get(route('profile.show', $target->username))
+            ->assertOk()
+            ->assertSee(__('openbook.follow.pending_requests'), false)
+            ->assertSee('@'.$remote->handle(), false)
+            ->assertSee($remote->profileUrl(), false);
+
+        $stranger = $this->createFullAccount('visitatore');
+
+        $this->actingAs($stranger)
+            ->get(route('profile.show', $target->username))
+            ->assertOk()
+            ->assertDontSee(__('openbook.follow.pending_requests'), false);
     }
 }

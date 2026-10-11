@@ -135,23 +135,23 @@
         <div class="ob-card">
             <h2>{{ __('openbook.follow.pending_requests') }}</h2>
             @foreach ($pendingFollowRequests as $request)
-                @php
-                    $requester = $request->follower->user;
-                    $requesterName = $requester?->profile?->display_name ?: $requester?->username;
-                @endphp
-                <div class="ob-post__header" style="justify-content:space-between">
-                    <div class="ob-post__header" style="margin-bottom:0">
-                        <x-avatar :user="$requester" style="width:36px;height:36px" />
-                        <a href="{{ route('profile.show', $requester->username) }}" class="ob-post__author">{{ $requesterName }}</a>
-                    </div>
-                    <div>
-                        <form method="POST" action="{{ route('follow.accept', $request) }}" style="display:inline">
+                @continue($request->follower === null)
+                <div class="ob-suggestion">
+                    <a href="{{ $request->follower->profileUrl() }}" class="ob-mini-profile__link">
+                        <x-avatar :actor="$request->follower" style="width:36px;height:36px" />
+                        <div>
+                            <div class="ob-post__author">{!! $request->follower->displayNameHtml() !!}</div>
+                            <div class="ob-post__handle">{{ '@'.$request->follower->handle() }}</div>
+                        </div>
+                    </a>
+                    <div style="display:flex;gap:0.35rem">
+                        <form method="POST" action="{{ route('follow.accept', $request) }}">
                             @csrf
-                            <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.follow.accept') }}</button>
+                            <button type="submit" class="ob-btn ob-btn--primary ob-btn--small">{{ __('openbook.follow.accept') }}</button>
                         </form>
-                        <form method="POST" action="{{ route('follow.reject', $request) }}" style="display:inline">
+                        <form method="POST" action="{{ route('follow.reject', $request) }}">
                             @csrf
-                            <button type="submit" class="ob-btn ob-btn--ghost">{{ __('openbook.follow.reject') }}</button>
+                            <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ __('openbook.follow.reject') }}</button>
                         </form>
                     </div>
                 </div>
