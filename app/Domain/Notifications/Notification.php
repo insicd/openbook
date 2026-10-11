@@ -36,6 +36,8 @@ class Notification extends Model
 {
     use HasUuids;
 
+    public const TYPE_ACCOUNT_MOVED = 'account_moved';
+
     public const TYPE_NEW_FOLLOWER = 'new_follower';
 
     public const TYPE_FOLLOW_REQUEST = 'follow_request';
@@ -132,13 +134,18 @@ class Notification extends Model
     }
 
     /**
-     * @return array{name: string, community?: string}
+     * @return array{name: string, community?: string, destination?: string}
      */
     public function messageReplacements(?string $locale = null): array
     {
         $replacements = [
             'name' => $this->actor?->displayNameForText() ?: __('openbook.notifications.someone', [], $locale),
         ];
+
+        if ($this->type === self::TYPE_ACCOUNT_MOVED && $this->notifiable instanceof Actor) {
+            $replacements['name'] = $this->actor !== null ? '@'.$this->actor->handle() : $replacements['name'];
+            $replacements['destination'] = '@'.$this->notifiable->handle();
+        }
 
         if ($this->messageNeedsCommunity()) {
             $replacements['community'] = $this->communityDisplayName($locale);
@@ -154,6 +161,10 @@ class Notification extends Model
      */
     public function messageHtml(): string
     {
+        if ($this->type === self::TYPE_ACCOUNT_MOVED) {
+            return e($this->message());
+        }
+
         $replacements = $this->messageReplacements();
         $nameToken = '%%NAME%%';
         $communityToken = '%%COMMUNITY%%';
@@ -176,6 +187,10 @@ class Notification extends Model
 
     public function actorProfileUrl(): ?string
     {
+        if ($this->type === self::TYPE_ACCOUNT_MOVED) {
+            return $this->targetUrl();
+        }
+
         return $this->actor?->profileUrl();
     }
 
@@ -311,7 +326,7 @@ class Notification extends Model
             return $profileActor?->profileUrl();
         }
 
-        if ($target instanceof Actor && $this->type === self::TYPE_FOLLOW_REJECTED) {
+        if ($target instanceof Actor && in_array($this->type, [self::TYPE_FOLLOW_REJECTED, self::TYPE_ACCOUNT_MOVED], true)) {
             return $target->profileUrl();
         }
 

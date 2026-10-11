@@ -26,6 +26,8 @@ use Illuminate\Support\Facades\Log;
  */
 final class RemoteActorResolver
 {
+    private bool $resolvingMovedTo = false;
+
     private const MYSQL_TIMESTAMP_MIN_UNIX = 1;
 
     private const MYSQL_TIMESTAMP_MAX_UNIX = 2_147_483_647;
@@ -348,8 +350,10 @@ final class RemoteActorResolver
     /**
      * Risolve un Actor a partire dal suo URI ActivityPub, usando la cache
      * locale finche' non e' scaduta ({@see config('openbook.federation.actor_cache_ttl_hours')}).
+     * forceRefresh richiede un fetch riuscito e l'id richiesto esatto, senza
+     * fallback alla cache: usato per verificare gli alias di un Move.
      */
-    public function resolveByUri(string $actorUri): ?Actor
+    public function resolveByUri(string $actorUri, bool $forceRefresh = false): ?Actor
     {
         if ($this->domainBlocks->isBlockedUrl($actorUri)) {
             return null;
@@ -368,6 +372,10 @@ final class RemoteActorResolver
         // legittimo: non lo si recupera ne' lo si tratta come tale.
         if ($existing !== null && $existing->is_local) {
             return null;
+        }
+
+        if ($forceRefresh) {
+            return $this->fetchAndStore($actorUri, requireExactId: true);
         }
 
         $ttlHours = (int) config('openbook.federation.actor_cache_ttl_hours', 24);
@@ -510,7 +518,7 @@ final class RemoteActorResolver
         return $this->fetchAndStore($actor->uri);
     }
 
-    private function fetchAndStore(string $actorUri): ?Actor
+    private function fetchAndStore(string $actorUri, bool $requireExactId = false): ?Actor
     {
         if (Actor::query()->where('uri', $actorUri)->where('is_local', true)->exists()) {
             return null;
@@ -544,6 +552,10 @@ final class RemoteActorResolver
 
         if (! is_array($document)) {
             return null;
+        }
+
+        if ($requireExactId) {
+            return $this->applyRemoteDocument($document, $actorUri);
         }
 
         return $this->applyFetchedActorDocument($document, $actorUri);
@@ -625,7 +637,9 @@ final class RemoteActorResolver
             return null;
         }
 
-        return DB::transaction(function () use ($document): Actor {
+        $movedTo = $this->resolveMovedTo((string) $document['id'], $this->actorCollectionUrl($document, 'movedTo'));
+
+        return DB::transaction(function () use ($document, $movedTo): Actor {
             $uri = (string) $document['id'];
             $host = (string) (parse_url($uri, PHP_URL_HOST) ?: '');
 
@@ -645,6 +659,7 @@ final class RemoteActorResolver
                 'name' => isset($document['name']) ? (string) $document['name'] : null,
                 'summary' => isset($document['summary']) ? (string) $document['summary'] : null,
                 'links' => RemoteProfileFields::extract($document),
+                'also_known_as' => $this->documentAliases($document),
                 'custom_emojis' => RemoteCustomEmoji::extract($document) ?: null,
                 'icon_url' => $this->extractImageUrl($document['icon'] ?? null),
                 'image_url' => $this->extractImageUrl($document['image'] ?? null),
@@ -674,6 +689,10 @@ final class RemoteActorResolver
             }
 
             $actor = Actor::query()->firstOrCreate(['uri' => $uri], $attributes + ['status' => Actor::STATUS_ACTIVE]);
+            // Profile discovery is informational; only the Move handler notifies followers.
+            if ($actor->moved_to_actor_id === null && $movedTo !== null) {
+                $attributes['moved_to_actor_id'] = $movedTo->id;
+            }
             $actor->fill($attributes)->save();
 
             ActorKey::query()->updateOrCreate(
@@ -701,6 +720,56 @@ final class RemoteActorResolver
 
             return $actor->fresh(['key', 'endpoints']);
         });
+    }
+
+    public function resolveMovedTo(string $sourceUri, ?string $uri, bool $forceRefresh = false): ?Actor
+    {
+        if ($this->resolvingMovedTo || $uri === null || strlen($uri) > 2048
+            || filter_var($uri, FILTER_VALIDATE_URL) === false
+            || ! in_array(strtolower((string) parse_url($uri, PHP_URL_SCHEME)), ['http', 'https'], true)
+            || ActivityPubUri::same($uri, $sourceUri)
+            || $this->isLocalDomainUri($uri) || $this->domainBlocks->isBlockedUrl($uri)
+        ) {
+            return null;
+        }
+
+        // Resolve only the declared destination, never recursively follow a chain.
+        $this->resolvingMovedTo = true;
+        try {
+            $target = $forceRefresh
+                ? $this->resolveByUri($uri, forceRefresh: true)
+                : (Actor::query()->where('uri', $uri)->first() ?? $this->resolveByUri($uri));
+        } finally {
+            $this->resolvingMovedTo = false;
+        }
+
+        return $target !== null && ! $target->isLocal() && $target->isActive()
+            && ! $target->isRemotelySuspended()
+            && ($target->isPerson() || $target->isApplication())
+            && ActivityPubUri::same($target->uri, $uri)
+            && $this->domainBlocks->isBlockedUrl($target->uri) === false
+            && $target->moved_to_actor_id === null
+            ? $target
+            : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     * @return list<string>
+     */
+    private function documentAliases(array $document): array
+    {
+        $aliases = $document['alsoKnownAs'] ?? [];
+        if (! is_array($aliases) || ! array_is_list($aliases)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_slice($aliases, 0, 100),
+            static fn ($uri): bool => is_string($uri)
+                && strlen($uri) <= 2048
+                && filter_var($uri, FILTER_VALIDATE_URL) !== false
+                && in_array(strtolower((string) parse_url($uri, PHP_URL_SCHEME)), ['http', 'https'], true)
+        )));
     }
 
     /** @param array<string, mixed> $document */

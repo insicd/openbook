@@ -9,19 +9,6 @@
   Definire anche il comportamento con timestamp assenti o uguali e aggiungere
   test di arrivo fuori ordine. Intervento separato dal salvataggio della lingua.
 
-## Notifiche e messaggi non letti nelle chat
-
-1. **Evitare una notifica generale per ogni messaggio ricevuto.** Se arrivano
-   molti messaggi nella stessa conversazione, l'elenco delle notifiche non deve
-   accumulare una voce separata per ciascuno. Il destinatario deve comunque
-   vedere che ci sono messaggi non letti e poter aprire la chat corretta.
-2. **Segnalare i nuovi messaggi delle altre conversazioni.** Se l'utente ha
-   aperta una chat e riceve un messaggio in un'altra, il contatore "Messaggi"
-   deve aggiornarsi e la lista delle chat deve rendere riconoscibile la
-   conversazione con messaggi non letti. La lettura della chat aperta non deve
-   segnare come letti i messaggi arrivati nelle altre conversazioni; tornando
-   alla lista, queste devono ancora risultare da leggere.
-
 ## Worker video
 
 - Fare in modo che `openbook:process-videos` osservi il segnale Laravel di

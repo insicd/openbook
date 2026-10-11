@@ -169,6 +169,34 @@ does not replace ordinary Delete/Undo processing or introduce an inbound ban.
 The schema update requires running `php artisan migrate` as usual; no new service
 or worker is required.
 
+### Remote account migrations
+
+An authenticated remote `Move` generates a notification for each local
+follower with an accepted follow and a notice on the old profile.
+Openbook checks that actor and object match the authenticated sender and
+fetches the destination's current profile, which must list the old account
+in `alsoKnownAs`. Failed fetches or invalid announcements produce no
+notifications. Repeated copies of the same announcement are deduplicated.
+
+The notification opens the new profile inside Openbook, where the user can
+choose Follow. No follow is created or removed automatically; preferences,
+previous posts, retention and visibility rules remain unchanged. An Update
+containing only `movedTo` does not generate migration notifications.
+This feature handles announcements between remote accounts, not migration
+to or from Openbook, communities or automatic migration chains.
+
+Normal updates to the old profile also import `movedTo`: Openbook looks up
+the destination Actor, fetches it if missing and stores the link in the
+existing `moved_to_actor_id` field. This displays the notice and link without
+generating notifications. Migration chains are not followed. A subsequent
+verified Move can still notify followers; the informational link does not
+replace the announcement.
+The migration notice appears inside the card below the name and handle.
+The globe beside the name displays the remote profile information on hover,
+keyboard focus or click/tap.
+
+The schema requires running `php artisan migrate` as usual; no new worker is needed.
+
 ### Remote memorial profiles
 
 The remote Actor's `memorial` flag is cached in `actors.memorial` (false by

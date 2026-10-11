@@ -17,6 +17,7 @@ use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RelayActorUrls;
+use App\Federation\Actors\RemoteAccountMoveHandler;
 use App\Federation\Actors\RemoteActorDeletionService;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Delivery\ActivityDelivery;
@@ -66,6 +67,7 @@ final class InboxActivityProcessor
         private readonly RemoteEventCommentIngester $eventComments,
         private readonly RelayHandshakeManager $relayHandshakes,
         private readonly DomainBlockManager $domainBlocks,
+        private readonly RemoteAccountMoveHandler $accountMoves,
     ) {}
 
     public function process(InboxItem $item): string
@@ -100,6 +102,7 @@ final class InboxActivityProcessor
         $fromRelay = $item->relay?->acceptsIncomingActivities() === true;
 
         return match ($item->activity_type) {
+            'Move' => $this->accountMoves->handle($activity, $signer),
             'Follow' => $this->handleFollow($activity, $signer),
             'Accept' => $this->handleAccept($activity, $signer),
             'Reject' => $this->handleReject($activity, $signer),

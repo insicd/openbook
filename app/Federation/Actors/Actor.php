@@ -41,6 +41,8 @@ use Illuminate\Support\HtmlString;
  * @property string|null $name
  * @property string|null $summary
  * @property array<int, array{label: string, value: string}>|null $links
+ * @property list<string>|null $also_known_as
+ * @property string|null $moved_to_actor_id
  * @property array<string, string>|null $custom_emojis
  * @property string|null $icon_url
  * @property string|null $image_url
@@ -94,6 +96,8 @@ class Actor extends Model
         'name',
         'summary',
         'links',
+        'also_known_as',
+        'moved_to_actor_id',
         'custom_emojis',
         'icon_url',
         'image_url',
@@ -126,6 +130,7 @@ class Actor extends Model
             'remote_suspended' => 'boolean',
             'custom_emojis' => 'array',
             'links' => 'array',
+            'also_known_as' => 'array',
             'manually_approves_followers' => 'boolean',
             'discoverable' => 'boolean',
             'indexable' => 'boolean',
@@ -140,6 +145,11 @@ class Actor extends Model
             'collections_fetched_at' => 'datetime',
             'events_fetched_at' => 'datetime',
         ];
+    }
+
+    public function movedTo(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'moved_to_actor_id');
     }
 
     public function user(): BelongsTo
