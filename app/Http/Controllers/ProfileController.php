@@ -171,7 +171,7 @@ class ProfileController extends Controller
             $pendingFollowRequests = Follow::query()
                 ->where('following_id', $user->actor->id)
                 ->where('status', Follow::STATUS_PENDING)
-                ->with('follower.user.profile')
+                ->with('follower')
                 ->latest('requested_at')
                 ->get();
         }

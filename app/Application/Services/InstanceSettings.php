@@ -6,6 +6,7 @@ use App\Domain\Accounts\User;
 use App\Infrastructure\Appearance\CustomCssSanitizer;
 use App\Infrastructure\Database\SystemSetting;
 use App\Infrastructure\Locations\GeoNamesCityImporter;
+use App\Infrastructure\Media\HomeBackgroundUploader;
 use App\Infrastructure\Media\InstanceIconUploader;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -70,6 +71,8 @@ final class InstanceSettings
     public const KEY_FORCED_CONTENT_WARNING_HASHTAGS = 'forced_content_warning_hashtags';
 
     public const KEY_INSTANCE_ICON_DIR = 'instance_icon_dir';
+
+    public const KEY_HOME_BACKGROUND_DIR = 'home_background_dir';
 
     public const KEY_CUSTOM_CSS = 'custom_css';
 
@@ -318,6 +321,24 @@ final class InstanceSettings
         return $this->iconPublicUrl('icon-'.$size.'-maskable.png');
     }
 
+    public function homeBackgroundDirectory(): ?string
+    {
+        $directory = SystemSetting::get(self::KEY_HOME_BACKGROUND_DIR);
+
+        return HomeBackgroundUploader::isValidDirectory($directory) ? $directory : null;
+    }
+
+    public function homeBackgroundUrl(): ?string
+    {
+        $directory = $this->homeBackgroundDirectory();
+
+        if ($directory === null) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($directory.'/'.HomeBackgroundUploader::FILENAME);
+    }
+
     public function customCss(): string
     {
         return $this->cssSanitizer->sanitize((string) (SystemSetting::get(self::KEY_CUSTOM_CSS) ?? ''));
@@ -382,7 +403,8 @@ final class InstanceSettings
      *     trending_days: int,
      *     world_hide_content_warnings?: bool,
      *     forced_content_warning_hashtags?: string,
-     *     instance_icon_dir?: string|null
+     *     instance_icon_dir?: string|null,
+     *     home_background_dir?: string|null
      * }  $data
      */
     public function update(array $data, ?User $actor = null): void
@@ -439,6 +461,10 @@ final class InstanceSettings
             SystemSetting::put(self::KEY_INSTANCE_ICON_DIR, $data['instance_icon_dir']);
         }
 
+        if (array_key_exists('home_background_dir', $data)) {
+            SystemSetting::put(self::KEY_HOME_BACKGROUND_DIR, $data['home_background_dir']);
+        }
+
         Config::set('app.name', $siteName);
         Config::set('openbook.registration.open', $registrationOpen);
         Config::set('openbook.posts.max_length', $postMax);
@@ -470,6 +496,7 @@ final class InstanceSettings
                 'forced_content_warning_hashtags_count' => count($forcedContentWarningHashtags),
                 'video_enabled' => $videoEnabled,
                 'has_custom_icons' => $this->hasCustomIcons(),
+                'has_home_background' => $this->homeBackgroundDirectory() !== null,
             ]);
         }
     }

@@ -22,6 +22,11 @@ class HomeController extends Controller
         }
 
         return view('home', [
+            'guestHome' => true,
+            'siteName' => $this->settings->siteName(),
+            'siteDescription' => $this->settings->siteDescription(),
+            'homeBackgroundUrl' => $this->settings->homeBackgroundUrl(),
+            'instanceLogoUrl' => $this->settings->appleTouchIconUrl(),
             'staffMembers' => $this->settings->showHomeStaff()
                 ? $this->instanceStaff->all()
                 : collect(),

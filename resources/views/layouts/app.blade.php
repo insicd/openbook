@@ -10,7 +10,11 @@
     @include('partials.custom-css')
     @stack('head')
 </head>
-<body @class(['ob-css-preview' => $isCssPreview ?? false])>
+<body @class([
+        'ob-css-preview' => $isCssPreview ?? false,
+        'ob-guest-home' => $guestHome ?? false,
+        'ob-guest-home--has-bg' => ($guestHome ?? false) && filled($homeBackgroundUrl ?? null),
+    ])>
     <a href="#ob-content" class="ob-skip-link">Vai al contenuto principale</a>
 
     <header class="ob-header">

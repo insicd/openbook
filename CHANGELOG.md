@@ -131,6 +131,10 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Homepage ospite**: nome e descrizione dell'istanza sono in evidenza;
+  i riferimenti al software Openbook restano piu' in basso. I box e la
+  navbar sono semitrasparenti. Dalle impostazioni admin si puo' caricare
+  un'immagine di sfondo usata solo su quella pagina.
 - L'elenco `/community` separa le community in «Le tue», «Locali» e
   «Remote». Ogni scheda carica progressivamente venti Group alla volta in
   ordine di handle, inclusi quelli già seguiti. Iscrizione, disiscrizione e
@@ -183,6 +187,9 @@ la [roadmap](docs/roadmap.md).
   limitate all'ora corrente al salvataggio, dopo la conversione del fuso orario.
   Gli aggiornamenti con date future conservano la data valida gia' in cache,
   evitando che lo stesso post risalga continuamente nella timeline.
+- Il proprio profilo con richieste di follow in attesa non va piu' in errore
+  se il richiedente e' un account remoto (senza utente locale): la lista usa
+  l'Actor, come gia' fanno le richieste di iscrizione alle community.
 - **Condivisione con citazione** (#107): pubblicare una citazione non aggiunge
   piu' un boost separato dell'originale nel feed personale, nel profilo o
   nelle consegne federate. Restano il contatore delle condivisioni e la

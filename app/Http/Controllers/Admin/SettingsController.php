@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Application\Services\InstanceSettings;
 use App\Domain\Accounts\User;
 use App\Http\Controllers\Controller;
+use App\Infrastructure\Media\HomeBackgroundUploader;
 use App\Infrastructure\Media\InstanceIconUploader;
 use App\Infrastructure\Media\VideoCapability;
 use Illuminate\Http\RedirectResponse;
@@ -46,6 +47,7 @@ final class SettingsController extends Controller
             'worldHideContentWarnings' => $settings->worldHidesContentWarnings(),
             'forcedContentWarningHashtags' => implode("\n", $settings->forcedContentWarningHashtags()),
             'faviconUrl' => $settings->faviconUrl(),
+            'homeBackgroundUrl' => $settings->homeBackgroundUrl(),
         ]);
     }
 
@@ -53,6 +55,7 @@ final class SettingsController extends Controller
         Request $request,
         InstanceSettings $settings,
         InstanceIconUploader $iconUploader,
+        HomeBackgroundUploader $backgroundUploader,
     ): RedirectResponse {
         $maxKb = (int) config('openbook.media.max_size_kb');
 
@@ -83,11 +86,15 @@ final class SettingsController extends Controller
             'forced_content_warning_hashtags' => ['nullable', 'string', 'max:4000'],
             'favicon' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp,gif', 'max:'.$maxKb],
             'remove_favicon' => ['sometimes', 'boolean'],
+            'home_background' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp,gif', 'max:'.max($maxKb, 8192)],
+            'remove_home_background' => ['sometimes', 'boolean'],
         ], [], [
             'favicon' => __('openbook.admin.settings.favicon'),
+            'home_background' => __('openbook.admin.settings.home_background'),
         ]);
 
         $iconDirectory = $settings->iconDirectory();
+        $backgroundDirectory = $settings->homeBackgroundDirectory();
         $videoEnabled = $request->boolean('video_enabled');
 
         if ($videoEnabled) {
@@ -112,6 +119,19 @@ final class SettingsController extends Controller
         } catch (InvalidArgumentException $exception) {
             throw ValidationException::withMessages([
                 'favicon' => $exception->getMessage(),
+            ]);
+        }
+
+        try {
+            if ($request->hasFile('home_background')) {
+                $backgroundDirectory = $backgroundUploader->store($request->file('home_background'), $backgroundDirectory);
+            } elseif ($request->boolean('remove_home_background')) {
+                $backgroundUploader->deleteDirectory($backgroundDirectory);
+                $backgroundDirectory = null;
+            }
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([
+                'home_background' => $exception->getMessage(),
             ]);
         }
 
@@ -140,6 +160,7 @@ final class SettingsController extends Controller
             'world_hide_content_warnings' => $request->boolean('world_hide_content_warnings'),
             'forced_content_warning_hashtags' => $data['forced_content_warning_hashtags'] ?? '',
             'instance_icon_dir' => $iconDirectory,
+            'home_background_dir' => $backgroundDirectory,
         ], $request->user());
 
         return redirect()

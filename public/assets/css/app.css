@@ -1713,6 +1713,112 @@ html.ob-confirm-modal-open {
   flex-wrap: wrap;
 }
 
+.ob-hero--guest {
+  padding: 2.25rem 1.35rem 2rem;
+  border: 1px solid color-mix(in srgb, var(--ob-color-border) 55%, transparent);
+  border-radius: calc(var(--ob-radius) + 4px);
+  box-shadow: var(--ob-shadow);
+  background: color-mix(in srgb, var(--ob-color-surface) 58%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.ob-hero__logo {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 1rem;
+  border-radius: 18px;
+  object-fit: cover;
+  box-shadow: var(--ob-shadow);
+}
+
+.ob-hero--guest h1 {
+  margin-bottom: 0.25rem;
+}
+
+.ob-hero--guest .ob-hero__meta {
+  margin-bottom: 0.85rem;
+  font-size: 0.95rem;
+}
+
+.ob-hero--guest .ob-hero__description {
+  max-width: 42rem;
+  margin-bottom: 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  color: var(--ob-color-text);
+}
+
+.ob-home-panel {
+  margin-top: 1rem;
+  background: color-mix(in srgb, var(--ob-color-surface) 58%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.ob-home-software {
+  margin-top: 1.5rem;
+}
+
+.ob-home-software h2 {
+  font-size: 1.05rem;
+}
+
+.ob-home-software__meta {
+  margin-bottom: 0;
+  color: var(--ob-color-text-muted);
+  font-size: 0.9rem;
+}
+
+.ob-admin-home-background-preview {
+  display: block;
+  width: min(100%, 240px);
+  height: 120px;
+  margin: 0.5rem 0 0.75rem;
+  object-fit: cover;
+  border-radius: var(--ob-radius);
+  border: 1px solid var(--ob-color-border);
+}
+
+body.ob-guest-home {
+  background:
+    radial-gradient(80rem 28rem at 50% -8rem, color-mix(in srgb, var(--ob-color-primary) 22%, transparent), transparent 68%),
+    var(--ob-color-bg);
+}
+
+body.ob-guest-home .ob-header {
+  background: color-mix(in srgb, var(--ob-color-surface) 55%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+body.ob-guest-home .ob-btn--ghost {
+  background: color-mix(in srgb, var(--ob-color-surface) 70%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+body.ob-guest-home .ob-footer {
+  background: color-mix(in srgb, var(--ob-color-surface) 62%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+body.ob-guest-home--has-bg {
+  background-color: var(--ob-color-bg);
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--ob-color-bg) 38%, transparent),
+      color-mix(in srgb, var(--ob-color-bg) 58%, transparent)
+    ),
+    var(--ob-guest-home-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: scroll;
+  min-height: 100vh;
+}
+
 .ob-footer {
   text-align: center;
   color: var(--ob-color-text-muted);
