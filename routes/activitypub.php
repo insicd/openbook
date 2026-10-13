@@ -79,10 +79,9 @@ Route::get('/users/{username}/followers', [FollowersController::class, 'show'])
     ->where('username', '[A-Za-z0-9_]+')
     ->name('followers.show');
 
-Route::get('/users/{username}/avvisi/{post}/{follower}', [GroupNotifyNoteController::class, 'show'])
+Route::get('/users/{username}/avvisi/{post}', [GroupNotifyNoteController::class, 'show'])
     ->where('username', '[A-Za-z0-9_]+')
     ->where('post', '[0-9a-fA-F-]{36}')
-    ->where('follower', '[0-9a-fA-F-]{36}')
     ->name('group.notify_note');
 
 Route::get('/users/{username}/following', [FollowingController::class, 'show'])

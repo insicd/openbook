@@ -5,45 +5,43 @@ namespace App\Federation\Serialization;
 use App\Domain\Posts\Post;
 use App\Domain\Posts\PostBodyRenderer;
 use App\Federation\Actors\Actor;
+use App\Federation\Actors\LocalActorUrls;
 
 /**
- * Create/Note indirizzati al singolo follower che ha acceso la campanella
- * sul Group. Non finiscono nell'outbox: sono solo consegne personali, cosi'
- * Mastodon (che ignora gli Announce-reblog per `Follow.notify`) riceve un
- * Create originale del Group e puo' emettere la notifica.
+ * Create/Note del Group per i nuovi post sul wall. Mastodon tiene la
+ * campanella solo in locale e non la mette nel Follow: l'Announce FEP-1b12
+ * e' un boost e non genera {@code status} notification. Un Create originale
+ * del Group (non un reblog), consegnato a tutti i membri remoti, entra nel
+ * home feed e Mastodon puo' notificare chi ha acceso la campanella.
  */
 final class GroupNotifyNoteSerializer
 {
-    public static function noteUri(Actor $group, Post $post, Actor $follower): string
+    public static function noteUri(Actor $group, Post $post): string
     {
-        return $group->activityPubId().'/avvisi/'.$post->id.'/'.$follower->id;
+        return $group->activityPubId().'/avvisi/'.$post->id;
     }
 
     /**
      * @return array<string, mixed>
      */
-    public static function note(Actor $group, Post $post, Actor $follower): array
+    public static function note(Actor $group, Post $post): array
     {
+        $post->loadMissing('community');
         $postUri = NoteSerializer::postUri($post);
-        $content = self::content($post, $postUri);
-        $followerId = $follower->activityPubId();
+        $followers = LocalActorUrls::forUsername($group->preferred_username, true)['followers'];
+        $private = $post->community?->is_private === true;
 
         $note = [
             '@context' => 'https://www.w3.org/ns/activitystreams',
-            'id' => self::noteUri($group, $post, $follower),
+            'id' => self::noteUri($group, $post),
             'type' => 'Note',
             'attributedTo' => $group->activityPubId(),
-            'content' => $content,
+            'content' => self::content($post, $postUri),
             'url' => $postUri,
             'published' => $post->published_at->toAtomString(),
-            'to' => [$followerId],
-            'cc' => [],
+            'to' => [$followers],
+            'cc' => $private ? [] : [NoteSerializer::PUBLIC_STREAM],
             'quoteUrl' => $postUri,
-            'tag' => [[
-                'type' => 'Mention',
-                'href' => $followerId,
-                'name' => '@'.$follower->handle(),
-            ]],
         ];
 
         if (filled($post->title)) {
@@ -61,9 +59,9 @@ final class GroupNotifyNoteSerializer
     /**
      * @return array<string, mixed>
      */
-    public static function create(Actor $group, Post $post, Actor $follower): array
+    public static function create(Actor $group, Post $post): array
     {
-        $note = self::note($group, $post, $follower);
+        $note = self::note($group, $post);
 
         return [
             '@context' => 'https://www.w3.org/ns/activitystreams',
@@ -72,7 +70,7 @@ final class GroupNotifyNoteSerializer
             'actor' => $group->activityPubId(),
             'published' => $note['published'],
             'to' => $note['to'],
-            'cc' => [],
+            'cc' => $note['cc'],
             'object' => $note,
         ];
     }

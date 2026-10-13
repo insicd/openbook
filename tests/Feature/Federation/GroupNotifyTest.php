@@ -13,6 +13,7 @@ use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\InboxItem;
 use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\GroupNotifyNoteSerializer;
+use App\Federation\Serialization\NoteSerializer;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -271,7 +272,7 @@ class GroupNotifyTest extends TestCase
         $this->assertStringContainsString('Circolo remoto', $notification->message());
     }
 
-    public function test_a_local_group_delivers_notify_notes_to_remote_members_with_the_bell(): void
+    public function test_a_local_group_delivers_a_group_create_to_all_remote_members(): void
     {
         Queue::fake();
         $owner = $this->createFullAccount('groupbellowner');
@@ -282,16 +283,8 @@ class GroupNotifyTest extends TestCase
         ]);
         app(FollowManager::class)->follow($member->actor, $community->actor);
 
-        $withBell = $this->createRemoteActor('concampanella', 'mastodon.example');
-        $withoutBell = $this->createRemoteActor('senzacampanella', 'mastodon.example');
-
-        foreach ([$withBell, $withoutBell] as $remote) {
-            app(FollowManager::class)->follow($remote, $community->actor);
-        }
-        Follow::query()
-            ->where('follower_id', $withBell->id)
-            ->where('following_id', $community->actor->id)
-            ->update(['notify' => true]);
+        $remote = $this->createRemoteActor('mastodoniano', 'mastodon.example');
+        app(FollowManager::class)->follow($remote, $community->actor);
 
         $post = app(PostComposer::class)->compose($member->actor, [
             'body' => 'Ciao a chi ha la campanella.',
@@ -305,31 +298,26 @@ class GroupNotifyTest extends TestCase
             'notifiable_id' => $post->id,
         ]);
 
+        $followers = $community->actor->activityPubId().'/followers';
+        $noteId = GroupNotifyNoteSerializer::noteUri($community->actor, $post);
+
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->signingActorId === $community->actor->id
             && ($job->activity['type'] ?? null) === 'Create'
-            && ($job->activity['to'][0] ?? null) === $withBell->uri
+            && ($job->activity['actor'] ?? null) === $community->actor->activityPubId()
+            && ($job->activity['to'][0] ?? null) === $followers
+            && in_array(NoteSerializer::PUBLIC_STREAM, $job->activity['cc'] ?? [], true)
             && ($job->activity['object']['attributedTo'] ?? null) === $community->actor->activityPubId()
-            && ($job->activity['object']['id'] ?? null) === GroupNotifyNoteSerializer::noteUri($community->actor, $post, $withBell));
-
-        Queue::assertNotPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => ($job->activity['type'] ?? null) === 'Create'
-            && ($job->activity['to'][0] ?? null) === $withoutBell->uri
-            && ($job->activity['object']['attributedTo'] ?? null) === $community->actor->activityPubId());
+            && ($job->activity['object']['id'] ?? null) === $noteId
+            && $job->inboxUrl === 'https://mastodon.example/inbox');
 
         $this->get(route('group.notify_note', [
             'username' => $community->actor->preferred_username,
             'post' => $post->id,
-            'follower' => $withBell->id,
         ]), ['Accept' => 'application/activity+json'])
             ->assertOk()
             ->assertJsonPath('type', 'Note')
             ->assertJsonPath('attributedTo', $community->actor->activityPubId())
-            ->assertJsonPath('to.0', $withBell->uri);
-
-        $this->get(route('group.notify_note', [
-            'username' => $community->actor->preferred_username,
-            'post' => $post->id,
-            'follower' => $withoutBell->id,
-        ]), ['Accept' => 'application/activity+json'])
-            ->assertNotFound();
+            ->assertJsonPath('to.0', $followers)
+            ->assertJsonPath('quoteUrl', NoteSerializer::postUri($post));
     }
 }

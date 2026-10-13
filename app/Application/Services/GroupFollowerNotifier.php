@@ -11,7 +11,8 @@ use App\Federation\Serialization\GroupNotifyNoteSerializer;
 
 /**
  * Campanella sui Group: in-app per i follower locali con {@see Follow::$notify},
- * e Create personale del Group verso i follower remoti che l'hanno chiesta.
+ * e Create originale del Group verso tutti i membri remoti (Mastodon non
+ * federata il flag {@code notify}: lo applica in locale sull'home feed).
  */
 final class GroupFollowerNotifier
 {
@@ -29,7 +30,7 @@ final class GroupFollowerNotifier
         $post->loadMissing('actor');
 
         if ($group->isLocal()) {
-            $this->deliverToRemoteNotifyFollowers($group, $post);
+            $this->deliverToRemoteMembers($group, $post);
 
             return;
         }
@@ -70,26 +71,11 @@ final class GroupFollowerNotifier
         }
     }
 
-    private function deliverToRemoteNotifyFollowers(Actor $group, Post $post): void
+    private function deliverToRemoteMembers(Actor $group, Post $post): void
     {
-        $followers = Actor::query()
-            ->where('is_local', false)
-            ->where('status', Actor::STATUS_ACTIVE)
-            ->whereKeyNot($post->actor_id)
-            ->whereIn('id', Follow::query()
-                ->select('follower_id')
-                ->where('following_id', $group->id)
-                ->where('status', Follow::STATUS_ACCEPTED)
-                ->where('notify', true))
-            ->with('endpoints')
-            ->get();
-
-        foreach ($followers as $follower) {
-            $this->delivery->deliverTo(
-                $group,
-                $follower,
-                GroupNotifyNoteSerializer::create($group, $post, $follower),
-            );
-        }
+        $this->delivery->deliverToFollowers(
+            $group,
+            GroupNotifyNoteSerializer::create($group, $post),
+        );
     }
 }

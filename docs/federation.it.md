@@ -398,11 +398,12 @@ Le community sono Actor ActivityPub di tipo `Group`:
   le community pubbliche accettano la citazione; per le private l'autore deve
   essere membro), community
   private con approvazione, moderatori delegati. I `Follow` in ingresso possono
-  includere il flag Mastodon `notify` (la campanella del Group): viene salvato
-  sul follow. I nuovi post sul wall consegnano anche un `Create` firmato dal
-  Group, indirizzato solo ai membri remoti che l'hanno accesa
-  (`/users/{group}/avvisi/{post}/{follower}`), perche' l'`Announce` FEP-1b12
-  e' un boost e su quelle piattaforme non fa suonare la campanella. L'elenco
+  includere il flag `notify`: viene salvato sul follow. Mastodon tiene la
+  campanella solo in locale e non la invia; l'`Announce` FEP-1b12 e' un boost
+  e non la fa suonare. I nuovi post sul wall consegnano quindi anche un
+  `Create` originale del Group (Note non elencata,
+  `/users/{group}/avvisi/{post}`) a tutti i membri remoti, cosi' Mastodon
+  puo' notificare chi ha acceso la campanella. L'elenco
   `/community` distingue
   **Le tue community**, **Community locali** e **Community remote**; le ultime
   due includono anche i Group già seguiti. Le tre liste sono ordinate per

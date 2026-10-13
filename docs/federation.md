@@ -398,12 +398,12 @@ Communities are ActivityPub Actors of type `Group`:
   membership (Follow/Accept), members' post wall, outgoing Group Announce,
   inbound FEP-1b12 (`Create` Note/Page that mentions or addresses the Group:
   public communities accept the cite; private ones require membership),
-  private communities with approval, delegated moderators. Incoming
-  `Follow` activities may include Mastodon's `notify` flag (the Group
-  bell): it is stored on the follow row. New wall posts also fan out a
-  Group-signed `Create` addressed only to remote members who enabled it
-  (`/users/{group}/avvisi/{post}/{follower}`), because a FEP-1b12
-  `Announce` is a reblog and does not ring that bell. The `/community`
+  private communities with approval, delegated moderators.   Incoming `Follow` activities may include a `notify` flag: it is stored
+  on the follow row. Mastodon keeps the Group bell locally and does not
+  send it; a FEP-1b12 `Announce` is a reblog and does not ring that bell.
+  New wall posts therefore also fan out a Group-signed original `Create`
+  (unlisted Note at `/users/{group}/avvisi/{post}`) to every remote
+  member, so Mastodon can notify whoever enabled the bell. The `/community`
   directory has **Your communities**, **Local communities**, and **Remote
   communities** tabs. The latter two also include joined Groups; all three
   lists are ordered by handle and load twenty rows at a time as you scroll.
