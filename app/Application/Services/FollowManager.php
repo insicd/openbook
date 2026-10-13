@@ -260,6 +260,64 @@ final class FollowManager
             ->exists();
     }
 
+    public function notifies(Actor $follower, Actor $target): bool
+    {
+        return Follow::query()
+            ->where('follower_id', $follower->id)
+            ->where('following_id', $target->id)
+            ->where('status', Follow::STATUS_ACCEPTED)
+            ->where('notify', true)
+            ->exists();
+    }
+
+    public function setNotify(Actor $follower, Actor $target, bool $enabled): Follow
+    {
+        if ($follower->id === $target->id) {
+            throw new InvalidArgumentException('Non puoi attivare le notifiche su te stesso.');
+        }
+
+        if (! $follower->isLocal() || ! $follower->isPerson()) {
+            throw new InvalidArgumentException('Solo un account locale puo\' attivare le notifiche dei nuovi post.');
+        }
+
+        if (! $target->isGroup()) {
+            throw new InvalidArgumentException('Le notifiche dei nuovi post si possono attivare solo sui Group.');
+        }
+
+        if ($enabled) {
+            RemoteInteractionGuard::assertAllowed($follower, $target);
+        }
+
+        $follow = Follow::query()
+            ->where('follower_id', $follower->id)
+            ->where('following_id', $target->id)
+            ->where('status', Follow::STATUS_ACCEPTED)
+            ->first();
+
+        if ($follow === null) {
+            throw new InvalidArgumentException('Devi essere iscritto a questo Group prima di attivarne le notifiche.');
+        }
+
+        $follow->setRelation('follower', $follower);
+        $follow->setRelation('following', $target);
+
+        if ((bool) $follow->notify === $enabled) {
+            return $follow;
+        }
+
+        $follow->forceFill(['notify' => $enabled])->save();
+
+        if (! $target->isLocal() && ! $target->isFeed()) {
+            $this->delivery->deliverTo(
+                $follower,
+                $target,
+                ActivitySerializer::follow($follow, ActivitySerializer::followNotifyUpdateUri($follow)),
+            );
+        }
+
+        return $follow->fresh() ?? $follow;
+    }
+
     public function setAutoAnnounce(Actor $follower, Actor $target, bool $enabled): Follow
     {
         if ($follower->id === $target->id) {

@@ -90,6 +90,28 @@ class FollowController extends Controller
         return back()->with('status', __('openbook.follow.auto_announce_disabled'));
     }
 
+    public function enableNotify(Actor $actor): RedirectResponse
+    {
+        try {
+            $this->followManager->setNotify(auth()->user()->actor, $actor, true);
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['notify' => $exception->getMessage()]);
+        }
+
+        return back()->with('status', __('openbook.follow.notify_enabled'));
+    }
+
+    public function disableNotify(Actor $actor): RedirectResponse
+    {
+        try {
+            $this->followManager->setNotify(auth()->user()->actor, $actor, false);
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['notify' => $exception->getMessage()]);
+        }
+
+        return back()->with('status', __('openbook.follow.notify_disabled'));
+    }
+
     public function accept(Follow $follow): RedirectResponse
     {
         $follower = $follow->follower;

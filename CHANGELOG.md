@@ -19,6 +19,13 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Campanella sui Group (`Follow.notify`)**: i Follow in ingresso con
+  `notify: true` (Mastodon, Friendica, …) vengono memorizzati. Quando un
+  nuovo post entra in un Group locale, i membri remoti che hanno acceso la
+  campanella ricevono un `Create` personale del Group (oltre all'Announce
+  FEP-1b12), cosi' la notifica arriva anche dove l'Announce-reblog viene
+  ignorato. In locale, la campanella sul profilo di un Group remoto genera
+  una notifica in-app per ogni nuovo post ritrasmesso dal Group.
 - **Community locali, FEP-1b12 in ingresso**: un `Create` remoto (Note/Page)
   che menziona o indirizza un Group locale pubblico viene agganciato al
   wall (`posts.community_id`) e ritrasmesso con Announce del Group, come i

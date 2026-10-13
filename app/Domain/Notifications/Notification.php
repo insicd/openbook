@@ -8,6 +8,7 @@ use App\Domain\Events\Event;
 use App\Domain\Events\EventComment;
 use App\Domain\Events\EventParticipation;
 use App\Domain\Posts\Post;
+use App\Domain\Reactions\Announce;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Builder;
@@ -288,9 +289,15 @@ class Notification extends Model
             return null;
         }
 
-        $target->loadMissing('community.actor');
+        $target->loadMissing(['community.actor', 'announces.actor']);
 
-        return $target->community?->actor;
+        if ($target->community?->actor !== null) {
+            return $target->community->actor;
+        }
+
+        return $target->announces
+            ->first(fn (Announce $announce): bool => $announce->actor?->isGroup())
+            ?->actor;
     }
 
     /**

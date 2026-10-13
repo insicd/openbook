@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $remote_activity_uri
  * @property bool $auto_announce
  * @property Carbon|null $auto_announce_since
+ * @property bool $notify
  * @property Carbon $requested_at
  * @property Carbon|null $accepted_at
  */
@@ -43,6 +44,7 @@ class Follow extends Model
         'remote_activity_uri',
         'auto_announce',
         'auto_announce_since',
+        'notify',
         'requested_at',
         'accepted_at',
     ];
@@ -52,6 +54,7 @@ class Follow extends Model
         return [
             'auto_announce' => 'boolean',
             'auto_announce_since' => 'datetime',
+            'notify' => 'boolean',
             'requested_at' => 'datetime',
             'accepted_at' => 'datetime',
         ];

@@ -4,6 +4,7 @@ use App\Http\Controllers\Federation\EventsCollectionController;
 use App\Http\Controllers\Federation\FeedActorFederationController;
 use App\Http\Controllers\Federation\FollowersController;
 use App\Http\Controllers\Federation\FollowingController;
+use App\Http\Controllers\Federation\GroupNotifyNoteController;
 use App\Http\Controllers\Federation\InboxController;
 use App\Http\Controllers\Federation\InstanceInfoController;
 use App\Http\Controllers\Federation\NodeInfoController;
@@ -77,6 +78,12 @@ Route::get('/users/{username}/events', [EventsCollectionController::class, 'show
 Route::get('/users/{username}/followers', [FollowersController::class, 'show'])
     ->where('username', '[A-Za-z0-9_]+')
     ->name('followers.show');
+
+Route::get('/users/{username}/avvisi/{post}/{follower}', [GroupNotifyNoteController::class, 'show'])
+    ->where('username', '[A-Za-z0-9_]+')
+    ->where('post', '[0-9a-fA-F-]{36}')
+    ->where('follower', '[0-9a-fA-F-]{36}')
+    ->name('group.notify_note');
 
 Route::get('/users/{username}/following', [FollowingController::class, 'show'])
     ->where('username', '[A-Za-z0-9_]+')

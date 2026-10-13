@@ -26,6 +26,7 @@ final class AnnounceManager
     public function __construct(
         private readonly NotificationCreator $notificationCreator,
         private readonly ActivityDelivery $delivery,
+        private readonly GroupFollowerNotifier $groupFollowerNotifier,
     ) {}
 
     /**
@@ -99,6 +100,10 @@ final class AnnounceManager
 
         if ($newBoost && $actor->isLocal() && ($direct || $actor->isGroup())) {
             $this->delivery->deliverAnnounce($actor, $post, ActivitySerializer::announce($announce, $post));
+        }
+
+        if ($actor->isGroup() && $announce->wasRecentlyCreated) {
+            $this->groupFollowerNotifier->afterGroupAnnounce($actor, $post);
         }
 
         return $announce;

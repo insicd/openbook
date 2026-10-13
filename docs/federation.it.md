@@ -397,7 +397,13 @@ Le community sono Actor ActivityPub di tipo `Group`:
   FEP-1b12 in ingresso (`Create` Note/Page che menziona o indirizza il Group:
   le community pubbliche accettano la citazione; per le private l'autore deve
   essere membro), community
-  private con approvazione, moderatori delegati. L'elenco `/community` distingue
+  private con approvazione, moderatori delegati. I `Follow` in ingresso possono
+  includere il flag Mastodon `notify` (la campanella del Group): viene salvato
+  sul follow. I nuovi post sul wall consegnano anche un `Create` firmato dal
+  Group, indirizzato solo ai membri remoti che l'hanno accesa
+  (`/users/{group}/avvisi/{post}/{follower}`), perche' l'`Announce` FEP-1b12
+  e' un boost e su quelle piattaforme non fa suonare la campanella. L'elenco
+  `/community` distingue
   **Le tue community**, **Community locali** e **Community remote**; le ultime
   due includono anche i Group già seguiti. Le tre liste sono ordinate per
   handle e caricano venti righe alla volta durante lo scorrimento. Le azioni
@@ -405,8 +411,11 @@ Le community sono Actor ActivityPub di tipo `Group`:
   richiesta in attesa per una community locale privata può essere annullata.
 - **Remote** (Lemmy, Friendica, …): ricerca `nome@dominio`, iscrizione federata,
   profilo `/attori/{id}` con composer per i membri, ingestione di Announce/Page
-  (FEP-1b12). Gli URI Actor locali usano lo schema Mastodon `/users/{username}` per
-  compatibilita' (Lemmy rifiuta gli id con `@` percent-encodato).
+  (FEP-1b12). Dal profilo si puo' accendere la campanella per ricevere una
+  notifica in-app a ogni post che il Group ritrasmette; la preferenza viene
+  inviata come `Follow.notify`. Gli URI Actor locali usano lo schema Mastodon
+  `/users/{username}` per compatibilita' (Lemmy rifiuta gli id con `@`
+  percent-encodato).
 
 ### Interoperabilita' e media remoti (Fase 6)
 

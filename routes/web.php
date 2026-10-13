@@ -149,6 +149,10 @@ Route::middleware('auth')->group(function () {
         ->name('actors.auto_announce');
     Route::delete('/attori/{actor}/condivisione-automatica', [FollowController::class, 'disableAutoAnnounce'])
         ->name('actors.auto_announce.destroy');
+    Route::post('/attori/{actor}/notifiche', [FollowController::class, 'enableNotify'])
+        ->name('actors.notify');
+    Route::delete('/attori/{actor}/notifiche', [FollowController::class, 'disableNotify'])
+        ->name('actors.notify.destroy');
     Route::get('/attori/{actor}/condividi-a-utente', [ActorProfileController::class, 'shareToUser'])
         ->name('actors.share_to_user');
 

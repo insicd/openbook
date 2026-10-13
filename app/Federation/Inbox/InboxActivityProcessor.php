@@ -25,6 +25,7 @@ use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Resolution\ObjectResolver;
 use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\NoteSerializer;
+use App\Federation\Support\ActivityPubBoolean;
 use App\Federation\Support\ActivityPubTimestamp;
 use App\Federation\Support\ActivityPubUri;
 use App\Federation\Support\JsonLdLanguage;
@@ -159,6 +160,23 @@ final class InboxActivityProcessor
         }
 
         $follow->forceFill(['remote_activity_uri' => (string) $activity['id']])->save();
+
+        if (ActivityPubBoolean::isPresent(
+            $activity,
+            'notify',
+            'http://joinmastodon.org/ns#notify',
+            'https://joinmastodon.org/ns#notify',
+        )) {
+            $follow->forceFill([
+                'notify' => ActivityPubBoolean::fromDocument(
+                    $activity,
+                    'notify',
+                    'http://joinmastodon.org/ns#notify',
+                    'https://joinmastodon.org/ns#notify',
+                ),
+            ])->save();
+        }
+
         $follow->setRelation('follower', $follower);
         $follow->setRelation('following', $target);
 

@@ -398,7 +398,12 @@ Communities are ActivityPub Actors of type `Group`:
   membership (Follow/Accept), members' post wall, outgoing Group Announce,
   inbound FEP-1b12 (`Create` Note/Page that mentions or addresses the Group:
   public communities accept the cite; private ones require membership),
-  private communities with approval, delegated moderators. The `/community`
+  private communities with approval, delegated moderators. Incoming
+  `Follow` activities may include Mastodon's `notify` flag (the Group
+  bell): it is stored on the follow row. New wall posts also fan out a
+  Group-signed `Create` addressed only to remote members who enabled it
+  (`/users/{group}/avvisi/{post}/{follower}`), because a FEP-1b12
+  `Announce` is a reblog and does not ring that bell. The `/community`
   directory has **Your communities**, **Local communities**, and **Remote
   communities** tabs. The latter two also include joined Groups; all three
   lists are ordered by handle and load twenty rows at a time as you scroll.
@@ -406,9 +411,11 @@ Communities are ActivityPub Actors of type `Group`:
   requests to private local communities can also be cancelled.
 - **Remote** (Lemmy, Friendica, …): search `nome@dominio`, federated join,
   profile `/attori/{id}` with a composer for members, ingestion of
-  Announce/Page (FEP-1b12). Local Actor URIs use the Mastodon scheme
-  `/users/{username}` for compatibility (Lemmy rejects ids with
-  percent-encoded `@`).
+  Announce/Page (FEP-1b12). Members can ring the bell on that profile to
+  receive an in-app notification for every post the Group announces, and
+  the preference is sent back as `Follow.notify`. Local Actor URIs use the
+  Mastodon scheme `/users/{username}` for compatibility (Lemmy rejects ids
+  with percent-encoded `@`).
 
 ### Interoperability and remote media (Phase 6)
 

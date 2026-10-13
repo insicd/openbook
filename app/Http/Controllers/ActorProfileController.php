@@ -178,11 +178,13 @@ class ActorProfileController extends Controller
         $isFollowing = false;
         $hasPendingRequest = false;
         $autoAnnounce = false;
+        $notify = false;
 
         if ($viewerActor !== null) {
             $isFollowing = $this->followManager->isFollowing($viewerActor, $actor);
             $hasPendingRequest = $this->followManager->hasPendingRequest($viewerActor, $actor);
             $autoAnnounce = $isFollowing && $this->followManager->autoAnnounces($viewerActor, $actor);
+            $notify = $isFollowing && $actor->isGroup() && $this->followManager->notifies($viewerActor, $actor);
         }
 
         $featuredPosts = $this->featuredQuery->forActor($actor, $viewerActor);
@@ -219,6 +221,7 @@ class ActorProfileController extends Controller
             'isFollowing' => $isFollowing,
             'hasPendingRequest' => $hasPendingRequest,
             'autoAnnounce' => $autoAnnounce,
+            'notify' => $notify,
             'emptyPostsMessage' => $activeTab === 'featured' ? __('openbook.profile.no_featured_posts') : $this->emptyPostsMessage($actor, $isFollowing, $hasPendingRequest),
         ]);
     }

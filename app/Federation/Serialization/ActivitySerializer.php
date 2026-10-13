@@ -37,18 +37,16 @@ final class ActivitySerializer
     /**
      * @return array<string, mixed>
      */
-    public static function follow(Follow $follow): array
+    public static function follow(Follow $follow, ?string $activityId = null): array
     {
         // "to" allineato a Lemmy / FEP-1b12: molti Group lo usano per
         // indirizzare la richiesta; se assente restano comunque validi.
-        return [
-            '@context' => self::CONTEXT,
-            'id' => self::followActivityUri($follow),
-            'type' => 'Follow',
-            'actor' => $follow->follower->activityPubId(),
-            'object' => $follow->following->activityPubId(),
-            'to' => [$follow->following->activityPubId()],
-        ];
+        return self::followPayload($follow, $activityId ?? self::followActivityUri($follow));
+    }
+
+    public static function followNotifyUpdateUri(Follow $follow): string
+    {
+        return self::followActivityUri($follow).'/notifiche/'.now()->getTimestampMs();
     }
 
     /**
@@ -110,13 +108,32 @@ final class ActivitySerializer
      */
     private static function embeddedFollow(Follow $follow): array
     {
-        return [
-            'id' => $follow->remote_activity_uri ?? self::followActivityUri($follow),
+        return self::followPayload(
+            $follow,
+            $follow->remote_activity_uri ?? self::followActivityUri($follow),
+            withContext: false,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function followPayload(Follow $follow, string $id, bool $withContext = true): array
+    {
+        $payload = [
+            'id' => $id,
             'type' => 'Follow',
             'actor' => $follow->follower->activityPubId(),
             'object' => $follow->following->activityPubId(),
             'to' => [$follow->following->activityPubId()],
+            'notify' => (bool) $follow->notify,
         ];
+
+        if ($withContext) {
+            $payload = ['@context' => self::CONTEXT] + $payload;
+        }
+
+        return $payload;
     }
 
     /**

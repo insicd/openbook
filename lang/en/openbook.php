@@ -421,6 +421,12 @@ return [
         'auto_announce_disable_confirm' => 'Turn off',
         'auto_announce_enabled' => 'Automatic sharing is on. New public posts from this contact will be shared from your account.',
         'auto_announce_disabled' => 'Automatic sharing is off.',
+        'notify_enable' => 'Notify about new posts',
+        'notify_disable' => 'Turn off new-post notifications',
+        'notify_enable_aria' => 'Notify me of every new post in this Group',
+        'notify_disable_aria' => 'Stop notifying me of new posts in this Group',
+        'notify_enabled' => 'You will be notified of every new post in this Group.',
+        'notify_disabled' => 'You will no longer be notified of every new post in this Group.',
     ],
 
     'search' => [

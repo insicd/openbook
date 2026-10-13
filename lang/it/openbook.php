@@ -421,6 +421,12 @@ return [
         'auto_announce_disable_confirm' => 'Disattiva',
         'auto_announce_enabled' => 'Condivisione automatica attivata. I nuovi post pubblici di questo contatto verranno condivisi dal tuo account.',
         'auto_announce_disabled' => 'Condivisione automatica disattivata.',
+        'notify_enable' => 'Notifiche per i nuovi post',
+        'notify_disable' => 'Disattiva le notifiche dei nuovi post',
+        'notify_enable_aria' => 'Attiva una notifica per ogni nuovo post in questo Group',
+        'notify_disable_aria' => 'Disattiva le notifiche per i nuovi post di questo Group',
+        'notify_enabled' => 'Riceverai una notifica per ogni nuovo post in questo Group.',
+        'notify_disabled' => 'Non riceverai più una notifica per ogni nuovo post in questo Group.',
     ],
 
     'search' => [

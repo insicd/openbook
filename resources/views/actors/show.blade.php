@@ -115,6 +115,28 @@
                                 @method('DELETE')
                                 <button type="submit" class="ob-btn ob-btn--ghost ob-btn--small">{{ $isGroup ? __('openbook.communities.leave') : __('openbook.follow.unfollow') }}</button>
                             </form>
+                            @if ($isGroup && ! $profileActor->isRemotelySuspended())
+                                @if ($notify ?? false)
+                                    <form method="POST" action="{{ route('actors.notify.destroy', $profileActor) }}" class="ob-profile-toolbar__form">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="ob-icon-btn ob-icon-btn--active"
+                                            aria-label="{{ __('openbook.follow.notify_disable_aria') }}"
+                                            title="{{ __('openbook.follow.notify_disable') }}">
+                                            <x-icon name="bell" />
+                                        </button>
+                                    </form>
+                                @else
+                                    <form method="POST" action="{{ route('actors.notify', $profileActor) }}" class="ob-profile-toolbar__form">
+                                        @csrf
+                                        <button type="submit" class="ob-icon-btn"
+                                            aria-label="{{ __('openbook.follow.notify_enable_aria') }}"
+                                            title="{{ __('openbook.follow.notify_enable') }}">
+                                            <x-icon name="bell" />
+                                        </button>
+                                    </form>
+                                @endif
+                            @endif
                         @elseif ($hasPendingRequest)
                             <form method="POST" action="{{ route('actors.unfollow', $profileActor) }}" class="ob-profile-toolbar__form">
                                 @csrf
