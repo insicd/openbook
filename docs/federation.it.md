@@ -393,7 +393,10 @@ finalmente bidirezionale.
 Le community sono Actor ActivityPub di tipo `Group`:
 
 - **Locali**: creazione da UI, slug `/c/{slug}`, WebFinger `nome@dominio`, iscrizione
-  (Follow/Accept), wall dei post dei membri, Announce del Group in uscita, community
+  (Follow/Accept), wall dei post dei membri, Announce del Group in uscita,
+  FEP-1b12 in ingresso (`Create` Note/Page che menziona o indirizza il Group:
+  le community pubbliche accettano la citazione; per le private l'autore deve
+  essere membro), community
   private con approvazione, moderatori delegati. L'elenco `/community` distingue
   **Le tue community**, **Community locali** e **Community remote**; le ultime
   due includono anche i Group già seguiti. Le tre liste sono ordinate per

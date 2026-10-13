@@ -396,6 +396,8 @@ Communities are ActivityPub Actors of type `Group`:
 
 - **Local**: creation from the UI, slug `/c/{slug}`, WebFinger `nome@dominio`,
   membership (Follow/Accept), members' post wall, outgoing Group Announce,
+  inbound FEP-1b12 (`Create` Note/Page that mentions or addresses the Group:
+  public communities accept the cite; private ones require membership),
   private communities with approval, delegated moderators. The `/community`
   directory has **Your communities**, **Local communities**, and **Remote
   communities** tabs. The latter two also include joined Groups; all three

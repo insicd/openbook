@@ -465,7 +465,7 @@ final class ActivityDelivery
             return collect();
         }
 
-        return Actor::query()
+        return collect(Actor::query()
             ->whereIn('id', $followerActorIds)
             ->where('is_local', false)
             ->where('status', Actor::STATUS_ACTIVE)
@@ -473,8 +473,7 @@ final class ActivityDelivery
             ->get()
             ->map(fn (Actor $actor) => $actor->endpoints?->shared_inbox ?: $actor->endpoints?->inbox)
             ->filter()
-            ->unique()
-            ->values();
+            ->all())->unique()->values();
     }
 
     /**

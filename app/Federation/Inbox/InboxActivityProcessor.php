@@ -7,6 +7,7 @@ use App\Application\Services\CommentSoftDeleter;
 use App\Application\Services\DomainBlockManager;
 use App\Application\Services\EventParticipationManager;
 use App\Application\Services\FollowManager;
+use App\Application\Services\LocalCommunityIngester;
 use App\Application\Services\ReactionManager;
 use App\Application\Services\RelayHandshakeManager;
 use App\Domain\Comments\Comment;
@@ -68,6 +69,7 @@ final class InboxActivityProcessor
         private readonly RelayHandshakeManager $relayHandshakes,
         private readonly DomainBlockManager $domainBlocks,
         private readonly RemoteAccountMoveHandler $accountMoves,
+        private readonly LocalCommunityIngester $communityIngester,
     ) {}
 
     public function process(InboxItem $item): string
@@ -1107,15 +1109,16 @@ final class InboxActivityProcessor
         }
 
         $isReply = $parentPost !== null || $parentComment !== null;
+        $post = null;
 
-        return DB::transaction(function () use ($isReply, $note, $noteUri, $author, $body, $publishedAt, $parentPost, $parentComment) {
+        $status = DB::transaction(function () use ($isReply, $note, $noteUri, $author, $body, $publishedAt, $parentPost, $parentComment, &$post) {
             if ($isReply) {
                 $comment = $this->noteUpserter->upsertComment($note, $noteUri, $author, $body, $parentPost, $parentComment);
 
                 return $comment !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
             }
 
-            $this->noteUpserter->upsertPost(
+            $post = $this->noteUpserter->upsertPost(
                 $note,
                 $noteUri,
                 $author,
@@ -1125,6 +1128,12 @@ final class InboxActivityProcessor
 
             return InboxItem::STATUS_PROCESSED;
         });
+
+        if ($status === InboxItem::STATUS_PROCESSED && $post instanceof Post) {
+            $this->communityIngester->attachRemotePost($post, $author, $note, $inboxTarget, $fromRelay);
+        }
+
+        return $status;
     }
 
     /**
@@ -1135,6 +1144,14 @@ final class InboxActivityProcessor
      */
     private function shouldStoreAsConversationMessage(array $note, ?Post $parentPost, ?Comment $parentComment, ?Actor $inboxTarget = null): bool
     {
+        if ($inboxTarget !== null && $inboxTarget->isLocal() && $inboxTarget->isGroup()) {
+            return false;
+        }
+
+        if ($this->addressesOnlyLocalGroups($note)) {
+            return false;
+        }
+
         if (RemotePostObject::isExplicitDirectMessage($note)) {
             return true;
         }
@@ -1564,6 +1581,47 @@ final class InboxActivityProcessor
             'as:Public',
             'Public',
         ], true);
+    }
+
+    /**
+     * Create indirizzato solo a Group locali (FEP-1b12 / Lemmy): non e' un DM.
+     *
+     * @param  array<string, mixed>  $note
+     */
+    private function addressesOnlyLocalGroups(array $note): bool
+    {
+        $uris = [];
+
+        foreach (['to', 'cc', 'audience'] as $field) {
+            $value = $note[$field] ?? null;
+
+            if (is_string($value) && $value !== '') {
+                $uris[] = $value;
+            } elseif (is_array($value)) {
+                foreach ($value as $item) {
+                    if (is_string($item) && $item !== '') {
+                        $uris[] = $item;
+                    }
+                }
+            }
+        }
+
+        $uris = array_values(array_unique(array_filter(
+            $uris,
+            fn (string $uri): bool => ! $this->isPublicAudienceUri($uri) && ! str_ends_with($uri, '/followers'),
+        )));
+
+        if ($uris === []) {
+            return false;
+        }
+
+        $groups = Actor::query()
+            ->where('is_local', true)
+            ->where('type', Actor::TYPE_GROUP)
+            ->whereIn('uri', $uris)
+            ->count();
+
+        return $groups === count($uris);
     }
 
     /**

@@ -43,9 +43,10 @@ class InboxActivityProcessorTest extends TestCase
     /**
      * @param  array<string, mixed>  $activity
      */
-    private function process(array $activity, Actor $signer): string
+    private function process(array $activity, Actor $signer, ?Actor $inboxTarget = null): string
     {
         $item = InboxItem::query()->create([
+            'target_actor_id' => $inboxTarget?->id,
             'is_shared' => false,
             'remote_activity_uri' => $activity['id'],
             'activity_type' => $activity['type'],
@@ -1752,5 +1753,240 @@ class InboxActivityProcessorTest extends TestCase
 
         $this->assertSame(InboxItem::STATUS_IGNORED, $status);
         $this->assertDatabaseCount('follows', 0);
+    }
+
+    public function test_a_remote_create_mentioning_a_local_public_group_joins_the_community_wall(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('groupowner');
+        $member = $this->createFullAccount('groupmember');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'piazzaremota',
+            'name' => 'Piazza remota',
+        ]);
+        app(FollowManager::class)->follow($member->actor, $community->actor);
+
+        $remote = $this->createRemoteActor('forumista');
+        $noteUri = $remote->uri.'/posts/'.uniqid();
+        $activity = [
+            'id' => $noteUri.'/attivita',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'to' => [$community->actor->uri, NoteSerializer::PUBLIC_STREAM],
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>Ciao dal forum remoto.</p>',
+                'published' => now()->toAtomString(),
+                'to' => [$community->actor->uri, NoteSerializer::PUBLIC_STREAM],
+                'tag' => [[
+                    'type' => 'Mention',
+                    'href' => $community->actor->uri,
+                    'name' => '@'.$community->actor->handle(),
+                ]],
+            ],
+        ];
+
+        $status = $this->process($activity, $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $post = Post::query()->where('uri', $noteUri)->first();
+        $this->assertNotNull($post);
+        $this->assertSame($community->id, $post->community_id);
+        $this->assertSame(1, $community->fresh()->posts_count);
+        $this->assertTrue(
+            Announce::query()
+                ->where('actor_id', $community->actor_id)
+                ->where('post_id', $post->id)
+                ->exists()
+        );
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $owner->id,
+            'type' => Notification::TYPE_COMMUNITY_POST,
+            'notifiable_id' => $post->id,
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'recipient_id' => $member->id,
+            'type' => Notification::TYPE_COMMUNITY_POST,
+            'notifiable_id' => $post->id,
+        ]);
+
+        $this->actingAs($member)
+            ->get(route('communities.show', $community))
+            ->assertOk()
+            ->assertSee('Ciao dal forum remoto.');
+    }
+
+    public function test_a_lemmy_style_page_create_to_the_group_inbox_joins_the_community_wall(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('lemmyowner');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'lemmylocale',
+            'name' => 'Lemmy locale',
+        ]);
+        $remote = $this->createRemoteActor('lemmyuser', 'lemmy.example');
+        $noteUri = $remote->uri.'/posts/'.uniqid();
+        $activity = [
+            'id' => $noteUri.'/attivita',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'to' => [$community->actor->uri, NoteSerializer::PUBLIC_STREAM],
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Page',
+                'attributedTo' => $remote->uri,
+                'name' => 'Titolo Lemmy',
+                'content' => '<p>Pagina verso il Group.</p>',
+                'published' => now()->toAtomString(),
+                'to' => [$community->actor->uri, NoteSerializer::PUBLIC_STREAM],
+                'audience' => $community->actor->uri,
+            ],
+        ];
+
+        $status = $this->process($activity, $remote, $community->actor);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $post = Post::query()->where('uri', $noteUri)->firstOrFail();
+        $this->assertSame($community->id, $post->community_id);
+        $this->assertSame('Titolo Lemmy', $post->title);
+        $this->assertTrue(
+            Announce::query()
+                ->where('actor_id', $community->actor_id)
+                ->where('post_id', $post->id)
+                ->exists()
+        );
+    }
+
+    public function test_a_remote_create_mentioning_a_private_group_is_cached_but_not_attached_without_membership(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('privowner');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'privataremota',
+            'name' => 'Privata remota',
+            'is_private' => true,
+        ]);
+        $remote = $this->createRemoteActor('estraneo');
+        $noteUri = $remote->uri.'/posts/'.uniqid();
+        $activity = [
+            'id' => $noteUri.'/attivita',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>Tentativo sulla privata.</p>',
+                'published' => now()->toAtomString(),
+                'to' => [NoteSerializer::PUBLIC_STREAM],
+                'cc' => [$community->actor->uri],
+                'tag' => [[
+                    'type' => 'Mention',
+                    'href' => $community->actor->uri,
+                    'name' => '@'.$community->actor->handle(),
+                ]],
+            ],
+        ];
+
+        $status = $this->process($activity, $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $post = Post::query()->where('uri', $noteUri)->firstOrFail();
+        $this->assertNull($post->community_id);
+        $this->assertSame(0, $community->fresh()->posts_count);
+        $this->assertFalse(
+            Announce::query()
+                ->where('actor_id', $community->actor_id)
+                ->where('post_id', $post->id)
+                ->exists()
+        );
+    }
+
+    public function test_a_remote_member_can_post_into_a_private_local_community(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('privmemberowner');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'privatamembri',
+            'name' => 'Privata membri',
+            'is_private' => true,
+        ]);
+        $remote = $this->createRemoteActor('membroremoto');
+        $follow = app(FollowManager::class)->follow($remote, $community->actor);
+        app(FollowManager::class)->accept($community->actor, $remote);
+        $this->assertSame(Follow::STATUS_ACCEPTED, $follow->fresh()->status);
+
+        $noteUri = $remote->uri.'/posts/'.uniqid();
+        $activity = [
+            'id' => $noteUri.'/attivita',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>Post da membro remoto.</p>',
+                'published' => now()->toAtomString(),
+                'to' => [$community->actor->uri],
+            ],
+        ];
+
+        $status = $this->process($activity, $remote, $community->actor);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $post = Post::query()->where('uri', $noteUri)->firstOrFail();
+        $this->assertSame($community->id, $post->community_id);
+
+        $this->actingAs($owner)
+            ->get(route('communities.show', $community))
+            ->assertOk()
+            ->assertSee('Post da membro remoto.');
+    }
+
+    public function test_a_remote_reply_mentioning_a_local_group_stays_a_comment(): void
+    {
+        Queue::fake();
+        $owner = $this->createFullAccount('replygroupowner');
+        $community = app(CommunityRegistrar::class)->register($owner, [
+            'slug' => 'replygroup',
+            'name' => 'Reply group',
+        ]);
+        $localPost = Post::query()->create([
+            'actor_id' => $owner->actor->id,
+            'body' => 'Post locale.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $remote = $this->createRemoteActor('replygroupuser');
+        $noteUri = $remote->uri.'/comments/'.uniqid();
+        $activity = [
+            'id' => $noteUri.'/attivita',
+            'type' => 'Create',
+            'actor' => $remote->uri,
+            'object' => [
+                'id' => $noteUri,
+                'type' => 'Note',
+                'attributedTo' => $remote->uri,
+                'content' => '<p>Risposta che cita il gruppo.</p>',
+                'inReplyTo' => url('/posts/'.$localPost->id),
+                'published' => now()->toAtomString(),
+                'to' => [NoteSerializer::PUBLIC_STREAM],
+                'tag' => [[
+                    'type' => 'Mention',
+                    'href' => $community->actor->uri,
+                    'name' => '@'.$community->actor->handle(),
+                ]],
+            ],
+        ];
+
+        $status = $this->process($activity, $remote);
+
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $status);
+        $this->assertDatabaseHas('comments', ['uri' => $noteUri]);
+        $this->assertDatabaseMissing('posts', ['uri' => $noteUri]);
+        $this->assertSame(0, $community->fresh()->posts_count);
     }
 }

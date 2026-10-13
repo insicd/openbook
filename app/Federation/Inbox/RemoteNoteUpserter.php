@@ -431,12 +431,17 @@ final class RemoteNoteUpserter
         }
 
         foreach ($all as $address) {
-            if ($this->addressesPublic([$address]) || $this->isFollowersCollection($address)) {
+            if ($this->addressesPublic([$address]) || $this->isFollowersCollection($address) || $this->isGroupActorUri($address)) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    private function isGroupActorUri(string $address): bool
+    {
+        return Actor::query()->where('uri', $address)->where('type', Actor::TYPE_GROUP)->exists();
     }
 
     private function isFollowersCollection(string $address): bool

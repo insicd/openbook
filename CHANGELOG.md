@@ -19,6 +19,11 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Community locali, FEP-1b12 in ingresso**: un `Create` remoto (Note/Page)
+  che menziona o indirizza un Group locale pubblico viene agganciato al
+  wall (`posts.community_id`) e ritrasmesso con Announce del Group, come i
+  post dei membri locali. I membri ricevono la notifica in-app. Per le
+  community private l'autore deve essere gia' iscritto.
 - **Migrazioni degli account remoti (#116)**: gli annunci `Move` verificati
   notificano i follower locali e indicano il nuovo profilo. Seguirlo resta
   una scelta esplicita dell’utente; follow precedenti e retention sono invariati.
