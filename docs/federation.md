@@ -446,7 +446,8 @@ videos; initial counts are zero.
 Definition and visibility stay fixed after publication. Text corrections cannot
 add recipients. Local communities, including private ones, are supported;
 private conversations and publication to remote Groups are intentionally
-excluded. Run `php artisan migrate` and `php artisan route:clear` after updating. `PostComposer` records durable publication or update work together
+excluded. Run `php artisan migrate` and refresh configuration/routes caches
+after updating. `PostComposer` records durable publication or update work together
 with the Question; `openbook:cron` now calls `openbook:process-polls` between
 inbox processing and ordinary delivery. No additional cron configuration or
 permanent worker is required. The canonical GET and outbox expose the current
@@ -492,8 +493,8 @@ not override it. URI-only answers must also be fetched before expiry because the
 current document cannot prove its contents at envelope receipt. A timely queued
 answer can update closed results while retaining closure. Processing rechecks
 current permissions; an old receipt does not retain revoked access. Results are
-available in the canonical Question immediately; federated distribution will be
-handled by the cron described below.
+available in the canonical Question immediately; federated distribution runs
+through the cron described below.
 
 The poll processor first records scheduled closures, then groups pending
 revisions into Create/Update snapshots. `poll_distributions` holds at most one
@@ -601,8 +602,9 @@ The internal `local_delivery` database queue uses the domain connection and the
 existing `jobs` table, regardless of the global queue driver or
 `DB_QUEUE_CONNECTION`. `openbook:deliver` consumes it and the configured delivery
 backend within the existing time budget, avoiding duplicate workers when both
-use the same table. No new migration or recurring task is required for this
-stage. Regenerate configuration with `php artisan config:cache` after updating
+use the same table. The queue uses the existing jobs table; local poll processing
+is included in the general cron. Regenerate configuration with
+`php artisan config:cache` after updating
 if configuration caching is enabled. Operators using only a custom worker for a
 separate backend should also consume `local_delivery` or use `openbook:deliver`.
 

@@ -73,6 +73,8 @@ Configure `openbook:cron` every minute to process pending work and run periodic
 maintenance. The command coordinates these tasks:
 
 - `openbook:process-inbox` — processes the `inbox` queue;
+- `openbook:process-polls` — records scheduled poll closures and queues pending
+  publication/results in resumable batches;
 - `openbook:deliver` — processes the `delivery` queue;
 - `openbook:deliver-push` — delivers pending Web Push notifications;
 - `openbook:confirm-outgoing-follows` — confirms remote Follows still pending

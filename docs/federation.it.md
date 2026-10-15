@@ -447,9 +447,9 @@ Definizione e visibilità rimangono fissate alla pubblicazione. Le correzioni
 del testo non possono aggiungere destinatari. Sono incluse le community locali
 anche private; conversazioni private e pubblicazione verso Group remoti sono
 intenzionalmente escluse. Dopo l’aggiornamento applicare `php artisan migrate`
-e `php artisan route:clear`. `PostComposer` registra il lavoro durevole di
-pubblicazione o aggiornamento insieme alla Question; `openbook:cron` richiama
-ora `openbook:process-polls` fra elaborazione inbox e consegna ordinaria.
+e aggiornare le cache di configurazione/route. `PostComposer` registra il lavoro
+durevole di pubblicazione o aggiornamento insieme alla Question;
+`openbook:cron` richiama ora `openbook:process-polls` fra elaborazione inbox e consegna ordinaria.
 Nessuna nuova configurazione cron o worker permanente. GET canonico e outbox
 espongono la Question corrente indipendentemente dall’avanzamento delle consegne.
 
@@ -614,8 +614,9 @@ La coda database interna `local_delivery` usa la connessione del dominio e la
 tabella `jobs` esistente, indipendentemente dal driver globale o da
 `DB_QUEUE_CONNECTION`. `openbook:deliver` consuma questa coda e il backend di
 consegna configurato entro il budget esistente, evitando worker duplicati quando
-condividono la stessa tabella. Questo incremento usa migration e cron già
-esistenti. Se la configurazione è in cache, rigenerarla con
+condividono la stessa tabella. La coda usa la tabella dei job esistente;
+il cron generale include l’elaborazione dei sondaggi locali. Se la configurazione
+è in cache, rigenerarla con
 `php artisan config:cache` dopo l'aggiornamento. Chi usa soltanto un worker
 personalizzato per un backend separato deve consumare anche `local_delivery`
 oppure usare `openbook:deliver`.

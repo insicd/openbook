@@ -113,6 +113,41 @@ path to preserve the local cache while using the test configuration:
 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --filter=Poll
 ```
 
+### Manual poll verification
+
+After updating this branch on a development instance, refresh stale caches and
+apply migrations (the automated tests do not modify the application database):
+
+```bash
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan migrate
+```
+
+If the deployment normally caches configuration/routes, regenerate those caches
+through its normal deployment procedure after updating.
+
+1. Open an already imported remote post using `polls.post_id`, rather than
+   `source_item_id`. Check option text, aggregate counts and closed/open state.
+2. Create a public local poll with a five-minute duration. Start with two options,
+   add/remove options, and try both single and multiple choice (up to six).
+   Include an attachment and a content warning in one example.
+3. From a second account, show results, return to choices and vote. Confirm the
+   personal answer and final choice; another account must not see that answer.
+   As the author, open “View answers”, switch options and inspect participants.
+   The same URL must reject another account, including a moderator/admin.
+4. Repeat in a private local community and with followers-only visibility.
+   Check that an excluded account cannot open or vote on the post. Edit the
+   text: definition and visibility must remain fixed.
+5. After five minutes, check closure, then run `php artisan openbook:cron`.
+   This processes the inbox, records closures, prepares snapshots and attempts
+   ordinary queued delivery. No extra cron entry is required. A preparation-only
+   pass is `php artisan openbook:process-polls --max-time=5`.
+6. With a second test federation instance, verify publication, incoming single/
+   multiple votes and results/closure Updates. These live interoperability
+   checks complement the automated HTTP fixtures; they require test accounts.
+
 The suite covers bootstrap/installer/authentication, the local social domain
 (posts, media, comments, reactions, follows, feed, notifications), identity and
 social federation (`tests/Feature/Federation`,

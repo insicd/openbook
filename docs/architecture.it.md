@@ -95,8 +95,14 @@ revisione distribuita. `openbook:cron` chiude i sondaggi scaduti ed elabora gli
 snapshot pendenti prima della consegna ordinaria. Le query dei destinatari
 uniscono rami indicizzati di follower, votanti e menzioni, deduplicando le shared
 inbox. Firme HTTP/Linked Data e recupero eventuale dell’inbox avvengono fuori dai
-lock nel job di consegna, che ricontrolla gli accessi. Vedi
-[sondaggi locali](federation.it.md#sondaggi-locali-121).
+lock nel job di consegna, che ricontrolla gli accessi.
+
+`PollVotersQuery` legge le scelte paginate per opzione soltanto tramite il
+controller riservato all’autore. `PostPolicy::viewPollVoters` verifica la proprietà
+esatta del post; card condivise e serializzazione della Question non caricano
+questi elenchi. Le identità cancellate restano scollegate e rappresentate soltanto
+nel conteggio aggregato.
+Vedi [sondaggi locali](federation.it.md#sondaggi-locali-121).
 
 ### Post, commenti e reazioni
 

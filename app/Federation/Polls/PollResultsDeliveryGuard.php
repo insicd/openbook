@@ -2,18 +2,19 @@
 
 namespace App\Federation\Polls;
 
+use App\Application\Services\DomainBlockManager;
 use App\Domain\Posts\Post;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Serialization\NoteSerializer;
 
 final class PollResultsDeliveryGuard
 {
-    public function __construct(private readonly PollResultRecipients $recipients, private readonly ActivityDelivery $delivery) {}
+    public function __construct(private readonly PollResultRecipients $recipients, private readonly ActivityDelivery $delivery, private readonly DomainBlockManager $blocks) {}
 
     public function allows(string $postId, string $inbox, string $signerId, array $activity): bool
     {
         $post = Post::query()->whereKey($postId)->whereNull('uri')->where('status', Post::STATUS_PUBLISHED)->first();
-        if ($post === null || $post->poll === null || ! $post->actor?->isActive() || ! $post->actor->user?->isActive()) {
+        if ($this->blocks->isBlockedUrl($inbox) || $post === null || $post->poll === null || ! $post->actor?->isActive() || ! $post->actor->user?->isActive()) {
             return false;
         }
         $object = $activity['object'] ?? null;

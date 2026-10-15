@@ -1,8 +1,9 @@
 # Sondaggi locali — issue #121
 
 Stato al 15 ottobre 2026: analisi congelata nel commit `4452763`; sprint 1
-chiuso e committato in `375f24a`. Sprint 2 chiuso in `c1350b3`; sprint 3
-verificato e chiuso; sprint 4 verificato e chiuso; sprint 5 verificato e chiuso; sprint 6 in corso.
+chiuso e committato in `375f24a`. Sprint 2 chiuso in `c1350b3`, sprint 3 in
+`9923d76`, sprint 4 in `ed8f2f7`, sprint 5 in `03d1981`. Sprint 6 e review
+congiunta completati; resta la verifica manuale concordata al rientro.
 Issue: https://github.com/insicd/openbook/issues/121
 Base: ramo `issue_121`, creato dalla punta di `issue_120`, commit `f21f385`.
 Dipendenza: [sondaggi remoti — #120](REMOTE_POLLS.md).
@@ -67,7 +68,7 @@ Nessun elenco pubblico dei votanti, notifica ordinaria per ogni risposta o
 commento generato da una Note di voto. Non promettere anonimato verso
 l'autore, l'istanza che raccoglie il voto o le istanze coinvolte nella consegna.
 
-## Ricognizione del codice esistente
+## Ricognizione iniziale del codice
 
 | Punto | Comportamento attuale e conseguenza |
 | --- | --- |
@@ -212,7 +213,7 @@ usa il momento più recente. Identità e autore sono verificati e una fixture
 copre il recupero tardivo. Il contenuto recuperato non prova quello disponibile
 alla ricezione originale; non si usano timestamp dichiarati dal mittente.
 
-## Persistenza e integrità: indirizzo architetturale proposto
+## Persistenza e integrità
 
 Decisione rivista e concordata dopo lo sprint 1: modello e persistenza unici,
 come per Post. `Poll`, `PollOption`, `PollVote`, `PollVoteChoice` collegano
@@ -430,9 +431,9 @@ paginazione e tastiera. In locale l'autore potrà consultare i votanti per rispo
 
 ### Sprint 6 — Revisione complessiva e interoperabilità
 
-Revisione del diff della sola #121 rispetto a `issue_120`, regressioni della
-#120 e flussi ordinari di post/commenti/DM/community. Suite completa, verifica
-MySQL e MariaDB quando disponibile, prove su Mastodon e su una seconda
+Come richiesto dall’utente per la chiusura, revisione congiunta di #120 e #121
+rispetto a `origin/main`, regressioni e flussi ordinari di post/commenti/DM/community.
+Suite completa, verifica MySQL e MariaDB quando disponibile, prove su Mastodon e su una seconda
 Openbook di test; altre piattaforme soltanto se esercitate. Aggiornare docs
 EN/IT, changelog secondo la regola del progetto e analisi con gli esiti.
 Riportare nella PR il perimetro intenzionalmente escluso descritto sopra.
@@ -738,3 +739,60 @@ su sondaggi, importazione e staging video: 105 passati, 58 saltati,
   necessario. Browser desktop/mobile e tastiera, anche senza JavaScript.
 - Sprint chiuso nell’autonomia concordata; verifica manuale sull’istanza
   dell’utente rinviata al rientro, insieme al resto del ramo.
+
+## Esito sprint 6 — Revisione congiunta #120 e #121
+
+La revisione finale riguarda l’intero diff rispetto a `origin/main` (`6cad602`),
+non soltanto l’ultimo incremento. Il fetch conferma che il ramo discende già
+linearmente da quella punta: nessun merge o rebase aggiuntivo necessario.
+Controllati migrazioni incrementali, conservazione dei dati, importazione e
+refresh, raccolta dei voti, distribuzione, cancellazioni, autorizzazioni,
+rendering condiviso, composer e documentazione EN/IT.
+
+### Rilievi e correzioni
+
+- L’inbox di consegna può avere un dominio diverso da quello dell’Actor.
+  Il guard dei risultati ricontrolla ora anche il dominio dell’inbox al momento
+  dell’invio; un blocco aggiunto dopo l’accodamento impedisce la consegna.
+  Regressione verificata su SQLite e MySQL.
+- Aggiunta una verifica del percorso completo con richiesta HTTP firmata,
+  deduplicazione all’ingresso, job differito e voto ricevuto in tempo ma
+  processato dopo la chiusura. La ricezione autenticata resta invariata, il voto
+  è contato una volta e non produce post, commenti o notifiche aggiuntivi.
+- Changelog ricomposto attorno alle funzionalità finali; guida cron aggiornata
+  in entrambe le lingue. Aggiunto percorso manuale per cache, migration, due
+  account, visibilità, scadenza e federazione reale in `docs/development.it.md`.
+- Confermati un solo modello e relazione del sondaggio, servizi distinti per
+  origine/autorità dei conteggi e un unico endpoint web di voto. Nessun doppio
+  sistema di outbox, polling o requisito di worker permanente introdotto.
+
+### Verifiche finali
+
+- MySQL: 107 test passati, 674 asserzioni; incluse installazione/migrazioni,
+  conservazione dei voti già accodati, rollback protetto, concorrenza reale e
+  EXPLAIN per selezioni, recipient UNION e paginazione del dettaglio autore.
+- Browser: controlli desktop/mobile a 1.280 e 375 pixel, composer, Unicode,
+  modal di creazione/modifica, risultati, conferma/doppio invio, tab e
+  paginazione autore anche senza JavaScript. Screenshot verificati.
+- Suite completa: 1.700 test passati, 109 saltati (incluse le verifiche MySQL
+  opt-in eseguite separatamente), 7.658 asserzioni. Restano i soli due fallimenti
+  preesistenti: `VisibilityFromAudienceTest` cerca `actors` senza migration;
+  `FeedTest::long_post_bodies_are_truncated_in_the_feed` attende «Altro...».
+  Entrambi erano già documentati sulla baseline precedente alla #120; nessuna
+  regressione aggiuntiva emersa nel ramo congiunto.
+- Sintassi PHP e Pint controllati su tutti i 99 file PHP del diff; JavaScript e
+  whitespace verificati. Server MySQL temporaneo arrestato al termine.
+  I test usano SQLite in memoria o schemi MySQL temporanei: nessuna migration o modifica manuale del DB applicativo.
+
+### Limiti dichiarati e verifica al rientro
+
+MariaDB non è disponibile nell’ambiente. Non è configurata una seconda istanza
+federata di test: i payload e la consegna sono verificati con fixture/HTTP
+simulato, non si dichiara interoperabilità reale già dimostrata. Restano da
+eseguire le prove manuali sull’istanza dell’utente e, con account di test,
+lo scambio reale con Mastodon/Openbook. Queste verifiche ambientali sono
+esplicitamente separate dagli esiti automatici sopra.
+
+Il perimetro intenzionalmente escluso rimane quello concordato sopra e va
+riportato nella futura PR. Nessuna PR o pubblicazione del ramo eseguita in
+questa sessione; testo e invio saranno richiesti dopo la verifica manuale.

@@ -352,6 +352,21 @@ trait TestsPollResults
         Http::assertNothingSent();
     }
 
+    public function test_inbox_host_block_added_after_enqueue_stops_delivery_even_when_actor_host_differs(): void
+    {
+        $poll = $this->pollFixture();
+        $remote = $this->createRemoteActor('follower');
+        $remote->endpoints->update(['shared_inbox' => 'https://delivery.example/inbox']);
+        $this->follow($remote, $poll->post->actor_id);
+        app(PollResultsProcessor::class)->distribute($poll->id, 50);
+        $this->assertSame('https://delivery.example/inbox', $this->jobs()[0]->inboxUrl);
+        $owner = $poll->post->actor->user;
+        $owner->forceFill(['is_admin' => true])->save();
+        app(DomainBlockManager::class)->block($owner, 'delivery.example');
+        app()->call([$this->jobs()[0], 'handle']);
+        Http::assertNothingSent();
+    }
+
     public function test_poll_text_edits_use_the_same_pending_distribution_path(): void
     {
         $poll = $this->pollFixture();

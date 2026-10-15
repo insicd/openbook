@@ -102,8 +102,12 @@ in the same transaction, acknowledging only the distributed revision.
 ordinary delivery. Destination queries union indexed followers, voters and
 mentions, deduplicating shared inboxes. HTTP/Linked Data signing and optional
 inbox resolution occur outside locks in the delivery job, which rechecks access.
-See
-[local polls](federation.md#local-polls-121).
+
+`PollVotersQuery` reads paginated option choices only through the author-only
+controller. Exact post ownership is enforced by `PostPolicy::viewPollVoters`;
+shared cards and Question serialization never load these lists. Deleted voter
+identities remain detached and are represented only in an aggregate count.
+See [local polls](federation.md#local-polls-121).
 
 ### Posts, comments, and reactions
 

@@ -115,6 +115,43 @@ inesistente per `APP_CONFIG_CACHE`, preservando così la cache locale:
 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --filter=Poll
 ```
 
+### Verifica manuale dei sondaggi
+
+Dopo aver aggiornato questo ramo sull’istanza di sviluppo, aggiornare le cache
+obsolete e applicare le migration (i test automatici non modificano il database
+applicativo):
+
+```bash
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan migrate
+```
+
+Se il deployment usa normalmente cache di configurazione/route, rigenerarle
+con la consueta procedura di pubblicazione dopo l’aggiornamento.
+
+1. Aprire un post remoto già importato tramite `polls.post_id`, anziché
+   `source_item_id`. Controllare testi delle opzioni, conteggi e stato aperto/chiuso.
+2. Creare un sondaggio locale pubblico di cinque minuti. Partire da due opzioni,
+   aggiungerle/rimuoverle e provare scelta singola e multipla, fino a sei risposte.
+   Includere un allegato e un avviso sul contenuto in un esempio.
+3. Da un secondo account mostrare i risultati, tornare alle opzioni e votare.
+   Verificare risposta personale e scelta definitiva; un altro account deve
+   vedere soltanto i propri dati. Come autore aprire «Consulta le risposte»,
+   cambiare opzione e consultare i partecipanti. Lo stesso URL deve respingere
+   altri account, compresi amministratori/moderatori.
+4. Ripetere in una community locale privata e con visibilità follower.
+   Verificare che un account escluso non apra il post e non voti. Correggere il
+   testo: definizione e visibilità devono restare fissate.
+5. Dopo cinque minuti verificare la chiusura, poi eseguire
+   `php artisan openbook:cron`: elabora inbox, registra chiusure, prepara snapshot
+   e tenta le normali consegne accodate. Nessuna nuova voce cron richiesta.
+   Per la sola preparazione: `php artisan openbook:process-polls --max-time=5`.
+6. Con una seconda istanza federata di test verificare pubblicazione, voti
+   singoli/multipli in ingresso e Update di risultati/chiusura. Queste prove
+   reali integrano le fixture HTTP automatiche e richiedono account di test.
+
 La suite copre bootstrap/installer/autenticazione, il dominio sociale locale
 (post, media, commenti, reazioni, follow, feed, notifiche), l'identita' e la
 federazione sociale (`tests/Feature/Federation`,

@@ -72,6 +72,8 @@ Configura `openbook:cron` ogni minuto per elaborare le attività in attesa e
 eseguire le manutenzioni periodiche. Il comando coordina questi task:
 
 - `openbook:process-inbox` — processa la coda `inbox`;
+- `openbook:process-polls` — registra le chiusure programmate dei sondaggi e accoda
+  pubblicazione/risultati pendenti in batch riprendibili;
 - `openbook:deliver` — processa la coda `delivery`;
 - `openbook:deliver-push` — consegna le notifiche Web Push in attesa;
 - `openbook:confirm-outgoing-follows` — conferma Follow remoti ancora pending
