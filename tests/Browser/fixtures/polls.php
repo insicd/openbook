@@ -9,6 +9,7 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ViewErrorBag;
@@ -25,7 +26,7 @@ Cache::put('openbook.domain_blocks', [], 60);
 request()->setLaravelSession(app('session.store'));
 view()->share('errors', new ViewErrorBag);
 $user = (new User)->forceFill(['id' => '00000000-0000-4000-8000-000000000001', 'status' => User::STATUS_ACTIVE]);
-$actor = (new Actor)->forceFill(['id' => '00000000-0000-4000-8000-000000000002', 'is_local' => true, 'status' => Actor::STATUS_ACTIVE, 'uri' => 'http://openbook.test/users/author']);
+$actor = (new Actor)->forceFill(['id' => '00000000-0000-4000-8000-000000000002', 'user_id' => $user->id, 'is_local' => true, 'status' => Actor::STATUS_ACTIVE, 'uri' => 'http://openbook.test/users/author']);
 $user->setRelation('actor', $actor);
 $actor->setRelation('user', $user);
 auth()->setUser($user);
@@ -50,5 +51,27 @@ $poll->setRelation('viewerVote', $vote);
 $poll->voters_count = 1;
 $poll->options[0]->votes_count = 1;
 $confirmed = view('posts._poll', ['post' => $post])->render();
+$entries = new Collection;
+for ($i = 0; $i < 25; $i++) {
+    $participant = (new Actor)->forceFill(['id' => 'participant'.$i, 'is_local' => false, 'status' => 'active',
+        'uri' => 'https://voters.example/users/participant'.$i, 'domain' => 'voters.example', 'preferred_username' => 'participant'.$i,
+        'name' => 'Participant '.$i]);
+    $participant->setRelation('user', null);
+    $ballot = new PollVote;
+    $ballot->setRelation('actor', $participant);
+    $entry = new PollVoteChoice;
+    $entries->push($entry->setRelation('vote', $ballot));
+}
+$votersHtml = [];
+foreach ($options as $option) {
+    $option->votes_count = 214;
+}
+foreach ($options as $selected) {
+    $paginator = new LengthAwarePaginator($entries, 211, 25, 1, [
+        'path' => route('posts.poll.voters', [$post, $selected->id]),
+    ]);
+    $votersHtml[$selected->id] = view('polls._voters', ['post' => $post, 'poll' => $poll, 'selected' => $selected,
+        'voters' => $paginator, 'archivedCount' => 3])->render();
+}
 echo json_encode(['composer' => view('composer._poll', ['prefix' => 'browser', 'errors' => new ViewErrorBag])->render(),
-    'poll' => $initial, 'results' => $results, 'confirmed' => $confirmed], JSON_THROW_ON_ERROR);
+    'poll' => $initial, 'results' => $results, 'confirmed' => $confirmed, 'voters' => $votersHtml], JSON_THROW_ON_ERROR);

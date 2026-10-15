@@ -2,7 +2,7 @@
 
 Stato al 15 ottobre 2026: analisi congelata nel commit `4452763`; sprint 1
 chiuso e committato in `375f24a`. Sprint 2 chiuso in `c1350b3`; sprint 3
-verificato e chiuso; sprint 4 verificato e chiuso; sprint 5 da avviare.
+verificato e chiuso; sprint 4 verificato e chiuso; sprint 5 verificato e chiuso; sprint 6 in corso.
 Issue: https://github.com/insicd/openbook/issues/121
 Base: ramo `issue_121`, creato dalla punta di `issue_120`, commit `f21f385`.
 Dipendenza: [sondaggi remoti — #120](REMOTE_POLLS.md).
@@ -721,3 +721,20 @@ su sondaggi, importazione e staging video: 105 passati, 58 saltati,
   controlli del modal. Suite completa: 1.692 test superati, 105 saltati e i due
   fallimenti già noti (`VisibilityFromAudienceTest`, `FeedTest`). Pint, sintassi JS
   e diff check superati. Sprint chiuso nell’autonomia concordata.
+
+## Esito sprint 5 — Risposte riservate all’autore
+
+- Pagina dedicata con schede per opzione e 25 partecipanti locali/remoti per
+  pagina; collegamento soltanto nelle card del creatore, escluso dalle citazioni.
+- Policy sulla proprietà esatta, senza eccezioni per amministratori, moderatori
+  o proprietari della community. Opzioni validate dentro il sondaggio; risposte
+  HTTP private e non memorizzabili. Nessuna lista di identità nei payload condivisi.
+- Identità cancellate fisicamente, logicamente o scollegate dall’account locale
+  rappresentate soltanto dal totale delle risposte archiviate. I conteggi del
+  sondaggio rimangono invariati.
+- Verifiche SQLite/MySQL con 211 votanti, risposte multiple, accessi diretti,
+  cancellazione e paginazione stabile; EXPLAIN con altri 1.000 votanti conferma
+  `poll_choices_listing_index` e join sulle chiavi primarie. Nessun nuovo indice
+  necessario. Browser desktop/mobile e tastiera, anche senza JavaScript.
+- Sprint chiuso nell’autonomia concordata; verifica manuale sull’istanza
+  dell’utente rinviata al rientro, insieme al resto del ramo.

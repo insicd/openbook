@@ -468,6 +468,14 @@ explains that the author can inspect individual answers. Native HTML links and
 forms remain functional without JavaScript. The optional enhancement confirms
 votes in place and prevents double submission, with no result polling.
 
+The author can open “View answers” on their own local poll. The dedicated page
+has one option link per answer and 25 identifiable participants per page,
+including remote accounts. Authorization checks exact ownership; administrator,
+moderator and community owner roles grant no extra access. Deleted accounts
+contribute only to an aggregate archived-answer count. The page uses private,
+no-store responses; shared cards and ActivityPub never include voter lists.
+Option links and previous/next page links also work without JavaScript.
+
 `LocalPollVoter` collects definitive local ballots and federated Create/Note
 answers. `LocalPollVoteIngester` checks signer, author, Note origin and canonical
 Question target before comment or message handling. Current visibility, community

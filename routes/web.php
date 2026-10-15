@@ -35,6 +35,7 @@ use App\Http\Controllers\MentionSuggestController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PollComposerController;
 use App\Http\Controllers\PollVoteController;
+use App\Http\Controllers\PollVotersController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostReactionController;
 use App\Http\Controllers\PrivacyPolicyController;
@@ -119,6 +120,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/posts/{post}/commenti', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('/commenti/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+
+    Route::get('/posts/{post}/sondaggio/votanti/{option?}', PollVotersController::class)
+        ->whereUuid('option')->name('posts.poll.voters');
 
     Route::post('/posts/{post}/vota', PollVoteController::class)
         ->middleware('throttle:30,1')->name('posts.poll.vote');

@@ -1122,6 +1122,14 @@ return [
     ],
 
     'polls' => [
+        'view_voters' => 'View answers',
+        'voters_title' => 'Poll answers',
+        'voters_pages' => 'Answer pages',
+        'voters_tabs' => 'Answers by option',
+        'voters_author_only' => 'This detail is reserved for you, the poll author.',
+        'voters_empty' => 'Answers to this option will appear here.',
+        'archived_answers' => '{0} 0 answers with archived identities|{1} 1 answer with an archived identity|[2,*] :count answers with archived identities',
+        'back_to_post' => 'Back to post',
         'single_choice' => 'One answer per participant',
         'multiple_choice' => 'Multiple answers per participant',
         'option_count' => 'Provide 2 to 6 options.',

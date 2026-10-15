@@ -471,6 +471,15 @@ chiarisce che l’autore può consultare le risposte individuali. Link e form HT
 funzionano anche senza JavaScript; l’arricchimento opzionale conferma il voto
 nella card e impedisce doppi invii, senza polling dei risultati.
 
+L’autore può aprire «Consulta le risposte» sui propri sondaggi locali. La pagina
+riservata ha una scheda per opzione e 25 partecipanti identificabili per pagina,
+compresi gli account remoti. L’accesso verifica la proprietà esatta: amministratori,
+moderatori e proprietari della community non hanno privilegi aggiuntivi.
+Gli account cancellati contribuiscono soltanto al conteggio aggregato delle
+risposte archiviate. La risposta HTTP è privata e non memorizzabile; card
+condivise e ActivityPub non includono gli elenchi dei votanti. Schede e link
+alla pagina precedente/successiva funzionano anche senza JavaScript.
+
 `LocalPollVoter` raccoglie schede locali definitive e risposte federate
 Create/Note. `LocalPollVoteIngester` verifica firmatario, autore, origine della
 Note e destinazione canonica della Question prima dei flussi commenti e messaggi.

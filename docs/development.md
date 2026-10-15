@@ -77,6 +77,12 @@ The project uses PHPUnit. The suite runs by default on in-memory SQLite (see
 php artisan test
 ```
 
+Author-only poll answers (#121, sprint 5) are covered by `PollVotersTest`;
+`PollVotersMysqlTest` repeats pagination/deletion cases and checks actual query
+plans with 211 target voters and 1,000 voters belonging to another poll. The
+browser fixture also checks option links, keyboard navigation and pagination
+on desktop/mobile, without accessing the application database.
+
 Remote poll foundations are covered by `RemotePollDocumentTest` and
 `RemotePollPersistenceTest`, using anonymized fixtures in
 `tests/Fixtures/Federation/Polls`. An optional MySQL/MariaDB check runs the same

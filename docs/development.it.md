@@ -78,6 +78,12 @@ Il progetto usa PHPUnit. La suite gira di default su SQLite in memoria (vedi
 php artisan test
 ```
 
+Il dettaglio riservato all’autore (#121, sprint 5) è coperto da `PollVotersTest`;
+`PollVotersMysqlTest` ripete paginazione/cancellazione e verifica i piani reali
+con 211 votanti del sondaggio e 1.000 di un altro sondaggio. La fixture browser
+verifica anche schede, tastiera e paginazione desktop/mobile, senza accedere
+al database applicativo.
+
 Le basi dei sondaggi remoti sono coperte da `RemotePollDocumentTest` e
 `RemotePollPersistenceTest`, con fixture anonimizzate in
 `tests/Fixtures/Federation/Polls`. Una verifica MySQL/MariaDB opzionale esegue

@@ -19,6 +19,10 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Risposte ai sondaggi per l’autore (#121)**: pagina riservata al creatore del
+  sondaggio con una scheda per opzione e partecipanti locali/remoti paginati.
+  Gli altri lettori vedono gli aggregati e la propria scelta; le identità
+  cancellate restano soltanto nel conteggio delle risposte archiviate.
 - **Sondaggi locali (#121, fondamenta)**: persistenza e pubblicazione ActivityPub
   come `Question`, con 2–6 opzioni di massimo 50 caratteri e durata da 5 minuti
   a 7 giorni. Definizione e visibilità fissate alla pubblicazione; supportati

@@ -95,6 +95,9 @@
             </a>
         @endif
         <p class="ob-poll__total" data-poll-result @unless ($showResults) hidden @endunless>{{ $poll->voters_count === null ? __('openbook.polls.results_pending') : trans_choice('openbook.polls.voters', $poll->voters_count, ['count' => $poll->voters_count]) }}</p>
+        @if ($local && ! $embed && auth()->check() && auth()->user()->can('viewPollVoters', $post))
+            <p class="ob-poll__author-tools"><a href="{{ route('posts.poll.voters', $post) }}">{{ __('openbook.polls.view_voters') }}</a></p>
+        @endif
         <div data-poll-feedback role="alert" @if ($pollErrors === []) hidden @endif>@foreach ($pollErrors as $error)<p>{{ $error }}</p>@endforeach</div>
         <p class="sr-only" data-poll-status role="status" aria-live="polite"></p>
     </section>

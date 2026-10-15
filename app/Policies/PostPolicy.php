@@ -29,6 +29,13 @@ class PostPolicy
         return filled($inbox) && ! $blocks->isBlockedUrl($inbox);
     }
 
+    public function viewPollVoters(User $user, Post $post): bool
+    {
+        return $user->isActive() && $user->actor?->isActive()
+            && $post->actor_id === $user->actor->id && $user->actor->user_id === $user->id
+            && ! $post->isRemote() && $post->isPublished() && $post->poll !== null;
+    }
+
     public function update(User $user, Post $post): bool
     {
         if ($post->isRemote() || ! $post->isPublished() || $post->isDirectMessage()) {

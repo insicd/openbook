@@ -4512,3 +4512,28 @@ label.ob-poll__name {
 .ob-composer__poll .ob-field { margin-top: .75rem; }
 
 .ob-poll-composer__multiple { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; }
+
+.ob-poll-voters__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-block: 1rem;
+}
+.ob-poll-voters__tabs > a {
+  flex: 1 1 11rem;
+  min-width: 0;
+  padding: .65rem .75rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: .45rem;
+  overflow-wrap: anywhere;
+}
+.ob-poll-voters__tabs > a > span {
+  display: block;
+  font-size: .85rem;
+  color: var(--ob-color-text-muted);
+}
+.ob-poll-voters__tabs > a[aria-current="page"] {
+  border-color: var(--ob-color-primary);
+  background: var(--ob-color-primary-soft);
+  font-weight: 600;
+}

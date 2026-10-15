@@ -1122,6 +1122,14 @@ return [
     ],
 
     'polls' => [
+        'view_voters' => 'Consulta le risposte',
+        'voters_title' => 'Risposte al sondaggio',
+        'voters_pages' => 'Pagine delle risposte',
+        'voters_tabs' => 'Risposte per opzione',
+        'voters_author_only' => 'Questo dettaglio è riservato a te, autore del sondaggio.',
+        'voters_empty' => 'Le risposte a questa opzione appariranno qui.',
+        'archived_answers' => '{0} 0 risposte con identità archiviata|{1} 1 risposta con identità archiviata|[2,*] :count risposte con identità archiviate',
+        'back_to_post' => 'Torna al post',
         'single_choice' => 'Una risposta per partecipante',
         'multiple_choice' => 'Più risposte per partecipante',
         'option_count' => 'Prevedi da 2 a 6 opzioni.',

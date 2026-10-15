@@ -27,6 +27,13 @@ const server = http.createServer((request, response) => {
         return;
     }
     const origin = `http://127.0.0.1:${server.address().port}`;
+    if (url.pathname.includes('/sondaggio/votanti')) {
+        const option = url.pathname.split('/').at(-1);
+        const content = fixture.voters[option] || Object.values(fixture.voters)[0];
+        response.setHeader('Content-Type', 'text/html; charset=utf-8');
+        response.end(`<!DOCTYPE html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/app.css"></head><body><main class="ob-shell">${content}</main></body></html>`.replaceAll('http://openbook.test', origin));
+        return;
+    }
     const poll = url.searchParams.has('poll_results') ? fixture.results : fixture.poll;
     const modal = url.pathname === '/modal' ? `<a href="/home" data-compose-trigger data-compose-home="0">New post</a>
         <a href="/posts/plain/modifica" data-edit-post data-edit-action="/posts/plain" data-edit-body="Plain text" data-edit-visibility="followers">Edit plain</a>
@@ -126,8 +133,22 @@ const server = http.createServer((request, response) => {
         assert.equal(await plain.locator('[data-poll-id]').getAttribute('data-poll-results'), '1');
         await plain.locator('[data-poll-results-toggle]').click();
         assert.equal(await plain.locator('[data-poll-id]').getAttribute('data-poll-results'), '0');
+        for (const width of [1280, 375]) {
+            await plain.setViewportSize({width, height: 900});
+            await plain.goto(origin + '/posts/question/sondaggio/votanti');
+            const tabs = plain.locator('.ob-poll-voters__tabs a');
+            assert.equal(await tabs.count(), 2);
+            await tabs.nth(1).focus();
+            await plain.keyboard.press('Enter');
+            assert.equal(await plain.locator('.ob-poll-voters__tabs [aria-current="page"] bdi').textContent(), 'Sunday');
+            assert.equal(await plain.locator('[data-poll-voters] .ob-suggestion').count(), 25);
+            await plain.locator('a[rel="next"]').click();
+            assert.equal(new URL(plain.url()).searchParams.get('page'), '2');
+            assert.equal(await plain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+            if (process.env.POLL_SCREENSHOTS) await plain.screenshot({path: path.join(process.env.POLL_SCREENSHOTS, `voters-${width}.png`), fullPage: true});
+        }
         assert.deepEqual(errors, []);
-        console.log('Polls: composer limits/Unicode, desktop/mobile layout, results toggle, vote confirmation and native links passed.');
+        console.log('Polls: composer limits/Unicode, desktop/mobile layout, results toggle, vote confirmation and native links and author tabs/pagination passed.');
     } finally {
         if (browser) await browser.close();
         await new Promise(resolve => server.close(resolve));
