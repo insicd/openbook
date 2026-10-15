@@ -22,6 +22,7 @@ use App\Federation\Actors\RemoteAccountMoveHandler;
 use App\Federation\Actors\RemoteActorDeletionService;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Delivery\ActivityDelivery;
+use App\Federation\Polls\LocalPollVoteIngester;
 use App\Federation\Resolution\ObjectResolver;
 use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\NoteSerializer;
@@ -71,6 +72,7 @@ final class InboxActivityProcessor
         private readonly DomainBlockManager $domainBlocks,
         private readonly RemoteAccountMoveHandler $accountMoves,
         private readonly LocalCommunityIngester $communityIngester,
+        private readonly LocalPollVoteIngester $pollVotes,
     ) {}
 
     public function process(InboxItem $item): string
@@ -1024,7 +1026,9 @@ final class InboxActivityProcessor
         }
 
         if (RemotePostObject::isPollVote($note)) {
-            return InboxItem::STATUS_IGNORED;
+            return $source !== null
+                ? $this->pollVotes->ingest($activity, $note, $actor, $source, $fromRelay)
+                : InboxItem::STATUS_IGNORED;
         }
         if (RemotePostObject::hasType($note['type'] ?? null, 'Question')
             && is_string($object) && ($note['id'] ?? null) !== $object) {

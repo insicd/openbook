@@ -91,8 +91,11 @@ relation; origin comes from the post. Remote import, local publication and
 voting retain separate services and their respective count rules.
 `PollLifecycle` detaches votes of deleted accounts and clears
 polls of logically deleted posts, preserving tombstone metadata. Revisions and
-pending federation work are durable in the same database; voting and cron
-integration will arrive in subsequent increments. See
+pending federation work are durable in the same database. `LocalPollVoter`
+serializes ballots under post/poll locks and commits counts and pending work
+together. `LocalPollVoteIngester` authenticates inbound vote identity before
+comment/message routing; original receipt controls expiry for embedded votes.
+Cron integration follows in the next increment. See
 [local polls](federation.md#local-polls-121-first-increment).
 
 ### Posts, comments, and reactions

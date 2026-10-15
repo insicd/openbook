@@ -1,5 +1,6 @@
 <?php
 
+use App\Application\Services\LocalPollVoter;
 use App\Application\Services\RemotePollVoter;
 use App\Domain\Polls\Poll;
 use App\Federation\Actors\Actor;
@@ -20,7 +21,8 @@ fflush(STDOUT);
 if (trim(fgets(STDIN)) !== 'go') {
     exit(2);
 }
-$vote = app(RemotePollVoter::class)->vote(
+$service = ($input['local'] ?? false) ? LocalPollVoter::class : RemotePollVoter::class;
+$vote = app($service)->vote(
     Actor::findOrFail($input['voter']),
     Poll::findOrFail($input['poll']),
     $input['choices'], $input['version'],

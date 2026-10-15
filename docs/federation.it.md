@@ -446,11 +446,31 @@ anche con video in staging; i conteggi iniziali sono pari a zero.
 Definizione e visibilità rimangono fissate alla pubblicazione. Le correzioni
 del testo non possono aggiungere destinatari. Sono incluse le community locali
 anche private; conversazioni private e pubblicazione verso Group remoti sono
-intenzionalmente escluse. Applicare `php artisan migrate`. UI di creazione/voto,
-raccolta delle Note di voto e comando di distribuzione dei risultati arriveranno
+intenzionalmente escluse. Applicare `php artisan migrate`. UI di creazione/voto e comando di distribuzione dei risultati arriveranno
 nei successivi incrementi. Il normale flusso invia già Create(Question); il
 lavoro federato pendente è registrato insieme al sondaggio per il successivo
 collegamento al cron generale, senza un nuovo cron da configurare.
+
+`LocalPollVoter` raccoglie schede locali definitive e risposte federate
+Create/Note. `LocalPollVoteIngester` verifica firmatario, autore, origine della
+Note e destinazione canonica della Question prima dei flussi commenti e messaggi.
+Visibilità corrente, membership della community, stato degli account e blocchi
+di dominio valgono per entrambi gli ingressi. Le scelte multiple locali vengono
+confermate insieme; quelle federate arrivano in Note distinte e possono aggiungere
+opzioni diverse fino alla scadenza. Note o scelte duplicate lasciano invariati i
+conteggi; nella scelta singola resta la prima risposta valida elaborata.
+Conteggi, revisione e lavoro federato pendente vengono salvati insieme, senza
+richieste HTTP durante il voto.
+
+Per le risposte incorporate decide il `received_at` originale dell’inbox
+autenticata, anche nei retry e nell’elaborazione dopo la chiusura; `published`
+remoto non lo sostituisce. Le risposte tramite URI richiedono anche il recupero
+entro la scadenza, perché il documento corrente non prova il contenuto alla
+ricezione dell’envelope. Una risposta tempestiva in coda può aggiornare i
+risultati chiusi mantenendo la chiusura. L’elaborazione ricontrolla i permessi
+correnti: la ricezione precedente non conserva accessi revocati. I risultati
+sono subito disponibili nella Question canonica; la distribuzione federata
+sarà collegata nel prossimo incremento.
 
 Le tabelle `polls`, `poll_options`, `poll_votes` e `poll_vote_choices` sono
 condivise dai sondaggi locali e remoti. La nuova migration rinomina prima le

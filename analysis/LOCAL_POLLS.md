@@ -1,7 +1,8 @@
 # Sondaggi locali — issue #121
 
 Stato al 15 ottobre 2026: analisi congelata nel commit `4452763`; sprint 1
-implementato e in verifica prima della chiusura. Sprint successivi da avviare.
+chiuso e committato in `375f24a`. Sprint 2 verificato e chiuso; sprint 3
+da avviare.
 Issue: https://github.com/insicd/openbook/issues/121
 Base: ramo `issue_121`, creato dalla punta di `issue_120`, commit `f21f385`.
 Dipendenza: [sondaggi remoti — #120](REMOTE_POLLS.md).
@@ -76,8 +77,8 @@ l'autore, l'istanza che raccoglie il voto o le istanze coinvolte nella consegna.
 | `InboxActivityProcessor::handleCreateOrUpdate` | Scarta attualmente tutte le Note di voto prima del flusso commenti/DM. Inserire la raccolta dei voti verso Question locali in questo punto, dopo le necessarie verifiche di origine e autore. |
 | `InboxItem::received_at` | Esiste già una data locale di ricezione, distinta da `processed_at` e dalle date dichiarate dal mittente. È utilizzabile per la decisione sulla scadenza. |
 | `Post::visibleTo/visibleToActorId` | Riceve un Actor anche remoto; riusare audience e membership, senza tradurre arbitrariamente un votante remoto in un utente locale. |
-| `Poll`, `RemotePollVoter`, `RemotePollInteractionPolicy` | Sono intenzionalmente specifici dell'origine remota. La policy richiede post remoto e votante locale: non applicarla direttamente alla raccolta dei voti locali/federati. |
-| `posts._poll`, `PostPolicy::vote`, `RemotePollVoteController` | Oggi dipendono da `remotePoll`. Condividere il rendering dove utile, mantenendo esplicita la scelta del servizio di voto in base all'origine. |
+| `Poll`, `RemotePollVoter`, `RemotePollInteractionPolicy` | `Poll` è comune; servizio e policy di interazione sono specifici dell’origine remota. La policy richiede post remoto e votante locale: non applicarla direttamente alla raccolta dei voti locali/federati. |
+| `posts._poll`, `PostPolicy::vote`, `RemotePollVoteController` | Usano la relazione unificata `poll`; il voto web resta specifico dell’origine remota. Condividere il rendering dove utile, mantenendo esplicita la scelta del servizio di voto in base all'origine. |
 | `ActivityDelivery`, `DeliverActivityJob`, `local_delivery` | Riutilizzare firma, coda database, retry e deduplicazione delle inbox. L'accodamento diretto transazionale della #120 non risolve da solo il fan-out di una Question. |
 | `CronCommand` | Coordina inbox e consegna con esecuzioni limitate; inserire manutenzione dei sondaggi entro il flusso esistente, senza richiedere una nuova configurazione cron. |
 
@@ -204,9 +205,11 @@ tolleranza arbitraria né fidarsi dell'orologio remoto.
 Conservare la ricezione originale nei retry e nel replay. Quando il voto è
 incorporato, valutare il payload autenticato conservato nell'inbox; se è
 disponibile solo tramite URI, il fetch deve verificarne identità e autore.
-Non attribuire automaticamente a una versione modificata dopo la scadenza
-la data della prima ricezione: risolvere questo caso nello sprint 2 con una
-regola conservativa e una fixture dedicata, senza accettare nuove scelte tardive.
+Regola implementata nello sprint 2: per risposte tramite URI devono essere
+anteriori alla scadenza sia la ricezione sia il recupero della Note; il servizio
+usa il momento più recente. Identità e autore sono verificati e una fixture
+copre il recupero tardivo. Il contenuto recuperato non prova quello disponibile
+alla ricezione originale; non si usano timestamp dichiarati dal mittente.
 
 ## Persistenza e integrità: indirizzo architetturale proposto
 
@@ -608,3 +611,32 @@ di 1.000 sondaggi. Suite completa: 1.618 passati, 60 saltati, 7.183 assertion,
 con i soli due fallimenti preesistenti già documentati. Controllo mirato finale
 su sondaggi, importazione e staging video: 105 passati, 58 saltati,
 498 assertion. Pint e diff check passati; MariaDB non eseguito.
+
+
+## Esito sprint 2 — Raccolta dei voti
+
+- `LocalPollVoter` serve l’ingresso locale (scheda completa) e quello federato
+  (una Note/opzione). Lock nello stesso ordine post → sondaggio → opzioni;
+  conteggi, revisione e `needs_delivery` nella stessa transazione, senza rete.
+- La scelta locale è definitiva; il voto multiplo federato aggiunge soltanto
+  opzioni distinte. Identità del votante deduplicata con hash con chiave, anche
+  dopo lo scollegamento dell’Actor; gli ID delle Note accettate hanno vincolo
+  univoco globale. Conteggio persone distinto dal conteggio scelte.
+- L’ingresso inbox resta prima di commenti e DM: verifica Create autenticata,
+  firmatario/autore, origine e identità della Note, destinazione canonica locale
+  e inbox personale. Announce/Update/Delete/Undo non modificano le risposte.
+- I permessi correnti valgono anche per attività arretrate: visibilità,
+  iscrizione accettata alle community private, account attivi, sospensioni
+  remote e blocchi di dominio. L’autore può votare.
+- Note incorporate: ricezione originale prima della scadenza. Note tramite URI:
+  anche il recupero deve precedere la scadenza. Nessuna fiducia in `published`.
+  I conteggi possono essere corretti dopo la chiusura per ricezioni tempestive,
+  mantenendo lo stato chiuso e registrando un nuovo lavoro pendente.
+- Sistemato il calcolo dello snapshot delle scelte: il nome viene assegnato
+  prima del relativo hash, anche quando il chiamante passa soltanto `option_id`.
+- Verifiche: 36 test SQLite/inbox superati; 20 test MySQL superati, inclusi
+  invii concorrenti e piani EXPLAIN. Suite completa: 1.654 superati, 80 saltati
+  (integrazioni opzionali), 2 fallimenti già presenti nella base:
+  `VisibilityFromAudienceTest` (tabella actors assente) e `FeedTest`
+  (testo «Altro...»). Nessuna migration aggiuntiva. UI locale nello sprint 4; distribuzione e cron
+  nello sprint 3. Lo sprint 2 è stato verificato e confermato.

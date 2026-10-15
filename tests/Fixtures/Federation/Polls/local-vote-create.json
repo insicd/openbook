@@ -1,0 +1,15 @@
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://remote.example/users/voter#votes/one/activity",
+  "type": "Create",
+  "actor": "https://remote.example/users/voter",
+  "to": ["https://openbook.example/users/author"],
+  "object": {
+    "id": "https://remote.example/users/voter#votes/one",
+    "type": "Note",
+    "name": "Sabato",
+    "attributedTo": "https://remote.example/users/voter",
+    "inReplyTo": "https://openbook.example/posts/00000000-0000-0000-0000-000000000000",
+    "to": ["https://openbook.example/users/author"]
+  }
+}

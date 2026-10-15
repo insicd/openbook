@@ -35,3 +35,7 @@ document. It exercises trimming, a single-choice definition and relative
 duration; tests generate the Question through the production composer and
 serializer and check that the remote normalizer can read it. Local creation
 limits are 2–6 options of up to 50 Unicode characters and 300–604,800 seconds.
+
+`local-vote-create.json` models a federated Create/Note answer to a local
+Question. Import tests substitute the canonical local target and recipient,
+then exercise retries, signatures, restricted audiences and late URI fetches.

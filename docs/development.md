@@ -15,6 +15,18 @@ adds migration rollback and EXPLAIN checks. Enable it with
 `OPENBOOK_TEST_POLLS_MYSQL` and the `OPENBOOK_TEST_MYSQL_*` variables described
 below, selecting the class with `--filter=LocalPollMysqlPersistenceTest`.
 
+Local/federated vote collection (#121, sprint 2):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/LocalPollVotingTest.php tests/Feature/Federation/LocalPollVoteImportTest.php
+```
+
+`LocalPollMysqlVotingTest` repeats domain cases in isolated MySQL schemas and
+checks real concurrent submissions and EXPLAIN plans. Enable the same opt-in
+variables and select `--filter=LocalPollMysqlVotingTest`. No new migration is
+introduced by sprint 2. Local voting UI and cron result distribution follow in
+later increments; these checks exercise services and inbox processing directly.
+
 For post-detail back navigation, an optional browser check uses the production
 JS/CSS with a local HTTP fixture for ordinary form redirects:
 `node tests/Browser/post-back.cjs`. It requires Node.js, Playwright and an

@@ -446,11 +446,30 @@ videos; initial counts are zero.
 Definition and visibility stay fixed after publication. Text corrections cannot
 add recipients. Local communities, including private ones, are supported;
 private conversations and publication to remote Groups are intentionally
-excluded. Run `php artisan migrate`. Creation/voting UI, inbound vote collection
-and results distribution command will arrive in subsequent increments. The
+excluded. Run `php artisan migrate`. Creation/voting UI and the results distribution command will arrive in
+subsequent increments. The
 normal flow already sends Create(Question); pending federation work is recorded
 together with the poll for subsequent integration with the general cron,
 without requiring a new cron configuration.
+
+`LocalPollVoter` collects definitive local ballots and federated Create/Note
+answers. `LocalPollVoteIngester` checks signer, author, Note origin and canonical
+Question target before comment or message handling. Current visibility, community
+membership, account status and domain blocks apply to both entry points. Local
+multiple selections are submitted together; federated multiple selections arrive
+as individual Notes and can add distinct options until expiry. Duplicate Notes
+or choices leave counts unchanged; a single-choice ballot keeps the first valid
+processed choice. Counts, revision and pending federation work commit together,
+with no HTTP requests during voting.
+
+For embedded answers, the original authenticated inbox `received_at` decides
+expiry, including retries and processing after closure; remote `published` does
+not override it. URI-only answers must also be fetched before expiry because the
+current document cannot prove its contents at envelope receipt. A timely queued
+answer can update closed results while retaining closure. Processing rechecks
+current permissions; an old receipt does not retain revoked access. Results are
+available in the canonical Question immediately; federated distribution will be
+connected in the next increment.
 
 The `polls`, `poll_options`, `poll_votes` and `poll_vote_choices` tables are
 shared by local and remote polls. The new migration first renames the four

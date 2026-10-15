@@ -84,8 +84,11 @@ e `PollVoteChoice` sono comuni alle due origini, con un'unica relazione
 locale e voto mantengono servizi distinti e le rispettive regole sui conteggi.
 `PollLifecycle` scollega i voti degli account cancellati e
 svuota i sondaggi dei post eliminati logicamente, preservando i metadati della
-tombstone. Revisione e lavoro federato pendente sono durevoli nello stesso DB;
-voto e collegamento al cron arrivano nei successivi incrementi. Vedi
+tombstone. Revisione e lavoro federato pendente sono durevoli nello stesso DB.
+`LocalPollVoter` serializza le schede sotto lock di post/sondaggio e salva insieme
+conteggi e lavoro pendente. `LocalPollVoteIngester` verifica l’identità del voto
+in ingresso prima dei flussi commenti/messaggi; per i voti incorporati decide
+la ricezione originale. Il collegamento al cron segue nel prossimo incremento. Vedi
 [sondaggi locali](federation.it.md#sondaggi-locali-121-primo-incremento).
 
 ### Post, commenti e reazioni

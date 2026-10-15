@@ -22,8 +22,8 @@ class PollVoteChoice extends Model
 
     protected static function booted(): void
     {
-        static::creating(function (self $choice): void {
-            if ($choice->option_id !== null) {
+        static::saving(function (self $choice): void {
+            if (! $choice->exists && $choice->option_id !== null) {
                 $option = $choice->option;
                 if ($option === null || $option->poll_id !== $choice->vote->poll_id) {
                     throw ValidationException::withMessages(['choices' => __('openbook.polls.choose')]);
@@ -31,8 +31,6 @@ class PollVoteChoice extends Model
                 $choice->name ??= $option->name;
                 $choice->position ??= $option->position;
             }
-        });
-        static::saving(function (self $choice): void {
             $choice->name_hash = hash('sha256', $choice->name);
         });
     }
