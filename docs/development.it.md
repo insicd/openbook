@@ -22,6 +22,27 @@ Il progetto usa PHPUnit. La suite gira di default su SQLite in memoria (vedi
 php artisan test
 ```
 
+Le basi dei sondaggi remoti sono coperte da `RemotePollDocumentTest` e
+`RemotePollPersistenceTest`, con fixture anonimizzate in
+`tests/Fixtures/Federation/Polls`. Una verifica MySQL/MariaDB opzionale esegue
+gli stessi casi di persistenza e transazione della coda database, oltre al
+rollback della migration e ai controlli `EXPLAIN`:
+
+```bash
+OPENBOOK_TEST_POLLS_MYSQL=1 php artisan test --filter=RemotePollMysqlPersistenceTest
+```
+
+Usa `OPENBOOK_TEST_MYSQL_HOST`, `OPENBOOK_TEST_MYSQL_PORT`,
+`OPENBOOK_TEST_MYSQL_USERNAME` e `OPENBOOK_TEST_MYSQL_PASSWORD`; facoltativamente
+`OPENBOOK_TEST_MYSQL_SOCKET` seleziona un socket Unix. L'account deve poter
+creare ed eliminare schemi con nome `openbook_polls_test_*`. Ogni caso crea un
+proprio schema casuale, esegue le migration applicative e lo elimina al termine.
+Non migra né svuota il database applicativo locale o quello indicato da
+`OPENBOOK_TEST_MYSQL_DATABASE`. Usare un server usa-e-getta. Senza il flag di
+attivazione questi test vengono saltati; quando è attivo, errori di connessione
+o migration fanno fallire il test. Lo sprint 1 introduce soltanto le basi;
+importazione e voto dei sondaggi remoti saranno collegati negli sprint successivi.
+
 La suite copre bootstrap/installer/autenticazione, il dominio sociale locale
 (post, media, commenti, reazioni, follow, feed, notifiche), l'identita' e la
 federazione sociale (`tests/Feature/Federation`,

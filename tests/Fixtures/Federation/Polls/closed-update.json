@@ -1,0 +1,76 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    {
+      "votersCount": "http://joinmastodon.org/ns#votersCount"
+    }
+  ],
+  "id": "https://remote.example/users/alice/statuses/poll-1/activities/closed",
+  "type": "Update",
+  "actor": "https://remote.example/users/alice",
+  "to": [
+    "https://www.w3.org/ns/activitystreams#Public"
+  ],
+  "cc": [
+    "https://remote.example/users/alice/followers"
+  ],
+  "object": {
+    "id": "https://remote.example/users/alice/statuses/poll-1",
+    "type": "Question",
+    "summary": null,
+    "inReplyTo": null,
+    "published": "2026-10-08T10:00:00Z",
+    "url": "https://remote.example/@alice/poll-1",
+    "attributedTo": "https://remote.example/users/alice",
+    "to": [
+      "https://www.w3.org/ns/activitystreams#Public"
+    ],
+    "cc": [
+      "https://remote.example/users/alice/followers"
+    ],
+    "sensitive": false,
+    "content": "<p>Quando organizziamo il prossimo incontro?</p>",
+    "contentMap": {
+      "it": "<p>Quando organizziamo il prossimo incontro?</p>"
+    },
+    "endTime": "2026-10-09T10:00:00Z",
+    "votersCount": 46,
+    "oneOf": [
+      {
+        "type": "Note",
+        "name": "Sabato",
+        "replies": {
+          "type": "Collection",
+          "totalItems": 20
+        }
+      },
+      {
+        "type": "Note",
+        "name": "Domenica",
+        "replies": {
+          "type": "Collection",
+          "totalItems": 15
+        }
+      },
+      {
+        "type": "Note",
+        "name": "Lunedì",
+        "replies": {
+          "type": "Collection",
+          "totalItems": 7
+        }
+      },
+      {
+        "type": "Note",
+        "name": "Un altro giorno",
+        "replies": {
+          "type": "Collection",
+          "totalItems": 4
+        }
+      }
+    ],
+    "attachment": [],
+    "tag": [],
+    "closed": "2026-10-09T10:00:00Z"
+  }
+}

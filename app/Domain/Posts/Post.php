@@ -7,6 +7,7 @@ use App\Domain\Communities\Community;
 use App\Domain\Events\Event;
 use App\Domain\Locations\PostLocation;
 use App\Domain\Messaging\Conversation;
+use App\Domain\Polls\RemotePoll;
 use App\Domain\Reactions\Announce;
 use App\Domain\Reactions\Like;
 use App\Federation\Actors\Actor;
@@ -199,6 +200,11 @@ class Post extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(PostAttachment::class)->orderBy('position');
+    }
+
+    public function remotePoll(): HasOne
+    {
+        return $this->hasOne(RemotePoll::class);
     }
 
     public function location(): HasOne

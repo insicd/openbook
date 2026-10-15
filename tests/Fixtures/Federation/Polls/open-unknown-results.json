@@ -1,0 +1,57 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    {
+      "votersCount": "http://joinmastodon.org/ns#votersCount"
+    }
+  ],
+  "id": "https://remote.example/users/alice/statuses/poll-1/activities/open",
+  "type": "Create",
+  "actor": "https://remote.example/users/alice",
+  "to": [
+    "https://www.w3.org/ns/activitystreams#Public"
+  ],
+  "cc": [
+    "https://remote.example/users/alice/followers"
+  ],
+  "object": {
+    "id": "https://remote.example/users/alice/statuses/poll-1",
+    "type": "Question",
+    "summary": null,
+    "inReplyTo": null,
+    "published": "2026-10-08T10:00:00Z",
+    "url": "https://remote.example/@alice/poll-1",
+    "attributedTo": "https://remote.example/users/alice",
+    "to": [
+      "https://www.w3.org/ns/activitystreams#Public"
+    ],
+    "cc": [
+      "https://remote.example/users/alice/followers"
+    ],
+    "sensitive": false,
+    "content": "<p>Quando organizziamo il prossimo incontro?</p>",
+    "contentMap": {
+      "it": "<p>Quando organizziamo il prossimo incontro?</p>"
+    },
+    "oneOf": [
+      {
+        "type": "Note",
+        "name": "Sabato"
+      },
+      {
+        "type": "Note",
+        "name": "Domenica"
+      },
+      {
+        "type": "Note",
+        "name": "Lunedì"
+      },
+      {
+        "type": "Note",
+        "name": "Un altro giorno"
+      }
+    ],
+    "attachment": [],
+    "tag": []
+  }
+}

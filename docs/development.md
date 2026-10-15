@@ -22,6 +22,27 @@ The project uses PHPUnit. The suite runs by default on in-memory SQLite (see
 php artisan test
 ```
 
+Remote poll foundations are covered by `RemotePollDocumentTest` and
+`RemotePollPersistenceTest`, using anonymized fixtures in
+`tests/Fixtures/Federation/Polls`. An optional MySQL/MariaDB check runs the same
+persistence and database-queue transaction cases, plus migration rollback and
+`EXPLAIN` checks:
+
+```bash
+OPENBOOK_TEST_POLLS_MYSQL=1 php artisan test --filter=RemotePollMysqlPersistenceTest
+```
+
+It uses `OPENBOOK_TEST_MYSQL_HOST`, `OPENBOOK_TEST_MYSQL_PORT`,
+`OPENBOOK_TEST_MYSQL_USERNAME` and `OPENBOOK_TEST_MYSQL_PASSWORD`; optionally
+`OPENBOOK_TEST_MYSQL_SOCKET` selects a Unix socket. The account must be able to
+create and drop schemas named `openbook_polls_test_*`. Each case creates its own
+random schema, runs the application migrations and drops that schema afterward.
+It never migrates or clears the local application database or the database named
+by `OPENBOOK_TEST_MYSQL_DATABASE`. Use a throwaway server. Without the opt-in
+flag these tests are skipped; with it, connection or migration errors fail.
+Sprint 1 adds foundations only; importing and voting on remote polls will be
+connected in subsequent sprints.
+
 The suite covers bootstrap/installer/authentication, the local social domain
 (posts, media, comments, reactions, follows, feed, notifications), identity and
 social federation (`tests/Feature/Federation`,

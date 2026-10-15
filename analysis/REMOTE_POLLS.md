@@ -1,8 +1,9 @@
 # Sondaggi remoti — issue #120
 
-Stato al 15 ottobre 2026: analisi di prodotto consolidata e piano degli sprint
-revisionato; implementazione non avviata. Le scelte tecniche indicate sotto
-verranno risolte negli sprint prima del codice che ne dipende.
+Stato al 15 ottobre 2026: sprint 1 implementato (modello, normalizzazione,
+fixture e verifiche di persistenza); importazione, voto applicativo e UI
+restano negli sprint successivi. Le scelte tecniche indicate sotto vengono
+risolte negli sprint prima del codice che ne dipende.
 Issue: https://github.com/insicd/openbook/issues/120
 
 ## Obiettivo e vincoli
@@ -36,19 +37,36 @@ attività necessarie alla consegna.
 I risultati mostrati restano quelli comunicati dal server di origine:
 la conferma locale del voto non incrementa artificialmente i conteggi.
 
-### Vincolo tecnico da verificare nello sprint 1
+### Vincolo tecnico verificato nello sprint 1
 
 Il flusso attuale di `ActivityDelivery` usa `afterCommit()` e può saltare la
 consegna quando manca un'inbox o la destinazione è bloccata. Riutilizzarlo da
 solo non dimostra che voto e accodamento siano persistiti coerentemente:
 un errore dopo il commit non annulla la scrittura già effettuata.
 
-Lo sprint 1 deve quindi definire come rendere durevole l'intenzione di consegna
-insieme al voto e recuperabile un eventuale accodamento interrotto, riutilizzando
-le strutture esistenti dove possibile. Evitare una nuova infrastruttura di code
-parallela. Prima della conferma devono essere verificati destinatario, endpoint
-e blocchi; i test devono coprire anche i fallimenti al confine del commit, non
-soltanto un'eccezione simulata prima del salvataggio.
+La soluzione scelta è scrivere voto, snapshot delle scelte e job Laravel
+`DeliverActivityJob` nella stessa transazione sulla stessa connessione DB.
+`DatabaseQueue` con job `beforeCommit()` inserisce subito nella tabella `jobs`:
+il commit rende durevoli tutte le righe insieme e il rollback le rimuove tutte.
+I test SQLite e MySQL verificano anche il fallimento del secondo accodamento
+dopo che il primo job è già stato inserito. Non occorrono tabella outbox
+aggiuntiva, processo di recupero dedicato o un secondo sistema di consegna.
+
+Nello sprint 3 questo contratto verrà collegato al servizio di voto, con la
+normale coda `delivery`, firma e retry esistenti. Risolvere destinatario,
+endpoint e blocchi prima della transazione; dentro la transazione ripetere
+permessi, stato e versione delle opzioni. Confermare all'utente dopo il commit.
+Nessun fetch o invio HTTP nella transazione. Gli ID di attività e Note saranno
+derivati dall'UUID persistito della singola scelta e restano stabili nei retry.
+
+La coda deve usare la connessione del dominio: un `DB_QUEUE_CONNECTION` diverso
+o un driver globale `sync`/esterno non garantisce questa atomicità. Per i voti
+usare comunque il backend database locale esistente, senza modificare il driver
+degli altri flussi. Se serve un alias interno di connessione Laravel, deve
+puntare alle stesse righe `jobs` del dominio; lo sprint 3 adeguerà il comando
+di consegna/cron esistente a consumarle anche quando il driver globale è
+diverso. Il test dello sprint 1 prova la transazione; il consumo tramite cron
+nelle configurazioni alternative è un criterio di accettazione dello sprint 3.
 
 ## Dati locali verificati
 
@@ -223,13 +241,9 @@ il comportamento interessato, documentando qui la soluzione e i relativi test.
 
 ### Sprint 1 — prima di persistenza e accodamento
 
-- Schema per sondaggio, opzioni e voto definitivo; identità delle opzioni
-  secondo il protocollo, snapshot del testo votato, vincoli univoci e strategia
-  per la concorrenza tra voto e aggiornamento delle opzioni.
-- Accodamento durevole per tutte le scelte multiple, identità stabili per i
-  retry e recupero da errori al commit nel flusso federato esistente.
-- Destinatario e formato del voto verificati sulle fonti primarie; annotare
-  fonti e limiti di interoperabilità insieme alle fixture.
+Completato: le decisioni e le verifiche sono riportate in «Esito sprint 1» e
+nel contratto di accodamento sopra. L'applicazione dei lock e delle verifiche
+al servizio di voto sarà implementata nello sprint 3.
 
 ### Sprint 2 — prima di importazione e aggiornamenti
 
@@ -249,4 +263,94 @@ Precisati il confine tra decisioni di prodotto e progettazione tecnica, il
 rischio dell'accodamento dopo commit, la destinazione privata delle attività
 di voto e la separazione tra cache del sondaggio e scelte personali. Questi
 punti rientrano negli sprint previsti e non richiedono nuove decisioni di
-prodotto. Nessun codice applicativo, migration o dato locale modificato.
+prodotto. Questa revisione iniziale aveva riguardato soltanto il documento;
+il successivo lavoro dello sprint 1 è descritto sotto.
+
+## Esito sprint 1
+
+### Protocollo e limiti
+
+Fonti primarie verificate il 15 ottobre 2026:
+
+- [Mastodon: Polls](https://docs.joinmastodon.org/spec/activitypub/#polls)
+- [VoteSerializer](https://github.com/mastodon/mastodon/blob/main/app/serializers/activitypub/vote_serializer.rb)
+- [NoteSerializer](https://github.com/mastodon/mastodon/blob/main/app/serializers/activitypub/note_serializer.rb)
+
+Question è incorporata in Create/Update. `oneOf` indica scelta singola, `anyOf`
+scelta multipla; le opzioni sono Note senza ID, con il testo in `name` e i
+conteggi in `replies.totalItems`. Il voto è un Create/Note indirizzato all'autore
+del sondaggio, con `name` identico all'opzione e `inReplyTo` uguale all'URI della
+Question. Ogni scelta multipla genera un'attività distinta. Il serializer
+Mastodon rappresenta la chiusura con un timestamp. Nessuna promessa che i
+conteggi aggiornati includano già il voto locale.
+
+`RemotePollDocument` normalizza soltanto metadati: non autorizza l'importazione
+e non interpreta audience o identità dell'autore. Accetta 2–50 opzioni, fino a
+1.000 caratteri Unicode per nome, distinti tramite confronto esatto. Sono limiti
+di interoperabilità Openbook. Non tronca o rinomina risposte. Modalità ambigue,
+nomi duplicati e dati malformati generano un errore esplicito che l'importatore
+dovrà gestire nello sprint 2, preservando lo stato valido precedente. Valori
+assenti/null restano sconosciuti, zero intero rimane zero. Timestamp normalizzati
+nel fuso applicativo; nessun fallback a «ora» per date invalide.
+
+### Persistenza e concorrenza
+
+- `remote_polls`: UUID, un solo sondaggio per post; modalità, scadenza,
+  chiusura booleana/temporale e votanti remoti nullable. Nessuna duplicazione
+  del testo, autore o audience del post.
+- `remote_poll_options`: UUID, posizione e testo esatto con conteggio nullable;
+  unicità per sondaggio/posizione e sondaggio/hash SHA-256 del nome. L'hash
+  evita che la collation MySQL confonda maiuscole, accenti o spazi finali.
+- `remote_poll_votes`: UUID, sondaggio e Actor; vincolo univoco sulla coppia.
+  Nessun legame tra completamento del voto e successo della consegna remota.
+- `remote_poll_vote_choices`: UUID, voto, posizione e testo al momento della
+  conferma; unicità per voto/posizione e voto/hash del nome. Nessuna FK verso
+  l'opzione remota mutabile, per preservare lo snapshot se viene rimossa.
+
+Cancellazioni fisiche di post/Actor rimuovono le relative righe per FK cascade.
+La cancellazione logica seguirà i servizi esistenti nello sprint 2. Le relazioni
+personali sono escluse dalla serializzazione automatica del sondaggio, e Actor
+e scelte sono esclusi da quella del voto; questo integra i controlli di accesso
+che saranno richiesti nei servizi e nella UI, non li sostituisce.
+
+Nel servizio di voto e nella sincronizzazione delle opzioni usare lo stesso
+ordine di lock: post, sondaggio, opzioni. Alla conferma confrontare la versione
+delle opzioni presentate con quella corrente, evitando di reinterpretare una
+vecchia selezione per posizione. Il vincolo sondaggio/Actor è l'ultima difesa
+contro doppio invio; nel caso concorrente restituire il voto già confermato.
+Il codice di questi servizi appartiene agli sprint 2 e 3.
+Per gli aggiornamenti riusare l'UUID di un'opzione soltanto quando il nome
+esatto coincide; il riordino cambia la posizione, la rinomina crea una nuova
+identità. Il contratto della richiesta di voto dovrà includere la versione
+presentata all'utente, senza affidarsi soltanto alla posizione numerica.
+
+### Verifiche e stato dei percorsi
+
+Fixture anonimizzate in `tests/Fixtures/Federation/Polls`, con provenienza e
+varianti spiegate nel README. Test di normalizzazione, persistenza, unicità,
+snapshot, cascade, scadenza con orologio controllato e transazioni della coda.
+La suite MySQL opzionale crea e rimuove soltanto propri schemi casuali, esegue
+tutte le migration e verifica rollback/reapplicazione della nuova migration.
+I piani EXPLAIN delle query reali dei modelli usano gli indici univoci
+post_id, sondaggio/posizione, sondaggio/Actor e voto/posizione, senza filesort,
+su un campione di 100 sondaggi, 400 opzioni, 100 voti e 200 scelte.
+
+Risultati della verifica dello sprint:
+
+- Test mirati: 30 passati su SQLite (84 asserzioni) e 9 su MySQL isolato
+  (57 asserzioni), inclusi rollback della migration, date oltre il 2038,
+  vincoli e piani di esecuzione. MariaDB non eseguito in questa sessione.
+- Pint e controllo whitespace del diff superati.
+- Esecuzione completa durante lo sprint: 1.511 passati, 10 saltati e 2
+  fallimenti preesistenti: `VisibilityFromAudienceTest` interroga `actors`
+  senza predisporre il DB; `FeedTest::test_long_post_bodies_are_truncated_in_the_feed_with_a_read_more_control`
+  attende il controllo di espansione che il rendering corrente non produce.
+  Entrambi riprodotti anche in una copia del commit iniziale `6fa6cfb`, con
+  lo stesso ambiente di test. Nessuna correzione estranea a questo sprint.
+
+Il changelog rimane invariato: questo incremento interno non rende ancora
+disponibile un comportamento nuovo agli utenti o agli operatori.
+
+Il normalizzatore e i modelli sono pronti ma non ancora collegati all'inbox:
+`Question` resta escluso dai tipi postabili fino allo sprint 2. Nessuna route,
+azione di voto o nuova UI esposta; nessun dato dell'istanza locale modificato.
