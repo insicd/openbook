@@ -169,5 +169,21 @@ class RemotePollMysqlPersistenceTest extends TestCase
             $this->assertStringNotContainsString('filesort', strtolower($plan[0]->Extra ?? ''));
         }
 
+        $page = RemotePoll::query()->limit(5)->get();
+        $presentationQueries = [];
+        DB::listen(function ($event) use (&$presentationQueries): void {
+            if (str_starts_with($event->sql, 'select') && (str_contains($event->sql, '`posts`')
+                || str_contains($event->sql, '`remote_poll_votes`') || str_contains($event->sql, '`remote_poll_vote_choices`'))) {
+                $presentationQueries[] = [$event->sql, $event->bindings];
+            }
+        });
+        RemotePoll::annotateViewerState($page, $actor);
+        $this->assertCount(3, $presentationQueries);
+        foreach ($presentationQueries as [$sql, $bindings]) {
+            $plan = DB::select('EXPLAIN FORMAT=TRADITIONAL '.$sql, $bindings);
+            $this->assertNotNull($plan[0]->key, $sql);
+            $this->assertNotSame('ALL', $plan[0]->type, $sql);
+        }
+
     }
 }

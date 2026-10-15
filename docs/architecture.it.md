@@ -60,7 +60,7 @@ Il backend database interno `local_delivery` condivide connessione e tabella
 `jobs` del dominio; firma, invio e retry restano nel normale `DeliverActivityJob`
 e nel comando `openbook:deliver`. Il commit conferma il voto all'utente,
 indipendentemente dall'esito della consegna remota. Vedi
-[sondaggi remoti](federation.it.md#sondaggi-remoti--importazione-e-backend-del-voto-120).
+[sondaggi remoti](federation.it.md#sondaggi-remoti-120).
 
 Ogni account locale possiede fin da subito un Actor ActivityPub di tipo `Person`
 (tabelle `actors`, `actor_keys`, `actor_endpoints`), esposto al Fediverso (vedi

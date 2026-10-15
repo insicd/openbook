@@ -177,6 +177,7 @@
     @include('partials.confirm-modal')
     <script src="{{ \App\Support\Assets::url('assets/js/confirm-modal.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/post-menu.js') }}" defer></script>
+    <script src="{{ \App\Support\Assets::url('assets/js/polls.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/like.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/announce.js') }}" defer></script>
     <script src="{{ \App\Support\Assets::url('assets/js/reaction-list.js') }}" defer></script>

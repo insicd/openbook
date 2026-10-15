@@ -41,9 +41,11 @@ Non migra né svuota il database applicativo locale o quello indicato da
 `OPENBOOK_TEST_MYSQL_DATABASE`. Usare un server usa-e-getta. Senza il flag di
 attivazione questi test vengono saltati; quando è attivo, errori di connessione
 o migration fanno fallire il test. Importazione e servizio di voto sono
-implementati; l'interfaccia web segue nello sprint 4. `RemotePollVotingTest`
+implementati e collegati all'interfaccia web. `RemotePollVotingTest`
 verifica scelta singola/multipla, idempotenza, rollback e retry;
 `DeliverPollVotesCommandTest` verifica il consumo attraverso il comando esistente.
+`RemotePollUiTest` copre feed, dettaglio, form HTML/JSON, privacy tra utenti,
+avvisi sui contenuti e snapshot delle scelte precedenti.
 Per eseguirli con la configurazione di produzione in cache, indicare un percorso
 inesistente per `APP_CONFIG_CACHE`, preservando così la cache locale:
 

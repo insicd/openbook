@@ -82,11 +82,15 @@ class Post extends Model
      */
     public const CARD_RELATIONS = [
         'actor.user.profile',
+        'actor.endpoints',
+        'remotePoll.options',
         'community.actor',
         'media.thumbnail',
         'hashtags',
         'location',
         'quotedPost.actor.user.profile',
+        'quotedPost.actor.endpoints',
+        'quotedPost.remotePoll.options',
         'quotedPost.media.thumbnail',
         'quotedPost.hashtags',
         'quotedPost.location',
@@ -396,6 +400,15 @@ class Post extends Model
     public static function annotateViewerState(iterable $posts, ?Actor $viewer): void
     {
         $posts = collect($posts);
+        $polls = [];
+        foreach ($posts as $post) {
+            foreach ([$post, $post->relationLoaded('quotedPost') ? $post->quotedPost : null] as $card) {
+                if ($card?->relationLoaded('remotePoll') && $card->remotePoll !== null) {
+                    $polls[] = $card->remotePoll;
+                }
+            }
+        }
+        RemotePoll::annotateViewerState($polls, $viewer);
 
         if ($viewer === null || $posts->isEmpty()) {
             foreach ($posts as $post) {

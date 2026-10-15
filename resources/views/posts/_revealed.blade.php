@@ -10,6 +10,7 @@
 @endphp
 
 @include('posts._body', ['body' => $post->body, 'customEmojis' => $post->custom_emojis, 'truncateBody' => $truncateBody])
+@include('posts._poll', ['post' => $post, 'embed' => $embed ?? false])
 @include('posts._video_embed_if_any', ['body' => $post->body])
 @auth
     @if ($embedDepth === 0 && app(\App\Application\Services\ExternalLinkPreviewService::class)->eligibleUrl($post) !== null)

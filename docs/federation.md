@@ -434,14 +434,14 @@ accounts to discover and, beyond the first 5, the full list at `/mondo/scopri`
 with infinite scroll. SSRF, domain blocks, and HTTP signatures remain the
 baseline security constraints.
 
-### Remote polls — import and voting backend (#120)
+### Remote polls (#120)
 
 Mastodon-shaped `Question` objects are imported through the existing inbox,
 outbox, featured collection, Announce and post/replies refresh paths. Their
 metadata lives in `remote_polls` and `remote_poll_options`; the post retains
 its ordinary author, audience and moderation rules. Question replies are
-excluded. Import and the voting service are implemented; web controls follow
-in sprint 4. No dedicated polling or worker is introduced.
+excluded. Polls appear in feed cards and on the post page (`/posts/{post}`),
+identified by `remote_polls.post_id`. No dedicated polling or worker is introduced.
 
 `oneOf` and `anyOf` preserve single/multiple choice, exact option names,
 nullable option/voter counts, expiry and explicit closure. Missing counts
@@ -468,6 +468,20 @@ the redundant timestamps, preserving cached polls, results and personal votes.
 Historical inbox replay remains available through `openbook:reprocess-inbox`;
 it currently requeues all ignored/pending activities, so prefer fixture tests
 or a database copy for targeted verification until the selective replay stage.
+
+Answers use native radio buttons or checkboxes; “Vote” immediately confirms
+“Vote recorded” after commit and shows “Your answer” only to its owner.
+The authenticated `POST /posts/{post}/vota` endpoint reuses the voting service and
+checks visibility, expiry and option version. JavaScript updates the card after
+the POST; ordinary HTML forms also work without JavaScript. Quoted polls are
+read-only. Content warnings enclose the poll as well. Remote text and choice
+snapshots are escaped.
+
+Missing counts show “Results updating”. Percentages use the origin's voter total:
+it must be positive and no option may exceed it; single-choice polls also require
+all option counts and their sum to equal that total. Inconsistent counts remain
+visible as received, without invented percentages. Removed or renamed personal
+answers stay in a separate block with their original text.
 
 The voting service commits personal choices and one `Create/Note` per choice
 atomically. Each Note uses the exact option name, targets the Question URI and

@@ -40,9 +40,11 @@ random schema, runs the application migrations and drops that schema afterward.
 It never migrates or clears the local application database or the database named
 by `OPENBOOK_TEST_MYSQL_DATABASE`. Use a throwaway server. Without the opt-in
 flag these tests are skipped; with it, connection or migration errors fail.
-Import and the voting service are implemented; web controls follow in sprint 4.
+Import and the voting service are connected to the web interface.
 `RemotePollVotingTest` covers single/multiple choice, idempotency, rollback and
 retry; `DeliverPollVotesCommandTest` covers consumption by the existing command.
+`RemotePollUiTest` covers feed, detail, HTML/JSON forms, privacy across viewers,
+content warnings and previous choice snapshots.
 When production configuration is cached, point `APP_CONFIG_CACHE` to a nonexistent
 path to preserve the local cache while using the test configuration:
 

@@ -60,7 +60,7 @@ same transaction through `ActivityDelivery::enqueueDirectInTransaction()`.
 The internal `local_delivery` database backend shares the domain connection and
 `jobs` table; signing, sending and retries remain in `DeliverActivityJob` and
 `openbook:deliver`. The commit confirms the vote to the user independently of
-remote delivery. See [remote polls](federation.md#remote-polls--import-and-voting-backend-120).
+remote delivery. See [remote polls](federation.md#remote-polls-120).
 
 Every local account has from the start an ActivityPub Actor of type `Person`
 (tables `actors`, `actor_keys`, `actor_endpoints`), exposed to the Fediverse

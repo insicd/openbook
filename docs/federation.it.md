@@ -434,15 +434,15 @@ propone account remoti da scoprire e, oltre i primi 5, l'elenco completo in
 `/mondo/scopri` con scorrimento infinito. SSRF, blocco domini e firme HTTP
 restano i vincoli di sicurezza di base.
 
-### Sondaggi remoti — importazione e backend del voto (#120)
+### Sondaggi remoti (#120)
 
 Gli oggetti `Question` nel formato Mastodon vengono importati tramite i flussi
 esistenti di inbox, outbox, collection dei post fissati, Announce e refresh di
 post/risposte. I metadati vivono in `remote_polls` e `remote_poll_options`; il
 post conserva le normali regole di autore, audience e moderazione. Le Question
-di risposta sono escluse. Importazione e servizio di voto sono implementati;
-l’interfaccia web segue nello sprint 4. Restano i percorsi
-di aggiornamento esistenti, senza polling o worker dedicati.
+di risposta sono escluse. Il sondaggio compare nella card del feed e nella
+pagina del post (`/posts/{post}`), identificato da `remote_polls.post_id`.
+Restano i percorsi di aggiornamento esistenti, senza polling o worker dedicati.
 
 `oneOf` e `anyOf` conservano scelta singola/multipla, nomi esatti delle opzioni,
 conteggi nullable di risposte/votanti, scadenza e chiusura esplicita. I conteggi
@@ -471,6 +471,21 @@ conservano le proprie date. La migration correttiva rinomina il precedente
 risultati e voti personali. Il replay storico resta disponibile con `openbook:reprocess-inbox`, che
 oggi riaccoda tutte le attività ignored/pending: per una verifica mirata usare
 fixture o una copia del DB fino alla fase di riprocessamento selettivo.
+
+Le risposte si selezionano tramite radio o checkbox; «Vota» conferma subito
+«Voto registrato» dopo il commit e mostra «La tua risposta» solo al proprietario.
+L'endpoint autenticato `POST /posts/{post}/vota` riusa il servizio di voto e
+controlla visibilità, scadenza e versione delle opzioni. JavaScript aggiorna la
+sola card dopo il POST; il normale form HTML funziona anche senza JavaScript.
+Nelle citazioni il sondaggio è in sola lettura. Gli avvisi sui contenuti
+racchiudono anche il sondaggio. Testi e snapshot remoti vengono escapati.
+
+I conteggi assenti mostrano «Risultati in aggiornamento». Le percentuali usano i
+votanti dichiarati dall'origine: richiedono un totale positivo e nessuna opzione
+sopra quel totale; nella scelta singola richiedono anche tutti i conteggi e la
+loro somma uguale al totale. I dati discordanti rimangono visibili come ricevuti,
+senza percentuali inventate. Le risposte personali eliminate o rinominate restano
+in un riquadro separato con il loro testo originale.
 
 Il servizio di voto salva atomicamente le scelte personali e un `Create/Note`
 per ciascuna scelta. La Note usa il nome esatto dell'opzione, risponde all'URI

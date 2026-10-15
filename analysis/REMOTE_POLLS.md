@@ -544,3 +544,64 @@ Verifiche finali dello sprint 3:
   invariato; il processo fresco riproduce l'esecuzione da cron.
 - Pint e controllo whitespace passati; documentazione EN/IT, architettura e
   changelog aggiornati. Nessuna migration o modifica del DB applicativo locale.
+
+
+## Sprint 4 — interfaccia del sondaggio
+
+La partial `posts._poll` è inclusa nel corpo rivelato del post: feed, dettaglio,
+profili e citazioni usano la stessa rappresentazione. Gli avvisi sui contenuti
+racchiudono anche opzioni e risultati; post eliminati e sondaggi invisibili al
+lettore vengono esclusi. Le citazioni mostrano i risultati in sola lettura.
+
+La scelta singola usa radio, quella multipla checkbox, con fieldset/legend e
+label native. Il testo prima del bottone chiarisce che la conferma è definitiva.
+Il form autenticato `POST /posts/{post}/vota` invia gli UUID e la versione delle
+opzioni al servizio dello sprint 3. Il controller resta sottile. Gli errori HTML
+sono associati al singolo post tramite un error bag dedicato; JSON restituisce
+la partial personale con `Cache-Control: private, no-store`. Il JS intercetta
+solo l'invio, sostituisce la card del sondaggio confermata e annuncia l'esito con
+una regione live. Il fallback HTML e il retry del POST riusano l'idempotenza.
+Nessun timer o polling dei risultati.
+
+`Post::CARD_RELATIONS` precarica sondaggi/opzioni e endpoint per la disponibilità
+del voto. `annotateViewerState` carica in batch visibilità e solo i voti dell'Actor
+corrente con le relative scelte, comprese le citazioni. Le relazioni transitorie
+`viewerVote` e `viewerCanSee` sono nascoste dalla serializzazione del modello e
+vengono azzerate cambiando lettore. Il fallback della partial copre i percorsi
+che rendono una card singola senza annotazione preventiva.
+
+«La tua risposta» usa un confronto esatto del nome con lo snapshot personale;
+le risposte rinominate o rimosse compaiono separatamente con il testo originale.
+L'accodamento confermato mostra «Voto registrato», anche prima della consegna.
+Il render preserva conteggi e totali remoti. Le percentuali richiedono votanti
+noti positivi e conteggi non superiori al totale; nei sondaggi singoli richiedono
+anche tutti i conteggi e somma coerente. Per il caso locale 113+23 contro 135
+si mostrano i numeri ricevuti senza barre/percentuali. Dati assenti usano
+«Risultati in aggiornamento»; chiusura senza data usa «Sondaggio concluso».
+
+Disponibilità locale: nessuna migration aggiuntiva. Rigenerare le route in cache
+con `php artisan route:cache`, poi aprire `/posts/{remote_polls.post_id}`. Il
+campione importato consente la verifica dei sondaggi conclusi. Il voto aperto
+è stato provato su fixture in SQLite isolato, HTTP simulato e coda database reale,
+tramite browser: selezione da tastiera, conferma AJAX, persistenza al reload,
+scelta multipla e conteggi invariati. Layout verificato a 390 px senza overflow
+orizzontale, oltre alla card desktop con il primo sondaggio reale importato.
+L'apertura del post reale ha attivato il normale refresh: sono arrivati risultati
+e commenti più recenti, senza modifiche manuali a sondaggi o scadenze.
+
+
+Verifiche finali dello sprint 4:
+
+- 11 test HTTP/Blade nuovi passati (89 asserzioni, ricontrollati prima del commit); 87 test mirati su sondaggi,
+  importazione, citazioni e azioni delle card passati (462 asserzioni).
+- EXPLAIN MySQL sulle query effettive in batch: accesso ai post, voto personale
+  filtrato per Actor e scelte usano indici, senza scansioni complete delle tabelle
+  principali nel campione; test dei piani passato (22 asserzioni). MariaDB non
+  eseguito in questa sessione.
+- Suite completa: 1.580 passati, 33 saltati e i due fallimenti preesistenti
+  `VisibilityFromAudienceTest` e `FeedTest` (7.006 asserzioni).
+- Pint, sintassi JavaScript e whitespace passati. Prova browser su sondaggio
+  reale concluso e fixture aperte single/multiple con HTTP simulato completata.
+- Lo sprint 3 è congelato nel commit `e39b5fe`; lo sprint 4 è stato verificato
+  localmente anche dall’utente e approvato per il commit. Nessun voto inviato
+  verso utenti remoti reali.

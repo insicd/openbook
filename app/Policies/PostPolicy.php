@@ -2,11 +2,29 @@
 
 namespace App\Policies;
 
+use App\Application\Services\DomainBlockManager;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
 
 class PostPolicy
 {
+    public function vote(User $user, Post $post): bool
+    {
+        $actor = $user->actor;
+        $poll = $post->remotePoll;
+        if (! $user->isActive() || ! $actor?->isLocal() || ! $actor->isActive()
+            || ! $post->isRemote() || ! $post->isPublished() || ! $post->actor?->isActive()
+            || $post->actor->isRemotelySuspended() || $poll === null || $poll->isClosed()
+            || $poll->options->count() < 2 || ! $actor->key?->hasPrivateKey()) {
+            return false;
+        }
+        $inbox = $post->actor->endpoints?->shared_inbox ?: $post->actor->endpoints?->inbox;
+        $blocks = app(DomainBlockManager::class);
+
+        return filled($inbox) && ! $blocks->isBlockedUrl($inbox)
+            && ! $blocks->isBlockedUrl($post->actor->uri) && ! $blocks->isBlockedUrl($post->uri ?? '');
+    }
+
     public function update(User $user, Post $post): bool
     {
         if ($post->isRemote() || ! $post->isPublished() || $post->isDirectMessage()) {
