@@ -34,6 +34,21 @@ final readonly class LocalPollDefinition
         ];
     }
 
+    /** @return array<string, string> */
+    public static function messages(): array
+    {
+        return [
+            'poll.options.min' => __('openbook.polls.option_count'),
+            'poll.options.max' => __('openbook.polls.option_count'),
+            'poll.options.*.required' => __('openbook.polls.option_required'),
+            'poll.options.*.max' => __('openbook.polls.option_length'),
+            'poll.options.*.distinct' => __('openbook.polls.distinct_options'),
+            'poll.duration_seconds.min' => __('openbook.polls.duration_range'),
+            'poll.duration_seconds.max' => __('openbook.polls.duration_range'),
+            'poll.duration_seconds.integer' => __('openbook.polls.duration_range'),
+        ];
+    }
+
     public static function fromInput(mixed $input): self
     {
         if (is_array($input) && isset($input['options']) && is_array($input['options'])) {
@@ -41,7 +56,7 @@ final readonly class LocalPollDefinition
         }
         $rules = self::rules();
         $rules['poll'] = ['required', 'array:options,multiple,duration_seconds'];
-        $data = Validator::make(['poll' => $input], $rules)->validate()['poll'];
+        $data = Validator::make(['poll' => $input], $rules, self::messages())->validate()['poll'];
 
         return new self($data['options'], (bool) $data['multiple'], (int) $data['duration_seconds']);
     }

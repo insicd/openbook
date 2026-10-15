@@ -2,6 +2,25 @@
 (function () {
     'use strict';
 
+    document.addEventListener('click', function (event) {
+        var toggle = event.target.closest('[data-poll-results-toggle]');
+        if (!toggle) return;
+        event.preventDefault();
+        var poll = toggle.closest('[data-poll-id]');
+        var show = poll.dataset.pollResults !== '1';
+        poll.dataset.pollResults = show ? '1' : '0';
+        poll.querySelectorAll('[data-poll-result]').forEach(function (node) { node.hidden = !show; });
+        poll.querySelectorAll('[data-poll-control]').forEach(function (node) {
+            node.hidden = show;
+            if (node.tagName === 'INPUT') node.disabled = show;
+        });
+        poll.querySelectorAll('[data-poll-vote-controls]').forEach(function (node) { node.hidden = show; });
+        toggle.querySelector('[data-poll-show-label]').hidden = show;
+        toggle.querySelector('[data-poll-choices-label]').hidden = !show;
+        toggle.setAttribute('aria-expanded', show ? 'true' : 'false');
+        toggle.href = show ? toggle.dataset.choicesUrl : toggle.dataset.resultsUrl;
+    });
+
     document.addEventListener('submit', function (event) {
         var form = event.target;
         if (!form.matches || !form.matches('[data-poll-form]')) {

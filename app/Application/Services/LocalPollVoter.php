@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 /** Collects local and federated ballots for Questions owned by this instance. */
 final class LocalPollVoter
 {
-    public function __construct(private readonly DomainBlockManager $blocks) {}
+    public function __construct(private readonly LocalPollInteractionPolicy $interactionPolicy) {}
 
     /** @param list<string> $optionIds */
     public function vote(Actor $voter, Poll $poll, array $optionIds, string $optionsVersion): PollVote
@@ -53,12 +53,8 @@ final class LocalPollVoter
             $post = Post::query()->whereKey($poll->post_id)->whereNull('uri')->whereNull('conversation_id')
                 ->where('status', Post::STATUS_PUBLISHED)->visibleTo($voter)->lockForUpdate()->firstOrFail();
             $voter = $voter->fresh(['user']);
-            if ($voter === null || ! $voter->isActive() || $voter->isRemotelySuspended()
-                || ($voter->isLocal() && ! $voter->user?->isActive()) || $this->blocks->isBlockedUrl($voter->uri)) {
-                throw new AuthorizationException;
-            }
             $post->load('actor.user');
-            if (! $post->actor?->isLocal() || ! $post->actor->isActive() || ! $post->actor->user?->isActive()) {
+            if ($voter === null || ! $this->interactionPolicy->allows($voter, $post)) {
                 throw new AuthorizationException;
             }
             $locked = Poll::query()->whereKey($poll->id)->where('post_id', $post->id)->lockForUpdate()->firstOrFail();

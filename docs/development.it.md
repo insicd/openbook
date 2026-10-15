@@ -24,7 +24,7 @@ APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/
 `LocalPollMysqlVotingTest` ripete i casi di dominio in schemi MySQL isolati e
 verifica invii concorrenti reali e piani EXPLAIN. Attivare le stesse variabili
 opt-in e selezionare `--filter=LocalPollMysqlVotingTest`. Lo sprint 2 non aggiunge
-migration. La UI di voto locale segue nel prossimo incremento; queste verifiche usano direttamente servizi e inbox.
+migration. Queste verifiche usano direttamente servizi e inbox.
 
 Risultati e chiusura programmata (#121, sprint 3):
 
@@ -41,6 +41,22 @@ di osservare un avanzamento parziale e riprenderlo al passaggio seguente.
 `PollResultsMysqlTest` aggiunge processi cron concorrenti reali e piani EXPLAIN
 per ogni ramo UNION dei destinatari, con le stesse variabili opt-in per schemi
 isolati descritte sotto.
+
+Interfaccia di creazione/voto (#121, sprint 4):
+
+```bash
+php artisan route:clear
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/LocalPollUiTest.php tests/Feature/Polls/RemotePollUiTest.php
+node tests/Browser/polls.cjs
+```
+
+Il controllo browser opzionale renderizza partial Blade di produzione con
+modelli in memoria, carica JS/CSS reali e verifica campi desktop/mobile,
+limiti Unicode, reset/editing del modal, passaggio ai risultati e conferma del
+voto. Richiede Playwright e un browser installato (`BROWSER_EXECUTABLE_PATH`
+per sceglierlo). I link nativi sono verificati con JavaScript disabilitato;
+i test HTTP coprono controlli delle opzioni e invii HTML. PHPUnit usa un percorso
+isolato per la cache delle route, evitando quelle obsolete dell’istanza locale.
 
 Per il ritorno dal dettaglio post, una verifica browser opzionale usa JS/CSS
 di produzione con una fixture HTTP locale per i redirect dei form normali:

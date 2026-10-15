@@ -446,12 +446,27 @@ videos; initial counts are zero.
 Definition and visibility stay fixed after publication. Text corrections cannot
 add recipients. Local communities, including private ones, are supported;
 private conversations and publication to remote Groups are intentionally
-excluded. Run `php artisan migrate`. Creation/voting UI follows in the next
-increment. `PostComposer` records durable publication or update work together
+excluded. Run `php artisan migrate` and `php artisan route:clear` after updating. `PostComposer` records durable publication or update work together
 with the Question; `openbook:cron` now calls `openbook:process-polls` between
 inbox processing and ordinary delivery. No additional cron configuration or
 permanent worker is required. The canonical GET and outbox expose the current
 Question independently of delivery progress.
+
+The post composer starts with two answer fields; add options one at a time up
+to six, select multiple answers if desired and choose a duration (one day by
+default). Options support 50 Unicode characters. The post body is the question.
+Creation works with attachments, quotes and local communities; remote Group and
+private-message composers stay outside this feature. Published polls expose
+fixed definition/visibility in the editor while allowing text corrections.
+
+Local cards and detail pages use the shared poll renderer and vote endpoint.
+Results appear after voting or closure; “Show results” also reveals aggregates
+before voting and “Back to options” restores selection. This is a presentation
+preference, not aggregate secrecy. Personal choices stay scoped to the viewer;
+quotes stay read-only and content warnings wrap the poll. Before voting, the UI
+explains that the author can inspect individual answers. Native HTML links and
+forms remain functional without JavaScript. The optional enhancement confirms
+votes in place and prevents double submission, with no result polling.
 
 `LocalPollVoter` collects definitive local ballots and federated Create/Note
 answers. `LocalPollVoteIngester` checks signer, author, Note origin and canonical

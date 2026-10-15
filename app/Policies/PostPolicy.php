@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Application\Services\DomainBlockManager;
+use App\Application\Services\LocalPollInteractionPolicy;
 use App\Application\Services\RemotePollInteractionPolicy;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
@@ -13,6 +14,10 @@ class PostPolicy
     {
         $actor = $user->actor;
         $poll = $post->poll;
+        if ($actor !== null && ! $post->isRemote()) {
+            return app(LocalPollInteractionPolicy::class)->allows($actor, $post)
+                && $poll !== null && ! $poll->isClosed() && $poll->options->count() >= 2;
+        }
         if ($actor === null || ! app(RemotePollInteractionPolicy::class)->allows($actor, $post)
             || $poll === null || $poll->isClosed()
             || $poll->options->count() < 2 || ! $actor->key?->hasPrivateKey()) {

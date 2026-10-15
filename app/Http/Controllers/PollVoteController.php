@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Services\LocalPollVoter;
 use App\Application\Services\RemotePollVoter;
 use App\Domain\Polls\Poll;
 use App\Domain\Posts\Post;
@@ -10,9 +11,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
-final class RemotePollVoteController extends Controller
+final class PollVoteController extends Controller
 {
-    public function __invoke(Request $request, Post $post, RemotePollVoter $voter): RedirectResponse|JsonResponse
+    public function __invoke(Request $request, Post $post, RemotePollVoter $remoteVoter, LocalPollVoter $localVoter): RedirectResponse|JsonResponse
     {
         $actor = $request->user()->actor;
         abort_unless($post->isPublished() && Post::whereKey($post->id)->visibleTo($actor)->exists(), 404);
@@ -27,6 +28,7 @@ final class RemotePollVoteController extends Controller
             'choices.min' => __('openbook.polls.choose'),
         ]);
         try {
+            $voter = $post->isRemote() ? $remoteVoter : $localVoter;
             $voter->vote($actor, $poll, $data['choices'], $data['options_version']);
         } catch (ValidationException $exception) {
             $exception->errorBag = $bag;

@@ -24,7 +24,7 @@ APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/
 `LocalPollMysqlVotingTest` repeats domain cases in isolated MySQL schemas and
 checks real concurrent submissions and EXPLAIN plans. Enable the same opt-in
 variables and select `--filter=LocalPollMysqlVotingTest`. No new migration is
-introduced by sprint 2. Local voting UI follows in the next increment; these checks exercise services and inbox processing directly.
+introduced by sprint 2. These checks exercise services and inbox processing directly.
 
 Poll results and scheduled closure (#121, sprint 3):
 
@@ -40,6 +40,22 @@ includes both. `--limit=1 --batch-size=1` on the poll command lets you inspect
 partial progress and resume in a later pass. `PollResultsMysqlTest` adds real
 concurrent cron processes and EXPLAIN checks of every recipient UNION branch,
 using the same isolated-schema opt-in variables described below.
+
+Poll creation/voting UI (#121, sprint 4):
+
+```bash
+php artisan route:clear
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/LocalPollUiTest.php tests/Feature/Polls/RemotePollUiTest.php
+node tests/Browser/polls.cjs
+```
+
+The optional browser check renders production Blade partials against in-memory
+model fixtures, loads production JS/CSS and checks desktop/mobile fields,
+Unicode limits, modal reset/edit isolation, results switching and vote feedback.
+It requires Playwright and an installed browser (`BROWSER_EXECUTABLE_PATH` can
+select one). Native links are checked with JavaScript disabled; HTTP tests cover
+native option controls and submissions. PHPUnit uses an isolated routes cache
+path, avoiding stale routes from the developer instance.
 
 For post-detail back navigation, an optional browser check uses the production
 JS/CSS with a local HTTP fixture for ordinary form redirects:

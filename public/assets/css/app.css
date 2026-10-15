@@ -4494,3 +4494,21 @@ label.ob-poll__name {
 .ob-poll [data-poll-feedback] {
   color: var(--ob-color-danger);
 }
+
+.ob-poll [hidden] { display: none !important; }
+.ob-poll__results-toggle { margin-top: .6rem; }
+.ob-composer__poll {
+  margin-block: .75rem;
+  padding: .75rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: .5rem;
+}
+.ob-composer__poll > summary { cursor: pointer; font-weight: 600; }
+.ob-poll-composer__option { margin-block: .65rem; }
+.ob-poll-composer__input { display: flex; gap: .5rem; align-items: center; }
+.ob-poll-composer__input > input { min-width: 0; flex: 1; }
+.ob-poll-composer__input > button { flex: 0 0 auto; min-height: 2.75rem; }
+.ob-poll-composer__actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .75rem; }
+.ob-composer__poll .ob-field { margin-top: .75rem; }
+
+.ob-poll-composer__multiple { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; }

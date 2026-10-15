@@ -446,12 +446,30 @@ anche con video in staging; i conteggi iniziali sono pari a zero.
 Definizione e visibilità rimangono fissate alla pubblicazione. Le correzioni
 del testo non possono aggiungere destinatari. Sono incluse le community locali
 anche private; conversazioni private e pubblicazione verso Group remoti sono
-intenzionalmente escluse. Applicare `php artisan migrate`. La UI di creazione/voto
-segue nel prossimo incremento. `PostComposer` registra il lavoro durevole di
+intenzionalmente escluse. Dopo l’aggiornamento applicare `php artisan migrate`
+e `php artisan route:clear`. `PostComposer` registra il lavoro durevole di
 pubblicazione o aggiornamento insieme alla Question; `openbook:cron` richiama
 ora `openbook:process-polls` fra elaborazione inbox e consegna ordinaria.
 Nessuna nuova configurazione cron o worker permanente. GET canonico e outbox
 espongono la Question corrente indipendentemente dall’avanzamento delle consegne.
+
+Il composer dei post parte da due risposte; si aggiungono opzioni una alla
+volta fino a sei, si attiva eventualmente la scelta multipla e si sceglie la
+durata (un giorno di default). Le opzioni accettano 50 caratteri Unicode; la
+domanda è il corpo del post. Funziona con allegati, citazioni e community locali;
+i composer di Group remoti e messaggi privati restano fuori dal perimetro.
+L’editor dei sondaggi pubblicati mostra definizione e visibilità fissate,
+consentendo le correzioni del testo.
+
+Card e dettaglio locali usano renderer ed endpoint di voto condivisi. I risultati
+appaiono dopo il voto o alla chiusura; «Mostra risultati» rende consultabili gli
+aggregati anche prima e «Torna alle opzioni» ripristina la selezione. È una
+preferenza di presentazione, non una promessa di segretezza dei conteggi.
+Le scelte personali rimangono riservate al lettore, le citazioni in sola lettura
+e gli avvisi sul contenuto comprendono il sondaggio. Prima del voto l’interfaccia
+chiarisce che l’autore può consultare le risposte individuali. Link e form HTML
+funzionano anche senza JavaScript; l’arricchimento opzionale conferma il voto
+nella card e impedisce doppi invii, senza polling dei risultati.
 
 `LocalPollVoter` raccoglie schede locali definitive e risposte federate
 Create/Note. `LocalPollVoteIngester` verifica firmatario, autore, origine della

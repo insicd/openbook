@@ -88,6 +88,7 @@
                             href="{{ route('posts.edit', $post) }}"
                             class="ob-post__menu-item"
                             role="menuitem"
+                            @if ($post->poll === null)
                             data-edit-post
                             data-edit-action="{{ route('posts.update', $post) }}"
                             data-edit-body="{{ $post->body }}"
@@ -98,6 +99,7 @@
                             data-edit-location-label="{{ $post->location?->label() }}"
                             @if ($existingMedia > 0)
                                 data-edit-media-help="{{ __('openbook.composer.existing_media_help', ['count' => $existingMedia, 'remaining' => max(0, $maxAttachments - $existingMedia)]) }}"
+                            @endif
                             @endif
                         >
                             <x-icon name="edit" />

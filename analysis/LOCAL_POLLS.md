@@ -2,7 +2,7 @@
 
 Stato al 15 ottobre 2026: analisi congelata nel commit `4452763`; sprint 1
 chiuso e committato in `375f24a`. Sprint 2 chiuso in `c1350b3`; sprint 3
-verificato e chiuso; sprint 4 da avviare.
+verificato e chiuso; sprint 4 verificato e chiuso; sprint 5 da avviare.
 Issue: https://github.com/insicd/openbook/issues/121
 Base: ramo `issue_121`, creato dalla punta di `issue_120`, commit `f21f385`.
 Dipendenza: [sondaggi remoti — #120](REMOTE_POLLS.md).
@@ -694,3 +694,30 @@ su sondaggi, importazione e staging video: 105 passati, 58 saltati,
   il confronto con una seconda istanza resta alla prova integrata, perché non
   è configurata un’istanza federata di test in questa sessione. MariaDB non
   eseguito direttamente. Sprint chiuso nell’autonomia concordata per completare il ramo.
+
+
+## Esito sprint 4 — Composer e voto locale nell’interfaccia
+
+- Composer con due opzioni iniziali, aggiunta/rimozione progressiva fino a sei,
+  scelta multipla, durata predefinita di un giorno e limiti Unicode coerenti col
+  servizio. Campo opzionale vuoto conserva il normale post. Errori e comandi
+  HTML di gestione opzioni conservano testo e impostazioni; il percorso senza
+  JavaScript resta disponibile. Media, citazioni e staging usano i flussi esistenti.
+- `PollVoteController` e renderer comuni; scelta del servizio in base all’origine.
+  `LocalPollInteractionPolicy` condivide account/moderazione fra UI e servizio,
+  mentre visibilità e scadenza sono verificate nel momento pertinente. Il voto
+  remoto conserva i conteggi dell’origine e la conferma all’accodamento.
+- Risultati locali dopo il voto, a chiusura o su richiesta esplicita. «Torna alle
+  opzioni» mantiene possibile il voto; la preferenza non è salvata nel DB.
+  Scelte proprie, avvisi sul contenuto e citazioni in sola lettura preservati.
+  Prima della conferma compare l’avviso sulla consultazione dell’autore.
+- Editor dei sondaggi sulla pagina dedicata con definizione e visibilità fissate.
+  Il modal dei post ordinari disabilita interamente i campi di creazione del
+  sondaggio durante l’editing; reset e riapertura ripartono dai due campi iniziali.
+- Traduzioni EN/IT e messaggi positivi condivisi anche nella validazione.
+  Route cache PHPUnit isolata dall’istanza, necessaria alle nuove route.
+- Verifiche mirate: 45 test UI/voto/regressione remota e 20 test MySQL superati;
+  Chromium desktop/mobile contro Blade/JS/CSS reali, con fallback senza JS e
+  controlli del modal. Suite completa: 1.692 test superati, 105 saltati e i due
+  fallimenti già noti (`VisibilityFromAudienceTest`, `FeedTest`). Pint, sintassi JS
+  e diff check superati. Sprint chiuso nell’autonomia concordata.

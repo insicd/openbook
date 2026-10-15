@@ -27,15 +27,21 @@ la [roadmap](docs/roadmap.md).
   al post; la nuova migration rinomina le quattro tabelle `remote_poll*` in
   `polls`, `poll_options`, `poll_votes`, `poll_vote_choices` e poi aggiunge i
   campi locali, preservando dati e attività già accodate. Applicare la migration;
-  il composer grafico arriverà nel successivo incremento.
+  creazione e voto sono disponibili anche nel composer e nelle card locali.
 - **Raccolta dei voti sui sondaggi locali (#121)**: servizio transazionale per
   voti locali e Note federate, conteggi autoritativi, deduplicazione e scelta
   definitiva. I voti federati incorporati ricevuti entro la scadenza restano
   validi anche se elaborati dopo; quelli recuperati tramite URI richiedono anche
   il recupero entro la scadenza. Permessi e moderazione vengono ricontrollati
   durante l’elaborazione; nessun commento o messaggio generato dal voto.
-  I risultati aggiornati registrano il lavoro federato pendente; l’interfaccia
-  di voto locale segue nel prossimo incremento.
+  I risultati aggiornati registrano il lavoro federato pendente.
+- **Interfaccia dei sondaggi locali (#121)**: composer con due opzioni iniziali,
+  aggiunta progressiva fino a sei, scelta multipla e durata. Voto nelle card e nel
+  dettaglio; risultati dopo il voto o alla chiusura e comando «Mostra risultati»
+  per consultarli prima, tornando poi alle scelte. Conferma e risposta personale
+  rimangono visibili; l’interfaccia chiarisce che l’autore può consultare le
+  risposte individuali. Controlli HTML utilizzabili anche senza JavaScript;
+  definizione e visibilità fissate nell’editor dei post già pubblicati.
 - **Distribuzione e chiusura dei sondaggi locali (#121)**: pubblicazione,
   correzioni e risultati vengono accodati dal cron generale con snapshot
   recuperabili e fan-out a batch. La chiusura programmata viene registrata anche

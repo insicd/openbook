@@ -10,6 +10,20 @@ use Illuminate\Validation\Validator;
 
 class StorePostRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $options = $this->input('poll.options');
+        if ($this->boolean('poll_composer') && is_array($options)
+            && collect($options)->every(fn ($value): bool => $value === null || (is_string($value) && trim($value) === ''))) {
+            $this->merge(['poll' => null]);
+        }
+    }
+
+    public function messages(): array
+    {
+        return LocalPollDefinition::messages();
+    }
+
     public function authorize(): bool
     {
         return true;
