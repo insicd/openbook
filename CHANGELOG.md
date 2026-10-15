@@ -19,6 +19,15 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Sondaggi remoti, importazione (#120)**: gli oggetti `Question` vengono
+  conservati con opzioni, risultati dichiarati e chiusura attraverso inbox,
+  outbox, condivisioni e refresh esistenti. Il replay delle vecchie attività
+  preserva lo stato più recente disponibile; le Note di voto sono escluse da
+  commenti e messaggi. Questo incremento prepara i dati: interfaccia del
+  sondaggio e voto locale sono previsti negli sprint successivi.
+  La ricezione dei risultati usa `results_received_at`; sondaggi e opzioni
+  remote omettono i timestamp automatici. La migration correttiva aggiorna
+  anche i DB locali che avevano già applicato le migration iniziali.
 - **Campanella sui Group**: Mastodon tiene `notify` solo in locale e non lo
   mette nel Follow; l'Announce FEP-1b12 e' un boost e non fa suonare la
   campanella. I nuovi post sul wall di un Group locale vengono quindi

@@ -3,6 +3,7 @@
 namespace App\Federation\Inbox;
 
 use App\Application\Services\DirectMessageLinker;
+use App\Application\Services\DomainBlockManager;
 use App\Application\Services\NotificationCreator;
 use App\Domain\Comments\Comment;
 use App\Domain\Locations\PostLocation;
@@ -13,6 +14,8 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Outbox\RemoteOutboxFetcher;
+use App\Federation\Polls\RemotePollDocument;
+use App\Federation\Polls\RemotePollSynchronizer;
 use App\Federation\Posts\RemoteReactionCountSync;
 use App\Federation\Replies\RemoteRepliesFetcher;
 use App\Federation\Serialization\NoteSerializer;
@@ -20,6 +23,7 @@ use App\Federation\Support\ActivityPubTimestamp;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 use Throwable;
 
 /**
@@ -42,6 +46,8 @@ final class RemoteNoteUpserter
         private readonly RemoteAttachmentIngester $attachments,
         private readonly RemoteNoteDocumentFetcher $noteDocumentFetcher,
         private readonly RemoteActorResolver $remoteActorResolver,
+        private readonly RemotePollSynchronizer $polls,
+        private readonly DomainBlockManager $domainBlocks,
     ) {}
 
     /**
@@ -56,8 +62,9 @@ final class RemoteNoteUpserter
         bool $notifyMentions = true,
         bool $resolveQuote = true,
         ?Post $directMessageThreadParent = null,
-    ): Post {
-        return DB::transaction(fn (): Post => $this->upsertPostWithinTransaction(
+        ?InboxItem $source = null,
+    ): ?Post {
+        return DB::transaction(fn (): ?Post => $this->upsertPostWithinTransaction(
             $note,
             $noteUri,
             $actor,
@@ -66,6 +73,7 @@ final class RemoteNoteUpserter
             $notifyMentions,
             $resolveQuote,
             $directMessageThreadParent,
+            $source,
         ));
     }
 
@@ -81,17 +89,41 @@ final class RemoteNoteUpserter
         bool $notifyMentions,
         bool $resolveQuote,
         ?Post $directMessageThreadParent,
-    ): Post {
+        ?InboxItem $source,
+    ): ?Post {
         /** @var Post $post */
         $post = Post::query()->where('uri', $noteUri)->lockForUpdate()->first() ?? new Post(['uri' => $noteUri]);
         $wasNew = ! $post->exists;
+        $pollDocument = null;
+        $poll = $wasNew ? null : $post->remotePoll()->lockForUpdate()->first();
+        if ($poll !== null && ! RemotePostObject::hasType($note['type'] ?? null, 'Question')) {
+            return null;
+        }
+        if (RemotePostObject::hasType($note['type'] ?? null, 'Question')) {
+            if ($actor->isLocal() || ($note['id'] ?? null) !== $noteUri
+                || RemotePostObject::inReplyToTarget($note) !== null
+                || $this->domainBlocks->isBlockedUrl($noteUri) || $this->domainBlocks->isBlockedUrl($actor->uri)
+                || ! RemotePostObject::authorMatches($note['attributedTo'] ?? null, $actor->uri)
+                || (! $wasNew && ($post->actor_id !== $actor->id || ! $post->isPublished()))) {
+                return null;
+            }
+            try {
+                $pollDocument = RemotePollDocument::fromArray($note);
+            } catch (InvalidArgumentException) {
+                return null;
+            }
+            if ($poll !== null && ! $this->polls->accepts($poll, $pollDocument, $source)) {
+                return null;
+            }
+        }
+
         $remoteUpdatedAt = $this->remoteUpdatedAt($note);
 
         if (! $wasNew
             && $post->remote_updated_at !== null
             && $remoteUpdatedAt !== null
             && $remoteUpdatedAt->lessThan($post->remote_updated_at)) {
-            return $post;
+            return $pollDocument !== null ? null : $post;
         }
 
         $quotedPost = null;
@@ -149,6 +181,9 @@ final class RemoteNoteUpserter
         }
 
         $post->save();
+        if ($pollDocument !== null) {
+            $this->polls->sync($post, $poll, $pollDocument, $note, $source);
+        }
         $this->syncLocation($post, $note);
 
         RemoteReactionCountSync::applyFromNote($post, $note);
@@ -265,6 +300,13 @@ final class RemoteNoteUpserter
             return null;
         }
 
+        if (RemotePostObject::hasType($document['type'] ?? null, 'Question')) {
+            $document = $this->noteDocumentFetcher->fetch($quoteUri);
+            if ($document === null || ! RemotePostObject::hasType($document['type'] ?? null, 'Question')) {
+                return null;
+            }
+        }
+
         $documentUri = is_string($document['id'] ?? null) ? $document['id'] : $quoteUri;
 
         if ($documentUri === '' || $documentUri === $quotingUri) {
@@ -311,6 +353,10 @@ final class RemoteNoteUpserter
      */
     public function upsertComment(array $note, string $noteUri, Actor $actor, string $body, ?Post $parentPost, ?Comment $parentComment, bool $notifyMentions = true): ?Comment
     {
+        if (RemotePostObject::isPollVote($note)) {
+            return null;
+        }
+
         if ($parentComment === null && $parentPost !== null && $parentPost->conversation_id !== null) {
             return null;
         }

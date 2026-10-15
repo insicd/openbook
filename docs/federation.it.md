@@ -298,11 +298,12 @@ finalmente bidirezionale.
   - `Like`/`Announce` su un post o commento locale aggiornano i contatori e generano
     una notifica, esattamente come un Mi piace/condivisione locale;
   - `Create`/`Update` con oggetto postabile (`Note`, `Page`, `Article`, `Video`,
-    `Image`) mettono in cache localmente il post o commento remoto (tabelle
+    `Image`, `Question`) mettono in cache localmente il post o commento remoto (tabelle
     `posts`/`comments`, identificati dalla colonna `uri`), ma **solo se rilevanti**
     per questa istanza (l'autore e' seguito da un Actor locale, la Note risponde a
     un contenuto che gia' conosciamo, oppure menziona esplicitamente un Actor
-    locale): nessun contenuto remoto viene conservato "a caso". Il contenuto HTML
+    locale; sono rilevanti anche gli aggiornamenti dei sondaggi già in cache):
+    nessun contenuto remoto viene conservato "a caso". Il contenuto HTML
     viene ridotto a testo semplice (`RemoteContentSanitizer`), preservando gli
     `<a href>` come `[etichetta](url)`; le immagini in `attachment` restano come
     URL remoti in galleria. Poi passa dalla stessa pipeline di rendering sicura
@@ -432,6 +433,44 @@ solo se l'account ha abilitato la condivisione sul Fediverso). La sezione Mondo
 propone account remoti da scoprire e, oltre i primi 5, l'elenco completo in
 `/mondo/scopri` con scorrimento infinito. SSRF, blocco domini e firme HTTP
 restano i vincoli di sicurezza di base.
+
+### Sondaggi remoti — fase di importazione (#120)
+
+Gli oggetti `Question` nel formato Mastodon vengono importati tramite i flussi
+esistenti di inbox, outbox, collection dei post fissati, Announce e refresh di
+post/risposte. I metadati vivono in `remote_polls` e `remote_poll_options`; il
+post conserva le normali regole di autore, audience e moderazione. Le Question
+di risposta sono escluse. Questa fase prepara la persistenza: controlli del
+sondaggio e voto locale seguiranno negli sprint successivi. Restano i percorsi
+di aggiornamento esistenti, senza polling o worker dedicati.
+
+`oneOf` e `anyOf` conservano scelta singola/multipla, nomi esatti delle opzioni,
+conteggi nullable di risposte/votanti, scadenza e chiusura esplicita. I conteggi
+assenti restano sconosciuti; le scelte locali non alterano i risultati remoti.
+Il normalizzatore accetta attualmente 2–50 opzioni distinte di massimo 1.000
+caratteri Unicode. I metadati malformati vengono ignorati preservando lo stato
+valido precedente. Il riordino conserva l'identità delle opzioni; la rinomina
+la sostituisce preservando eventuali snapshot del voto personale. Una chiusura
+già acquisita resta tale.
+
+Le versioni remote esplicite `updated` hanno precedenza; altrimenti data e ID
+originali dell'inbox determinano l'ordine del replay. I fetch usano il momento
+di osservazione locale. Senza una revisione remota, l'ordine originale del
+server non si può ricavare dall'ordine di consegna: snapshot più recenti
+accettati possono legittimamente ridurre i conteggi. I sondaggi incorporati da
+terzi vengono verificati all'endpoint canonico. I Create/Note con forma di voto
+vengono scartati prima di diventare post, commenti o messaggi, anche quando il
+destinatario del voto è sconosciuto.
+
+Applicare le migration con `php artisan migrate`. L'ordinamento usa
+`results_received_at`, senza dipendere dalla permanenza delle righe inbox.
+Sondaggi e opzioni remote omettono i timestamp automatici `created_at`/`updated_at`:
+la pubblicazione è nel `published_at` del post associato, mentre i voti personali
+conservano le proprie date. La migration correttiva rinomina il precedente
+`observed_at` e rimuove i timestamp ridondanti, preservando sondaggi in cache,
+risultati e voti personali. Il replay storico resta disponibile con `openbook:reprocess-inbox`, che
+oggi riaccoda tutte le attività ignored/pending: per una verifica mirata usare
+fixture o una copia del DB fino alla fase di riprocessamento selettivo.
 
 ### Eventi federati
 

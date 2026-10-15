@@ -22,6 +22,7 @@ final readonly class RemotePollDocument
         public bool $closed,
         public ?Carbon $closedAt,
         public ?int $votersCount,
+        public ?Carbon $updatedAt,
     ) {}
 
     /** @param array<string, mixed> $document */
@@ -81,6 +82,7 @@ final readonly class RemotePollDocument
             $closed === true,
             is_string($closed) ? self::timestamp($closed) : null,
             self::count($document['votersCount'] ?? null),
+            self::timestamp($document['updated'] ?? null),
         );
     }
 

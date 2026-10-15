@@ -28,7 +28,12 @@ final class RemoteNoteDocumentFetcher
     {
         $document = $this->fetchDocument($uri, $signingActor);
 
-        return $document !== null ? RemotePostObject::unwrap($document) : null;
+        $note = $document !== null ? RemotePostObject::unwrap($document) : null;
+        if ($note !== null && RemotePostObject::hasType($note['type'] ?? null, 'Question') && ($note['id'] ?? null) !== $uri) {
+            return null;
+        }
+
+        return $note;
     }
 
     /**

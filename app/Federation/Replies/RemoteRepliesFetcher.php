@@ -11,6 +11,7 @@ use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Federation\Inbox\RemotePostObject;
 use App\Federation\Posts\RemoteReactionCountSync;
 use App\Federation\Resolution\ObjectResolver;
+use App\Federation\Support\ActivityPubTimestamp;
 use App\Federation\Support\JsonLdLanguage;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
@@ -78,15 +79,30 @@ final class RemoteRepliesFetcher
             return;
         }
 
-        $this->syncReactionTotals($post, $note, $signingActor);
-
-        if (! $this->isType($note['type'] ?? null, 'Note')) {
+        if (! $this->isType($note['type'] ?? null, 'Note') && ! $this->isType($note['type'] ?? null, 'Question')) {
             Log::channel('single')->info('federation.replies.note_unavailable', [
                 'post_uri' => $post->uri,
             ]);
 
             return;
         }
+
+        if ($this->isType($note['type'] ?? null, 'Question')) {
+            if (($note['id'] ?? null) !== $post->uri
+                || ! RemotePostObject::authorMatches($note['attributedTo'] ?? null, $post->actor->uri)) {
+                return;
+            }
+            $updated = $this->noteUpserter->upsertPost(
+                $note, $post->uri, $post->actor, RemotePostObject::body($note),
+                ActivityPubTimestamp::parse(is_string($note['published'] ?? null) ? $note['published'] : null, $post->published_at),
+                notifyMentions: false,
+            );
+            if ($updated === null) {
+                return;
+            }
+        }
+
+        $this->syncReactionTotals($post, $note, $signingActor);
 
         $items = $this->resolveRepliesItems($note['replies'] ?? null, $signingActor);
 
@@ -305,7 +321,7 @@ final class RemoteRepliesFetcher
             $note = JsonLdLanguage::inherit($note['object'], $note);
         }
 
-        if (! $this->isType($note['type'] ?? null, 'Note')) {
+        if (! $this->isType($note['type'] ?? null, 'Note') || RemotePostObject::isPollVote($note)) {
             Log::channel('single')->info('federation.replies.skip', [
                 'post_uri' => $post->uri,
                 'reason' => 'not_a_note',

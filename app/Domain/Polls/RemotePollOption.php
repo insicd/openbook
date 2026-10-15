@@ -10,6 +10,8 @@ class RemotePollOption extends Model
 {
     use HasUuids;
 
+    public $timestamps = false;
+
     protected $fillable = ['poll_id', 'position', 'name', 'votes_count'];
 
     protected function casts(): array

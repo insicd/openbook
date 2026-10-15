@@ -509,6 +509,14 @@ final class RemoteOutboxFetcher
             return;
         }
 
+        if (RemotePostObject::hasType($note['type'] ?? null, 'Question')) {
+            $uri = $note['id'] ?? null;
+            $note = is_string($uri) ? $this->noteDocumentFetcher->fetch($uri) : null;
+            if ($note === null || ! RemotePostObject::hasType($note['type'] ?? null, 'Question')) {
+                return;
+            }
+        }
+
         $authorUri = RemotePostObject::primaryAuthorUri($note['attributedTo'] ?? null);
 
         if ($authorUri === null) {

@@ -1,9 +1,9 @@
 # Sondaggi remoti — issue #120
 
-Stato al 15 ottobre 2026: sprint 1 implementato (modello, normalizzazione,
-fixture e verifiche di persistenza); importazione, voto applicativo e UI
-restano negli sprint successivi. Le scelte tecniche indicate sotto vengono
-risolte negli sprint prima del codice che ne dipende.
+Stato al 15 ottobre 2026: sprint 1 committato in `3423260`; sprint 2 implementato
+(importazione e aggiornamenti), verificato e ancora da committare. Voto applicativo e UI restano
+negli sprint successivi. Le scelte tecniche indicate sotto vengono risolte
+negli sprint prima del codice che ne dipende.
 Issue: https://github.com/insicd/openbook/issues/120
 
 ## Obiettivo e vincoli
@@ -108,7 +108,10 @@ testi conservando struttura, audience, timestamp relativi e sequenza dei contegg
 Usare copie in un database di test e un orologio controllato per i casi aperti.
 I record originali non vanno riaccodati indiscriminatamente sul database locale.
 
-## Punti di integrazione individuati
+## Punti di integrazione individuati nella ricognizione iniziale
+
+Questa sezione descriveva la base iniziale; i collegamenti effettuati sono
+riepilogati in «Esito sprint 2».
 
 - `RemotePostObject::POSTABLE_TYPES` non include Question: Create e Update
   incorporati non entrano nel normale flusso di importazione dei post.
@@ -247,11 +250,8 @@ al servizio di voto sarà implementata nello sprint 3.
 
 ### Sprint 2 — prima di importazione e aggiornamenti
 
-- Ordinamento degli Update, incluse scadenze modificate, chiusura esplicita e
-  assenza di timestamp affidabili. Evitare che il replay di uno stato vecchio
-  riapra un sondaggio già concluso o sostituisca risultati più recenti.
-- Riconoscimento delle Note di voto e comportamento per documenti parziali o
-  malformati, mantenendo distinti dati sconosciuti e valori esplicitamente zero.
+Le scelte su ordinamento, chiusura, Note di voto e documenti parziali o
+malformati sono state risolte nello sprint 2 e sono descritte nel suo esito.
 
 Coinvolgere nuovamente l'utente soltanto se un limite verificato del protocollo
 richiede di modificare una decisione di prodotto concordata.
@@ -354,3 +354,136 @@ disponibile un comportamento nuovo agli utenti o agli operatori.
 Il normalizzatore e i modelli sono pronti ma non ancora collegati all'inbox:
 `Question` resta escluso dai tipi postabili fino allo sprint 2. Nessuna route,
 azione di voto o nuova UI esposta; nessun dato dell'istanza locale modificato.
+
+
+## Esito sprint 2
+
+### Percorso condiviso e controlli
+
+`Question` è un tipo postabile. `RemoteNoteUpserter` usa
+`RemotePollSynchronizer` all'interno della propria transazione, mantenendo
+l'ordine di lock post → sondaggio → opzioni. Questo collega inbox, fetch per
+URI, outbox Person/Group, citazioni, post fissati, Announce e refresh esistenti.
+Il fetch delle risposte riconosce anche la Question radice e sincronizza i
+metadati senza introdurre timer o polling dedicati.
+
+Il metodo condiviso restituisce null per Question malformate, bloccate,
+con autore incompatibile, con URI diverso da quello richiesto, di risposta,
+o che tentano di modificare post eliminati/locali. Le attività scartate non
+mutano lo stato precedente e non attivano l'aggancio a community a valle.
+Gli aggiornamenti validi di un sondaggio già in cache restano rilevanti anche
+quando il suo autore non è più seguito. Audience e moderazione continuano a
+usare le regole del post; nessuna nuova route o rappresentazione federata del
+voto personale viene esposta.
+
+Le Question incorporate da terzi in Announce, outbox Group e citazioni vengono
+verificate tramite fetch del documento canonico prima dell'importazione; ID,
+autore, audience e blocchi vengono controllati anche sul documento recuperato.
+Le Note con nome e inReplyTo, prive di contenuto e allegati, sono trattate come
+voti e scartate prima di diventare post, messaggi o commenti, incluso il caso
+di un sondaggio sconosciuto. Note con contenuto/allegati seguono il flusso
+ordinario delle risposte.
+
+### Ordinamento e chiusura
+
+Una migration aggiuntiva conserva `remote_updated_at`, `results_received_at` e
+`source_item_id` sul sondaggio. L'ID inbox è un riferimento di ordinamento,
+senza FK: la retention dell'inbox non deve cancellare o invalidare il sondaggio.
+
+- Quando entrambi i documenti hanno una revisione esplicita `updated`, quella
+  maggiore prevale; revisioni uguali usano l'ordine di osservazione.
+- Per i documenti senza revisione, usare `received_at` originale dell'InboxItem,
+  con ID originale come spareggio deterministico. Ripetere la lavorazione di
+  una riga vecchia non le attribuisce un nuovo momento di osservazione.
+- I fetch usano il momento locale di osservazione, anche quando vengono
+  eseguiti per risolvere un URI contenuto in una vecchia attività inbox.
+  A parità di secondo tra
+  fetch e inbox, conservare il fetch quando manca un ID inbox confrontabile.
+- Gli snapshot vecchi/duplicati vengono ignorati e non generano effetti a valle.
+  Senza revisione remota non è possibile ricostruire l'ordine originale del
+  server: una consegna nuova può contenere un documento remoto obsoleto non
+  riconoscibile. Non mascherare questa limitazione inventando massimi dei voti.
+- Un nuovo snapshot valido può ridurre i conteggi. Conteggi assenti/null
+  diventano sconosciuti; opzioni complete valide sostituiscono quelle precedenti.
+  Una scadenza omessa conserva quella nota; null esplicito può rimuoverla
+  soltanto mentre il sondaggio è ancora aperto.
+- Una chiusura già acquisita, esplicita o per scadenza, resta chiusa: documenti
+  vecchi o successive estensioni non riaprono il voto. I risultati possono
+  continuare ad aggiornarsi.
+
+Le versioni di testo del post mantengono anche la protezione esistente basata
+su `updated`/`published`: un documento privo di revisione non sostituisce un
+post già aggiornato con una revisione remota successiva alla pubblicazione.
+
+### Identità delle opzioni e query
+
+La sincronizzazione conserva l'UUID quando il nome esatto coincide, anche se
+cambia la posizione; una rinomina crea una nuova opzione e rimuove quella
+precedente. Gli snapshot personali restano indipendenti. Per evitare collisioni
+nei vincoli univoci durante gli scambi, le posizioni esistenti vengono spostate
+in un intervallo temporaneo dentro la transazione, poi applicate le nuove.
+
+Le letture ordinate usano l'indice sondaggio/posizione. La DELETE di rimozione
+opera soltanto sulle opzioni del sondaggio e senza ORDER BY superfluo; il piano
+MySQL usa uno degli indici composti con prefisso poll_id, senza scansione globale
+né filesort. Il test MySQL esamina le query effettivamente emesse dal servizio,
+oltre ai piani delle relazioni verificati nello sprint 1.
+
+### Verifiche e disponibilità
+
+`RemotePollImportTest` copre sequenze fixture, Update senza Create, replay,
+versioni/tempi discordanti, risultati in calo o assenti, chiusura, riordino e
+rinomina, conservazione del voto, autore contraffatto, post eliminati, blocchi,
+audience follower, fetch per URI, outbox, Announce canonico, post fissati e
+refresh del post/risposte. I test condivisi SQLite/MySQL verificano anche gli
+scambi di posizione con i vincoli reali e il rollback della nuova migration.
+
+Applicare le migration aggiuntive `2026_10_15_000001_add_observation_to_remote_polls`
+e `2026_10_15_000002_simplify_remote_poll_timestamps` con `php artisan migrate`. I dati possono ora essere importati; l'interfaccia specifica e il
+voto restano da implementare insieme negli sprint 3 e 4. Il comando selettivo
+per recuperare lo storico resta nello sprint 5; nessun replay del DB locale
+è stato eseguito in questa sessione.
+
+
+Verifiche finali dello sprint 2:
+
+- 171 test mirati di normalizzazione, persistenza e percorsi federati passati
+  (641 asserzioni), più i due casi aggiunti di outbox Group e citazione canonica.
+- 11 test MySQL isolati passati (69 asserzioni), comprese le due migration,
+  scambi delle opzioni e EXPLAIN delle query effettive; MariaDB non eseguito.
+- Suite completa: 1.544 passati, 13 saltati, i soli due fallimenti preesistenti
+  di `VisibilityFromAudienceTest` e del controllo di espansione in `FeedTest`.
+  Dopo questa esecuzione, la precisazione sul tempo dei fetch è stata verificata
+  nuovamente con i 171 test mirati; nessun ulteriore comportamento aggiunto.
+- Pint e controllo whitespace superati. Documentazione federazione EN/IT e
+  changelog aggiornati, con distinzione esplicita tra importazione e UI/voto.
+
+La cache di configurazione locale è stata preservata: le esecuzioni dei test
+hanno usato un percorso `APP_CONFIG_CACHE` temporaneo privo di cache, così la
+suite usa SQLite e non la connessione configurata per l'istanza locale.
+
+
+### Semplificazione concordata delle date
+
+I modelli `RemotePoll` e `RemotePollOption` disabilitano i timestamp automatici:
+`created_at`/`updated_at` non servono al dominio del sondaggio. La data originale
+rimane nel `published_at` del post associato; voti personali e scelte conservano
+le proprie date. `results_received_at` indica soltanto la ricezione dello stato
+dei risultati, usata per l'ordinamento descritto sopra.
+
+Una migration progressiva rinomina il precedente `observed_at` e rimuove i
+quattro timestamp ridondanti da sondaggi e opzioni, anche su DB locali già
+migrati negli sprint precedenti. Le migration già esistenti restano applicabili
+in sequenza; il rollback ricrea le colonne locali nullable senza inventarne
+il contenuto storico. Test condivisi SQLite/MySQL verificano la conservazione
+della ricezione dei risultati, delle opzioni e delle date dei voti, più il
+rollback/reapplicazione delle migration coinvolte.
+
+La differenza preesistente fra `posts.published_at`/`created_at` e
+`comments.created_at` è annotata in `analysis/TODO.md` per un lavoro separato;
+la semantica attuale di post e commenti resta invariata.
+
+Verifica della semplificazione: 57 test mirati SQLite passati (180 asserzioni)
+e 12 test MySQL isolati passati (80 asserzioni), incluso l'aggiornamento da uno
+schema locale precedente senza perdita dei risultati o delle date dei voti.
+Pint e controllo whitespace superati. Nessuna migration eseguita sul DB locale.

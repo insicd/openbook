@@ -1,5 +1,16 @@
 # TODO
 
+## Semantica delle date di post e commenti
+
+- Uniformare in un intervento futuro la distinzione fra data originale del
+  contenuto e date locali di persistenza: i post remoti usano `published_at`
+  per la pubblicazione originale e `created_at` per l'inserimento locale;
+  `RemoteNoteUpserter::upsertComment()` usa invece `created_at` per il
+  `published` remoto. Verificare ordinamento, rendering, federazione e cursori
+  prima di scegliere una convenzione comune e migrare i dati. Preservare il
+  significato di `posts.created_at` nell'ordine di arrivo delle conversazioni.
+  Questo lavoro è separato dai sondaggi remoti (#120).
+
 ## Ordinamento degli aggiornamenti dei commenti federati
 
 - `RemoteNoteUpserter::upsertComment()` non conserva un timestamp della versione

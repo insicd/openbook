@@ -3,6 +3,7 @@
 namespace Tests\Feature\Polls;
 
 use App\Domain\Polls\RemotePoll;
+use App\Federation\Inbox\RemoteNoteUpserter;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -105,5 +106,24 @@ class RemotePollMysqlPersistenceTest extends TestCase
             $this->assertSame($index, $plan[0]->key, $query->toSql());
             $this->assertStringNotContainsString('filesort', strtolower($plan[0]->Extra ?? ''));
         }
+
+        $observedQueries = [];
+        DB::listen(function ($event) use (&$observedQueries): void {
+            if (str_contains($event->sql, '`remote_poll_options`')
+                && (str_starts_with($event->sql, 'select') || str_starts_with($event->sql, 'delete'))) {
+                $observedQueries[] = [$event->sql, $event->bindings];
+            }
+        });
+        $note = json_decode(file_get_contents(base_path('tests/Fixtures/Federation/Polls/single-update.json')), true, 512, JSON_THROW_ON_ERROR)['object'];
+        $note['id'] = $target->post->uri;
+        $note['attributedTo'] = $target->post->actor->uri;
+        app(RemoteNoteUpserter::class)->upsertPost($note, $note['id'], $target->post->actor, 'Question', now(), notifyMentions: false);
+        $this->assertNotEmpty($observedQueries);
+        foreach ($observedQueries as [$sql, $bindings]) {
+            $plan = DB::select('EXPLAIN FORMAT=TRADITIONAL '.$sql, $bindings);
+            $this->assertContains($plan[0]->key, ['remote_poll_options_position_unique', 'remote_poll_options_name_unique'], $sql);
+            $this->assertStringNotContainsString('filesort', strtolower($plan[0]->Extra ?? ''));
+        }
+
     }
 }

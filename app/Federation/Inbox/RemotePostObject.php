@@ -25,7 +25,19 @@ final class RemotePostObject
         'Article',
         'Video',
         'Image',
+        'Question',
     ];
+
+    /** @param array<string, mixed> $document */
+    public static function isPollVote(array $document): bool
+    {
+        return self::hasType($document['type'] ?? null, 'Note')
+            && is_string($document['name'] ?? null)
+            && trim($document['name']) !== ''
+            && self::inReplyToTarget($document) !== null
+            && self::rawContent($document) === ''
+            && empty($document['attachment']);
+    }
 
     /**
      * @param  mixed  $type  stringa AS, IRI completo o lista di tipi

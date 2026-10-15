@@ -301,11 +301,12 @@ finally bidirectional.
   - `Like`/`Announce` on a local post or comment update counters and generate a
     notification, exactly like a local like/share;
   - `Create`/`Update` with a postable object (`Note`, `Page`, `Article`,
-    `Video`, `Image`) cache the remote post or comment locally (tables
+    `Video`, `Image`, `Question`) cache the remote post or comment locally (tables
     `posts`/`comments`, identified by the `uri` column), but **only if
     relevant** to this instance (the author is followed by a local Actor, the
     Note replies to content we already know, or it explicitly mentions a local
-    Actor): no remote content is stored "at random". HTML content is reduced to
+    Actor; updates to cached polls are also relevant): no remote content is
+    stored "at random". HTML content is reduced to
     plain text (`RemoteContentSanitizer`), preserving `<a href>` as
     `[label](url)`; images in `attachment` remain as remote URLs in the
     gallery. Then it goes through the same safe rendering pipeline as local
@@ -432,6 +433,41 @@ has enabled sharing to the Fediverse). The World section suggests remote
 accounts to discover and, beyond the first 5, the full list at `/mondo/scopri`
 with infinite scroll. SSRF, domain blocks, and HTTP signatures remain the
 baseline security constraints.
+
+### Remote polls — import stage (#120)
+
+Mastodon-shaped `Question` objects are imported through the existing inbox,
+outbox, featured collection, Announce and post/replies refresh paths. Their
+metadata lives in `remote_polls` and `remote_poll_options`; the post retains
+its ordinary author, audience and moderation rules. Question replies are
+excluded. This stage prepares storage: poll controls and local voting follow
+in subsequent sprints. No dedicated polling or worker is introduced.
+
+`oneOf` and `anyOf` preserve single/multiple choice, exact option names,
+nullable option/voter counts, expiry and explicit closure. Missing counts
+remain unknown; local choices do not alter remote results. The current
+normalizer accepts 2–50 distinct options of up to 1,000 Unicode characters.
+Malformed metadata is ignored without replacing a previously valid snapshot.
+Option reordering preserves identity; renaming replaces it and leaves any
+personal vote snapshot intact. An acquired closure remains closed.
+
+Explicit remote `updated` versions take precedence; otherwise original inbox
+receipt time and item ID determine replay order. Fetches use their local
+observation time. Without a remote revision, original server ordering cannot
+be inferred from delivery order: newer accepted snapshots may legitimately
+reduce counts. Third-party embedded polls are verified at the canonical
+endpoint. Vote-shaped Create/Note objects are skipped before becoming posts,
+comments or messages, even when their target is unknown.
+
+Apply migrations with `php artisan migrate`. Ordering metadata uses
+`results_received_at`, without depending on retained inbox rows. Poll and remote
+option rows omit automatic `created_at`/`updated_at`; publication lives in the
+associated post's `published_at`, while personal votes retain their timestamps.
+The corrective migration renames the earlier `observed_at` column and removes
+the redundant timestamps, preserving cached polls, results and personal votes.
+Historical inbox replay remains available through `openbook:reprocess-inbox`;
+it currently requeues all ignored/pending activities, so prefer fixture tests
+or a database copy for targeted verification until the selective replay stage.
 
 ### Federated events
 

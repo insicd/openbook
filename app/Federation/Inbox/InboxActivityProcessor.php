@@ -110,14 +110,14 @@ final class InboxActivityProcessor
             'Accept' => $this->handleAccept($activity, $signer),
             'Reject' => $this->handleReject($activity, $signer),
             'Undo' => $this->handleUndo($activity, $signer),
-            'Create' => $this->handleCreateOrUpdate($activity, $signer, $inboxTarget, $fromRelay),
-            'Update' => $this->handleUpdate($activity, $signer, $inboxTarget, $fromRelay),
+            'Create' => $this->handleCreateOrUpdate($activity, $signer, $inboxTarget, $fromRelay, $item),
+            'Update' => $this->handleUpdate($activity, $signer, $inboxTarget, $fromRelay, $item),
             'Delete' => $this->handleDelete($activity, $signer),
             'Like' => $this->handleLike($activity, $signer),
             'Add', 'Remove' => $this->handleFeaturedChange($activity, $signer),
             'Join' => $this->handleEventJoin($activity, $signer),
             'Leave' => $this->handleEventLeave($activity, $signer),
-            'Announce' => $this->handleAnnounce($activity, $signer, $inboxTarget, $fromRelay),
+            'Announce' => $this->handleAnnounce($activity, $signer, $inboxTarget, $fromRelay, $item),
             default => InboxItem::STATUS_IGNORED,
         };
     }
@@ -601,7 +601,7 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $activity
      */
-    private function handleAnnounce(array $activity, Actor $actor, ?Actor $inboxTarget = null, bool $fromRelay = false): string
+    private function handleAnnounce(array $activity, Actor $actor, ?Actor $inboxTarget = null, bool $fromRelay = false, ?InboxItem $source = null): string
     {
         $fetchedAnnouncedNote = null;
         $eventDocument = is_array($activity['object'] ?? null)
@@ -682,7 +682,7 @@ final class InboxActivityProcessor
                 return InboxItem::STATUS_IGNORED;
             }
 
-            $post = $this->resolveAnnouncedRemotePost($targetUri, $embeddedNote, $fromRelay);
+            $post = $this->resolveAnnouncedRemotePost($targetUri, $embeddedNote, $fromRelay, $source);
         }
 
         if ($post === null) {
@@ -758,12 +758,14 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>|null  $embeddedNote
      */
-    private function resolveAnnouncedRemotePost(?string $targetUri, ?array $embeddedNote, bool $requirePublic = false): ?Post
+    private function resolveAnnouncedRemotePost(?string $targetUri, ?array $embeddedNote, bool $requirePublic = false, ?InboxItem $source = null): ?Post
     {
         $note = $embeddedNote;
+        $fetched = false;
 
         if ($note === null && is_string($targetUri) && $targetUri !== '') {
             $note = $this->noteDocumentFetcher->fetch($targetUri);
+            $fetched = true;
         }
 
         if ($note === null || ! RemotePostObject::isPostable($note['type'] ?? null)) {
@@ -776,6 +778,19 @@ final class InboxActivityProcessor
 
         if ($requirePublic && $this->noteUpserter->visibilityFromAudience($note) !== Post::VISIBILITY_PUBLIC) {
             return null;
+        }
+
+        if (RemotePostObject::hasType($note['type'] ?? null, 'Question')
+            && ! $fetched
+            && ! RemotePostObject::authorMatches($note['attributedTo'] ?? null, $source?->actor_uri ?? '')) {
+            $note = is_string($targetUri) ? $this->noteDocumentFetcher->fetch($targetUri) : null;
+            if ($note === null || ! RemotePostObject::hasType($note['type'] ?? null, 'Question')) {
+                return null;
+            }
+            $fetched = true;
+        }
+        if ($fetched) {
+            $source = null;
         }
 
         $noteUri = is_string($note['id'] ?? null) ? $note['id'] : $targetUri;
@@ -813,7 +828,8 @@ final class InboxActivityProcessor
 
         $visibility = $this->noteUpserter->visibilityFromAudience($note);
 
-        if (! in_array($visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED], true)) {
+        if (($requirePublic && $visibility !== Post::VISIBILITY_PUBLIC)
+            || ! in_array($visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED], true)) {
             return null;
         }
 
@@ -822,7 +838,7 @@ final class InboxActivityProcessor
             isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
         );
 
-        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false);
+        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false, source: $source);
     }
 
     private function hasLocalFollower(Actor $actor): bool
@@ -908,7 +924,7 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $activity
      */
-    private function handleUpdate(array $activity, Actor $signer, ?Actor $inboxTarget = null, bool $fromRelay = false): string
+    private function handleUpdate(array $activity, Actor $signer, ?Actor $inboxTarget = null, bool $fromRelay = false, ?InboxItem $source = null): string
     {
         $rawObject = $activity['object'] ?? null;
         $object = is_string($rawObject)
@@ -922,7 +938,7 @@ final class InboxActivityProcessor
         $type = is_array($object) ? ($object['type'] ?? null) : null;
 
         if (is_array($object) && RemotePostObject::isPostable($type)) {
-            return $this->handleCreateOrUpdate($activity, $signer, $inboxTarget, $fromRelay);
+            return $this->handleCreateOrUpdate($activity, $signer, $inboxTarget, $fromRelay, $source);
         }
 
         if (is_array($object) && RemoteEventObject::isEvent($type)) {
@@ -969,7 +985,7 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>  $activity
      */
-    private function handleCreateOrUpdate(array $activity, Actor $actor, ?Actor $inboxTarget = null, bool $fromRelay = false): string
+    private function handleCreateOrUpdate(array $activity, Actor $actor, ?Actor $inboxTarget = null, bool $fromRelay = false, ?InboxItem $source = null): string
     {
         $object = $activity['object'] ?? null;
         $resolvedDocument = is_string($object)
@@ -1002,6 +1018,17 @@ final class InboxActivityProcessor
 
         if ($note === null || ! RemotePostObject::isPostable($note['type'] ?? null)) {
             return InboxItem::STATUS_IGNORED;
+        }
+
+        if (RemotePostObject::isPollVote($note)) {
+            return InboxItem::STATUS_IGNORED;
+        }
+        if (RemotePostObject::hasType($note['type'] ?? null, 'Question')
+            && is_string($object) && ($note['id'] ?? null) !== $object) {
+            return InboxItem::STATUS_IGNORED;
+        }
+        if (is_string($object)) {
+            $source = null;
         }
 
         $note = $this->mergeActivityAudience($activity, $note);
@@ -1040,7 +1067,8 @@ final class InboxActivityProcessor
         if ($inReplyTo !== null) {
             // I commenti federati sono Note; Article/Video/Page con inReplyTo
             // non li trattiamo come thread di risposta.
-            if (! RemotePostObject::hasType($note['type'] ?? null, 'Note')) {
+            if (RemotePostObject::hasType($note['type'] ?? null, 'Question')
+                || ! RemotePostObject::hasType($note['type'] ?? null, 'Note')) {
                 return InboxItem::STATUS_IGNORED;
             }
 
@@ -1112,24 +1140,25 @@ final class InboxActivityProcessor
         $conversationThreadParent = $this->resolveConversationThreadParent($note, $parentPost, $parentComment);
 
         if ($this->shouldStoreAsConversationMessage($note, $parentPost, $parentComment, $inboxTarget)) {
-            return DB::transaction(function () use ($note, $noteUri, $author, $body, $publishedAt, $conversationThreadParent) {
-                $this->noteUpserter->upsertPost(
+            return DB::transaction(function () use ($note, $noteUri, $author, $body, $publishedAt, $conversationThreadParent, $source) {
+                $post = $this->noteUpserter->upsertPost(
                     $note,
                     $noteUri,
                     $author,
                     $body,
                     $publishedAt,
                     directMessageThreadParent: $conversationThreadParent,
+                    source: $source,
                 );
 
-                return InboxItem::STATUS_PROCESSED;
+                return $post !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
             });
         }
 
         $isReply = $parentPost !== null || $parentComment !== null;
         $post = null;
 
-        $status = DB::transaction(function () use ($isReply, $note, $noteUri, $author, $body, $publishedAt, $parentPost, $parentComment, &$post) {
+        $status = DB::transaction(function () use ($isReply, $note, $noteUri, $author, $body, $publishedAt, $parentPost, $parentComment, &$post, $source) {
             if ($isReply) {
                 $comment = $this->noteUpserter->upsertComment($note, $noteUri, $author, $body, $parentPost, $parentComment);
 
@@ -1142,9 +1171,10 @@ final class InboxActivityProcessor
                 $author,
                 $body,
                 $publishedAt,
+                source: $source,
             );
 
-            return InboxItem::STATUS_PROCESSED;
+            return $post !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
         });
 
         if ($status === InboxItem::STATUS_PROCESSED && $post instanceof Post) {
@@ -1448,6 +1478,13 @@ final class InboxActivityProcessor
 
         if ($parentPost !== null || $parentComment !== null) {
             return true;
+        }
+
+        if (RemotePostObject::hasType($note['type'] ?? null, 'Question') && is_string($note['id'] ?? null)) {
+            $known = $this->objects->resolvePost($note['id']);
+            if ($known !== null && $known->actor_id === $author->id && $known->isPublished()) {
+                return true;
+            }
         }
 
         if ($this->isPersonalInboxDirectDelivery($note, $inboxTarget)) {

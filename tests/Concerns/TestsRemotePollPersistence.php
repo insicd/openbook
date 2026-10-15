@@ -8,6 +8,7 @@ use App\Domain\Polls\RemotePollVote;
 use App\Domain\Polls\RemotePollVoteChoice;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
+use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Database\QueryException;
 use Illuminate\Queue\DatabaseQueue;
@@ -165,6 +166,66 @@ trait TestsRemotePollPersistence
         $this->assertSame(0, RemotePollVote::count());
         $this->assertSame(0, RemotePollVoteChoice::count());
         $this->assertSame(0, DB::table('jobs')->count());
+    }
+
+    public function test_shared_import_preserves_ids_during_option_swaps_on_the_database(): void
+    {
+        $poll = $this->newPoll();
+        $post = $poll->post;
+        $note = json_decode(file_get_contents(base_path('tests/Fixtures/Federation/Polls/single-create.json')), true, 512, JSON_THROW_ON_ERROR)['object'];
+        $note['id'] = $post->uri;
+        $note['attributedTo'] = $post->actor->uri;
+        $upserter = app(RemoteNoteUpserter::class);
+        $this->assertNotNull($upserter->upsertPost($note, $post->uri, $post->actor, 'Question', now(), notifyMentions: false));
+        $ids = $poll->fresh()->options->pluck('id', 'name');
+        [$note['oneOf'][0], $note['oneOf'][1]] = [$note['oneOf'][1], $note['oneOf'][0]];
+        $note['oneOf'][2]['name'] = 'Venerdì';
+        $upserter->upsertPost($note, $post->uri, $post->actor, 'Question', now(), notifyMentions: false);
+        $options = $poll->fresh()->options;
+        $this->assertSame($ids['Domenica'], $options[0]->id);
+        $this->assertSame($ids['Sabato'], $options[1]->id);
+        $this->assertSame('Venerdì', $options[2]->name);
+        $this->assertNotSame($ids['Lunedì'], $options[2]->id);
+    }
+
+    public function test_observation_migrations_can_be_rolled_back_and_reapplied(): void
+    {
+        $simplification = require base_path('database/migrations/2026_10_15_000002_simplify_remote_poll_timestamps.php');
+        $observation = require base_path('database/migrations/2026_10_15_000001_add_observation_to_remote_polls.php');
+        $simplification->down();
+        $observation->down();
+        $this->assertFalse(DB::connection()->getSchemaBuilder()->hasColumn('remote_polls', 'observed_at'));
+        $this->assertFalse(DB::connection()->getSchemaBuilder()->hasColumn('remote_polls', 'results_received_at'));
+        $observation->up();
+        $simplification->up();
+        $this->assertTrue(DB::connection()->getSchemaBuilder()->hasColumn('remote_polls', 'results_received_at'));
+        $this->assertFalse(DB::connection()->getSchemaBuilder()->hasColumn('remote_polls', 'observed_at'));
+    }
+
+    public function test_timestamp_simplification_preserves_results_receipt_and_vote_dates(): void
+    {
+        $poll = $this->newPoll();
+        $poll->forceFill(['results_received_at' => '2026-10-08 10:05:00'])->save();
+        $option = $poll->options()->create(['position' => 0, 'name' => 'Sabato']);
+        $vote = $poll->votes()->create(['actor_id' => $this->pollActor(true)->id]);
+        $choice = $vote->choices()->create(['position' => 0, 'name' => 'Sabato']);
+        $migration = require base_path('database/migrations/2026_10_15_000002_simplify_remote_poll_timestamps.php');
+        $migration->down();
+        // Simulate a local DB that already ran the earlier sprint migrations.
+        DB::table('remote_polls')->where('id', $poll->id)->update(['created_at' => '2026-10-08 10:00:00', 'updated_at' => '2026-10-08 10:06:00']);
+        $migration->up();
+        $schema = DB::connection()->getSchemaBuilder();
+        foreach (['remote_polls', 'remote_poll_options'] as $table) {
+            $this->assertFalse($schema->hasColumn($table, 'created_at'));
+            $this->assertFalse($schema->hasColumn($table, 'updated_at'));
+        }
+        $this->assertSame('2026-10-08 10:05:00', $poll->fresh()->results_received_at->format('Y-m-d H:i:s'));
+        $this->assertSame('Sabato', $option->fresh()->name);
+        $poll->update(['voters_count' => 10]);
+        $option->update(['votes_count' => 10]);
+        $this->assertSame(10, $poll->fresh()->voters_count);
+        $this->assertNotNull($vote->fresh()->created_at);
+        $this->assertNotNull($choice->fresh()->created_at);
     }
 
     private function newPoll(bool $multiple = false): RemotePoll

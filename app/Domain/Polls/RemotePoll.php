@@ -12,13 +12,15 @@ class RemotePoll extends Model
 {
     use HasUuids;
 
+    public $timestamps = false;
+
     protected $fillable = ['post_id', 'multiple', 'ends_at', 'closed', 'closed_at', 'voters_count'];
 
     protected $hidden = ['votes'];
 
     protected function casts(): array
     {
-        return ['multiple' => 'boolean', 'closed' => 'boolean', 'ends_at' => 'datetime', 'closed_at' => 'datetime', 'voters_count' => 'integer'];
+        return ['multiple' => 'boolean', 'closed' => 'boolean', 'ends_at' => 'datetime', 'closed_at' => 'datetime', 'voters_count' => 'integer', 'remote_updated_at' => 'datetime', 'results_received_at' => 'datetime'];
     }
 
     public function isClosed(): bool
