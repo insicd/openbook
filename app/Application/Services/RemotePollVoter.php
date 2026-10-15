@@ -20,6 +20,7 @@ final class RemotePollVoter
     public function __construct(
         private readonly ActivityDelivery $delivery,
         private readonly DomainBlockManager $blocks,
+        private readonly RemotePollInteractionPolicy $interactionPolicy,
         private readonly SsrfGuard $ssrf,
     ) {}
 
@@ -75,7 +76,7 @@ final class RemotePollVoter
                 || count($options) < 2 || count(array_intersect($optionIds, $options->keys()->all())) !== count($optionIds)) {
                 throw ValidationException::withMessages(['choices' => __('openbook.polls.choose')]);
             }
-            $currentInbox = $post->actor->endpoints?->shared_inbox ?: $post->actor->endpoints?->inbox;
+            $currentInbox = $post->actor->deliveryInboxUrl();
             $this->assertInbox($inbox);
             $voter->load('key');
             if ($currentInbox !== $inbox || $voter->key === null || ! $voter->key->hasPrivateKey()) {
@@ -109,8 +110,7 @@ final class RemotePollVoter
     {
         $post->load('actor.endpoints');
         RemoteInteractionGuard::assertAllowed($voter, $post->actor);
-        if (! $post->isRemote() || ! $post->actor->isActive()
-            || $this->blocks->isBlockedUrl($post->uri ?? '') || $this->blocks->isBlockedUrl($post->actor->uri)) {
+        if (! $this->interactionPolicy->allows($voter, $post)) {
             throw new AuthorizationException(__('openbook.polls.retry'));
         }
     }

@@ -79,15 +79,7 @@ final class RemoteRepliesFetcher
             return;
         }
 
-        if (! $this->isType($note['type'] ?? null, 'Note') && ! $this->isType($note['type'] ?? null, 'Question')) {
-            Log::channel('single')->info('federation.replies.note_unavailable', [
-                'post_uri' => $post->uri,
-            ]);
-
-            return;
-        }
-
-        if ($this->isType($note['type'] ?? null, 'Question')) {
+        if (RemotePostObject::hasType($note['type'] ?? null, 'Question')) {
             if (($note['id'] ?? null) !== $post->uri
                 || ! RemotePostObject::authorMatches($note['attributedTo'] ?? null, $post->actor->uri)) {
                 return;
@@ -103,6 +95,14 @@ final class RemoteRepliesFetcher
         }
 
         $this->syncReactionTotals($post, $note, $signingActor);
+
+        if (! RemotePostObject::hasType($note['type'] ?? null, 'Note') && ! RemotePostObject::hasType($note['type'] ?? null, 'Question')) {
+            Log::channel('single')->info('federation.replies.note_unavailable', [
+                'post_uri' => $post->uri,
+            ]);
+
+            return;
+        }
 
         $items = $this->resolveRepliesItems($note['replies'] ?? null, $signingActor);
 
@@ -317,11 +317,11 @@ final class RemoteRepliesFetcher
             return;
         }
 
-        if ($this->isType($note['type'] ?? null, 'Create') && is_array($note['object'] ?? null)) {
+        if (RemotePostObject::hasType($note['type'] ?? null, 'Create') && is_array($note['object'] ?? null)) {
             $note = JsonLdLanguage::inherit($note['object'], $note);
         }
 
-        if (! $this->isType($note['type'] ?? null, 'Note') || RemotePostObject::isPollVote($note)) {
+        if (! RemotePostObject::hasType($note['type'] ?? null, 'Note') || RemotePostObject::isPollVote($note)) {
             Log::channel('single')->info('federation.replies.skip', [
                 'post_uri' => $post->uri,
                 'reason' => 'not_a_note',
@@ -494,20 +494,11 @@ final class RemoteRepliesFetcher
         return rtrim($a, '/') === rtrim($b, '/');
     }
 
-    private function isType(mixed $type, string $expected): bool
-    {
-        if ($type === $expected) {
-            return true;
-        }
-
-        return is_array($type) && in_array($expected, $type, true);
-    }
-
     private function isCollectionType(mixed $type): bool
     {
-        return $this->isType($type, 'Collection')
-            || $this->isType($type, 'OrderedCollection')
-            || $this->isType($type, 'CollectionPage')
-            || $this->isType($type, 'OrderedCollectionPage');
+        return RemotePostObject::hasType($type, 'Collection')
+            || RemotePostObject::hasType($type, 'OrderedCollection')
+            || RemotePostObject::hasType($type, 'CollectionPage')
+            || RemotePostObject::hasType($type, 'OrderedCollectionPage');
     }
 }

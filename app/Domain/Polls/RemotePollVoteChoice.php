@@ -19,8 +19,8 @@ class RemotePollVoteChoice extends Model
 
     protected static function booted(): void
     {
-        static::saving(function (self $option): void {
-            $option->name_hash = hash('sha256', $option->name);
+        static::saving(function (self $choice): void {
+            $choice->name_hash = hash('sha256', $choice->name);
         });
     }
 

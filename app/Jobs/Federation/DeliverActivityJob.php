@@ -82,7 +82,7 @@ final class DeliverActivityJob implements ShouldQueue
 
         // Older queued jobs predate this optional property.
         if (($this->pollVoteChoiceId ?? null) !== null
-            && ! app(PollVoteDeliveryGuard::class)->allows($this->pollVoteChoiceId, $actor, $this->inboxUrl, $domainBlocks)) {
+            && ! app(PollVoteDeliveryGuard::class)->allows($this->pollVoteChoiceId, $actor, $this->inboxUrl)) {
             $this->fail(new RuntimeException('Poll vote delivery stopped by current access or moderation rules.'));
 
             return;

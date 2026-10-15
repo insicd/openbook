@@ -59,7 +59,9 @@ stessa transazione, tramite `ActivityDelivery::enqueueDirectInTransaction()`.
 Il backend database interno `local_delivery` condivide connessione e tabella
 `jobs` del dominio; firma, invio e retry restano nel normale `DeliverActivityJob`
 e nel comando `openbook:deliver`. Il commit conferma il voto all'utente,
-indipendentemente dall'esito della consegna remota. Vedi
+indipendentemente dall'esito della consegna remota. `RemotePollInteractionPolicy`
+condivide i controlli di account e moderazione tra UI, voto e consegna; scadenza
+e visibilità restano verificate nelle fasi pertinenti. Vedi
 [sondaggi remoti](federation.it.md#sondaggi-remoti-120).
 
 Ogni account locale possiede fin da subito un Actor ActivityPub di tipo `Person`

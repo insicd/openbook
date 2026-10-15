@@ -671,6 +671,7 @@ final class InboxActivityProcessor
                 ? JsonLdLanguage::inherit($activity['object'], $activity)
                 : ($activity['object'] ?? null),
         );
+        $fetched = $embeddedNote === null && $fetchedAnnouncedNote !== null;
         $embeddedNote ??= $fetchedAnnouncedNote;
 
         $post = $targetUri !== null ? $this->objects->resolvePost($targetUri) : null;
@@ -682,7 +683,7 @@ final class InboxActivityProcessor
                 return InboxItem::STATUS_IGNORED;
             }
 
-            $post = $this->resolveAnnouncedRemotePost($targetUri, $embeddedNote, $fromRelay, $source);
+            $post = $this->resolveAnnouncedRemotePost($targetUri, $embeddedNote, $fromRelay, $source, $fetched);
         }
 
         if ($post === null) {
@@ -758,10 +759,9 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>|null  $embeddedNote
      */
-    private function resolveAnnouncedRemotePost(?string $targetUri, ?array $embeddedNote, bool $requirePublic = false, ?InboxItem $source = null): ?Post
+    private function resolveAnnouncedRemotePost(?string $targetUri, ?array $embeddedNote, bool $requirePublic = false, ?InboxItem $source = null, bool $fetched = false): ?Post
     {
         $note = $embeddedNote;
-        $fetched = false;
 
         if ($note === null && is_string($targetUri) && $targetUri !== '') {
             $note = $this->noteDocumentFetcher->fetch($targetUri);
@@ -790,6 +790,9 @@ final class InboxActivityProcessor
             $fetched = true;
         }
         if ($fetched) {
+            if (RemotePostObject::hasType($note['type'] ?? null, 'Question') && ($note['id'] ?? null) !== $targetUri) {
+                return null;
+            }
             $source = null;
         }
 

@@ -314,13 +314,13 @@ final class ActivityDelivery
         }
 
         $target->loadMissing('endpoints');
-        $inbox = $target->endpoints?->shared_inbox ?: $target->endpoints?->inbox;
+        $inbox = $target->deliveryInboxUrl();
 
         if (blank($inbox)) {
             $refreshed = app(RemoteActorResolver::class)->refresh($target);
 
             if ($refreshed !== null) {
-                $inbox = $refreshed->endpoints?->shared_inbox ?: $refreshed->endpoints?->inbox;
+                $inbox = $refreshed->deliveryInboxUrl();
             }
         }
 

@@ -19,27 +19,22 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Sondaggi remoti, interfaccia (#120)**: sondaggi nelle card e nel dettaglio del
-  post, con scelta singola/multipla, conferma immediata «Voto registrato» e
-  risposte personali evidenziate. Risultati remoti con percentuali quando i
-  conteggi sono coerenti, stato aperto/concluso e scadenza dichiarata; le scelte
-  rinominate o rimosse conservano il testo originale. Funziona anche senza
-  JavaScript, rispetta gli avvisi sui contenuti e la visibilità del post.
-- **Sondaggi remoti, backend del voto (#120)**: voto singolo/multiplo definitivo
-  al salvataggio atomico di scelte e attività nella coda database locale.
-  Consegna privata al solo autore, retry con ID stabili e controlli di accesso
-  anche prima dell'invio. `openbook:deliver` consuma questa coda anche con
-  driver globale `sync` o un backend separato. Dopo l'aggiornamento rigenerare
-  la cache di configurazione, se usata.
-- **Sondaggi remoti, importazione (#120)**: gli oggetti `Question` vengono
-  conservati con opzioni, risultati dichiarati e chiusura attraverso inbox,
-  outbox, condivisioni e refresh esistenti. Il replay delle vecchie attività
-  preserva lo stato più recente disponibile; le Note di voto sono escluse da
-  commenti e messaggi. I dati alimentano l'interfaccia del sondaggio e il
-  servizio di voto locale.
-  La ricezione dei risultati usa `results_received_at`; sondaggi e opzioni
-  remote omettono i timestamp automatici. La migration correttiva aggiorna
-  anche i DB locali che avevano già applicato le migration iniziali.
+- **Sondaggi remoti (#120)**: importazione degli oggetti `Question` attraverso
+  inbox, outbox, condivisioni e refresh esistenti; visualizzazione nelle card e
+  nel dettaglio del post, con voto singolo/multiplo e conferma «Voto registrato»
+  alla persistenza atomica delle scelte e delle attività nella coda locale.
+  Le risposte personali restano evidenziate anche dopo rinomina/rimozione delle
+  opzioni; conteggi e percentuali provengono dai dati dichiarati dall'origine.
+  Consegna al solo autore, retry con ID stabili, controlli di accesso e
+  moderazione anche prima dell'invio. Nessun polling dedicato; funzionamento
+  anche senza JavaScript, con avvisi sui contenuti e visibilità del post.
+  Le Note di voto sono escluse da commenti e messaggi; il replay storico
+  preserva lo snapshot più recente. `openbook:deliver` consuma la coda database
+  del dominio anche con driver globale `sync` o backend separato. Applicare le
+  migration e rigenerare cache di configurazione e route, se usate. La migration
+  correttiva preserva anche i DB locali che avevano applicato gli incrementi
+  iniziali, usando `results_received_at` e omettendo i timestamp automatici di
+  sondaggi e opzioni remote.
 - **Campanella sui Group**: Mastodon tiene `notify` solo in locale e non lo
   mette nel Follow; l'Announce FEP-1b12 e' un boost e non fa suonare la
   campanella. I nuovi post sul wall di un Group locale vengono quindi

@@ -441,7 +441,9 @@ outbox, featured collection, Announce and post/replies refresh paths. Their
 metadata lives in `remote_polls` and `remote_poll_options`; the post retains
 its ordinary author, audience and moderation rules. Question replies are
 excluded. Polls appear in feed cards and on the post page (`/posts/{post}`),
-identified by `remote_polls.post_id`. No dedicated polling or worker is introduced.
+identified by `remote_polls.post_id`. No dedicated polling or worker is introduced. Opening
+the page reloads text, content warning and visibility after refresh, applying
+the current audience before displaying content.
 
 `oneOf` and `anyOf` preserve single/multiple choice, exact option names,
 nullable option/voter counts, expiry and explicit closure. Missing counts
@@ -466,8 +468,8 @@ associated post's `published_at`, while personal votes retain their timestamps.
 The corrective migration renames the earlier `observed_at` column and removes
 the redundant timestamps, preserving cached polls, results and personal votes.
 Historical inbox replay remains available through `openbook:reprocess-inbox`;
-it currently requeues all ignored/pending activities, so prefer fixture tests
-or a database copy for targeted verification until the selective replay stage.
+it requeues all ignored/pending activities, including ordinary content. Use
+fixtures or a database copy for verification limited to polls.
 
 Answers use native radio buttons or checkboxes; “Vote” immediately confirms
 “Vote recorded” after commit and shows “Your answer” only to its owner.

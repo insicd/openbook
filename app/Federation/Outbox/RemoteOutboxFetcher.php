@@ -498,6 +498,8 @@ final class RemoteOutboxFetcher
             $note = RemotePostObject::unwrap(JsonLdLanguage::inherit($object, $item));
         }
 
+        $embedded = $note !== null;
+
         if ($note === null && is_string($object) && $object !== '') {
             $note = $this->noteDocumentFetcher->fetch($object);
         } elseif ($note === null && is_array($object) && is_string($object['id'] ?? null) && ! RemotePostObject::isPostable($object['type'] ?? null)) {
@@ -509,7 +511,7 @@ final class RemoteOutboxFetcher
             return;
         }
 
-        if (RemotePostObject::hasType($note['type'] ?? null, 'Question')) {
+        if ($embedded && RemotePostObject::hasType($note['type'] ?? null, 'Question')) {
             $uri = $note['id'] ?? null;
             $note = is_string($uri) ? $this->noteDocumentFetcher->fetch($uri) : null;
             if ($note === null || ! RemotePostObject::hasType($note['type'] ?? null, 'Question')) {

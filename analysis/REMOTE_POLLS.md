@@ -1,9 +1,10 @@
 # Sondaggi remoti — issue #120
 
-Stato al 15 ottobre 2026: sprint 1 committato in `3423260`; sprint 2 implementato
-(importazione e aggiornamenti), verificato e ancora da committare. Voto applicativo e UI restano
-negli sprint successivi. Le scelte tecniche indicate sotto vengono risolte
-negli sprint prima del codice che ne dipende.
+Stato al 15 ottobre 2026: sprint 1–4 implementati e committati; revisione finale
+completata, con correzioni e verifiche descritte in fondo. Importazione e voto
+sono collegati all'interfaccia; filtro selettivo e anteprima inbox sono stati
+esclusi dall'utente. I paragrafi sugli esiti degli sprint documentano le verifiche
+incrementali e vanno letti insieme alla revisione conclusiva.
 Issue: https://github.com/insicd/openbook/issues/120
 
 ## Obiettivo e vincoli
@@ -221,20 +222,16 @@ e multipla, tastiera, conferma, ricaricamento e scadenza. Accertare che il voto
 di un utente non appaia come scelta personale di un altro. Dimostrazione locale
 con fixture aperte e risultati aggiornati tramite inbox, senza polling.
 
-### Sprint 5 — Recupero storico e chiusura
+### Sprint 5 — Revisione complessiva e chiusura
 
-Il comando `openbook:reprocess-inbox` include già tutte le attività ignored e
-pending, indipendentemente dal tipo di oggetto: i sondaggi sono quindi già
-riaccodabili. Valutare un filtro selettivo per Question e un'anteprima dei
-candidati per recuperare lo storico senza riprocessare tutta l'inbox; mantenere
-il comportamento preesistente quando il filtro non è specificato.
+L'utente ha escluso il filtro selettivo e l'anteprima del riprocessamento inbox:
+non sono necessari per completare la funzionalità. Il comando esistente resta
+invariato e ha già consentito la verifica del campione locale.
 
-Verifica: test del comando con sondaggi e attività ordinarie mescolati,
-preservazione di processed/failed, anteprima priva di effetti se introdotta e
-replay ripetuto. Provare prima su una copia del campione locale. Verificare
-piano e costo della selezione su MySQL, evitando assunzioni sull'indicizzazione
-dei payload JSON. Chiudere con suite completa, regressioni dei post ordinari,
-documentazione EN/IT, changelog secondo le regole e revisione dell'intero diff.
+Chiudere con revisione critica di tutto il ramo rispetto a `main`: coerenza con
+servizi e flussi del progetto, duplicazioni, nomi, privacy e regressioni.
+Correggere i rilievi, eseguire test mirati e suite completa, verificare le query
+su MySQL e allineare documentazione EN/IT e changelog prima del commit finale.
 
 ## Progettazione tecnica da completare negli sprint
 
@@ -441,8 +438,8 @@ scambi di posizione con i vincoli reali e il rollback della nuova migration.
 Applicare le migration aggiuntive `2026_10_15_000001_add_observation_to_remote_polls`
 e `2026_10_15_000002_simplify_remote_poll_timestamps` con `php artisan migrate`. I dati possono ora essere importati; l'interfaccia specifica e il
 voto restano da implementare insieme negli sprint 3 e 4. Il comando selettivo
-per recuperare lo storico resta nello sprint 5; nessun replay del DB locale
-è stato eseguito in questa sessione.
+per recuperare lo storico era stato considerato per lo sprint 5 e poi escluso
+dall’utente. Nessun replay del DB locale era stato eseguito nello sprint 2.
 
 
 Verifiche finali dello sprint 2:
@@ -605,3 +602,70 @@ Verifiche finali dello sprint 4:
 - Lo sprint 3 è congelato nel commit `e39b5fe`; lo sprint 4 è stato verificato
   localmente anche dall’utente e approvato per il commit. Nessun voto inviato
   verso utenti remoti reali.
+
+
+## Revisione conclusiva del ramo
+
+Perimetro confermato: niente filtro o anteprima inbox. L'importazione storica
+è già disponibile col comando esistente. La review comprende tutti gli sprint,
+non soltanto l'interfaccia; mantiene fuori refactor generali estranei all'issue.
+
+Rilievi corretti e riprodotti prima delle modifiche:
+
+- `RemoteRepliesFetcher` aveva spostato il controllo del tipo prima del refresh
+  dei contatori, interrompendo l'aggiornamento delle reazioni dei normali Article.
+  Ripristinato il comportamento preesistente, mantenendo prima la validazione dei
+  Question. Eliminato il riconoscitore di tipi duplicato e riusato
+  `RemotePostObject::hasType`, coerente con inbox e tipi JSON-LD completi.
+- L'apertura del post validava la visibilità prima del fetch, ma la Question
+  poteva aggiornare insieme testo, avviso e audience. `PostController` ora rilegge
+  e autorizza il post corrente dopo il refresh, prima di renderizzare contenuto
+  e commenti. Test distinti per ospite e utente autenticato escluso dal pubblico,
+  oltre al render immediato del nuovo testo e del nuovo avviso.
+- Citazioni, outbox Group e Announce dell'inbox recuperavano una seconda volta
+  Question già ottenute dal documento canonico. Il flusso distingue oggetti
+  incorporati da documenti recuperati; conserva verifica dell'ID, autore,
+  audience e blocchi, e usa il tempo del fetch per l'ordinamento. I test contano
+  le richieste reali simulate e respingono ID sostituiti.
+
+Pulizia e coerenza:
+
+- `RemotePollInteractionPolicy` riunisce le condizioni di account, origine e
+  moderazione condivise da disponibilità UI, conferma e consegna. Non ingloba
+  scadenza o avanzamento della consegna: un voto confermato resta tale anche
+  quando il sondaggio si chiude dopo il commit. Visibilità e stato corrente
+  vengono ricontrollati nelle fasi che lo richiedono.
+- `Actor::deliveryInboxUrl()` centralizza la scelta dell'endpoint già in cache.
+  La risoluzione di rete resta in `ActivityDelivery`, fuori dalla transazione
+  del voto. Il servizio di importazione mantiene il nome storico
+  `RemoteNoteUpserter`, già condiviso dagli altri tipi postabili: rinominarlo
+  amplierebbe inutilmente il diff dell'issue.
+- Corretto il nome della variabile dello snapshot (`choice`), riallineata la
+  documentazione del fetcher e unificate le note di rilascio in una sola voce
+  che descrive la funzionalità finale.
+- Le tre migration restano separate: sono già state applicate durante le prove
+  locali; preservarle consente aggiornamento incrementale e installazione nuova
+  senza interventi manuali sul DB. I rollback e la preservazione dei dati sono
+  coperti sia su SQLite sia su MySQL.
+
+Verifica preliminare della review: sette nuovi casi riproducevano i rilievi prima
+delle correzioni. Dopo le correzioni, 113 test mirati passati (432 asserzioni),
+più 31 test MySQL isolati passati (168 asserzioni), inclusi concorrenza e EXPLAIN.
+Due ulteriori casi coprono ID sostituito e tipo JSON-LD completo nel refresh.
+
+
+Esito finale della review:
+
+- 56 test mirati di importazione, refresh e UI passati (236 asserzioni), inclusi
+  tutti i nuovi casi di regressione; 31 test MySQL passati (168 asserzioni).
+- Suite completa: 1.589 passati, 33 saltati e i due fallimenti già presenti
+  `VisibilityFromAudienceTest` e `FeedTest` (7.031 asserzioni). I fallimenti di
+  base sono separati dall'issue; la review non introduce altre regressioni.
+- Pint, sintassi JavaScript e controllo whitespace passati. Server MySQL
+  temporaneo arrestato; nessuna migration o modifica manuale del DB locale.
+- Review del diff complessivo e di quello correttivo completata; nessun rilievo
+  bloccante resta aperto nel perimetro dei sondaggi. La consegna verso un server
+  remoto reale resta una verifica di interoperabilità ancora da effettuare:
+  invio, retry e failure sono stati esercitati con HTTP simulato.
+- Il ramo conserva i commit incrementali già approvati e si chiude con un commit
+  di correzione e pulizia; nessuna riscrittura della storia applicata in locale.

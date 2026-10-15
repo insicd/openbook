@@ -280,6 +280,7 @@ final class RemoteNoteUpserter
         }
 
         $document = RemotePostObject::embeddedQuote($note);
+        $embedded = $document !== null;
 
         if ($document === null) {
             $document = $this->noteDocumentFetcher->fetch($quoteUri);
@@ -300,7 +301,7 @@ final class RemoteNoteUpserter
             return null;
         }
 
-        if (RemotePostObject::hasType($document['type'] ?? null, 'Question')) {
+        if ($embedded && RemotePostObject::hasType($document['type'] ?? null, 'Question')) {
             $document = $this->noteDocumentFetcher->fetch($quoteUri);
             if ($document === null || ! RemotePostObject::hasType($document['type'] ?? null, 'Question')) {
                 return null;

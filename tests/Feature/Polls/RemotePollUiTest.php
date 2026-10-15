@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesRemotePolls;
 use Tests\TestCase;
 
@@ -173,6 +174,41 @@ class RemotePollUiTest extends TestCase
         $this->assertNull($post->quotedPost->remotePoll->getRelation('viewerVote'));
         $this->actingAs($voter->user);
         $this->assertStringNotContainsString('data-poll-id', view('posts._card', ['post' => $post])->render());
+    }
+
+    #[DataProvider('readers')]
+    public function test_refresh_rechecks_visibility_before_rendering_the_post(bool $signedIn): void
+    {
+        [$voter, $poll] = $this->fixtureForPage();
+        $poll->post->update(['replies_fetched_at' => null]);
+        $document = json_decode(file_get_contents(base_path('tests/Fixtures/Federation/Polls/single-update.json')), true)['object'];
+        $document['to'] = [$poll->post->actor->endpoints->followers];
+        $document['cc'] = [];
+        $document['content'] = '<p>Testo riservato dopo il refresh</p>';
+        Http::fake([$poll->post->uri => Http::response($document)]);
+        if ($signedIn) {
+            $this->actingAs($voter->user);
+        }
+        $this->get(route('posts.show', $poll->post))->assertNotFound()->assertDontSee('Testo riservato dopo il refresh');
+        $this->assertSame('followers', $poll->post->fresh()->visibility);
+    }
+
+    public static function readers(): array
+    {
+        return ['guest' => [false], 'authenticated non-follower' => [true]];
+    }
+
+    public function test_refresh_renders_current_text_and_content_warning_with_the_results(): void
+    {
+        [$voter, $poll] = $this->fixtureForPage();
+        $poll->post->update(['replies_fetched_at' => null]);
+        $document = json_decode(file_get_contents(base_path('tests/Fixtures/Federation/Polls/single-update.json')), true)['object'];
+        $document['content'] = '<p>Domanda aggiornata dal server remoto</p>';
+        $document['sensitive'] = true;
+        $document['summary'] = 'Spoiler aggiornato';
+        Http::fake([$poll->post->uri => Http::response($document)]);
+        $this->actingAs($voter->user)->get(route('posts.show', $poll->post))->assertOk()
+            ->assertSee('Domanda aggiornata dal server remoto')->assertSee('Spoiler aggiornato');
     }
 
     private function fixtureForPage(): array

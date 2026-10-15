@@ -353,6 +353,73 @@ class RemotePollImportTest extends TestCase
         $this->assertSame(RemotePoll::sole()->post_id, $quoting->quoted_post_id);
     }
 
+    public function test_quote_by_uri_fetches_the_canonical_question_only_once(): void
+    {
+        $activity = $this->fixture('single-create');
+        $question = $this->fixture('single-update')['object'];
+        $activity['object']['id'] .= '-quoting';
+        $activity['object']['type'] = 'Note';
+        $activity['object']['quote'] = $question['id'];
+        Http::fake([$question['id'] => Http::response($question)]);
+        $this->assertSame('processed', $this->process($this->item($activity, '2026-10-08 10:00:00')));
+        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        Http::assertSentCount(1);
+    }
+
+    public function test_group_outbox_fetches_question_references_only_once(): void
+    {
+        $group = $this->createRemoteActor('group', 'group.example', ['type' => Actor::TYPE_GROUP, 'events_fetched_at' => now()]);
+        $question = $this->fixture('single-update')['object'];
+        Http::fake([
+            $group->endpoints->outbox => Http::response(['type' => 'OrderedCollection', 'orderedItems' => [['type' => 'Announce', 'object' => $question['id']]]]),
+            $question['id'] => Http::response($question),
+        ]);
+        app(RemoteOutboxFetcher::class)->fetchRecentContent($group);
+        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        Http::assertSentCount(2);
+    }
+
+    public function test_inbox_announce_fetches_a_question_reference_only_once(): void
+    {
+        $activity = $this->fixture('single-create');
+        $activity['type'] = 'Announce';
+        $question = $this->fixture('single-update')['object'];
+        $activity['object'] = $question['id'];
+        // A different announcing actor makes the fetched author's provenance relevant.
+        $booster = $this->createRemoteActor('booster');
+        Follow::create(['follower_id' => $this->viewer->id, 'following_id' => $booster->id, 'status' => 'accepted', 'requested_at' => now(), 'accepted_at' => now()]);
+        $activity['actor'] = $booster->uri;
+        $item = $this->item($activity, '2026-10-08 10:00:00');
+        $item->update(['actor_uri' => $booster->uri]);
+        Http::fake([$question['id'] => Http::response($question)]);
+        $this->assertSame('processed', $this->process($item));
+        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        Http::assertSentCount(1);
+    }
+
+    public function test_fetched_announce_cannot_substitute_a_different_question_id(): void
+    {
+        $activity = $this->fixture('single-create');
+        $activity['type'] = 'Announce';
+        $question = $this->fixture('single-update')['object'];
+        $activity['object'] = $question['id'];
+        $question['id'] .= '-substituted';
+        Http::fake([$activity['object'] => Http::response($question)]);
+        $this->assertSame('ignored', $this->process($this->item($activity, '2026-10-08 10:00:00')));
+        $this->assertSame(0, RemotePoll::count());
+        Http::assertSentCount(1);
+    }
+
+    public function test_replies_refresh_uses_the_same_json_ld_type_matching_as_inbox(): void
+    {
+        $this->process($this->item($this->fixture('single-create'), '2026-10-08 10:00:00'));
+        $question = $this->fixture('single-update')['object'];
+        $question['type'] = ['https://www.w3.org/ns/activitystreams#Question'];
+        Http::fake([$question['id'] => Http::response($question)]);
+        app(RemoteRepliesFetcher::class)->fetchReplies(Post::sole(), force: true);
+        $this->assertSame(46, RemotePoll::sole()->voters_count);
+    }
+
     private function fixture(string $name): array
     {
         return json_decode(file_get_contents(base_path('tests/Fixtures/Federation/Polls/'.$name.'.json')), true, 512, JSON_THROW_ON_ERROR);

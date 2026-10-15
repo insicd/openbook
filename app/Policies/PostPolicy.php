@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Application\Services\DomainBlockManager;
+use App\Application\Services\RemotePollInteractionPolicy;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
 
@@ -12,17 +13,15 @@ class PostPolicy
     {
         $actor = $user->actor;
         $poll = $post->remotePoll;
-        if (! $user->isActive() || ! $actor?->isLocal() || ! $actor->isActive()
-            || ! $post->isRemote() || ! $post->isPublished() || ! $post->actor?->isActive()
-            || $post->actor->isRemotelySuspended() || $poll === null || $poll->isClosed()
+        if ($actor === null || ! app(RemotePollInteractionPolicy::class)->allows($actor, $post)
+            || $poll === null || $poll->isClosed()
             || $poll->options->count() < 2 || ! $actor->key?->hasPrivateKey()) {
             return false;
         }
-        $inbox = $post->actor->endpoints?->shared_inbox ?: $post->actor->endpoints?->inbox;
+        $inbox = $post->actor->deliveryInboxUrl();
         $blocks = app(DomainBlockManager::class);
 
-        return filled($inbox) && ! $blocks->isBlockedUrl($inbox)
-            && ! $blocks->isBlockedUrl($post->actor->uri) && ! $blocks->isBlockedUrl($post->uri ?? '');
+        return filled($inbox) && ! $blocks->isBlockedUrl($inbox);
     }
 
     public function update(User $user, Post $post): bool

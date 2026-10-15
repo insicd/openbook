@@ -442,7 +442,9 @@ post/risposte. I metadati vivono in `remote_polls` e `remote_poll_options`; il
 post conserva le normali regole di autore, audience e moderazione. Le Question
 di risposta sono escluse. Il sondaggio compare nella card del feed e nella
 pagina del post (`/posts/{post}`), identificato da `remote_polls.post_id`.
-Restano i percorsi di aggiornamento esistenti, senza polling o worker dedicati.
+Restano i percorsi di aggiornamento esistenti, senza polling o worker dedicati. L'apertura
+della pagina rilegge testo, avviso e visibilità dopo il refresh, applicando
+il pubblico corrente prima di mostrare il contenuto.
 
 `oneOf` e `anyOf` conservano scelta singola/multipla, nomi esatti delle opzioni,
 conteggi nullable di risposte/votanti, scadenza e chiusura esplicita. I conteggi
@@ -469,8 +471,8 @@ la pubblicazione è nel `published_at` del post associato, mentre i voti persona
 conservano le proprie date. La migration correttiva rinomina il precedente
 `observed_at` e rimuove i timestamp ridondanti, preservando sondaggi in cache,
 risultati e voti personali. Il replay storico resta disponibile con `openbook:reprocess-inbox`, che
-oggi riaccoda tutte le attività ignored/pending: per una verifica mirata usare
-fixture o una copia del DB fino alla fase di riprocessamento selettivo.
+riaccoda tutte le attività ignored/pending, comprese quelle ordinarie. Per una
+verifica limitata ai sondaggi usare le fixture o una copia del DB.
 
 Le risposte si selezionano tramite radio o checkbox; «Vota» conferma subito
 «Voto registrato» dopo il commit e mostra «La tua risposta» solo al proprietario.
