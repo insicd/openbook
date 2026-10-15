@@ -28,9 +28,10 @@ class CronCommand extends Command
     public function handle(): int
     {
         $budget = max(3, (int) $this->option('max-time'));
-        $slice = max(1, intdiv($budget, 4));
+        $slice = max(1, intdiv($budget, 5));
 
         $this->call('openbook:process-inbox', ['--max-time' => $slice]);
+        $this->call('openbook:process-polls', ['--max-time' => $slice]);
         $this->call('openbook:deliver', ['--max-time' => $slice]);
         $this->call('openbook:deliver-push', ['--max-time' => $slice]);
         // Accept mancanti (tags.pub): conferma via collection followers.

@@ -434,9 +434,9 @@ accounts to discover and, beyond the first 5, the full list at `/mondo/scopri`
 with infinite scroll. SSRF, domain blocks, and HTTP signatures remain the
 baseline security constraints.
 
-### Local polls (#121, first increment)
+### Local polls (#121)
 
-The first increment adds persistence and publication as `Question` through
+Openbook persists polls and publishes them as `Question` through
 existing post Create, Update, canonical GET and outbox paths. `PostComposer`
 accepts `poll` containing `options` (a list of 2–6 distinct strings of at most
 50 Unicode characters), `multiple` (boolean) and `duration_seconds` (integer
@@ -446,11 +446,12 @@ videos; initial counts are zero.
 Definition and visibility stay fixed after publication. Text corrections cannot
 add recipients. Local communities, including private ones, are supported;
 private conversations and publication to remote Groups are intentionally
-excluded. Run `php artisan migrate`. Creation/voting UI and the results distribution command will arrive in
-subsequent increments. The
-normal flow already sends Create(Question); pending federation work is recorded
-together with the poll for subsequent integration with the general cron,
-without requiring a new cron configuration.
+excluded. Run `php artisan migrate`. Creation/voting UI follows in the next
+increment. `PostComposer` records durable publication or update work together
+with the Question; `openbook:cron` now calls `openbook:process-polls` between
+inbox processing and ordinary delivery. No additional cron configuration or
+permanent worker is required. The canonical GET and outbox expose the current
+Question independently of delivery progress.
 
 `LocalPollVoter` collects definitive local ballots and federated Create/Note
 answers. `LocalPollVoteIngester` checks signer, author, Note origin and canonical
@@ -469,7 +470,36 @@ current document cannot prove its contents at envelope receipt. A timely queued
 answer can update closed results while retaining closure. Processing rechecks
 current permissions; an old receipt does not retain revoked access. Results are
 available in the canonical Question immediately; federated distribution will be
-connected in the next increment.
+handled by the cron described below.
+
+The poll processor first records scheduled closures, then groups pending
+revisions into Create/Update snapshots. `poll_distributions` holds at most one
+active snapshot per poll, its revision and batch cursor. A batch commits delivery
+jobs and cursor together through the `local_delivery` database connection; a
+crash rolls back both, while already committed batches remain queued. Completing
+a snapshot acknowledges only that revision; votes or edits accepted during the
+fan-out retain pending work for a subsequent Update. Update IDs derive from the
+revision and queued objects remain stable during retries. Active snapshots are
+removed after fan-out, including snapshots for deleted posts. Rollback of this
+table requires active distributions to finish first. An initial Create with
+coalesced revisions is accompanied by an Update, ensuring peers that already
+received a pre-cron Create also receive the latest results.
+
+Destinations include authorized remote followers, community members, mentions
+and voters, even voters who do not follow the author. Shared inboxes are
+deduplicated before batching. Public relays retain ordinary Create/Update or
+technical Announce behavior; restricted Questions never go to relays. Current
+access and audience are rechecked by `DeliverActivityJob` before HTTP delivery.
+Missing inbox metadata is resolved by delivery, with normal retries, outside
+poll locks. HTTP and Linked Data signatures also happen at delivery time.
+
+For a manual preparation pass, run `php artisan openbook:process-polls`; its
+`--max-time`, `--limit` and `--batch-size` options bound elapsed time, batches
+and destinations respectively. Ordinary `openbook:deliver` sends the jobs even
+when the global queue uses `sync` or another database. The general cron combines
+both steps. A closed Question can receive another results Update for timely
+answers that were still in the authenticated inbox. Delivery timing follows the
+cron and retry schedule, without remote polling.
 
 The `polls`, `poll_options`, `poll_votes` and `poll_vote_choices` tables are
 shared by local and remote polls. The new migration first renames the four

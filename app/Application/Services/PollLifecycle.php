@@ -3,6 +3,7 @@
 namespace App\Application\Services;
 
 use App\Domain\Polls\Poll;
+use App\Domain\Polls\PollDistribution;
 use App\Domain\Polls\PollVote;
 use App\Domain\Posts\Post;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ final class PollLifecycle
             if ($poll === null) {
                 return;
             }
+            PollDistribution::query()->where('poll_id', $poll->id)->delete();
             $poll->votes()->delete();
             $poll->options()->delete();
             // Keep only metadata while the post exists as a Question tombstone.

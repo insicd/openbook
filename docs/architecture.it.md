@@ -88,8 +88,15 @@ tombstone. Revisione e lavoro federato pendente sono durevoli nello stesso DB.
 `LocalPollVoter` serializza le schede sotto lock di post/sondaggio e salva insieme
 conteggi e lavoro pendente. `LocalPollVoteIngester` verifica l’identità del voto
 in ingresso prima dei flussi commenti/messaggi; per i voti incorporati decide
-la ricezione originale. Il collegamento al cron segue nel prossimo incremento. Vedi
-[sondaggi locali](federation.it.md#sondaggi-locali-121-primo-incremento).
+la ricezione originale. `PollResultsProcessor` conserva uno snapshot recuperabile
+`PollDistribution` per ogni fan-out attivo. Ogni batch accoda i normali job di
+consegna e avanza il cursore nella stessa transazione, riconoscendo soltanto la
+revisione distribuita. `openbook:cron` chiude i sondaggi scaduti ed elabora gli
+snapshot pendenti prima della consegna ordinaria. Le query dei destinatari
+uniscono rami indicizzati di follower, votanti e menzioni, deduplicando le shared
+inbox. Firme HTTP/Linked Data e recupero eventuale dell’inbox avvengono fuori dai
+lock nel job di consegna, che ricontrolla gli accessi. Vedi
+[sondaggi locali](federation.it.md#sondaggi-locali-121).
 
 ### Post, commenti e reazioni
 

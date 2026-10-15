@@ -293,7 +293,7 @@ final class ActivityDelivery
     }
 
     /** @param array<string, mixed> $activity */
-    public function enqueueDirectInTransaction(Actor $signer, string $inbox, array $activity, ?string $pollVoteChoiceId = null): void
+    public function enqueueDirectInTransaction(Actor $signer, string $inbox, array $activity, ?string $pollVoteChoiceId = null, ?string $relayId = null, ?string $pollPostId = null, ?string $pollRecipientActorId = null): void
     {
         $queue = Queue::connection('local_delivery');
         if (DB::transactionLevel() === 0 || ! $signer->isLocal()
@@ -301,7 +301,7 @@ final class ActivityDelivery
             throw new LogicException('Transactional delivery must share the domain database transaction.');
         }
         $queue->push(
-            (new DeliverActivityJob($inbox, $activity, $signer->id, pollVoteChoiceId: $pollVoteChoiceId))
+            (new DeliverActivityJob($inbox, $activity, $signer->id, $relayId, $pollVoteChoiceId, $pollRecipientActorId, $pollPostId))
                 ->onConnection('local_delivery')->beforeCommit(),
             '', 'delivery',
         );
@@ -366,13 +366,7 @@ final class ActivityDelivery
         array $activity,
         Collection $alreadyAddressed,
     ): Collection {
-        $relays = Relay::query()
-            // Gli Actor relay pubblicano Announce tecnici: verranno aggiunti
-            // dal flusso dedicato, non devono ricevere il payload Mastodon.
-            ->where('protocol', Relay::PROTOCOL_MASTODON)
-            ->where('state', Relay::STATE_ACCEPTED)
-            ->where('publish_enabled', true)
-            ->get(['id', 'inbox_url']);
+        $relays = $this->mastodonRelays();
 
         $relays->each(function (Relay $relay) use ($activity, $alreadyAddressed, $signingActor): void {
             if ($alreadyAddressed->contains($relay->inbox_url)) {
@@ -494,6 +488,30 @@ final class ActivityDelivery
             ->all())->unique()->values();
     }
 
+    /** Cached destinations only; callers choose durable or ordinary enqueueing. */
+    public function contentRelayDestinations(Post $post): Collection
+    {
+        if (! $this->isPublicContent($post) || $post->isInPrivateCommunity()) {
+            return collect();
+        }
+        $destinations = $this->mastodonRelays()->map(fn (Relay $relay): array => [
+            'inbox_url' => $relay->inbox_url, 'relay_id' => $relay->id, 'actor_id' => $post->actor_id,
+        ]);
+        $service = $this->instanceRelayActor->find();
+        if ($service !== null && $service->isApplication()) {
+            $destinations = $destinations->concat($this->actorRelayFollowerDestinations($service)
+                ->map(fn (array $destination): array => $destination + ['actor_id' => $service->id]));
+        }
+
+        return $destinations->unique('inbox_url')->values();
+    }
+
+    private function mastodonRelays(): Collection
+    {
+        return Relay::query()->where('protocol', Relay::PROTOCOL_MASTODON)
+            ->where('state', Relay::STATE_ACCEPTED)->where('publish_enabled', true)->get(['id', 'inbox_url']);
+    }
+
     /**
      * Gli Actor Application possono seguire spontaneamente `/relay`. Quando
      * esiste anche una configurazione amministrativa, questa prevale: il
@@ -546,30 +564,35 @@ final class ActivityDelivery
     }
 
     /**
-     * @param  Collection<int, string>  $inboxUrls
      * @param  array<string, mixed>  $activity
+     * @return array<string, mixed>
      */
+    public function signedActivity(Actor $actor, array $activity): array
+    {
+        $actor->loadMissing('key');
+
+        if ($actor->key !== null && $actor->key->hasPrivateKey() && ! isset($activity['signature'])) {
+            try {
+                $activity = $this->linkedDataSignatures->sign($activity, $actor);
+            } catch (Throwable $exception) {
+                Log::channel('single')->warning('federation.ld_signature.sign_failed', [
+                    'activity_id' => $activity['id'] ?? null,
+                    'actor_id' => $actor->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return $activity;
+    }
+
     private function dispatchToInboxes(Collection $inboxUrls, array $activity, Actor $signingActor, ?string $relayId = null): void
     {
         if (! $signingActor->isLocal() || $inboxUrls->isEmpty()) {
             return;
         }
 
-        // LD Signature sul documento: i peer Mastodon possono inoltrare
-        // l'attivita' verificando la prova indipendentemente dalla firma HTTP.
-        $signingActor->loadMissing('key');
-
-        if ($signingActor->key !== null && $signingActor->key->hasPrivateKey() && ! isset($activity['signature'])) {
-            try {
-                $activity = $this->linkedDataSignatures->sign($activity, $signingActor);
-            } catch (Throwable $exception) {
-                Log::channel('single')->warning('federation.ld_signature.sign_failed', [
-                    'activity_id' => $activity['id'] ?? null,
-                    'actor_id' => $signingActor->id,
-                    'error' => $exception->getMessage(),
-                ]);
-            }
-        }
+        $activity = $this->signedActivity($signingActor, $activity);
 
         foreach ($inboxUrls as $inboxUrl) {
             if (app(DomainBlockManager::class)->isBlockedUrl($inboxUrl)) {

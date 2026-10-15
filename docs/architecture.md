@@ -95,8 +95,15 @@ pending federation work are durable in the same database. `LocalPollVoter`
 serializes ballots under post/poll locks and commits counts and pending work
 together. `LocalPollVoteIngester` authenticates inbound vote identity before
 comment/message routing; original receipt controls expiry for embedded votes.
-Cron integration follows in the next increment. See
-[local polls](federation.md#local-polls-121-first-increment).
+`PollResultsProcessor` stores one resumable `PollDistribution` snapshot per
+active fan-out. Each batch queues ordinary delivery jobs and advances its cursor
+in the same transaction, acknowledging only the distributed revision.
+`openbook:cron` closes expired polls and processes pending snapshots before
+ordinary delivery. Destination queries union indexed followers, voters and
+mentions, deduplicating shared inboxes. HTTP/Linked Data signing and optional
+inbox resolution occur outside locks in the delivery job, which rechecks access.
+See
+[local polls](federation.md#local-polls-121).
 
 ### Posts, comments, and reactions
 

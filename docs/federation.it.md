@@ -434,9 +434,9 @@ propone account remoti da scoprire e, oltre i primi 5, l'elenco completo in
 `/mondo/scopri` con scorrimento infinito. SSRF, blocco domini e firme HTTP
 restano i vincoli di sicurezza di base.
 
-### Sondaggi locali (#121, primo incremento)
+### Sondaggi locali (#121)
 
-Il primo incremento introduce persistenza e pubblicazione come `Question`
+Openbook conserva i sondaggi e li pubblica come `Question`
 tramite i percorsi Create, Update, GET canonico e outbox dei post.
 `PostComposer` accetta `poll` con `options` (lista di 2–6 testi distinti di
 massimo 50 caratteri Unicode), `multiple` (booleano) e `duration_seconds`
@@ -446,10 +446,12 @@ anche con video in staging; i conteggi iniziali sono pari a zero.
 Definizione e visibilità rimangono fissate alla pubblicazione. Le correzioni
 del testo non possono aggiungere destinatari. Sono incluse le community locali
 anche private; conversazioni private e pubblicazione verso Group remoti sono
-intenzionalmente escluse. Applicare `php artisan migrate`. UI di creazione/voto e comando di distribuzione dei risultati arriveranno
-nei successivi incrementi. Il normale flusso invia già Create(Question); il
-lavoro federato pendente è registrato insieme al sondaggio per il successivo
-collegamento al cron generale, senza un nuovo cron da configurare.
+intenzionalmente escluse. Applicare `php artisan migrate`. La UI di creazione/voto
+segue nel prossimo incremento. `PostComposer` registra il lavoro durevole di
+pubblicazione o aggiornamento insieme alla Question; `openbook:cron` richiama
+ora `openbook:process-polls` fra elaborazione inbox e consegna ordinaria.
+Nessuna nuova configurazione cron o worker permanente. GET canonico e outbox
+espongono la Question corrente indipendentemente dall’avanzamento delle consegne.
 
 `LocalPollVoter` raccoglie schede locali definitive e risposte federate
 Create/Note. `LocalPollVoteIngester` verifica firmatario, autore, origine della
@@ -470,7 +472,36 @@ ricezione dell’envelope. Una risposta tempestiva in coda può aggiornare i
 risultati chiusi mantenendo la chiusura. L’elaborazione ricontrolla i permessi
 correnti: la ricezione precedente non conserva accessi revocati. I risultati
 sono subito disponibili nella Question canonica; la distribuzione federata
-sarà collegata nel prossimo incremento.
+passa dal cron descritto qui sotto.
+
+Il processore registra prima le chiusure programmate, poi raggruppa le
+revisioni pendenti in snapshot Create/Update. `poll_distributions` conserva al
+massimo uno snapshot attivo per sondaggio, con revisione e cursore del batch.
+Ogni batch salva insieme job di consegna e cursore tramite il database
+`local_delivery`: un crash annulla entrambi, mentre i batch già confermati
+restano accodati. Il completamento riconosce soltanto quella revisione; voti o
+correzioni accettati durante il fan-out conservano lavoro pendente per un Update
+successivo. Gli ID degli Update derivano dalla revisione e gli oggetti accodati
+restano stabili nei retry. Gli snapshot vengono rimossi al termine del fan-out,
+anche per i post eliminati. Il rollback della tabella richiede prima di
+completare i fan-out attivi. Il Create iniziale con revisioni già aggregate è
+accompagnato da un Update, così anche i peer che avevano già ricevuto un Create
+precedente al cron acquisiscono i risultati nuovi.
+
+I destinatari includono follower remoti autorizzati, membri delle community,
+menzioni e votanti, anche quando il votante non segue l’autore. Le shared inbox
+sono deduplicate prima dei batch. I relay pubblici mantengono Create/Update o
+Announce tecnico ordinari; le Question riservate restano escluse dai relay.
+`DeliverActivityJob` ricontrolla accesso e audience prima dell’invio HTTP. Se
+mancano i metadati dell’inbox, li risolve la consegna con i retry normali, fuori
+dai lock del sondaggio. Anche le firme HTTP e Linked Data avvengono alla consegna.
+
+Per una preparazione manuale: `php artisan openbook:process-polls`; le opzioni
+`--max-time`, `--limit` e `--batch-size` limitano rispettivamente tempo, batch e
+destinatari. `openbook:deliver` invia i job anche con coda globale `sync` o un
+altro database; il cron generale combina i due passaggi. Una Question chiusa
+può ricevere un altro Update dei risultati per risposte tempestive ancora
+nell’inbox autenticata. La cadenza segue cron e retry, senza polling remoto.
 
 Le tabelle `polls`, `poll_options`, `poll_votes` e `poll_vote_choices` sono
 condivise dai sondaggi locali e remoti. La nuova migration rinomina prima le

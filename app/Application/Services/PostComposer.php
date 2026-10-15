@@ -161,7 +161,8 @@ final class PostComposer
 
             // Community privata: niente Create ai follower dell'autore.
             // I membri remoti del Group ricevono l'Announce del Group.
-            if (! ($community?->is_private)) {
+            // Le Question usano il fan-out durevole preparato dal processore dei sondaggi.
+            if (! ($community?->is_private) && $post->poll === null) {
                 $extraTargets = $addressedGroup !== null ? [$addressedGroup] : [];
                 $this->delivery->deliverContent($post, ActivitySerializer::create($post), $extraTargets);
             }
@@ -235,7 +236,7 @@ final class PostComposer
             return $post->fresh() ?? $post;
         });
 
-        if ($author->isLocal()) {
+        if ($author->isLocal() && $post->poll === null) {
             $post->load(['mentions.actor', 'quotedPost', 'community.actor', 'media']);
 
             $addressedGroup = $post->mentions

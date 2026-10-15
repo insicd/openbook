@@ -24,8 +24,22 @@ APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/
 `LocalPollMysqlVotingTest` repeats domain cases in isolated MySQL schemas and
 checks real concurrent submissions and EXPLAIN plans. Enable the same opt-in
 variables and select `--filter=LocalPollMysqlVotingTest`. No new migration is
-introduced by sprint 2. Local voting UI and cron result distribution follow in
-later increments; these checks exercise services and inbox processing directly.
+introduced by sprint 2. Local voting UI follows in the next increment; these checks exercise services and inbox processing directly.
+
+Poll results and scheduled closure (#121, sprint 3):
+
+```bash
+php artisan migrate
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/PollResultsTest.php tests/Feature/Console/ProcessPollsCommandTest.php
+```
+
+The new migration adds transient `poll_distributions` snapshots. For manual
+checks, `php artisan openbook:process-polls --max-time=5` prepares jobs and
+`php artisan openbook:deliver --max-time=5` sends them; `openbook:cron` already
+includes both. `--limit=1 --batch-size=1` on the poll command lets you inspect
+partial progress and resume in a later pass. `PollResultsMysqlTest` adds real
+concurrent cron processes and EXPLAIN checks of every recipient UNION branch,
+using the same isolated-schema opt-in variables described below.
 
 For post-detail back navigation, an optional browser check uses the production
 JS/CSS with a local HTTP fixture for ordinary form redirects:

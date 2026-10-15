@@ -27,15 +27,24 @@ la [roadmap](docs/roadmap.md).
   al post; la nuova migration rinomina le quattro tabelle `remote_poll*` in
   `polls`, `poll_options`, `poll_votes`, `poll_vote_choices` e poi aggiunge i
   campi locali, preservando dati e attività già accodate. Applicare la migration;
-  composer e distribuzione periodica arriveranno nei successivi incrementi.
+  il composer grafico arriverà nel successivo incremento.
 - **Raccolta dei voti sui sondaggi locali (#121)**: servizio transazionale per
   voti locali e Note federate, conteggi autoritativi, deduplicazione e scelta
   definitiva. I voti federati incorporati ricevuti entro la scadenza restano
   validi anche se elaborati dopo; quelli recuperati tramite URI richiedono anche
   il recupero entro la scadenza. Permessi e moderazione vengono ricontrollati
   durante l’elaborazione; nessun commento o messaggio generato dal voto.
-  I risultati aggiornati registrano il lavoro federato pendente; interfaccia
-  di voto locale e distribuzione via cron seguono nei prossimi incrementi.
+  I risultati aggiornati registrano il lavoro federato pendente; l’interfaccia
+  di voto locale segue nel prossimo incremento.
+- **Distribuzione e chiusura dei sondaggi locali (#121)**: pubblicazione,
+  correzioni e risultati vengono accodati dal cron generale con snapshot
+  recuperabili e fan-out a batch. La chiusura programmata viene registrata anche
+  senza nuovi voti; le risposte ricevute in tempo possono aggiornare i risultati
+  già chiusi. Le consegne raggiungono follower, membri delle community e votanti
+  remoti ancora autorizzati, con deduplicazione delle shared inbox e verifica
+  dei permessi prima dell’invio. Firma e retry restano nella coda esistente.
+  Applicare `php artisan migrate`; `openbook:cron` include automaticamente il
+  nuovo `openbook:process-polls`, senza aggiungere cron o worker permanenti.
 - **Sondaggi remoti (#120)**: importazione degli oggetti `Question` attraverso
   inbox, outbox, condivisioni e refresh esistenti; visualizzazione nelle card e
   nel dettaglio del post, con voto singolo/multiplo e conferma «Voto registrato»

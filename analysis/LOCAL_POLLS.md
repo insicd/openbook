@@ -1,11 +1,12 @@
 # Sondaggi locali — issue #121
 
 Stato al 15 ottobre 2026: analisi congelata nel commit `4452763`; sprint 1
-chiuso e committato in `375f24a`. Sprint 2 verificato e chiuso; sprint 3
-da avviare.
+chiuso e committato in `375f24a`. Sprint 2 chiuso in `c1350b3`; sprint 3
+verificato e chiuso; sprint 4 da avviare.
 Issue: https://github.com/insicd/openbook/issues/121
 Base: ramo `issue_121`, creato dalla punta di `issue_120`, commit `f21f385`.
 Dipendenza: [sondaggi remoti — #120](REMOTE_POLLS.md).
+Le sezioni «Esito sprint» descrivono lo stato al termine di ciascun incremento.
 
 ## Obiettivo e perimetro dell'issue
 
@@ -640,3 +641,56 @@ su sondaggi, importazione e staging video: 105 passati, 58 saltati,
   `VisibilityFromAudienceTest` (tabella actors assente) e `FeedTest`
   (testo «Altro...»). Nessuna migration aggiuntiva. UI locale nello sprint 4; distribuzione e cron
   nello sprint 3. Lo sprint 2 è stato verificato e confermato.
+
+
+## Esito sprint 3 — Distribuzione e chiusura
+
+- Decisione tecnica: uno snapshot transitorio `PollDistribution` per sondaggio,
+  con payload, revisione, fase e cursore. Non introduce una seconda coda di
+  consegna: la migration aggiunge soltanto `poll_distributions`; il rollback
+  richiede prima di completare i fan-out attivi. Tutti gli invii
+  restano normali `DeliverActivityJob` nella coda database `local_delivery`.
+- Il comando `openbook:process-polls` materializza prima le chiusure scadute,
+  indipendentemente dai voti, poi distribuisce revisioni pendenti in batch con
+  limite di tempo e numero di operazioni. Il cron generale lo esegue dopo inbox
+  e prima di `openbook:deliver`, senza un nuovo cron da configurare.
+- Create e correzioni dei sondaggi registrano lavoro nella transazione del post;
+  il cron accoda il payload. I post ordinari conservano il percorso esistente.
+  Un fan-out già iniziato termina il proprio snapshot; una chiusura o un voto
+  concorrente mantiene una revisione successiva pendente, senza riscrivere batch
+  già accodati. Il documento canonico riflette subito lo stato corrente.
+- Prima pubblicazione con revisioni già aggregate: Create accompagnato da
+  Update della stessa revisione, così anche un peer che ha già deduplicato il
+  Create degli sprint precedenti riceve i risultati nuovi. Entrambi i payload
+  derivano dallo snapshot persistito, anche dopo normalizzazione JSON MySQL.
+- Job del batch e avanzamento del cursore sono atomici. Un crash prima del commit
+  annulla entrambi; i batch precedenti restano acquisiti. Il completamento
+  riconosce solo la revisione dello snapshot, mai una revisione nuova. Update con
+  ID derivato dalla revisione, payload stabile nei retry, firme alla consegna.
+- UNION ALL di follower, votanti e menzioni con deduplicazione delle shared inbox
+  prima del cursore; membri delle community pubbliche inclusi. Per community
+  private si usano i membri del Group, con i permessi correnti. I votanti remoti
+  autorizzati ricevono gli Update anche se non seguono l’autore. Nessun elenco
+  delle singole risposte nel payload federato.
+- Relay pubblici: riusati destinatari e formati esistenti, comprese le Application
+  che ricevono Announce tecnici. Le Question riservate sono escluse. Prima della
+  consegna si ricontrollano autore, accesso, audience, moderazione e relay attivi.
+- Se manca l’inbox memorizzata, il job conserva l’Actor destinatario e demanda
+  risoluzione/retry alla consegna: nessun HTTP/DNS sotto lock e nessuna
+  destinazione persa per metadati temporaneamente incompleti. Inbox già note
+  deduplicate; inbox risolte in seguito possono ricevere lo stesso ID attività
+  più volte, come nei normali retry, senza duplicare il contenuto.
+- Cancellazione logica elimina snapshot attivi e ferma i job già accodati;
+  cancellazione fisica in cascade. Lo stato di chiusura rimane definitivo anche
+  se una Note ricevuta in tempo viene elaborata successivamente.
+- Verifiche: 24 test SQLite/comandi superati; 24 casi MySQL completi superati,
+  poi ricontrolli mirati della compatibilità iniziale, concorrenza e risoluzione
+  inbox (la classe finale comprende 25 casi). EXPLAIN su tutti i rami UNION e
+  selezioni effettive del cron, incluso un campione con 10.000 Question remote
+  chiuse. Nessun nuovo indice necessario: sono utilizzati quelli esistenti.
+- Suite completa finale: 1.678 test superati, 105 saltati, 2 fallimenti già noti
+  (`VisibilityFromAudienceTest`: tabella actors assente; `FeedTest`: «Altro...»).
+  Pint e diff check superati. HTTP/firme/retry verificati con trasporto simulato;
+  il confronto con una seconda istanza resta alla prova integrata, perché non
+  è configurata un’istanza federata di test in questa sessione. MariaDB non
+  eseguito direttamente. Sprint chiuso nell’autonomia concordata per completare il ramo.
