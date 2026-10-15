@@ -54,6 +54,14 @@ Actor remoto: e' l'unico punto in cui la logica di dominio "sa" della federazion
 resta comunque un'aggiunta a valle, mai una condizione per il successo dell'azione
 locale.
 
+Per i sondaggi remoti `RemotePollVoter` salva voto e job di consegna nella
+stessa transazione, tramite `ActivityDelivery::enqueueDirectInTransaction()`.
+Il backend database interno `local_delivery` condivide connessione e tabella
+`jobs` del dominio; firma, invio e retry restano nel normale `DeliverActivityJob`
+e nel comando `openbook:deliver`. Il commit conferma il voto all'utente,
+indipendentemente dall'esito della consegna remota. Vedi
+[sondaggi remoti](federation.it.md#sondaggi-remoti--importazione-e-backend-del-voto-120).
+
 Ogni account locale possiede fin da subito un Actor ActivityPub di tipo `Person`
 (tabelle `actors`, `actor_keys`, `actor_endpoints`), esposto al Fediverso (vedi
 [Federazione](federation.it.md#federazione-fase-3) piu' sotto). Il dominio sociale locale e' modellato

@@ -434,14 +434,14 @@ accounts to discover and, beyond the first 5, the full list at `/mondo/scopri`
 with infinite scroll. SSRF, domain blocks, and HTTP signatures remain the
 baseline security constraints.
 
-### Remote polls — import stage (#120)
+### Remote polls — import and voting backend (#120)
 
 Mastodon-shaped `Question` objects are imported through the existing inbox,
 outbox, featured collection, Announce and post/replies refresh paths. Their
 metadata lives in `remote_polls` and `remote_poll_options`; the post retains
 its ordinary author, audience and moderation rules. Question replies are
-excluded. This stage prepares storage: poll controls and local voting follow
-in subsequent sprints. No dedicated polling or worker is introduced.
+excluded. Import and the voting service are implemented; web controls follow
+in sprint 4. No dedicated polling or worker is introduced.
 
 `oneOf` and `anyOf` preserve single/multiple choice, exact option names,
 nullable option/voter counts, expiry and explicit closure. Missing counts
@@ -468,6 +468,24 @@ the redundant timestamps, preserving cached polls, results and personal votes.
 Historical inbox replay remains available through `openbook:reprocess-inbox`;
 it currently requeues all ignored/pending activities, so prefer fixture tests
 or a database copy for targeted verification until the selective replay stage.
+
+The voting service commits personal choices and one `Create/Note` per choice
+atomically. Each Note uses the exact option name, targets the Question URI and
+is addressed only to its author. Persisted choice UUIDs keep activity IDs stable
+across retries. Duplicate requests return the original immutable vote, even after
+closure. The option version detects renames, reordering and mode changes; remote
+counter updates do not invalidate the selection. Expiry and access are rechecked
+under locks, and delivery rechecks visibility and moderation. Remote results are
+never adjusted using local votes.
+
+The internal `local_delivery` database queue uses the domain connection and the
+existing `jobs` table, regardless of the global queue driver or
+`DB_QUEUE_CONNECTION`. `openbook:deliver` consumes it and the configured delivery
+backend within the existing time budget, avoiding duplicate workers when both
+use the same table. No new migration or recurring task is required for this
+stage. Regenerate configuration with `php artisan config:cache` after updating
+if configuration caching is enabled. Operators using only a custom worker for a
+separate backend should also consume `local_delivery` or use `openbook:deliver`.
 
 ### Federated events
 

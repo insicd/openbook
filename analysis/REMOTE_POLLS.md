@@ -487,3 +487,60 @@ Verifica della semplificazione: 57 test mirati SQLite passati (180 asserzioni)
 e 12 test MySQL isolati passati (80 asserzioni), incluso l'aggiornamento da uno
 schema locale precedente senza perdita dei risultati o delle date dei voti.
 Pint e controllo whitespace superati. Nessuna migration eseguita sul DB locale.
+
+
+## Sprint 3 — backend del voto implementato
+
+`RemotePollVoter` autentica l'Actor locale attivo e verifica accesso al post,
+origine, blocchi e disponibilità della firma. Risoluzione endpoint e controllo
+DNS avvengono prima dei lock. La transazione segue l'ordine post → sondaggio →
+opzioni, condiviso con l'importatore; ricontrolla accesso, chiusura, versione e
+appartenenza delle scelte. Un voto già confermato restituisce lo snapshot
+originale senza altri accodamenti. I vincoli univoci restano l'ultima difesa.
+
+`optionsVersion()` comprende ID del sondaggio, modalità e ID/posizione/nome delle
+opzioni, escludendo i conteggi remoti. La UI dello sprint 4 invierà questa versione
+insieme agli ID selezionati. La scadenza viene comunque verificata sullo stato
+corrente. Senza scadenza, un sondaggio aperto accetta il voto.
+
+`ActivityDelivery::enqueueDirectInTransaction()` richiede `DatabaseQueue` sulla
+stessa connessione e una transazione attiva. L'alias `local_delivery` punta alla
+tabella `jobs` esistente del dominio, anche con driver globale sync o database
+esterno. Job `beforeCommit()` rendono atomici voto, snapshot e accodamenti.
+`openbook:deliver` consuma anche questo backend, senza duplicarlo quando coincide
+con quello globale e dividendo il budget di esecuzione quando sono distinti.
+Rigenerare la cache di configurazione dopo l'aggiornamento, se utilizzata.
+
+`PollVoteSerializer` genera un Create/Note privato per scelta, con `name` esatto,
+`inReplyTo` della Question e audience limitata all'autore. L'ID deriva dall'UUID
+della scelta e resta identico nei retry. `DeliverActivityJob` riusa firma HTTP,
+client SSRF e retry esistenti; prima dell'invio `PollVoteDeliveryGuard` controlla
+esistenza dello snapshot, accesso, stato degli Actor e blocchi correnti.
+Chiusura successiva al commit e consegna parziale lasciano il voto definitivo;
+la conferma locale non dipende dall'esito remoto. Nessuna modifica ai conteggi.
+
+Nessuna nuova migration, route o interfaccia in questo incremento. La retention
+resta quella del post remoto: la cancellazione fisica rimuove anche gli snapshot
+tramite le FK già approvate. Non viene introdotto un archivio permanente dei voti.
+
+Le verifiche usano le fixture anonimizzate, coda database reale e HTTP simulato:
+idempotenza, singolo/multiplo, opzioni cambiate, accesso, scadenza, blocchi,
+rollback del secondo job, retry e consegna parziale. MySQL esegue gli stessi casi,
+più due processi concorrenti e verifica degli indici sulle query di accesso al
+post, opzioni, voto personale e scelte. Nessuna consegna verso server reali.
+
+
+Verifiche finali dello sprint 3:
+
+- 21 test mirati SQLite su voto e comando passati, confermati nella suite
+  completa con il worker eseguito in un processo separato.
+- 31 test MySQL passati (161 asserzioni), inclusi due processi concorrenti,
+  rollback e piani EXPLAIN. Server temporaneo arrestato a fine verifica.
+- Suite completa: 1.569 passati, 33 saltati, 2 fallimenti già presenti
+  (`VisibilityFromAudienceTest`, tabella actors assente nel test unitario;
+  `FeedTest`, aspettativa sul controllo Altro...). Nessuna nuova regressione.
+- Il test che esegue davvero il worker usa un processo separato: la suite intera
+  supera i 128 MB predefiniti del worker Laravel. Il limite operativo rimane
+  invariato; il processo fresco riproduce l'esecuzione da cron.
+- Pint e controllo whitespace passati; documentazione EN/IT, architettura e
+  changelog aggiornati. Nessuna migration o modifica del DB applicativo locale.

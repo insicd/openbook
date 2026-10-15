@@ -19,12 +19,18 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Sondaggi remoti, backend del voto (#120)**: voto singolo/multiplo definitivo
+  al salvataggio atomico di scelte e attività nella coda database locale.
+  Consegna privata al solo autore, retry con ID stabili e controlli di accesso
+  anche prima dell'invio. `openbook:deliver` consuma questa coda anche con
+  driver globale `sync` o un backend separato; l'interfaccia seguirà nello
+  sprint 4. Dopo l'aggiornamento rigenerare la cache di configurazione, se usata.
 - **Sondaggi remoti, importazione (#120)**: gli oggetti `Question` vengono
   conservati con opzioni, risultati dichiarati e chiusura attraverso inbox,
   outbox, condivisioni e refresh esistenti. Il replay delle vecchie attività
   preserva lo stato più recente disponibile; le Note di voto sono escluse da
   commenti e messaggi. Questo incremento prepara i dati: interfaccia del
-  sondaggio e voto locale sono previsti negli sprint successivi.
+  sondaggio e azione web del voto sono previsti nello sprint 4.
   La ricezione dei risultati usa `results_received_at`; sondaggi e opzioni
   remote omettono i timestamp automatici. La migration correttiva aggiorna
   anche i DB locali che avevano già applicato le migration iniziali.

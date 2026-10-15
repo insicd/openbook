@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\Artisan;
  * vuota. I tentativi falliti restano nella coda con backoff crescente
  * (vedi "config('openbook.delivery')") finche' non superano il numero
  * massimo di tentativi, dopodiche' finiscono nella tabella "failed_jobs"
- * standard di Laravel.
+ * standard di Laravel. Include i job transazionali sul database del dominio
+ * anche quando la coda globale usa un backend separato.
  */
 class DeliverActivitiesCommand extends Command
 {
@@ -23,10 +24,36 @@ class DeliverActivitiesCommand extends Command
 
     public function handle(): int
     {
-        return Artisan::call('queue:work', [
-            '--queue' => 'delivery',
-            '--stop-when-empty' => true,
-            '--max-time' => max(1, (int) $this->option('max-time')),
-        ], $this->output);
+        $default = (string) config('queue.default');
+        $config = config('queue.connections.'.$default, []);
+        $domain = (string) config('database.default');
+        $sharesLocalQueue = ($config['driver'] ?? null) === 'database'
+            && (($config['connection'] ?? null) ?: $domain) === $domain
+            && ($config['table'] ?? null) === 'jobs';
+        $connections = $sharesLocalQueue ? [$default] : ['local_delivery'];
+        if (! $sharesLocalQueue && ! in_array($config['driver'] ?? null, ['sync', 'null'], true)
+            && $default !== 'local_delivery') {
+            $connections[] = $default;
+        }
+
+        $deadline = microtime(true) + max(1, (int) $this->option('max-time'));
+        $status = self::SUCCESS;
+        foreach ($connections as $index => $connection) {
+            $remaining = (int) ceil($deadline - microtime(true));
+            if ($remaining < 1) {
+                break;
+            }
+            $slice = max(1, intdiv($remaining, count($connections) - $index));
+            $result = Artisan::call('queue:work', [
+                'connection' => $connection,
+                '--queue' => 'delivery',
+                '--stop-when-empty' => true,
+                '--max-time' => $slice,
+                '--sleep' => 0,
+            ], $this->output);
+            $status = max($status, $result);
+        }
+
+        return $status;
     }
 }

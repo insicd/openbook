@@ -23,6 +23,14 @@ class RemotePoll extends Model
         return ['multiple' => 'boolean', 'closed' => 'boolean', 'ends_at' => 'datetime', 'closed_at' => 'datetime', 'voters_count' => 'integer', 'remote_updated_at' => 'datetime', 'results_received_at' => 'datetime'];
     }
 
+    public function optionsVersion(): string
+    {
+        return hash('sha256', json_encode([
+            $this->id, $this->multiple,
+            $this->options->map(fn (RemotePollOption $option): array => [$option->id, $option->position, $option->name])->all(),
+        ], JSON_THROW_ON_ERROR));
+    }
+
     public function isClosed(): bool
     {
         return $this->closed

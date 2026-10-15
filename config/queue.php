@@ -30,6 +30,17 @@ return [
 
     'connections' => [
 
+        // Transactional delivery shares the domain DB and the existing jobs table,
+        // independently of optional global queue backends.
+        'local_delivery' => [
+            'driver' => 'database',
+            'connection' => null,
+            'table' => 'jobs',
+            'queue' => 'delivery',
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
+            'after_commit' => false,
+        ],
+
         'sync' => [
             'driver' => 'sync',
         ],

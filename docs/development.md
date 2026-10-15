@@ -25,8 +25,8 @@ php artisan test
 Remote poll foundations are covered by `RemotePollDocumentTest` and
 `RemotePollPersistenceTest`, using anonymized fixtures in
 `tests/Fixtures/Federation/Polls`. An optional MySQL/MariaDB check runs the same
-persistence and database-queue transaction cases, plus migration rollback and
-`EXPLAIN` checks:
+persistence, voting and database-queue transaction cases, plus migration rollback,
+two-process concurrency and `EXPLAIN` checks:
 
 ```bash
 OPENBOOK_TEST_POLLS_MYSQL=1 php artisan test --filter=RemotePollMysqlPersistenceTest
@@ -40,8 +40,15 @@ random schema, runs the application migrations and drops that schema afterward.
 It never migrates or clears the local application database or the database named
 by `OPENBOOK_TEST_MYSQL_DATABASE`. Use a throwaway server. Without the opt-in
 flag these tests are skipped; with it, connection or migration errors fail.
-Sprint 1 adds foundations only; importing and voting on remote polls will be
-connected in subsequent sprints.
+Import and the voting service are implemented; web controls follow in sprint 4.
+`RemotePollVotingTest` covers single/multiple choice, idempotency, rollback and
+retry; `DeliverPollVotesCommandTest` covers consumption by the existing command.
+When production configuration is cached, point `APP_CONFIG_CACHE` to a nonexistent
+path to preserve the local cache while using the test configuration:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --filter=RemotePoll
+```
 
 The suite covers bootstrap/installer/authentication, the local social domain
 (posts, media, comments, reactions, follows, feed, notifications), identity and

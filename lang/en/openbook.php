@@ -1121,6 +1121,14 @@ return [
         ],
     ],
 
+    'polls' => [
+        'choose' => 'Select the available answers for this poll.',
+        'closed' => 'Poll closed.',
+        'changed' => 'The answers have changed. Reload the poll and choose again.',
+        'retry' => 'Try again shortly to confirm your vote.',
+        'sign_in' => 'Sign in with an active account to participate.',
+    ],
+
     'footer' => [
         'rules' => 'Rules',
         'privacy' => 'Privacy',

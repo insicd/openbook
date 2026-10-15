@@ -6,6 +6,7 @@ use App\Application\Services\DomainBlockManager;
 use App\Domain\Federation\Relay;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
+use App\Federation\Polls\PollVoteDeliveryGuard;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use App\Infrastructure\Security\HttpSignatureSigner;
@@ -49,6 +50,7 @@ final class DeliverActivityJob implements ShouldQueue
         public readonly array $activity,
         public readonly string $signingActorId,
         public readonly ?string $relayId = null,
+        public readonly ?string $pollVoteChoiceId = null,
     ) {
         $this->onQueue('delivery');
 
@@ -74,6 +76,14 @@ final class DeliverActivityJob implements ShouldQueue
             $this->fail(new RuntimeException(
                 "Impossibile firmare la consegna: chiave privata assente per l'Actor {$this->signingActorId}."
             ));
+
+            return;
+        }
+
+        // Older queued jobs predate this optional property.
+        if (($this->pollVoteChoiceId ?? null) !== null
+            && ! app(PollVoteDeliveryGuard::class)->allows($this->pollVoteChoiceId, $actor, $this->inboxUrl, $domainBlocks)) {
+            $this->fail(new RuntimeException('Poll vote delivery stopped by current access or moderation rules.'));
 
             return;
         }

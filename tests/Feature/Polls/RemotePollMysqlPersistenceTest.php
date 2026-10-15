@@ -3,17 +3,19 @@
 namespace Tests\Feature\Polls;
 
 use App\Domain\Polls\RemotePoll;
+use App\Domain\Posts\Post;
 use App\Federation\Inbox\RemoteNoteUpserter;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\Concerns\TestsRemotePollPersistence;
+use Tests\Concerns\TestsRemotePollVoting;
 use Tests\TestCase;
 
 /** Opt-in: creates and removes its own random schema, never migrates the configured local DB. */
 class RemotePollMysqlPersistenceTest extends TestCase
 {
-    use TestsRemotePollPersistence;
+    use TestsRemotePollPersistence, TestsRemotePollVoting;
 
     private ?string $temporarySchema = null;
 
@@ -60,6 +62,47 @@ class RemotePollMysqlPersistenceTest extends TestCase
         }
     }
 
+    public function test_concurrent_votes_commit_only_one_vote_and_one_delivery(): void
+    {
+        [$voter, $poll] = $this->votingFixture();
+        $input = json_encode([
+            'database' => config('database.connections.poll_schema'), 'key' => config('app.key'),
+            'voter' => $voter->id, 'poll' => $poll->id,
+            'choices' => [$poll->options[0]->id], 'version' => $poll->optionsVersion(),
+        ], JSON_THROW_ON_ERROR);
+        $children = [];
+        try {
+            for ($i = 0; $i < 2; $i++) {
+                $process = proc_open([PHP_BINARY, base_path('tests/Support/ConcurrentPollVote.php')], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, base_path());
+                $this->assertIsResource($process);
+                $children[] = [$process, $pipes];
+                stream_set_timeout($pipes[1], 20);
+                fwrite($pipes[0], $input."\n");
+                $this->assertSame("ready\n", fgets($pipes[1]));
+            }
+            foreach ($children as [$process, $pipes]) {
+                fwrite($pipes[0], "go\n");
+                fflush($pipes[0]);
+            }
+            $ids = [];
+            foreach ($children as [$process, $pipes]) {
+                $ids[] = trim(fgets($pipes[1]) ?: '');
+            }
+            $this->assertNotSame('', $ids[0]);
+            $this->assertSame($ids[0], $ids[1]);
+            $this->assertSame(1, $poll->votes()->count());
+            $this->assertSame(1, DB::table('jobs')->count());
+        } finally {
+            foreach ($children as [$process, $pipes]) {
+                foreach ($pipes as $pipe) {
+                    fclose($pipe);
+                }
+                proc_terminate($process);
+                proc_close($process);
+            }
+        }
+    }
+
     private function dropTemporarySchema(): void
     {
         if ($this->temporarySchema !== null) {
@@ -96,6 +139,7 @@ class RemotePollMysqlPersistenceTest extends TestCase
         }
 
         $queries = [
+            [Post::whereKey($target->post_id)->where('status', Post::STATUS_PUBLISHED)->visibleTo($actor), 'PRIMARY'],
             [RemotePoll::where('post_id', $target->post_id), 'remote_polls_post_id_unique'],
             [$target->options()->getQuery(), 'remote_poll_options_position_unique'],
             [$target->votes()->where('actor_id', $actor->id)->getQuery(), 'remote_poll_votes_actor_unique'],

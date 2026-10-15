@@ -1121,6 +1121,14 @@ return [
         ],
     ],
 
+    'polls' => [
+        'choose' => 'Seleziona le risposte disponibili per questo sondaggio.',
+        'closed' => 'Sondaggio concluso.',
+        'changed' => 'Le risposte sono state aggiornate. Ricarica il sondaggio e scegli di nuovo.',
+        'retry' => 'Riprova tra poco per confermare il voto.',
+        'sign_in' => 'Accedi con un account attivo per partecipare.',
+    ],
+
     'footer' => [
         'rules' => 'Regole',
         'privacy' => 'Privacy',

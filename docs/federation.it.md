@@ -434,14 +434,14 @@ propone account remoti da scoprire e, oltre i primi 5, l'elenco completo in
 `/mondo/scopri` con scorrimento infinito. SSRF, blocco domini e firme HTTP
 restano i vincoli di sicurezza di base.
 
-### Sondaggi remoti — fase di importazione (#120)
+### Sondaggi remoti — importazione e backend del voto (#120)
 
 Gli oggetti `Question` nel formato Mastodon vengono importati tramite i flussi
 esistenti di inbox, outbox, collection dei post fissati, Announce e refresh di
 post/risposte. I metadati vivono in `remote_polls` e `remote_poll_options`; il
 post conserva le normali regole di autore, audience e moderazione. Le Question
-di risposta sono escluse. Questa fase prepara la persistenza: controlli del
-sondaggio e voto locale seguiranno negli sprint successivi. Restano i percorsi
+di risposta sono escluse. Importazione e servizio di voto sono implementati;
+l’interfaccia web segue nello sprint 4. Restano i percorsi
 di aggiornamento esistenti, senza polling o worker dedicati.
 
 `oneOf` e `anyOf` conservano scelta singola/multipla, nomi esatti delle opzioni,
@@ -471,6 +471,26 @@ conservano le proprie date. La migration correttiva rinomina il precedente
 risultati e voti personali. Il replay storico resta disponibile con `openbook:reprocess-inbox`, che
 oggi riaccoda tutte le attività ignored/pending: per una verifica mirata usare
 fixture o una copia del DB fino alla fase di riprocessamento selettivo.
+
+Il servizio di voto salva atomicamente le scelte personali e un `Create/Note`
+per ciascuna scelta. La Note usa il nome esatto dell'opzione, risponde all'URI
+della Question ed è indirizzata soltanto al suo autore. Gli UUID persistiti delle
+scelte mantengono stabili gli ID nei retry. Invii duplicati restituiscono il voto
+originale definitivo, anche dopo la chiusura. La versione delle opzioni rileva
+rinomina, riordino e cambio di modalità; gli aggiornamenti dei conteggi remoti
+preservano la selezione. Scadenza e accesso sono ricontrollati sotto lock;
+la consegna ricontrolla visibilità e moderazione. I voti locali lasciano invariati
+i risultati dichiarati dal server remoto.
+
+La coda database interna `local_delivery` usa la connessione del dominio e la
+tabella `jobs` esistente, indipendentemente dal driver globale o da
+`DB_QUEUE_CONNECTION`. `openbook:deliver` consuma questa coda e il backend di
+consegna configurato entro il budget esistente, evitando worker duplicati quando
+condividono la stessa tabella. Questo incremento usa migration e cron già
+esistenti. Se la configurazione è in cache, rigenerarla con
+`php artisan config:cache` dopo l'aggiornamento. Chi usa soltanto un worker
+personalizzato per un backend separato deve consumare anche `local_delivery`
+oppure usare `openbook:deliver`.
 
 ### Eventi federati
 

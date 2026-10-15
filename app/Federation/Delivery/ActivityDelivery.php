@@ -15,9 +15,12 @@ use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Serialization\RelayActivitySerializer;
 use App\Infrastructure\Security\LinkedData\LinkedDataSignature;
 use App\Jobs\Federation\DeliverActivityJob;
+use Illuminate\Queue\DatabaseQueue;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
+use LogicException;
 use Throwable;
 
 /**
@@ -289,7 +292,22 @@ final class ActivityDelivery
             ->values();
     }
 
-    private function remoteActorInbox(Actor $target): ?string
+    /** @param array<string, mixed> $activity */
+    public function enqueueDirectInTransaction(Actor $signer, string $inbox, array $activity, ?string $pollVoteChoiceId = null): void
+    {
+        $queue = Queue::connection('local_delivery');
+        if (DB::transactionLevel() === 0 || ! $signer->isLocal()
+            || ! $queue instanceof DatabaseQueue || $queue->getDatabase() !== DB::connection()) {
+            throw new LogicException('Transactional delivery must share the domain database transaction.');
+        }
+        $queue->push(
+            (new DeliverActivityJob($inbox, $activity, $signer->id, pollVoteChoiceId: $pollVoteChoiceId))
+                ->onConnection('local_delivery')->beforeCommit(),
+            '', 'delivery',
+        );
+    }
+
+    public function remoteActorInbox(Actor $target): ?string
     {
         if ($target->isLocal()) {
             return null;
