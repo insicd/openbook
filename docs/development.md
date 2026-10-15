@@ -2,6 +2,19 @@
 
 ## Tests
 
+Local poll foundations (#121) can be checked with:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/LocalPollFoundationsTest.php tests/Feature/Posts/PostPublicationStagerTest.php
+```
+
+These cases cover persistence, validation, canonical/outbox Questions,
+audience, immutability, deletion and expiry after video staging.
+`LocalPollMysqlPersistenceTest` reuses the cases in isolated random schemas and
+adds migration rollback and EXPLAIN checks. Enable it with
+`OPENBOOK_TEST_POLLS_MYSQL` and the `OPENBOOK_TEST_MYSQL_*` variables described
+below, selecting the class with `--filter=LocalPollMysqlPersistenceTest`.
+
 For post-detail back navigation, an optional browser check uses the production
 JS/CSS with a local HTTP fixture for ordinary form redirects:
 `node tests/Browser/post-back.cjs`. It requires Node.js, Playwright and an
@@ -49,7 +62,7 @@ When production configuration is cached, point `APP_CONFIG_CACHE` to a nonexiste
 path to preserve the local cache while using the test configuration:
 
 ```bash
-APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --filter=RemotePoll
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --filter=Poll
 ```
 
 The suite covers bootstrap/installer/authentication, the local social domain

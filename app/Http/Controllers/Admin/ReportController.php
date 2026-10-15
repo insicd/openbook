@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -126,12 +127,12 @@ class ReportController extends Controller
         }
 
         $isLocalAuthor = $post->actor->isLocal();
-        $post->update([
+        DB::transaction(fn () => $post->update([
             'title' => null,
             'content_warning' => null,
             'body' => '',
             'status' => Post::STATUS_DELETED,
-        ]);
+        ]));
         $post->location()->delete();
 
         if ($isLocalAuthor) {

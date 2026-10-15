@@ -280,12 +280,12 @@ class PostController extends Controller
         $post->load('mentions.actor', 'actor');
         $isLocalAuthor = $post->actor->isLocal();
 
-        $post->update([
+        DB::transaction(fn () => $post->update([
             'title' => null,
             'content_warning' => null,
             'body' => '',
             'status' => Post::STATUS_DELETED,
-        ]);
+        ]));
         $post->location()->delete();
 
         if ($isLocalAuthor) {

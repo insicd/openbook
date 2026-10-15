@@ -80,6 +80,21 @@ clear it when the origin reactivates the account.
 Actor private keys are encrypted at rest (Eloquent `encrypted` cast, based on
 `APP_KEY`) and are never exposed by APIs, logs, or error messages.
 
+### Local polls (#121)
+
+`LocalPollPublisher` validates and persists definitions in the `PostComposer`
+transaction. Video staging retains duration and calculates expiry at actual
+publication. `LocalPollSerializer` adds Question fields to the existing
+document, reusing text, media and audience. `Poll`, `PollOption`, `PollVote`
+and `PollVoteChoice` are shared across both origins, with one `Post::poll`
+relation; origin comes from the post. Remote import, local publication and
+voting retain separate services and their respective count rules.
+`PollLifecycle` detaches votes of deleted accounts and clears
+polls of logically deleted posts, preserving tombstone metadata. Revisions and
+pending federation work are durable in the same database; voting and cron
+integration will arrive in subsequent increments. See
+[local polls](federation.md#local-polls-121-first-increment).
+
 ### Posts, comments, and reactions
 
 - The body of posts and comments is text with broad Markdown (GFM), rendered to

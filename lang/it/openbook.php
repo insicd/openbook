@@ -1122,6 +1122,12 @@ return [
     ],
 
     'polls' => [
+        'immutable' => 'Opzioni, modalità e durata restano quelle scelte alla pubblicazione.',
+        'fixed_visibility' => 'Il sondaggio mantiene la visibilità scelta alla pubblicazione.',
+        'fixed_audience' => 'Per coinvolgere altre persone, crea un nuovo post con il sondaggio.',
+        'active_author' => 'Pubblica il sondaggio da un account locale attivo.',
+        'local_posts_only' => 'I sondaggi si pubblicano nei post pubblici, non elencati o riservati ai follower.',
+        'local_communities_only' => 'Pubblica il sondaggio sul tuo profilo o in una community locale.',
         'title' => 'Sondaggio',
         'open' => 'Sondaggio aperto',
         'ends' => 'Termina il',

@@ -1,7 +1,7 @@
 # Sondaggi locali — issue #121
 
-Stato al 15 ottobre 2026: analisi revisionata e decisioni di prodotto concordate,
-pronta per il commit di congelamento. Implementazione non ancora avviata.
+Stato al 15 ottobre 2026: analisi congelata nel commit `4452763`; sprint 1
+implementato e in verifica prima della chiusura. Sprint successivi da avviare.
 Issue: https://github.com/insicd/openbook/issues/121
 Base: ramo `issue_121`, creato dalla punta di `issue_120`, commit `f21f385`.
 Dipendenza: [sondaggi remoti — #120](REMOTE_POLLS.md).
@@ -76,7 +76,7 @@ l'autore, l'istanza che raccoglie il voto o le istanze coinvolte nella consegna.
 | `InboxActivityProcessor::handleCreateOrUpdate` | Scarta attualmente tutte le Note di voto prima del flusso commenti/DM. Inserire la raccolta dei voti verso Question locali in questo punto, dopo le necessarie verifiche di origine e autore. |
 | `InboxItem::received_at` | Esiste già una data locale di ricezione, distinta da `processed_at` e dalle date dichiarate dal mittente. È utilizzabile per la decisione sulla scadenza. |
 | `Post::visibleTo/visibleToActorId` | Riceve un Actor anche remoto; riusare audience e membership, senza tradurre arbitrariamente un votante remoto in un utente locale. |
-| `RemotePoll`, `RemotePollVoter`, `RemotePollInteractionPolicy` | Sono intenzionalmente specifici dell'origine remota. La policy richiede post remoto e votante locale: non applicarla direttamente alla raccolta dei voti locali/federati. |
+| `Poll`, `RemotePollVoter`, `RemotePollInteractionPolicy` | Sono intenzionalmente specifici dell'origine remota. La policy richiede post remoto e votante locale: non applicarla direttamente alla raccolta dei voti locali/federati. |
 | `posts._poll`, `PostPolicy::vote`, `RemotePollVoteController` | Oggi dipendono da `remotePoll`. Condividere il rendering dove utile, mantenendo esplicita la scelta del servizio di voto in base all'origine. |
 | `ActivityDelivery`, `DeliverActivityJob`, `local_delivery` | Riutilizzare firma, coda database, retry e deduplicazione delle inbox. L'accodamento diretto transazionale della #120 non risolve da solo il fan-out di una Question. |
 | `CronCommand` | Coordina inbox e consegna con esecuzioni limitate; inserire manutenzione dei sondaggi entro il flusso esistente, senza richiedere una nuova configurazione cron. |
@@ -210,12 +210,19 @@ regola conservativa e una fixture dedicata, senza accettare nuove scelte tardive
 
 ## Persistenza e integrità: indirizzo architetturale proposto
 
-Tenere distinte autorità locale e cache remota. Proposta iniziale:
-`LocalPoll`, `LocalPollOption`, `LocalPollVote`, `LocalPollVoteChoice`, nel dominio
-Polls, collegati al Post e agli Actor. Non rinominare le tabelle della #120
-né alterare le migration già applicate. Verificare la duplicazione effettiva
-prima di estrarre utility o una piccola rappresentazione condivisa per la UI;
-evitare un framework generico di provider dei sondaggi.
+Decisione rivista e concordata dopo lo sprint 1: modello e persistenza unici,
+come per Post. `Poll`, `PollOption`, `PollVote`, `PollVoteChoice` collegano
+post, opzioni e Actor con un'unica relazione `Post::poll`; l'origine deriva
+dal post, senza duplicarla in un flag. Autorità locale e cache remota restano
+distinte nei servizi e nelle regole di aggiornamento, non nelle tabelle.
+
+La migration `2026_10_15_000003_unify_poll_tables` rinomina prima le quattro
+tabelle della #120 e poi aggiunge i campi necessari ai sondaggi locali. Le
+precedenti migration applicate restano invariate. La creazione parallela di
+tabelle locali dello sprint 1 era ancora Pending nel DB dell'utente ed è
+stata sostituita, senza una migration intermedia inutile. Preservare UUID,
+snapshot, valori sconosciuti e attività accodate; evitare un framework
+generico di provider dei sondaggi.
 
 Vincoli minimi:
 
@@ -241,7 +248,7 @@ flusso che le usa; i voti mantengono la data dell'azione/ricezione pertinente.
 
 Decisione concordata sulla cancellazione del votante: conservare il voto e le
 scelte nei conteggi, scollegandoli dall'account eliminato. Indirizzo tecnico:
-`actor_id` nullable su `local_poll_votes`, foreign key `ON DELETE SET NULL`
+`actor_id` nullable su `poll_votes`, foreign key `ON DELETE SET NULL`
 (`nullOnDelete()`), senza cascade dal votante verso voto/scelte.
 
 Il vincolo copre la cancellazione fisica dell'Actor. Nel modello attuale gli
@@ -262,8 +269,10 @@ manutenzione e la conservazione esistenti.
 Decisione concordata: sospensione o blocco del partecipante successivi al voto
 conservano il voto già accettato e i conteggi. I controlli correnti restano
 applicati alle nuove scelte e ai voti ancora da elaborare.
-Eliminare il sondaggio con il post, comprese le cancellazioni logiche che
-lasciano una tombstone: una foreign key copre soltanto la cancellazione fisica.
+Eliminare scelte e opzioni con il post, comprese le cancellazioni logiche che
+lasciano una tombstone: conservare in questo caso soltanto i metadati del
+sondaggio necessari a riconoscere `formerType: Question`. La cancellazione
+fisica del post elimina anche questi; una foreign key copre solo quest'ultima.
 Fermare anche il lavoro pendente di aggiornamento/chiusura e impedire che job
 già accodati ripubblichino una Question eliminata. Verificare questo ciclo di
 vita insieme alle relazioni, ai contatori e alla concorrenza negli sprint 1/3.
@@ -467,8 +476,135 @@ votante, tombstone del post e job pendenti, pubblico effettivo delle modifiche
 e distribuzione nelle community private. Sono requisiti di correttezza del
 comportamento concordato, non approvazioni pendenti.
 
-Questa sessione modifica soltanto l'analisi: nessuna migration o modifica al
-codice applicativo. Verificati documento completo, diff e formattazione;
-test applicativi non eseguiti perché il comportamento non è stato modificato.
-Changelog e documentazione di prodotto saranno aggiornati negli sprint che
-introducono le funzionalità, senza anticipare note di rilascio per il solo piano.
+La sessione di congelamento modificava soltanto l'analisi, senza migration o
+modifiche applicative; documento completo, diff e formattazione verificati.
+Gli esiti dell'implementazione e dei test sono riportati negli sprint sotto.
+
+## Esito sprint 1 — Fondamenta e pubblicazione
+
+Implementati `Poll`, opzioni, voti e scelte nelle quattro tabelle comuni
+`polls`, `poll_options`, `poll_votes`, `poll_vote_choices`. Il parametro
+`poll` contiene `options`, `multiple` e
+`duration_seconds`; `LocalPollDefinition` centralizza validazione e limiti,
+`LocalPollPublisher` integra creazione e revisioni nella transazione del post.
+Definizione e visibilità sono immutabili; le modifiche del testo non aggiungono
+nuovi destinatari. Lo staging conserva la definizione e calcola la scadenza
+alla pubblicazione effettiva, anche dopo un'elaborazione video lunga.
+
+`LocalPollSerializer` estende il documento esistente con Question,
+oneOf/anyOf, endTime, conteggi e contesto votersCount. Restano testo, media,
+citazioni e audience ordinari, inclusi i Group delle community private.
+Create, Update, GET canonico e outbox usano lo stesso documento. La scadenza
+chiude la rappresentazione anche prima del cron. Le correzioni del testo
+mantengono la stessa identità e rendono durevole una nuova revisione.
+
+La pubblicazione continua nel flusso federato esistente; `publication_pending`,
+`needs_delivery`, `revision` e `distributed_revision` conservano il lavoro
+per il processore dello sprint 3. In questo incremento la conferma del
+salvataggio non dipende dalla consegna; il successivo processore dovrà
+recuperare il lavoro e gestire duplicati con ID stabili, anche quando un
+Create è già stato accodato dal percorso ordinario.
+
+Per i votanti `actor_id` è nullable con `ON DELETE SET NULL`; cancellazione
+logica dell'Actor e cancellazione dello User scollegano esplicitamente il voto.
+Il contributo resta nei conteggi; sospensione/blocco lasciano i voti accettati.
+Le identità di deduplicazione usano HMAC con `APP_KEY`; non si conservano URI
+personali di voto in chiaro. La rotazione di `APP_KEY` richiede considerare
+anche queste identità, oltre alle chiavi Actor cifrate già esistenti.
+
+`PollLifecycle` elimina scelte/opzioni e disattiva il lavoro quando il
+post diventa tombstone, conservando soltanto i metadati di tipo; la
+cancellazione fisica elimina tutto tramite FK. I percorsi web di eliminazione
+sono transazionali. `DeliverActivityJob` conserva l'ID del post al momento
+dell'accodamento e verifica che la Question sia ancora pubblicata prima
+dell'invio, anche se cambia APP_URL; i job precedenti restano compatibili.
+
+Il composer visuale, il servizio di voto e la distribuzione periodica non
+sono ancora implementati. Questo sprint è verificabile attraverso i test e
+il servizio di pubblicazione; applicare la migration rinomina ed estende le
+tabelle esistenti senza creare post o inviare attività. Docs EN/IT e changelog aggiornati con
+questo stato incrementale, senza promettere la funzionalità completa.
+
+Verifiche prima dell'unificazione: suite completa con 1.616 test passati, 58 saltati, 7.156
+assertion e i due fallimenti
+preesistenti della #120 (VisibilityFromAudienceTest e FeedTest/Altro...).
+Verifica isolata MySQL: 53 test passati, 274 assertion, includendo regressioni
+della #120, rollback/reapplicazione e piani delle query su 1.000 sondaggi;
+ulteriori tre casi community/menzioni/consegna passati con 10 assertion.
+Ultimi controlli su interoperabilità e consegna: due test MySQL passati con
+20 assertion. EXPLAIN finale: un test passato con 29 assertion, comprendendo
+anche le DELETE effettive e la scelta degli indici composti di lavoro/scadenza,
+senza accettare una scansione dell'indice primario come verifica sufficiente.
+Controlli mirati SQLite/post/editor/moderazione: 49 test passati; Pint e
+`git diff --check` passati.
+MariaDB non eseguito. Fixture e orologio controllato, HTTP simulato; nessuna
+migration sul DB applicativo o consegna reale verso server remoti.
+
+### Verifica locale prima della chiusura dello sprint
+
+Applicare `php artisan migrate`: le quattro tabelle `remote_poll*` diventano
+`polls`, `poll_options`, `poll_votes`, `poll_vote_choices`, conservando record
+e UUID dei sondaggi remoti. Non vengono creati nuovi post. Eseguire quindi:
+
+```bash
+APP_CONFIG_CACHE=/private/tmp/openbook-poll-test-config.php php artisan test --compact tests/Feature/Polls/LocalPollFoundationsTest.php tests/Feature/Posts/PostPublicationStagerTest.php
+```
+
+I test usano SQLite in memoria e preservano la configurazione in cache del
+DB locale. La verifica visuale della creazione e del voto arriverà nello
+sprint 4; applicare la migration non aggiunge ancora controlli al composer.
+
+## Correzione dello sprint 1 — Modello unico e rename dello schema
+
+Su richiesta dell'utente è stata eliminata la separazione fisica fra sondaggi
+locali e remoti. Il modello comune segue l'impostazione già usata per Post:
+`Poll`, `PollOption`, `PollVote`, `PollVoteChoice`, relazione `Post::poll` e
+caricamento comune `poll.options`, anche per feed, citazioni e outbox.
+Restano distinti i servizi di pubblicazione locale, importazione remota e voto
+remoto. Il ciclo di vita comune è gestito da `PollLifecycle`.
+
+La migration nuova esegue prima queste rename:
+
+| Tabella della #120 | Tabella comune |
+| --- | --- |
+| `remote_polls` | `polls` |
+| `remote_poll_options` | `poll_options` |
+| `remote_poll_votes` | `poll_votes` |
+| `remote_poll_vote_choices` | `poll_vote_choices` |
+
+Successivamente aggiunge lavoro/revisioni locali, identità di deduplicazione,
+Actor nullable e collegamento opzionale fra scelta e opzione. Il testo e la
+posizione della scelta restano snapshot obbligatori; la rimozione remota di
+un'opzione azzera il suo collegamento senza perdere la risposta personale.
+Le opzioni restano di tipo text e i conteggi nullable per rappresentare tutti
+i sondaggi remoti supportati; i limiti locali e i conteggi iniziali pari a zero
+sono applicati dal servizio locale. I record remoti non diventano lavoro
+locale pendente. Gli indici esistenti vengono rinominati coerentemente.
+
+Le tre migration della #120 non sono state riscritte. La migration locale
+separata, ancora Pending nel DB applicativo verificato in sola lettura, è
+stata sostituita prima dell'applicazione. Nessuna migration è stata eseguita
+sul DB dell'utente in questa sessione. Il rollback rifiuta di eliminare dati
+che lo schema precedente non può rappresentare (sondaggi locali o votanti
+scollegati), prima di eseguire qualsiasi modifica.
+
+Su SQLite la migration disabilita le foreign key prima di aprire la propria
+transazione e le ripristina dopo: la ricostruzione delle tabelle parent non
+deve cancellare in cascade le scelte esistenti. I test storici delle migration
+SQLite vengono eseguiti senza una transazione di test esterna, per verificare
+il percorso reale. MySQL mantiene le normali operazioni DDL e i propri vincoli.
+
+Aggiornati tutti i riferimenti applicativi, Blade, query, serializer, guard,
+test e documentazione. I vecchi nomi rimangono esclusivamente come riferimenti
+storici nelle migration e nei test di upgrade. Nessun alias dei vecchi modelli
+o doppia relazione Post/sondaggio. La UI locale rimane prevista nello sprint 4;
+la UI remota funziona già con la relazione unificata.
+
+Verifiche dell'unificazione: 58 test MySQL passati (327 assertion), inclusi
+conservazione riga per riga delle quattro tabelle e invio simulato di un job
+di voto persistito prima della migration. EXPLAIN dei nuovi accessi, cleanup
+e query di backfill: test aggiuntivo passato con 32 assertion su un campione
+di 1.000 sondaggi. Suite completa: 1.618 passati, 60 saltati, 7.183 assertion,
+con i soli due fallimenti preesistenti già documentati. Controllo mirato finale
+su sondaggi, importazione e staging video: 105 passati, 58 saltati,
+498 assertion. Pint e diff check passati; MariaDB non eseguito.

@@ -4,6 +4,7 @@ namespace App\Jobs\Federation;
 
 use App\Application\Services\DomainBlockManager;
 use App\Domain\Federation\Relay;
+use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Polls\PollVoteDeliveryGuard;
@@ -42,6 +43,8 @@ final class DeliverActivityJob implements ShouldQueue
 
     public int $tries;
 
+    public readonly ?string $localPollPostId;
+
     /**
      * @param  array<string, mixed>  $activity
      */
@@ -54,6 +57,13 @@ final class DeliverActivityJob implements ShouldQueue
     ) {
         $this->onQueue('delivery');
 
+        $object = $activity['object'] ?? null;
+        $postPrefix = rtrim(url('/posts'), '/').'/';
+        $this->localPollPostId = in_array($activity['type'] ?? null, ['Create', 'Update'], true)
+            && is_array($object) && ($object['type'] ?? null) === 'Question'
+            && is_string($object['id'] ?? null) && str_starts_with($object['id'], $postPrefix)
+                ? substr($object['id'], strlen($postPrefix)) : null;
+
         $this->tries = max(1, (int) config('openbook.delivery.max_attempts', 10));
 
         $this->backoff = array_map(
@@ -64,11 +74,24 @@ final class DeliverActivityJob implements ShouldQueue
 
     public function handle(SafeHttpClient $client, DomainBlockManager $domainBlocks): void
     {
+        // Keep the queued identity even if APP_URL changes before delivery.
+        if (($this->localPollPostId ?? null) !== null) {
+            if (! Post::query()->whereKey($this->localPollPostId)
+                ->where('actor_id', $this->signingActorId)
+                ->where('status', Post::STATUS_PUBLISHED)->whereHas('poll')->exists()) {
+                return;
+            }
+        }
         if ($this->shouldSkipRelayDelivery($domainBlocks)) {
             return;
         }
 
         $actor = Actor::query()->with('key')->find($this->signingActorId);
+
+        if (($this->localPollPostId ?? null) !== null
+            && ($actor === null || ! $actor->isActive() || ! $actor->user?->isActive())) {
+            return;
+        }
 
         if ($actor === null || $actor->key === null || ! $actor->key->hasPrivateKey()) {
             // Non e' un errore transitorio (nessun retry ha senso: la chiave

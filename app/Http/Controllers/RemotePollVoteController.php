@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Services\RemotePollVoter;
-use App\Domain\Polls\RemotePoll;
+use App\Domain\Polls\Poll;
 use App\Domain\Posts\Post;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +16,7 @@ final class RemotePollVoteController extends Controller
     {
         $actor = $request->user()->actor;
         abort_unless($post->isPublished() && Post::whereKey($post->id)->visibleTo($actor)->exists(), 404);
-        $poll = $post->remotePoll()->firstOrFail();
+        $poll = $post->poll()->firstOrFail();
         $bag = 'poll-'.$post->id;
         $data = $request->validateWithBag($bag, [
             'choices' => ['required', 'array', 'list', 'min:1', 'max:50'],
@@ -34,8 +34,8 @@ final class RemotePollVoteController extends Controller
         }
 
         if ($request->expectsJson()) {
-            $post->load(['actor.endpoints', 'remotePoll.options']);
-            RemotePoll::annotateViewerState([$post->remotePoll], $actor);
+            $post->load(['actor.endpoints', 'poll.options']);
+            Poll::annotateViewerState([$post->poll], $actor);
 
             return response()->json([
                 'html' => view('posts._poll', ['post' => $post, 'embed' => false])->render(),

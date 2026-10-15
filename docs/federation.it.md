@@ -434,14 +434,47 @@ propone account remoti da scoprire e, oltre i primi 5, l'elenco completo in
 `/mondo/scopri` con scorrimento infinito. SSRF, blocco domini e firme HTTP
 restano i vincoli di sicurezza di base.
 
+### Sondaggi locali (#121, primo incremento)
+
+Il primo incremento introduce persistenza e pubblicazione come `Question`
+tramite i percorsi Create, Update, GET canonico e outbox dei post.
+`PostComposer` accetta `poll` con `options` (lista di 2–6 testi distinti di
+massimo 50 caratteri Unicode), `multiple` (booleano) e `duration_seconds`
+(intero fra 300 e 604.800). La durata parte dalla pubblicazione effettiva,
+anche con video in staging; i conteggi iniziali sono pari a zero.
+
+Definizione e visibilità rimangono fissate alla pubblicazione. Le correzioni
+del testo non possono aggiungere destinatari. Sono incluse le community locali
+anche private; conversazioni private e pubblicazione verso Group remoti sono
+intenzionalmente escluse. Applicare `php artisan migrate`. UI di creazione/voto,
+raccolta delle Note di voto e comando di distribuzione dei risultati arriveranno
+nei successivi incrementi. Il normale flusso invia già Create(Question); il
+lavoro federato pendente è registrato insieme al sondaggio per il successivo
+collegamento al cron generale, senza un nuovo cron da configurare.
+
+Le tabelle `polls`, `poll_options`, `poll_votes` e `poll_vote_choices` sono
+condivise dai sondaggi locali e remoti. La nuova migration rinomina prima le
+quattro tabelle `remote_poll*` della #120 e poi aggiunge i campi locali,
+preservando UUID, conteggi nullable, opzioni, snapshot, date e voti accodati.
+Le migration precedenti restano invariate. Il rollback verso lo schema remoto
+è consentito soltanto senza sondaggi locali o votanti scollegati, evitando di
+perdere dati che il vecchio schema non rappresenta. Gli account
+cancellati conservano i contributi con identità scollegata; hash con chiave
+preservano la deduplicazione senza URI personali del voto in chiaro. I payload
+grezzi inbox seguono la conservazione esistente. La cancellazione logica del
+post elimina scelte/opzioni e ferma gli aggiornamenti, mantenendo i metadati
+per la tombstone Question; la cancellazione fisica elimina anche questi.
+Le Question accodate vengono ricontrollate prima dell'invio per evitare di
+ripubblicare post eliminati.
+
 ### Sondaggi remoti (#120)
 
 Gli oggetti `Question` nel formato Mastodon vengono importati tramite i flussi
 esistenti di inbox, outbox, collection dei post fissati, Announce e refresh di
-post/risposte. I metadati vivono in `remote_polls` e `remote_poll_options`; il
+post/risposte. I metadati vivono in `polls` e `poll_options`; il
 post conserva le normali regole di autore, audience e moderazione. Le Question
 di risposta sono escluse. Il sondaggio compare nella card del feed e nella
-pagina del post (`/posts/{post}`), identificato da `remote_polls.post_id`.
+pagina del post (`/posts/{post}`), identificato da `polls.post_id`.
 Restano i percorsi di aggiornamento esistenti, senza polling o worker dedicati. L'apertura
 della pagina rilegge testo, avviso e visibilità dopo il refresh, applicando
 il pubblico corrente prima di mostrare il contenuto.

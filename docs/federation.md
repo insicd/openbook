@@ -434,14 +434,45 @@ accounts to discover and, beyond the first 5, the full list at `/mondo/scopri`
 with infinite scroll. SSRF, domain blocks, and HTTP signatures remain the
 baseline security constraints.
 
+### Local polls (#121, first increment)
+
+The first increment adds persistence and publication as `Question` through
+existing post Create, Update, canonical GET and outbox paths. `PostComposer`
+accepts `poll` containing `options` (a list of 2–6 distinct strings of at most
+50 Unicode characters), `multiple` (boolean) and `duration_seconds` (integer
+from 300 to 604,800). Duration starts at actual publication, including staged
+videos; initial counts are zero.
+
+Definition and visibility stay fixed after publication. Text corrections cannot
+add recipients. Local communities, including private ones, are supported;
+private conversations and publication to remote Groups are intentionally
+excluded. Run `php artisan migrate`. Creation/voting UI, inbound vote collection
+and results distribution command will arrive in subsequent increments. The
+normal flow already sends Create(Question); pending federation work is recorded
+together with the poll for subsequent integration with the general cron,
+without requiring a new cron configuration.
+
+The `polls`, `poll_options`, `poll_votes` and `poll_vote_choices` tables are
+shared by local and remote polls. The new migration first renames the four
+`remote_poll*` tables from #120, then adds local fields, preserving UUIDs,
+nullable counts, options, snapshots, dates and queued votes. Previous migrations
+remain unchanged. Rollback to the remote schema requires no local polls or
+detached voters, preventing loss of data the old schema cannot represent. Deleted
+accounts retain contributions with identity detached; keyed hashes preserve
+deduplication without personal vote URIs in plain text. Raw inbox payloads
+follow existing retention. Logical post deletion removes choices/options and
+stops updates, keeping Question tombstone metadata; physical deletion removes
+that metadata too. Queued Questions are rechecked before sending to prevent
+deleted posts from being republished.
+
 ### Remote polls (#120)
 
 Mastodon-shaped `Question` objects are imported through the existing inbox,
 outbox, featured collection, Announce and post/replies refresh paths. Their
-metadata lives in `remote_polls` and `remote_poll_options`; the post retains
+metadata lives in `polls` and `poll_options`; the post retains
 its ordinary author, audience and moderation rules. Question replies are
 excluded. Polls appear in feed cards and on the post page (`/posts/{post}`),
-identified by `remote_polls.post_id`. No dedicated polling or worker is introduced. Opening
+identified by `polls.post_id`. No dedicated polling or worker is introduced. Opening
 the page reloads text, content warning and visibility after refresh, applying
 the current audience before displaying content.
 

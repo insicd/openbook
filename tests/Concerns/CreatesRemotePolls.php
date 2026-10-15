@@ -2,7 +2,7 @@
 
 namespace Tests\Concerns;
 
-use App\Domain\Polls\RemotePoll;
+use App\Domain\Polls\Poll;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\RemoteNoteUpserter;
 use Illuminate\Support\Facades\Http;
@@ -11,7 +11,7 @@ trait CreatesRemotePolls
 {
     use CreatesAccounts, CreatesRemoteActors;
 
-    /** @return array{Actor, RemotePoll} */
+    /** @return array{Actor, Poll} */
     private function votingFixture(bool $multiple = false): array
     {
         Http::preventStrayRequests();
@@ -22,6 +22,6 @@ trait CreatesRemotePolls
         $note['endTime'] = now()->addDay()->toIso8601String();
         $post = app(RemoteNoteUpserter::class)->upsertPost($note, $note['id'], $author, 'Poll', now(), notifyMentions: false);
 
-        return [$voter, $post->remotePoll->load('options')];
+        return [$voter, $post->poll->load('options')];
     }
 }

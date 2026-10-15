@@ -1122,6 +1122,12 @@ return [
     ],
 
     'polls' => [
+        'immutable' => 'Options, voting mode and duration stay as chosen at publication.',
+        'fixed_visibility' => 'The poll keeps the visibility chosen at publication.',
+        'fixed_audience' => 'To include more people, create a new post with a poll.',
+        'active_author' => 'Publish the poll from an active local account.',
+        'local_posts_only' => 'Polls can be published in public, unlisted or followers-only posts.',
+        'local_communities_only' => 'Publish the poll on your profile or in a local community.',
         'title' => 'Poll',
         'open' => 'Poll open',
         'ends' => 'Closes on',

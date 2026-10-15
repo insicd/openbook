@@ -1,7 +1,7 @@
 <?php
 
 use App\Application\Services\RemotePollVoter;
-use App\Domain\Polls\RemotePoll;
+use App\Domain\Polls\Poll;
 use App\Federation\Actors\Actor;
 use App\Infrastructure\Security\Http\DnsResolver;
 use Illuminate\Contracts\Console\Kernel;
@@ -22,7 +22,7 @@ if (trim(fgets(STDIN)) !== 'go') {
 }
 $vote = app(RemotePollVoter::class)->vote(
     Actor::findOrFail($input['voter']),
-    RemotePoll::findOrFail($input['poll']),
+    Poll::findOrFail($input['poll']),
     $input['choices'], $input['version'],
 );
 echo $vote->id."\n";

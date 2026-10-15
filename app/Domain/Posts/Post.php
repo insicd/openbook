@@ -7,7 +7,7 @@ use App\Domain\Communities\Community;
 use App\Domain\Events\Event;
 use App\Domain\Locations\PostLocation;
 use App\Domain\Messaging\Conversation;
-use App\Domain\Polls\RemotePoll;
+use App\Domain\Polls\Poll;
 use App\Domain\Reactions\Announce;
 use App\Domain\Reactions\Like;
 use App\Federation\Actors\Actor;
@@ -83,14 +83,14 @@ class Post extends Model
     public const CARD_RELATIONS = [
         'actor.user.profile',
         'actor.endpoints',
-        'remotePoll.options',
+        'poll.options',
         'community.actor',
         'media.thumbnail',
         'hashtags',
         'location',
         'quotedPost.actor.user.profile',
         'quotedPost.actor.endpoints',
-        'quotedPost.remotePoll.options',
+        'quotedPost.poll.options',
         'quotedPost.media.thumbnail',
         'quotedPost.hashtags',
         'quotedPost.location',
@@ -206,9 +206,9 @@ class Post extends Model
         return $this->hasMany(PostAttachment::class)->orderBy('position');
     }
 
-    public function remotePoll(): HasOne
+    public function poll(): HasOne
     {
-        return $this->hasOne(RemotePoll::class);
+        return $this->hasOne(Poll::class);
     }
 
     public function location(): HasOne
@@ -403,12 +403,12 @@ class Post extends Model
         $polls = [];
         foreach ($posts as $post) {
             foreach ([$post, $post->relationLoaded('quotedPost') ? $post->quotedPost : null] as $card) {
-                if ($card?->relationLoaded('remotePoll') && $card->remotePoll !== null) {
-                    $polls[] = $card->remotePoll;
+                if ($card?->relationLoaded('poll') && $card->poll !== null) {
+                    $polls[] = $card->poll;
                 }
             }
         }
-        RemotePoll::annotateViewerState($polls, $viewer);
+        Poll::annotateViewerState($polls, $viewer);
 
         if ($viewer === null || $posts->isEmpty()) {
             foreach ($posts as $post) {

@@ -12,7 +12,7 @@ class PostPolicy
     public function vote(User $user, Post $post): bool
     {
         $actor = $user->actor;
-        $poll = $post->remotePoll;
+        $poll = $post->poll;
         if ($actor === null || ! app(RemotePollInteractionPolicy::class)->allows($actor, $post)
             || $poll === null || $poll->isClosed()
             || $poll->options->count() < 2 || ! $actor->key?->hasPrivateKey()) {

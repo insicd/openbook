@@ -2,8 +2,8 @@
 
 namespace App\Application\Services;
 
-use App\Domain\Polls\RemotePoll;
-use App\Domain\Polls\RemotePollVote;
+use App\Domain\Polls\Poll;
+use App\Domain\Polls\PollVote;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
@@ -25,10 +25,10 @@ final class RemotePollVoter
     ) {}
 
     /** @param list<string> $optionIds */
-    public function vote(Actor $voter, RemotePoll $poll, array $optionIds, string $optionsVersion): RemotePollVote
+    public function vote(Actor $voter, Poll $poll, array $optionIds, string $optionsVersion): PollVote
     {
         $voter = $this->activeVoter($voter);
-        $poll = RemotePoll::query()->findOrFail($poll->id);
+        $poll = Poll::query()->findOrFail($poll->id);
         $post = Post::query()->whereKey($poll->post_id)->where('status', Post::STATUS_PUBLISHED)->visibleTo($voter)->firstOrFail();
         $this->assertTarget($voter, $post);
         $existing = $poll->votes()->where('actor_id', $voter->id)->first();
@@ -55,9 +55,9 @@ final class RemotePollVoter
             throw ValidationException::withMessages(['poll' => __('openbook.polls.retry')]);
         }
 
-        return DB::transaction(function () use ($voter, $poll, $optionIds, $optionsVersion, $inbox): RemotePollVote {
+        return DB::transaction(function () use ($voter, $poll, $optionIds, $optionsVersion, $inbox): PollVote {
             $post = Post::query()->whereKey($poll->post_id)->where('status', Post::STATUS_PUBLISHED)->visibleTo($voter)->lockForUpdate()->firstOrFail();
-            $locked = RemotePoll::query()->whereKey($poll->id)->where('post_id', $post->id)->lockForUpdate()->firstOrFail();
+            $locked = Poll::query()->whereKey($poll->id)->where('post_id', $post->id)->lockForUpdate()->firstOrFail();
             $locked->setRelation('options', $locked->options()->lockForUpdate()->get());
             $voter = $this->activeVoter($voter);
             $this->assertTarget($voter, $post);
@@ -86,7 +86,7 @@ final class RemotePollVoter
             $vote = $locked->votes()->create(['actor_id' => $voter->id]);
             foreach ($optionIds as $id) {
                 $option = $options[$id];
-                $choice = $vote->choices()->create(['position' => $option->position, 'name' => $option->name]);
+                $choice = $vote->choices()->create(['option_id' => $option->id, 'position' => $option->position, 'name' => $option->name]);
                 $this->delivery->enqueueDirectInTransaction(
                     $voter, $inbox, PollVoteSerializer::create($choice, $voter, $post), $choice->id,
                 );

@@ -19,6 +19,15 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Sondaggi locali (#121, fondamenta)**: persistenza e pubblicazione ActivityPub
+  come `Question`, con 2–6 opzioni di massimo 50 caratteri e durata da 5 minuti
+  a 7 giorni. Definizione e visibilità fissate alla pubblicazione; supportati
+  allegati, staging video e community locali anche private. Escluse conversazioni
+  private e pubblicazione verso Group remoti. Modello unico `Poll` collegato
+  al post; la nuova migration rinomina le quattro tabelle `remote_poll*` in
+  `polls`, `poll_options`, `poll_votes`, `poll_vote_choices` e poi aggiunge i
+  campi locali, preservando dati e attività già accodate. Applicare la migration;
+  composer, voto e distribuzione periodica arriveranno nei successivi incrementi.
 - **Sondaggi remoti (#120)**: importazione degli oggetti `Question` attraverso
   inbox, outbox, condivisioni e refresh esistenti; visualizzazione nelle card e
   nel dettaglio del post, con voto singolo/multiplo e conferma «Voto registrato»

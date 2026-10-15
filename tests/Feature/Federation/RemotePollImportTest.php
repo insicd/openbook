@@ -4,7 +4,7 @@ namespace Tests\Feature\Federation;
 
 use App\Application\Services\DomainBlockManager;
 use App\Domain\Comments\Comment;
-use App\Domain\Polls\RemotePoll;
+use App\Domain\Polls\Poll;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -53,11 +53,11 @@ class RemotePollImportTest extends TestCase
         $create = $this->item($this->fixture('single-create'), '2026-10-08 10:00:00');
         $update = $this->item($this->fixture('single-update'), '2026-10-08 10:05:00');
         $this->assertSame('processed', $this->process($create));
-        $ids = RemotePoll::sole()->options->pluck('id')->all();
+        $ids = Poll::sole()->options->pluck('id')->all();
         $this->assertSame('processed', $this->process($update));
         $this->assertSame('ignored', $this->process($create));
         $this->assertSame('ignored', $this->process($update));
-        $poll = RemotePoll::sole();
+        $poll = Poll::sole();
         $this->assertSame(1, Post::count());
         $this->assertSame(46, $poll->voters_count);
         $this->assertSame([20, 15, 7, 4], $poll->options->pluck('votes_count')->all());
@@ -69,7 +69,7 @@ class RemotePollImportTest extends TestCase
     {
         $this->assertSame('processed', $this->process($this->item($this->fixture('single-update'), '2026-10-08 10:05:00')));
         $this->process($this->item($this->fixture('single-create'), '2026-10-08 10:00:00'));
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
     }
 
     public function test_original_inbox_id_breaks_equal_receipt_time_ties(): void
@@ -79,7 +79,7 @@ class RemotePollImportTest extends TestCase
         $this->assertGreaterThan($old->id, $new->id);
         $this->process($new);
         $this->process($old);
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
     }
 
     public function test_remote_updated_version_overrides_receipt_order_and_old_versions_are_ignored(): void
@@ -91,7 +91,7 @@ class RemotePollImportTest extends TestCase
         $new['object']['updated'] = '2026-10-08T10:02:00Z';
         $this->process($this->item($new, '2026-10-08 10:04:00'));
         $this->process($this->item($first, '2026-10-08 10:06:00'));
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
     }
 
     public function test_newer_snapshot_can_reduce_counts_and_missing_counts_remain_unknown(): void
@@ -101,32 +101,32 @@ class RemotePollImportTest extends TestCase
         $next['object']['votersCount'] = 40;
         $next['object']['oneOf'][0]['replies']['totalItems'] = 14;
         $this->process($this->item($next, '2026-10-08 10:01:00'));
-        $this->assertSame(40, RemotePoll::sole()->voters_count);
+        $this->assertSame(40, Poll::sole()->voters_count);
         $unknown = $this->fixture('open-unknown-results');
         $this->process($this->item($unknown, '2026-10-08 10:02:00'));
-        $this->assertNull(RemotePoll::sole()->voters_count);
-        $this->assertNull(RemotePoll::sole()->options->first()->votes_count);
-        $this->assertNotNull(RemotePoll::sole()->ends_at);
+        $this->assertNull(Poll::sole()->voters_count);
+        $this->assertNull(Poll::sole()->options->first()->votes_count);
+        $this->assertNotNull(Poll::sole()->ends_at);
     }
 
     public function test_multiple_choice_and_explicit_closure_do_not_reopen_after_a_later_snapshot(): void
     {
         $this->process($this->item($this->fixture('multiple-update'), '2026-10-08 10:00:00'));
-        $this->assertTrue(RemotePoll::sole()->multiple);
-        $this->assertSame(7, RemotePoll::sole()->voters_count);
+        $this->assertTrue(Poll::sole()->multiple);
+        $this->assertSame(7, Poll::sole()->voters_count);
         $closed = $this->fixture('closed-update');
         $closed['object']['closed'] = true;
         $this->process($this->item($closed, '2026-10-08 10:01:00'));
         $later = $this->fixture('single-update');
         $later['object']['endTime'] = '2026-10-20T10:00:00Z';
         $this->process($this->item($later, '2026-10-08 10:02:00'));
-        $this->assertTrue(RemotePoll::sole()->isClosed());
+        $this->assertTrue(Poll::sole()->isClosed());
     }
 
     public function test_swapping_and_renaming_options_preserves_exact_identity_and_personal_snapshots(): void
     {
         $this->process($this->item($this->fixture('single-create'), '2026-10-08 10:00:00'));
-        $poll = RemotePoll::sole();
+        $poll = Poll::sole();
         $ids = $poll->options->pluck('id', 'name');
         $vote = $poll->votes()->create(['actor_id' => $this->viewer->id]);
         $choice = $vote->choices()->create(['position' => 0, 'name' => 'Sabato']);
@@ -151,7 +151,7 @@ class RemotePollImportTest extends TestCase
         $bad['object']['content'] = 'Changed by malformed poll';
         $this->assertSame('ignored', $this->process($this->item($bad, '2026-10-08 10:02:00')));
         $this->assertSame($before, Post::sole()->body);
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
     }
 
     public function test_votes_never_become_comments_or_direct_messages_even_for_unknown_targets(): void
@@ -179,7 +179,7 @@ class RemotePollImportTest extends TestCase
         Post::sole()->update(['status' => 'deleted']);
         $this->assertSame('ignored', $this->process($this->item($this->fixture('single-update'), '2026-10-08 10:02:00')));
         $this->assertSame('deleted', Post::sole()->status);
-        $this->assertSame(0, RemotePoll::sole()->voters_count);
+        $this->assertSame(0, Poll::sole()->voters_count);
     }
 
     public function test_blocked_origin_and_irrelevant_author_are_ignored(): void
@@ -210,12 +210,12 @@ class RemotePollImportTest extends TestCase
         Http::fake([$uri => Http::response($activity['object'])]);
         $activity['object'] = $uri;
         $this->assertSame('processed', $this->process($this->item($activity, '2026-10-08 10:00:00')));
-        $this->assertSame(1, RemotePoll::count());
+        $this->assertSame(1, Poll::count());
         $next = $this->fixture('single-update')['object'];
         $next['id'] .= '-outbox';
         Http::fake([$this->author->endpoints->outbox => Http::response(['type' => 'OrderedCollection', 'orderedItems' => [$next]])]);
         app(RemoteOutboxFetcher::class)->fetchRecentContent($this->author);
-        $this->assertSame(2, RemotePoll::count());
+        $this->assertSame(2, Poll::count());
     }
 
     public function test_announce_of_a_poll_uses_shared_import_flow(): void
@@ -223,7 +223,7 @@ class RemotePollImportTest extends TestCase
         $activity = $this->fixture('single-create');
         $activity['type'] = 'Announce';
         $this->assertSame('processed', $this->process($this->item($activity, '2026-10-08 10:00:00')));
-        $this->assertSame(1, RemotePoll::count());
+        $this->assertSame(1, Poll::count());
         $this->assertSame(1, Post::sole()->announces()->count());
     }
 
@@ -236,11 +236,11 @@ class RemotePollImportTest extends TestCase
             return Http::response($document);
         });
         app(RemotePostRefresher::class)->refresh(Post::sole());
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
         $this->assertSame(0, Comment::count());
         $document['votersCount'] = 47;
         app(RemoteRepliesFetcher::class)->fetchReplies(Post::sole(), force: true);
-        $this->assertSame(47, RemotePoll::sole()->voters_count);
+        $this->assertSame(47, Poll::sole()->voters_count);
     }
 
     public function test_updates_of_cached_poll_remain_relevant_after_unfollowing(): void
@@ -248,16 +248,16 @@ class RemotePollImportTest extends TestCase
         $this->process($this->item($this->fixture('single-create'), '2026-10-08 10:00:00'));
         Follow::query()->delete();
         $this->assertSame('processed', $this->process($this->item($this->fixture('single-update'), '2026-10-08 10:01:00')));
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
     }
 
     public function test_inbox_replay_in_same_second_as_fetch_does_not_overwrite_the_fetched_snapshot(): void
     {
         $note = $this->fixture('single-update')['object'];
         app(RemoteOutboxFetcher::class)->upsertPublicPost($note, $this->author);
-        $this->assertNull(RemotePoll::sole()->source_item_id);
+        $this->assertNull(Poll::sole()->source_item_id);
         $this->assertSame('ignored', $this->process($this->item($this->fixture('single-create'), now()->format('Y-m-d H:i:s'))));
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
     }
 
     public function test_expired_poll_cannot_reopen_by_extending_end_time(): void
@@ -267,7 +267,7 @@ class RemotePollImportTest extends TestCase
         $next = $this->fixture('single-update');
         $next['object']['endTime'] = '2026-10-20T10:00:00Z';
         $this->process($this->item($next, '2026-10-11 10:00:00'));
-        $this->assertTrue(RemotePoll::sole()->isClosed());
+        $this->assertTrue(Poll::sole()->isClosed());
     }
 
     public function test_fetch_rejects_a_question_with_a_different_document_id(): void
@@ -279,7 +279,7 @@ class RemotePollImportTest extends TestCase
         $activity = $this->fixture('single-create');
         $activity['object'] = $requested;
         $this->assertSame('ignored', $this->process($this->item($activity, '2026-10-08 10:00:00')));
-        $this->assertSame(0, RemotePoll::count());
+        $this->assertSame(0, Poll::count());
     }
 
     public function test_third_party_announce_verifies_the_canonical_poll(): void
@@ -295,8 +295,8 @@ class RemotePollImportTest extends TestCase
         $item = $this->item($activity, '2026-10-08 10:00:00');
         $item->update(['actor_uri' => $booster->uri]);
         $this->assertSame('processed', $this->process($item));
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
-        $this->assertNull(RemotePoll::sole()->source_item_id);
+        $this->assertSame(46, Poll::sole()->voters_count);
+        $this->assertNull(Poll::sole()->source_item_id);
     }
 
     public function test_uri_fetch_uses_observation_time_instead_of_old_envelope_receipt(): void
@@ -306,9 +306,9 @@ class RemotePollImportTest extends TestCase
         Http::fake([$question['id'] => Http::response($question)]);
         $activity['object'] = $question['id'];
         $this->assertSame('processed', $this->process($this->item($activity, '2026-10-08 09:00:00')));
-        $this->assertNull(RemotePoll::sole()->source_item_id);
+        $this->assertNull(Poll::sole()->source_item_id);
         $this->assertSame('ignored', $this->process($this->item($this->fixture('single-create'), '2026-10-08 10:00:00')));
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
     }
 
     public function test_featured_collection_imports_a_poll_without_personal_data(): void
@@ -318,9 +318,9 @@ class RemotePollImportTest extends TestCase
         $question = $this->fixture('single-create')['object'];
         Http::fake([$url => Http::response(['type' => 'OrderedCollection', 'orderedItems' => [$question]])]);
         app(RemoteFeaturedPostsFetcher::class)->refreshIfStale($this->author->fresh());
-        $this->assertSame(1, RemotePoll::count());
+        $this->assertSame(1, Poll::count());
         $this->assertSame([Post::sole()->id], $this->author->fresh()->featured_post_ids);
-        $this->assertSame(0, RemotePoll::sole()->votes()->count());
+        $this->assertSame(0, Poll::sole()->votes()->count());
     }
 
     public function test_group_outbox_verifies_and_imports_the_canonical_question(): void
@@ -334,7 +334,7 @@ class RemotePollImportTest extends TestCase
             $question['id'] => Http::response($question),
         ]);
         app(RemoteOutboxFetcher::class)->fetchRecentContent($group);
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
         $this->assertSame($group->id, Post::sole()->announces->sole()->actor_id);
     }
 
@@ -348,9 +348,9 @@ class RemotePollImportTest extends TestCase
         $activity['object']['quote']['votersCount'] = 999;
         Http::fake([$question['id'] => Http::response($question)]);
         $this->assertSame('processed', $this->process($this->item($activity, '2026-10-08 10:00:00')));
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
         $quoting = Post::where('uri', $activity['object']['id'])->sole();
-        $this->assertSame(RemotePoll::sole()->post_id, $quoting->quoted_post_id);
+        $this->assertSame(Poll::sole()->post_id, $quoting->quoted_post_id);
     }
 
     public function test_quote_by_uri_fetches_the_canonical_question_only_once(): void
@@ -362,7 +362,7 @@ class RemotePollImportTest extends TestCase
         $activity['object']['quote'] = $question['id'];
         Http::fake([$question['id'] => Http::response($question)]);
         $this->assertSame('processed', $this->process($this->item($activity, '2026-10-08 10:00:00')));
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
         Http::assertSentCount(1);
     }
 
@@ -375,7 +375,7 @@ class RemotePollImportTest extends TestCase
             $question['id'] => Http::response($question),
         ]);
         app(RemoteOutboxFetcher::class)->fetchRecentContent($group);
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
         Http::assertSentCount(2);
     }
 
@@ -393,7 +393,7 @@ class RemotePollImportTest extends TestCase
         $item->update(['actor_uri' => $booster->uri]);
         Http::fake([$question['id'] => Http::response($question)]);
         $this->assertSame('processed', $this->process($item));
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
         Http::assertSentCount(1);
     }
 
@@ -406,7 +406,7 @@ class RemotePollImportTest extends TestCase
         $question['id'] .= '-substituted';
         Http::fake([$activity['object'] => Http::response($question)]);
         $this->assertSame('ignored', $this->process($this->item($activity, '2026-10-08 10:00:00')));
-        $this->assertSame(0, RemotePoll::count());
+        $this->assertSame(0, Poll::count());
         Http::assertSentCount(1);
     }
 
@@ -417,7 +417,7 @@ class RemotePollImportTest extends TestCase
         $question['type'] = ['https://www.w3.org/ns/activitystreams#Question'];
         Http::fake([$question['id'] => Http::response($question)]);
         app(RemoteRepliesFetcher::class)->fetchReplies(Post::sole(), force: true);
-        $this->assertSame(46, RemotePoll::sole()->voters_count);
+        $this->assertSame(46, Poll::sole()->voters_count);
     }
 
     private function fixture(string $name): array

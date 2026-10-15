@@ -83,7 +83,7 @@ final class OutboxController extends Controller
             ->forPage($pageNumber, $perPage)
             ->get();
         $posts = Post::query()
-            ->with(['actor.endpoints', 'media.thumbnail', 'hashtags', 'mentions.actor', 'quotedPost', 'quotedActor', 'quotedEvent', 'community.actor', 'location'])
+            ->with(['actor.endpoints', 'media.thumbnail', 'hashtags', 'mentions.actor', 'quotedPost', 'quotedActor', 'quotedEvent', 'community.actor', 'location', 'poll.options'])
             ->whereIn('id', $rows->where('item_type', 'post')->pluck('id'))
             ->get()
             ->keyBy('id');

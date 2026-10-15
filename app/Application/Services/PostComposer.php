@@ -48,6 +48,7 @@ final class PostComposer
         private readonly AnnounceManager $announceManager,
         private readonly FollowManager $followManager,
         private readonly LocalCommunityIngester $communityIngester,
+        private readonly LocalPollPublisher $pollPublisher,
     ) {}
 
     /**
@@ -55,6 +56,7 @@ final class PostComposer
      */
     public function compose(Actor $author, array $data): Post
     {
+        $pollDefinition = $this->pollPublisher->definitionFor($author, $data);
         $images = $data['images'] ?? [];
         $preparedMedia = $data['prepared_media'] ?? [];
         $maxAttachments = (int) config('openbook.media.max_attachments_per_post');
@@ -71,7 +73,7 @@ final class PostComposer
             throw new InvalidArgumentException(__('openbook.communities.errors.addressed_and_local'));
         }
 
-        $post = DB::transaction(function () use ($author, $data, $images, $preparedMedia, $quotedPost, $community, $addressedGroup) {
+        $post = DB::transaction(function () use ($author, $data, $images, $preparedMedia, $quotedPost, $community, $addressedGroup, $pollDefinition) {
             $post = Post::query()->create([
                 'actor_id' => $author->id,
                 'community_id' => $community?->id,
@@ -87,6 +89,10 @@ final class PostComposer
                 'status' => Post::STATUS_PUBLISHED,
                 'published_at' => now(),
             ]);
+
+            if ($pollDefinition !== null) {
+                $this->pollPublisher->create($post, $pollDefinition);
+            }
 
             $altTexts = $data['alt_texts'] ?? [];
 
@@ -194,6 +200,12 @@ final class PostComposer
         }
 
         $post = DB::transaction(function () use ($author, $post, $data, $images, $existingCount) {
+            $post = Post::query()->lockForUpdate()->findOrFail($post->id);
+            if ($post->actor_id !== $author->id || ! $post->isPublished()) {
+                throw new InvalidArgumentException('Questo post non puo\' essere modificato.');
+            }
+            $post->load(['mentions.actor', 'community.actor']);
+            $this->pollPublisher->recordPostUpdate($post, $data);
             $post->update([
                 'title' => $data['title'] ?? null,
                 'content_warning' => $data['content_warning'] ?? null,

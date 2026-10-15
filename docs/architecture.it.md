@@ -73,6 +73,21 @@ da poter accogliere attori remoti senza modifiche allo schema.
 Le chiavi private degli Actor sono cifrate a riposo (cast `encrypted` di Eloquent,
 basato su `APP_KEY`) e non vengono mai esposte da API, log o messaggi di errore.
 
+### Sondaggi locali (#121)
+
+`LocalPollPublisher` valida e persiste la definizione nella transazione di
+`PostComposer`. Lo staging video conserva la durata e calcola la scadenza alla
+pubblicazione. `LocalPollSerializer` aggiunge i campi Question al documento
+esistente, riusandone testo, media e audience. `Poll`, `PollOption`, `PollVote`
+e `PollVoteChoice` sono comuni alle due origini, con un'unica relazione
+`Post::poll`; l'origine deriva dal post. Importazione remota, pubblicazione
+locale e voto mantengono servizi distinti e le rispettive regole sui conteggi.
+`PollLifecycle` scollega i voti degli account cancellati e
+svuota i sondaggi dei post eliminati logicamente, preservando i metadati della
+tombstone. Revisione e lavoro federato pendente sono durevoli nello stesso DB;
+voto e collegamento al cron arrivano nei successivi incrementi. Vedi
+[sondaggi locali](federation.it.md#sondaggi-locali-121-primo-incremento).
+
 ### Post, commenti e reazioni
 
 - Il corpo di post e commenti e' testo con Markdown ampio (GFM), reso in HTML

@@ -1,8 +1,8 @@
-@if ($post->remotePoll !== null && $post->isPublished())
+@if ($post->poll !== null && $post->isRemote() && $post->isPublished())
     @php
-        $poll = $post->remotePoll;
+        $poll = $post->poll;
         if (! $poll->relationLoaded('viewerVote')) {
-            \App\Domain\Polls\RemotePoll::annotateViewerState([$poll], auth()->user()?->actor);
+            \App\Domain\Polls\Poll::annotateViewerState([$poll], auth()->user()?->actor);
         }
         $vote = $poll->getRelation('viewerVote');
         $choices = $vote?->choices ?? collect();
