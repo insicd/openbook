@@ -191,6 +191,7 @@ return [
         'register_title' => 'Crea il tuo account',
         'login_title' => 'Accedi a :app',
         'username' => 'Nome utente',
+        'username_example' => 'nomeutente',
         'username_help' => 'Lettere, numeri e underscore. Le lettere vengono salvate in minuscolo. Sarà visibile come :handle',
         'email' => 'Indirizzo email',
         'password' => 'Password',

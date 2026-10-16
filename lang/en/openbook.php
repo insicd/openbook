@@ -191,6 +191,7 @@ return [
         'register_title' => 'Create your account',
         'login_title' => 'Log in to :app',
         'username' => 'Username',
+        'username_example' => 'username',
         'username_help' => 'Letters, numbers and underscores. Letters are saved in lowercase. It will appear as :handle',
         'email' => 'Email address',
         'password' => 'Password',

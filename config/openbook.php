@@ -122,6 +122,7 @@ return [
     'locales' => [
         'it' => 'Italiano',
         'en' => 'English',
+        'fi' => 'Suomi',
     ],
 
     /*

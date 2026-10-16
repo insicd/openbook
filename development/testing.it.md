@@ -14,6 +14,16 @@ SQLite in memoria; verifica desktop/mobile, tastiera, invio del form e menu
 ospite senza JavaScript. Come gli altri test browser richiede Playwright;
 `BROWSER_EXECUTABLE_PATH` permette di indicare un Chromium già installato.
 
+La traduzione finlandese si verifica anche con:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test tests/Unit/Support/FinnishTranslationsTest.php tests/Unit/Support/CompactNumberTest.php tests/Feature/FinnishLocaleTest.php
+OPENBOOK_BROWSER_LOCALE=fi node tests/Browser/locales.cjs
+```
+
+I controlli verificano tutti e cinque i file, chiavi, segnaposto e intervalli
+dei plurali, oltre a selezione, registrazione, date e separatore decimale.
+
 Le fondamenta dei sondaggi locali (#121) si verificano con:
 
 ```bash

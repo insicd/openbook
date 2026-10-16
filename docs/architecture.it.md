@@ -12,6 +12,7 @@ Durante la registrazione puoi scrivere lo username anche con lettere maiuscole:
 viene salvato in minuscolo. Il nome visualizzato del profilo è personalizzabile.
 
 L'icona della lingua nella barra superiore apre le lingue disponibili.
+Puoi scegliere Italiano, English o Suomi (finlandese).
 Prima dell'accesso Openbook usa la lingua del browser; una scelta esplicita
 viene ricordata sullo stesso browser per un anno e ha la precedenza.
 Il nuovo account eredita la lingua usata durante la registrazione.

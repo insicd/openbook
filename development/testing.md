@@ -14,6 +14,16 @@ SQLite. It checks desktop/mobile, keyboard navigation, form submission and
 the guest menu without JavaScript. Like the other browser checks it requires
 Playwright; `BROWSER_EXECUTABLE_PATH` can point to an installed Chromium.
 
+Finnish translations can also be checked with:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test tests/Unit/Support/FinnishTranslationsTest.php tests/Unit/Support/CompactNumberTest.php tests/Feature/FinnishLocaleTest.php
+OPENBOOK_BROWSER_LOCALE=fi node tests/Browser/locales.cjs
+```
+
+These checks cover all five files, keys, placeholders and plural ranges,
+as well as selection, registration, dates and the decimal separator.
+
 Local poll foundations (#121) can be checked with:
 
 ```bash
