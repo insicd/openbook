@@ -6,10 +6,10 @@ Openbook permette di pubblicare, seguire persone, conversare e partecipare a
 community ed eventi. Un account può interagire sia con persone della stessa
 istanza sia con account di altri servizi compatibili del Fediverso.
 
+## Registrazione e lingua dell’interfaccia
+
 Durante la registrazione puoi scrivere lo username anche con lettere maiuscole:
 viene salvato in minuscolo. Il nome visualizzato del profilo è personalizzabile.
-
-## Scegliere la lingua
 
 L'icona della lingua nella barra superiore apre le lingue disponibili.
 Prima dell'accesso Openbook usa la lingua del browser; una scelta esplicita

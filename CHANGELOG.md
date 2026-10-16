@@ -19,17 +19,6 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Scelta della lingua (#103)**: selettore dedicato nella barra delle pagine
-  pubbliche e dopo l'accesso. La scelta viene ricordata nel browser per un
-  anno; per gli utenti autenticati aggiorna la preferenza dell'account. I nuovi
-  account ereditano la lingua usata durante la registrazione.
-- **Primi passi nel feed (#103)**: il messaggio di benvenuto cita anche gli
-  hashtag da seguire; community e «Argomenti in tendenza» sono raggiungibili
-  prima della lista di persone, mentre «Scopri altre persone» resta in fondo.
-  Il riquadro resta sopra i post finché si seguono meno di 10 persone e hashtag
-  complessivamente, soltanto nella prima pagina del feed. Testi aggiornati in
-  italiano e inglese. La lista «Dal fediverso» compare solo a zero seguiti;
-  dopo il primo follow resta il pulsante per continuare la scoperta.
 - **Flusso pubblico sulla home per gli ospiti**: in Aspetto, un'opzione
   (disattivata di default) sposta le informazioni sull'istanza a sinistra e
   mostra al centro i post pubblici visibili a questa istanza (locali e remoti
@@ -204,6 +193,16 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Registrazione e primi passi (#103)**: selettore della lingua condiviso tra
+  pagine pubbliche e applicazione autenticata. La scelta è ricordata nel browser
+  per un anno, aggiorna la preferenza dell'account dopo l'accesso ed è ereditata
+  dai nuovi account alla registrazione. Form, navigazione e messaggi di errore
+  usano traduzioni coerenti; gli username con maiuscole vengono accettati e
+  salvati in minuscolo, con controllo dei doppioni sul valore normalizzato.
+  Il benvenuto nel feed propone persone, community e argomenti in tendenza,
+  restando sopra i post fino a 9 persone/hashtag seguiti complessivamente.
+  Community e tendenze precedono la lista di persone; «Scopri altre persone»
+  resta in fondo e la lista «Dal fediverso» compare soltanto a zero seguiti.
 - **Documentazione per utenti e amministratori**: guide d’uso, sondaggi,
   federazione e limiti del prodotto riscritte in italiano e inglese; istruzioni
   operative mantenute nelle guide di installazione/configurazione. Riferimenti
@@ -262,13 +261,6 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
-- **Lingua delle pagine di accesso (#103)**: testi di navigazione, riepilogo
-  errori e messaggi di registrazione/login usano le traduzioni dell'interfaccia,
-  evitando messaggi italiani mescolati ai form inglesi.
-- **Registrazione (#103)**: gli username con maiuscole vengono convertiti in
-  minuscolo prima della validazione e del controllo dei doppioni, anche rispetto
-  agli Actor locali. Il form accetta le maiuscole e chiarisce come sarà salvato
-  il nome utente.
 - **Post remoti dal futuro** (#125): le date di pubblicazione future vengono
   limitate all'ora corrente al salvataggio, dopo la conversione del fuso orario.
   Gli aggiornamenti con date future conservano la data valida gia' in cache,

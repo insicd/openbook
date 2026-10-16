@@ -2,8 +2,9 @@
 
 Stato al 16 ottobre 2026: sprint 1 chiuso in `7dae56a`, dopo verifica locale e
 review tecnica; analisi iniziale congelata in `b2291fc`. Sprint 2 completato,
-verificato localmente e approvato dopo la review tecnica, con analisi
-congelata in `17162e5`. Gli sprint 3–5 restano in analisi.
+verificato localmente e chiuso in `f5e42c7`, con analisi congelata in `17162e5`.
+Review complessiva e preparazione della PR limitate agli sprint 1–2;
+gli sprint 3–5 restano da affrontare in un intervento successivo.
 
 Issue: https://github.com/insicd/openbook/issues/103
 Discussione: https://github.com/insicd/openbook/issues/103#issuecomment-5877611768
@@ -367,6 +368,36 @@ Le verifiche dipenderanno dalle decisioni, includendo account nuovi/esistenti,
 completamento delle attività, persistenza e possibilità di saltare il percorso.
 
 ## Perimetro e sequenza di chiusura
+
+### Perimetro della PR corrente e review complessiva
+
+L'utente ha deciso di fermare questa PR agli sprint 1 e 2. La #103 viene
+affrontata parzialmente: Privacy/Regole multilingua, pagina Welcome
+amministrabile e possibile percorso a step restano esclusi e da analizzare
+in un intervento successivo. Non usare una clausola di chiusura automatica
+dell'issue nella descrizione della PR.
+
+Review dell'intero ramo rispetto a `main` (`8caa6d4`): ricontrollati
+normalizzazione e collisioni dello username, rendering del form dopo errori,
+selezione e paginazione del welcome kit, separazione del controller dalle
+query, priorità e persistenza della lingua, confini di autenticazione,
+CSRF/redirect e riuso delle preferenze esistenti. Nessuna anomalia bloccante
+o modifica ulteriore al comportamento applicativo necessaria.
+
+Changelog riunito in una voce funzionale «Registrazione e primi passi»;
+guide d'uso italiana e inglese organizzate per il percorso dell'utente,
+con istruzioni operative e senza dettagli di implementazione o degli sprint.
+Analisi e riferimenti ai test restano in `analysis/` e `development/`.
+La PR richiede soltanto l'aggiornamento del codice e delle cache di route
+eventualmente in uso; nessuna migration, build o nuova configurazione.
+
+Validazione applicativa finale invariata rispetto allo sprint 2: suite
+completa con 1.746 test superati, 109 saltati e i due problemi preesistenti
+documentati sopra; controllo browser e stile superati. Dopo la review
+complessiva cambiano soltanto documenti: controllati diff, whitespace e
+coerenza dei collegamenti locali, senza rieseguire test applicativi invariati.
+
+### Metodo seguito negli sprint
 
 Lo sprint 1 comprende username e primi passi nel feed: nessuna migration,
 modifica alla federazione, refactor estraneo o nuovo sistema di raccomandazione.

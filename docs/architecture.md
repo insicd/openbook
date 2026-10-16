@@ -6,10 +6,10 @@ Openbook lets you publish, follow people, hold conversations and participate in
 communities and events. Your account can interact with people on the same
 instance and with accounts on other compatible Fediverse services.
 
+## Registration and interface language
+
 During registration you can enter uppercase letters in your username:
 it is saved in lowercase. You can customize your profile's display name.
-
-## Choosing your language
 
 The language icon in the top bar opens the available languages. Before login,
 Openbook uses your browser's language; an explicit choice is remembered on
