@@ -15,7 +15,7 @@ $app = require dirname(__DIR__, 3).'/bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 config(['cache.default' => 'array', 'session.driver' => 'array', 'database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
 Artisan::call('migrate', ['--database' => 'sqlite', '--force' => true]);
-$app->setLocale('en');
+$app->setLocale(getenv('OPENBOOK_BROWSER_LOCALE') ?: 'en');
 URL::forceRootUrl('http://openbook.test');
 request()->setLaravelSession(app('session.store'));
 view()->share('errors', new ViewErrorBag);

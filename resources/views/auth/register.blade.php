@@ -20,7 +20,7 @@
                        autocomplete="username" aria-describedby="username-help"
                        @if ($errors->has('username')) aria-invalid="true" @endif>
                 <p id="username-help" class="ob-field__help">
-                    {{ __('openbook.auth.username_help', ['handle' => '@'.strtolower($username ?: 'nomeutente').'@'.config('openbook.domain')]) }}
+                    {{ __('openbook.auth.username_help', ['handle' => '@'.strtolower($username ?: __('openbook.auth.username_example')).'@'.config('openbook.domain')]) }}
                 </p>
                 @error('username')
                     <p class="ob-field__error">{{ $message }}</p>

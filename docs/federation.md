@@ -127,6 +127,11 @@ administrator-applied blocks still apply.
 
 ## Events
 
+Primary times use the event's own time zone. When your local time differs, a
+smaller note shows “… in your time zone”, including the date where needed.
+New events default to your personal time zone; change it if the event takes
+place elsewhere. Editing an existing event keeps its assigned time zone.
+
 **Events** contains upcoming and past appointments. Authenticated users can
 create public or unlisted events with description, cover, time zone,
 physical/online/hybrid location and open, moderated or external participation.

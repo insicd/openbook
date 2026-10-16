@@ -30,6 +30,19 @@ L’estensione PHP `gd` è consigliata per generare miniature e rimuovere i
 metadati dalle immagini compatibili. Senza GD il caricamento resta disponibile,
 ma queste elaborazioni vengono saltate.
 
+### Fusi orari personali
+
+Gli utenti scelgono il fuso da **Impostazioni → Account**, oppure lasciano
+Automatico per seguire il dispositivo. L'aggiornamento richiede la normale
+esecuzione delle migration e imposta Automatico anche per gli account esistenti.
+Non serve modificare `APP_TIMEZONE` per consentire queste scelte: il riferimento
+dei dati salvati, dei log e del cron resta quello dell'istanza. In assenza di
+rilevamento automatico viene usato lo stesso riferimento.
+
+Il pannello amministrativo mostra gli orari nel fuso personale dell'operatore;
+nelle pagine con orari assoluti una nota indica il fuso usato, utile per il
+confronto con i log del server.
+
 ### Posizione dei post
 
 La posizione dei post è una funzionalità facoltativa e usa un catalogo locale

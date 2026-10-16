@@ -5,6 +5,7 @@
 @section('content')
     <p><a href="{{ route('admin.reports.index') }}">&larr; {{ __('openbook.admin.reports.back') }}</a></p>
     <h1>{{ __('openbook.admin.reports.detail_title') }}</h1>
+    @include('admin.partials.timezone-note')
 
     <div class="ob-card" style="margin-top:1rem">
         <p>
@@ -13,12 +14,12 @@
             <span class="ob-badge">{{ $report->isCommentReport() ? __('openbook.admin.reports.type_comment') : __('openbook.admin.reports.type_post') }}</span>
         </p>
         <p>{{ __('openbook.admin.reports.by', ['name' => $report->reporter?->username ?? '—']) }}
-            &middot; {{ $report->created_at->format('Y-m-d H:i') }}</p>
+            &middot; @userdate($report->created_at, 'Y-m-d H:i')</p>
         @if ($report->details)
             <p><strong>{{ __('openbook.reports.details_label') }}:</strong> {{ $report->details }}</p>
         @endif
         @if ($report->reviewer)
-            <p class="ob-field__help">{{ __('openbook.admin.reports.reviewed_by', ['name' => $report->reviewer->username, 'date' => $report->reviewed_at?->format('Y-m-d H:i')]) }}</p>
+            <p class="ob-field__help">{{ __('openbook.admin.reports.reviewed_by', ['name' => $report->reviewer->username, 'date' => app(\App\Support\UserDate::class)->format($report->reviewed_at, 'Y-m-d H:i')]) }}</p>
         @endif
     </div>
 

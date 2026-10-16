@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $id
  * @property string $user_id
  * @property string $locale
- * @property string $timezone
+ * @property string|null $timezone
  * @property bool $manually_approves_followers
  * @property string $default_post_visibility
  * @property bool $discoverable

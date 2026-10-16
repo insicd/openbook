@@ -19,6 +19,18 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Fuso orario personale**: nelle impostazioni puoi scegliere un fuso oppure
+  lasciare «Automatico», che segue il dispositivo anche durante i viaggi.
+  Date e orari dell'interfaccia, inclusi messaggi, sondaggi e amministrazione,
+  seguono il fuso effettivo; gli ospiti usano quello del browser.
+  Gli eventi mantengono il proprio orario e affiancano quello personale quando
+  differisce. Il composer propone il fuso personale per i nuovi eventi.
+  Gli account esistenti passano ad Automatico con la migration; log, cron e
+  timestamp federati mantengono il riferimento dell'istanza.
+- **Lingua finlandese**: interfaccia disponibile in «Suomi», inclusi pannello
+  amministrativo, messaggi di validazione, autenticazione e paginazione.
+  Selezione e rilevamento dal browser usano i flussi esistenti; i conteggi
+  compatti rispettano la virgola decimale finlandese.
 - **Flusso pubblico sulla home per gli ospiti**: in Aspetto, un'opzione
   (disattivata di default) sposta le informazioni sull'istanza a sinistra e
   mostra al centro i post pubblici visibili a questa istanza (locali e remoti

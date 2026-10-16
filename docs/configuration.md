@@ -33,6 +33,18 @@ The PHP `gd` extension is recommended for thumbnails and metadata removal from
 supported images. Without GD, uploads remain available but these processing
 steps are skipped.
 
+### Personal time zones
+
+Users choose their time zone in **Settings → Account**, or leave Automatic
+to follow their device. Updating requires the usual migrations and switches
+existing accounts to Automatic. There is no need to change `APP_TIMEZONE` to
+enable these choices: stored data, logs and cron keep the instance's reference
+time zone. The same zone is used when automatic detection is unavailable.
+
+The administration panel shows times in the operator's personal time zone;
+pages with absolute times identify the zone used to help compare them with
+server logs.
+
 ### Post locations
 
 Post locations are an optional feature and use a local

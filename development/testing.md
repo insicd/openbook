@@ -2,6 +2,22 @@
 
 ## Tests
 
+Personal time zones:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test tests/Feature/UserTimezoneTest.php tests/Feature/UserDatePresentationTest.php tests/Unit/Support/UserDateTest.php
+node tests/Browser/timezones.cjs
+OPENBOOK_TEST_TIMEZONE_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test tests/Feature/UserTimezoneMysqlTest.php
+```
+
+The MySQL check uses `OPENBOOK_TEST_MYSQL_HOST`, `PORT`, `SOCKET`, `USERNAME`
+and `PASSWORD` (with the same prefix). It creates and drops a random schema,
+never migrating the application's database, and verifies rollback, nullability
+and defaults. Browser checks use in-memory SQLite and cover detection, device
+changes, explicit preferences, guests, events, missing JavaScript/Intl/cookies
+and POST responses never being repeated. Verification screenshots are saved
+in the system temporary directory.
+
 Language selection and authentication pages (#103):
 
 ```bash
@@ -13,6 +29,16 @@ The optional browser check uses the production layout and CSS with in-memory
 SQLite. It checks desktop/mobile, keyboard navigation, form submission and
 the guest menu without JavaScript. Like the other browser checks it requires
 Playwright; `BROWSER_EXECUTABLE_PATH` can point to an installed Chromium.
+
+Finnish translations can also be checked with:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test tests/Unit/Support/FinnishTranslationsTest.php tests/Unit/Support/CompactNumberTest.php tests/Feature/FinnishLocaleTest.php
+OPENBOOK_BROWSER_LOCALE=fi node tests/Browser/locales.cjs
+```
+
+These checks cover all five files, keys, placeholders and plural ranges,
+as well as selection, registration, dates and the decimal separator.
 
 Local poll foundations (#121) can be checked with:
 

@@ -1,11 +1,5 @@
 @php
     $cover = $event->media->first();
-    $offset = $event->utc_offset_minutes;
-    $timezone = $event->timezone
-        ?? ($offset !== null
-            ? sprintf('%s%02d:%02d', $offset >= 0 ? '+' : '-', intdiv(abs($offset), 60), abs($offset) % 60)
-            : config('app.timezone'));
-    $startsAt = $event->start_at->copy()->setTimezone($timezone);
     $location = $event->location;
     $locationName = $location?->name ?: $location?->address;
     $locationCountry = $location?->country_name ?: $location?->country_code;
@@ -33,7 +27,7 @@
             @if ($showTypeBadge ?? false)
                 <span class="ob-badge">{{ __('openbook.events.badge') }}</span>
             @endif
-            <div class="ob-event-card__date">{{ $startsAt->translatedFormat('j F Y, H:i') }}</div>
+            <div class="ob-event-card__date"><x-event-date :event="$event" :date="$event->start_at" :show-timezone="true" /></div>
             <h3>{!! \App\Domain\Posts\PostBodyRenderer::renderInlineCustomEmojis($event->name, $event->custom_emojis) !!}</h3>
             @if ($locationLines)
                 <div class="ob-event-card__location">
