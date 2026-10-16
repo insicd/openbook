@@ -261,6 +261,9 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- Lo sfondo della home ospite (immagine o alone di default) resta della
+  dimensione dello schermo, fisso dietro i contenuti, invece di ingrandirsi
+  con il flusso pubblico.
 - **Post remoti dal futuro** (#125): le date di pubblicazione future vengono
   limitate all'ora corrente al salvataggio, dopo la conversione del fuso orario.
   Gli aggiornamenti con date future conservano la data valida gia' in cache,

@@ -1905,7 +1905,29 @@ body.ob-guest-home .ob-footer {
   -webkit-backdrop-filter: blur(12px);
 }
 
-body.ob-guest-home--has-bg {
+body.ob-guest-home--has-bg,
+body.ob-guest-home-feed {
+  isolation: isolate;
+  background: var(--ob-color-bg);
+  min-height: 100vh;
+}
+
+body.ob-guest-home--has-bg::before,
+body.ob-guest-home-feed::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+body.ob-guest-home-feed::before {
+  background:
+    radial-gradient(80rem 28rem at 50% -8rem, color-mix(in srgb, var(--ob-color-primary) 22%, transparent), transparent 68%),
+    var(--ob-color-bg);
+}
+
+body.ob-guest-home--has-bg::before {
   background-color: var(--ob-color-bg);
   background-image:
     linear-gradient(
@@ -1916,8 +1938,7 @@ body.ob-guest-home--has-bg {
     var(--ob-guest-home-image);
   background-size: cover;
   background-position: center;
-  background-attachment: scroll;
-  min-height: 100vh;
+  background-repeat: no-repeat;
 }
 
 .ob-shell--guest-home-feed {
