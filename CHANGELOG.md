@@ -19,6 +19,10 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Lingua finlandese**: interfaccia disponibile in «Suomi», inclusi pannello
+  amministrativo, messaggi di validazione, autenticazione e paginazione.
+  Selezione e rilevamento dal browser usano i flussi esistenti; i conteggi
+  compatti rispettano la virgola decimale finlandese.
 - **Flusso pubblico sulla home per gli ospiti**: in Aspetto, un'opzione
   (disattivata di default) sposta le informazioni sull'istanza a sinistra e
   mostra al centro i post pubblici visibili a questa istanza (locali e remoti
