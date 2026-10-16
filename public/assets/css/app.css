@@ -1875,6 +1875,12 @@ body.ob-guest-home--has-bg {
   position: sticky;
   top: calc(1.5rem + 60px);
   min-width: 0;
+  max-height: calc(100dvh - 1.5rem - 60px - 1.25rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-inline-end: 0.2rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ob-guest-home-aside .ob-hero--guest {
@@ -3597,6 +3603,7 @@ a.ob-post__menu-item {
     bottom: 0;
     width: 84vw;
     max-width: 320px;
+    max-height: none;
     margin: 0;
     padding: 1rem;
     overflow-y: auto;

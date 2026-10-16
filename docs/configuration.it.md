@@ -71,9 +71,9 @@ forniti da GeoNames con licenza
 Il layout della home per i visitatori resta quello attuale finché un
 amministratore non attiva **Flusso pubblico sulla home per gli ospiti** in
 **Aspetto**. L’opzione è disattiva di default. Se attiva, gli ospiti vedono
-le informazioni sull’istanza a sinistra e al centro i post pubblici già
-visibili a questa istanza (locali e remoti in cache), con lo stesso
-scorrimento infinito usato altrove. Non è una timeline completa del
+le informazioni sull’istanza a sinistra (la colonna scorre da sola, anche
+su desktop) e al centro i post pubblici già visibili a questa istanza
+(locali e remoti in cache), con lo stesso scorrimento infinito usato altrove. Non è una timeline completa del
 Fediverso. Su schermi stretti la colonna sinistra diventa un pannello a
 comparsa, aperto da una freccia verso destra.
 

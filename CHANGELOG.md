@@ -22,9 +22,10 @@ la [roadmap](docs/roadmap.md).
 - **Flusso pubblico sulla home per gli ospiti**: in Aspetto, un'opzione
   (disattivata di default) sposta le informazioni sull'istanza a sinistra e
   mostra al centro i post pubblici visibili a questa istanza (locali e remoti
-  già in cache), con scorrimento infinito. Su schermi stretti il blocco
-  sinistro si apre con una freccia. Se l'opzione è spenta, la home resta
-  il layout attuale.
+  già in cache), con scorrimento infinito. La colonna sinistra scorre da sola,
+  anche su desktop, così il blocco in basso resta raggiungibile mentre il
+  flusso centrale continua. Su schermi stretti il blocco sinistro si apre con
+  una freccia. Se l'opzione è spenta, la home resta il layout attuale.
 - **Sondaggi locali (#121)**: creazione dall’icona nella barra del composer, con
   2–6 opzioni di massimo 50 caratteri, aggiunta progressiva, scelta singola o
   multipla e durata da 5 minuti a 7 giorni (predefinita: un giorno). Allegati,

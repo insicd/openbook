@@ -71,9 +71,10 @@ Geographical data is provided by GeoNames under
 
 The guest homepage layout is unchanged unless an administrator enables
 **Public feed on the guest homepage** in **Appearance**. The option is off by
-default. When enabled, visitors see instance information on the left and, in
-the centre, public posts already visible to this instance (local posts and
-cached remote posts), with the same infinite scrolling used elsewhere. It is
+default. When enabled, visitors see instance information on the left (that column
+scrolls on its own, including on desktop) and, in the centre, public posts
+already visible to this instance (local posts and cached remote posts),
+with the same infinite scrolling used elsewhere. It is
 not a complete Fediverse timeline. On small screens the left column becomes a
 slide-out panel opened with a right-pointing arrow.
 
