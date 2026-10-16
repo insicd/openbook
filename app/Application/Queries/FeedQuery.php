@@ -279,8 +279,7 @@ final class FeedQuery
     }
 
     /**
-     * Feed pubblico locale: tutti i post pubblici dell'istanza, usato dalla
-     * home per i visitatori non autenticati e dalla pagina "Locale".
+     * Feed pubblico locale: tutti i post pubblici degli Actor di questa istanza.
      */
     public function local(?FeedCursor $cursor = null, int $perPage = 0): FeedPage
     {
@@ -336,6 +335,56 @@ final class FeedQuery
             if (is_array($forcedHashtags) && $forcedHashtags !== []) {
                 $query->whereDoesntHave('hashtags', fn ($query) => $query->whereIn('name', $forcedHashtags));
             }
+        }
+
+        $query
+            ->orderByDesc('published_at')
+            ->orderByDesc(self::TIEBREAKER_COLUMN);
+
+        return $this->paginateKeyset($query, $perPage, $cursor, useShareSortCursor: false);
+    }
+
+    /**
+     * Flusso pubblico visibile a questa istanza: post pubblici locali e
+     * remoti gia' in cache, la stessa finestra di {@see self::local()} unita
+     * a {@see self::world()} (quindi non e' una vista completa del fediverso).
+     * L'eventuale nascondimento dei content warning di Mondo vale solo per
+     * i remoti, cosi' i post locali restano visibili sulla home.
+     */
+    public function instancePublic(?FeedCursor $cursor = null, int $perPage = 0): FeedPage
+    {
+        $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
+
+        $query = Post::query()
+            ->with(Post::CARD_RELATIONS)
+            ->excludingPrivateMessages()
+            ->where('status', Post::STATUS_PUBLISHED)
+            ->where('visibility', Post::VISIBILITY_PUBLIC)
+            ->where(function ($query) {
+                $query->whereNull('community_id')
+                    ->orWhereHas('community', fn ($community) => $community->where('is_private', false));
+            });
+
+        if ((bool) config('openbook.moderation.hide_content_warnings_from_world', false)) {
+            $forcedHashtags = config('openbook.moderation.forced_content_warning_hashtags', []);
+            $forcedHashtags = is_array($forcedHashtags) ? $forcedHashtags : [];
+
+            $query->where(function ($visible) use ($forcedHashtags): void {
+                $visible->whereHas('actor', fn ($actor) => $actor->where('is_local', true))
+                    ->orWhere(function ($remote) use ($forcedHashtags): void {
+                        $remote->whereHas('actor', fn ($actor) => $actor->where('is_local', false))
+                            ->where(fn ($warning) => $warning
+                                ->whereNull('content_warning')
+                                ->orWhere('content_warning', ''));
+
+                        if ($forcedHashtags !== []) {
+                            $remote->whereDoesntHave(
+                                'hashtags',
+                                fn ($tag) => $tag->whereIn('name', $forcedHashtags),
+                            );
+                        }
+                    });
+            });
         }
 
         $query

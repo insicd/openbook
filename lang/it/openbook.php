@@ -169,6 +169,9 @@ return [
         'staff_title' => 'Amministrazione',
         'staff_role_admin' => 'Amministratore',
         'staff_role_moderator' => 'Moderatore',
+        'feed_title' => 'Cosa succede su :name',
+        'feed_empty' => 'Ancora nessun post pubblico visibile su questa istanza.',
+        'toggle_intro' => 'Mostra le informazioni sull\'istanza',
     ],
 
     'auth' => [
@@ -848,7 +851,9 @@ return [
         ],
         'appearance' => [
             'title' => 'Aspetto',
-            'intro' => 'CSS aggiuntivo applicato al sito pubblico (non al pannello di controllo). Serve a personalizzare colori e componenti del template senza toccare i file. L\'anteprima qui sotto usa una pagina di esempio: il sito reale cambia solo quando salvi.',
+            'intro' => 'Personalizza il sito pubblico (non il pannello di controllo): layout della home per gli ospiti e CSS aggiuntivo. L\'anteprima del CSS usa una pagina di esempio: il sito reale cambia solo quando salvi.',
+            'guest_home_feed' => 'Flusso pubblico sulla home per gli ospiti',
+            'guest_home_feed_help' => 'Se attivo, la home per chi non è autenticato sposta le informazioni sull\'istanza a sinistra e al centro mostra i post pubblici visibili a questa istanza (locali e remoti già in cache), con scorrimento infinito. Se disattivo, la home resta il layout attuale.',
             'css_label' => 'CSS personalizzato',
             'css_help' => 'Le regole vengono aggiunte dopo il foglio di stile di Openbook, quindi puoi sovrascrivere le classi .ob-* e le variabili :root (--ob-color-primary, --ob-color-bg, ...). Massimo 50.000 caratteri. Non usare @import.',
             'css_placeholder' => ":root {\n  --ob-color-primary: #c45c26;\n}",

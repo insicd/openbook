@@ -130,7 +130,9 @@ servers, see the [federation guide](federation.md).
 Administrators manage settings, accounts, moderation, blocked domains, queues
 and maintenance from the administration panel. Moderators can use functions
 assigned to their role; staff roles grant no access to another author’s
-individual poll answers.
+individual poll answers. In **Appearance**, an optional public feed on the
+guest homepage (off by default) moves instance information to the left and
+shows public posts already visible to the instance in the centre.
 
 For installation and updates, follow the [installation guide](install.md).
 For cron, maintenance, retention and videos, see

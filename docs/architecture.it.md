@@ -134,7 +134,10 @@ e interazioni con altri server, vedi la [guida alla federazione](federation.it.m
 Gli amministratori gestiscono impostazioni, account, moderazione, domini
 bloccati, code e manutenzione dal pannello di amministrazione. I moderatori
 hanno accesso alle funzioni assegnate al loro ruolo; il ruolo di staff non dà
-accesso al dettaglio delle risposte ai sondaggi di altri autori.
+accesso al dettaglio delle risposte ai sondaggi di altri autori. In **Aspetto**,
+un flusso pubblico opzionale sulla home per gli ospiti (disattivo di default)
+sposta le informazioni sull’istanza a sinistra e al centro mostra i post
+pubblici già visibili all’istanza.
 
 Per installazione e aggiornamenti segui la [guida dedicata](install.it.md).
 Per cron, manutenzione, retention e video consulta la

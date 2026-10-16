@@ -15,6 +15,7 @@ final class AppearanceController extends Controller
     {
         return view('admin.appearance.edit', [
             'customCss' => $settings->customCss(),
+            'guestHomeFeed' => $settings->guestHomeFeed(),
             'maxLength' => InstanceSettings::CUSTOM_CSS_MAX_LENGTH,
         ]);
     }
@@ -23,11 +24,16 @@ final class AppearanceController extends Controller
     {
         $data = $request->validate([
             'custom_css' => ['nullable', 'string', 'max:'.InstanceSettings::CUSTOM_CSS_MAX_LENGTH],
+            'guest_home_feed' => ['sometimes', 'boolean'],
         ], [], [
             'custom_css' => __('openbook.admin.appearance.css_label'),
         ]);
 
         $settings->updateCustomCss((string) ($data['custom_css'] ?? ''), $request->user());
+
+        if ($request->exists('guest_home_feed')) {
+            $settings->updateGuestHomeFeed($request->boolean('guest_home_feed'));
+        }
 
         return redirect()
             ->route('admin.appearance.edit')

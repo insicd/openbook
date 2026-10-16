@@ -66,6 +66,17 @@ GeoNames selezionata e le coordinate del suo centro. I dati geografici sono
 forniti da GeoNames con licenza
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
+### Flusso sulla home per gli ospiti
+
+Il layout della home per i visitatori resta quello attuale finché un
+amministratore non attiva **Flusso pubblico sulla home per gli ospiti** in
+**Aspetto**. L’opzione è disattiva di default. Se attiva, gli ospiti vedono
+le informazioni sull’istanza a sinistra e al centro i post pubblici già
+visibili a questa istanza (locali e remoti in cache), con lo stesso
+scorrimento infinito usato altrove. Non è una timeline completa del
+Fediverso. Su schermi stretti la colonna sinistra diventa un pannello a
+comparsa, aperto da una freccia verso destra.
+
 ## Cron e attivita periodiche
 
 Configura `openbook:cron` ogni minuto per elaborare le attività in attesa e

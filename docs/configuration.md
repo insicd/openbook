@@ -67,6 +67,16 @@ GeoNames city and its city-centre coordinates are saved and published.
 Geographical data is provided by GeoNames under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
+### Guest homepage feed
+
+The guest homepage layout is unchanged unless an administrator enables
+**Public feed on the guest homepage** in **Appearance**. The option is off by
+default. When enabled, visitors see instance information on the left and, in
+the centre, public posts already visible to this instance (local posts and
+cached remote posts), with the same infinite scrolling used elsewhere. It is
+not a complete Fediverse timeline. On small screens the left column becomes a
+slide-out panel opened with a right-pointing arrow.
+
 ## Cron and periodic tasks
 
 Configure `openbook:cron` every minute to process pending work and run periodic

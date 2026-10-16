@@ -169,6 +169,9 @@ return [
         'staff_title' => 'Staff',
         'staff_role_admin' => 'Administrator',
         'staff_role_moderator' => 'Moderator',
+        'feed_title' => 'What\'s happening on :name',
+        'feed_empty' => 'No public posts are visible on this instance yet.',
+        'toggle_intro' => 'Show instance information',
     ],
 
     'auth' => [
@@ -848,7 +851,9 @@ return [
         ],
         'appearance' => [
             'title' => 'Appearance',
-            'intro' => 'Extra CSS applied to the public site (not the control panel). Use it to override template colors and components without editing files. The preview below is a sample page: the live site changes only when you save.',
+            'intro' => 'Customise the public site (not the control panel): guest homepage layout and extra CSS. The CSS preview is a sample page: the live site changes only when you save.',
+            'guest_home_feed' => 'Public feed on the guest homepage',
+            'guest_home_feed_help' => 'When enabled, the homepage for visitors moves instance information to the left and shows public posts visible to this instance in the centre (local and already-cached remote posts), with infinite scrolling. When disabled, the homepage keeps the current layout.',
             'css_label' => 'Custom CSS',
             'css_help' => 'Rules are appended after the Openbook stylesheet, so you can override .ob-* classes and :root variables (--ob-color-primary, --ob-color-bg, …). Maximum 50,000 characters. Do not use @import.',
             'css_placeholder' => ":root {\n  --ob-color-primary: #c45c26;\n}",

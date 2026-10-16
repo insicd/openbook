@@ -14,6 +14,7 @@
         'ob-css-preview' => $isCssPreview ?? false,
         'ob-guest-home' => $guestHome ?? false,
         'ob-guest-home--has-bg' => ($guestHome ?? false) && filled($homeBackgroundUrl ?? null),
+        'ob-guest-home-feed' => $guestHomeFeed ?? false,
     ])>
     <a href="#ob-content" class="ob-skip-link">Vai al contenuto principale</a>
 
@@ -24,6 +25,12 @@
                     <button type="button" class="ob-icon-btn ob-sidebar-toggle" id="ob-sidebar-toggle"
                         aria-label="Apri il menu" aria-controls="ob-sidebar-left" aria-expanded="false">
                         <x-icon name="menu" />
+                    </button>
+                @elseif ($guestHomeFeed ?? false)
+                    <button type="button" class="ob-icon-btn ob-sidebar-toggle ob-guest-home-toggle" id="ob-guest-home-toggle"
+                        aria-label="{{ __('openbook.home.toggle_intro') }}"
+                        aria-controls="ob-guest-home-aside" aria-expanded="false">
+                        <x-icon name="arrow-right" />
                     </button>
                 @endauth
                 <a href="{{ route('home') }}" class="ob-brand">{{ config('app.name') }}</a>
@@ -120,7 +127,11 @@
         @endif
     </header>
 
-    <div class="ob-shell {{ auth()->check() ? 'ob-shell--with-sidebars' : '' }}">
+    <div @class([
+            'ob-shell',
+            'ob-shell--with-sidebars' => auth()->check(),
+            'ob-shell--guest-home-feed' => $guestHomeFeed ?? false,
+        ])>
         @auth
             <aside class="ob-sidebar ob-sidebar--left" id="ob-sidebar-left">
                 @include('partials.sidebar-left')
@@ -245,7 +256,9 @@
         </a>
 
         @include('partials.compose-modal')
+    @endauth
 
+    @if (auth()->check() || ($guestHomeFeed ?? false))
         <div class="ob-sidebar-overlay" id="ob-sidebar-overlay" hidden></div>
         <script>
             (function () {
@@ -256,6 +269,7 @@
 
                 var panels = [
                     { toggle: document.getElementById('ob-sidebar-toggle'), panel: document.getElementById('ob-sidebar-left') },
+                    { toggle: document.getElementById('ob-guest-home-toggle'), panel: document.getElementById('ob-guest-home-aside') },
                     { toggle: document.getElementById('ob-nav-toggle'), panel: document.getElementById('ob-nav-icons') },
                 ].filter(function (entry) {
                     return entry.toggle && entry.panel;
@@ -294,7 +308,7 @@
                 });
             })();
         </script>
-    @endauth
+    @endif
 
     {{-- Reset del backoff della pagina di attesa DB dopo un caricamento riuscito. --}}
     <script>

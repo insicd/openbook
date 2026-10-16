@@ -76,6 +76,8 @@ final class InstanceSettings
 
     public const KEY_CUSTOM_CSS = 'custom_css';
 
+    public const KEY_GUEST_HOME_FEED = 'guest_home_feed';
+
     public const KEY_LOCATIONS_CATALOG_READY = GeoNamesCityImporter::READY_SETTING_KEY;
 
     public const CUSTOM_CSS_MAX_LENGTH = 50000;
@@ -344,6 +346,15 @@ final class InstanceSettings
         return $this->cssSanitizer->sanitize((string) (SystemSetting::get(self::KEY_CUSTOM_CSS) ?? ''));
     }
 
+    /**
+     * Home guest a due colonne con flusso di post pubblici (locali e remoti
+     * in cache). Default false: senza la chiave in DB resta il layout attuale.
+     */
+    public function guestHomeFeed(): bool
+    {
+        return SystemSetting::getBool(self::KEY_GUEST_HOME_FEED, false);
+    }
+
     public function updateCustomCss(string $css, ?User $actor = null): void
     {
         $css = $this->cssSanitizer->sanitize($css);
@@ -357,6 +368,17 @@ final class InstanceSettings
         if ($actor !== null) {
             $this->auditLogger->log($actor, 'appearance.update', null, [
                 'css_length' => mb_strlen($css),
+            ]);
+        }
+    }
+
+    public function updateGuestHomeFeed(bool $enabled, ?User $actor = null): void
+    {
+        SystemSetting::putBool(self::KEY_GUEST_HOME_FEED, $enabled);
+
+        if ($actor !== null) {
+            $this->auditLogger->log($actor, 'appearance.update', null, [
+                'guest_home_feed' => $enabled,
             ]);
         }
     }
