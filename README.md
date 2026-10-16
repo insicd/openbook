@@ -47,12 +47,13 @@ Requirements, git/Composer install, web server layouts, and updates:
 
 - [Install and updates](docs/install.md)
 - [Configuration, cron and database maintenance](docs/configuration.md)
-- [Architecture](docs/architecture.md)
+- [Usage, profiles and polls](docs/architecture.md)
 - [Federation](docs/federation.md)
-- [Development and tests](docs/development.md)
 - [Security](docs/security.md)
 - [Roadmap](docs/roadmap.md)
 - Full index: [`docs/README.md`](docs/README.md)
+
+For code contributions: [developer guides](development/README.md).
 
 ## License
 

@@ -2,8 +2,7 @@
 
 ## Security and privacy
 
-- Passwords hashed with modern algorithms via Laravel's native mechanisms
-  (bcrypt), no custom algorithm.
+- Passwords protected with bcrypt hashing.
 - Authentication with rate limiting on login attempts and on resending
   verification emails.
 - Actor private keys encrypted at rest, never exposed by APIs/logs/errors.

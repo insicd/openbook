@@ -135,7 +135,7 @@ through its normal deployment procedure after updating.
    Include an attachment and a content warning in one example.
 3. From a second account, show results, return to choices and vote. Confirm the
    personal answer and final choice; another account must not see that answer.
-   As the author, open “View answers”, switch options and inspect participants.
+   As the author, open “Answer details”, switch options and inspect participants.
    The same URL must reject another account, including a moderator/admin.
 4. Repeat in a private local community and with followers-only visibility.
    Check that an excluded account cannot open or vote on the post. Edit the

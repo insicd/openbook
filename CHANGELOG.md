@@ -186,6 +186,12 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Documentazione per utenti e amministratori**: guide d’uso, sondaggi,
+  federazione e limiti del prodotto riscritte in italiano e inglese; istruzioni
+  operative mantenute nelle guide di installazione/configurazione. Riferimenti
+  a codice, test e preparazione delle release spostati in `development/`, con
+  indici e collegamenti aggiornati. Chiariti chat, spostamenti degli account
+  e disponibilità degli upload senza GD.
 - **Homepage ospite**: nome e descrizione dell'istanza sono in evidenza;
   i riferimenti al software Openbook restano piu' in basso. I box e la
   navbar sono semitrasparenti. Dalle impostazioni admin si puo' caricare

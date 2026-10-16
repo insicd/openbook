@@ -7,9 +7,9 @@ accesso SSH continuo, senza Docker e senza processi permanenti:
 
 - PHP **8.2** o superiore, con estensioni: `curl`, `openssl`, `json`, `pdo`,
   `pdo_mysql`, `mbstring`, `fileinfo`;
-- estensione `gd` **consigliata** (non bloccante) per il caricamento di immagini nei
-  post: senza `gd` l'istanza resta pienamente funzionante, ma solo per i post
-  testuali;
+- estensione `gd` **consigliata** per miniature e rimozione dei metadati dalle
+  immagini compatibili. Senza GD il caricamento resta disponibile, ma queste
+  elaborazioni vengono saltate;
 - MySQL 8 o MariaDB equivalente;
 - Composer (solo in fase di installazione/aggiornamento, non in produzione);
 - Apache con `mod_rewrite`, oppure Nginx;
@@ -41,9 +41,6 @@ Il percorso piu' semplice non richiede Composer ne' SSH: usa il bootstrap
 6. Facoltativamente importa il catalogo delle citta' GeoNames per abilitare le
    posizioni nei post (vedi [Posizioni nei post](configuration.it.md#posizione-dei-post)). Questo
    passaggio richiede accesso CLI e non serve alle altre funzioni di Openbook.
-
-> Le release e il manifesto `releases/latest.json` devono essere pubblicati su
-> about.openb.app (vedi `bin/build-release.sh` e `distribution/manifest.example.json`).
 
 ### Installazione classica (git / Composer)
 
@@ -180,14 +177,6 @@ php artisan route:cache
 php artisan view:cache
 ```
 
-### Pubblicare una release (maintainer)
-
-```bash
-./bin/build-release.sh
-```
-
-Carica su about.openb.app lo zip, il file `*-changelog.md`, `latest.json`
-generati in `dist/` e `setup-openbook.php` dalla root del repository.
 
 ## Configurazione del server web
 

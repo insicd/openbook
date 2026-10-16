@@ -138,7 +138,7 @@ con la consueta procedura di pubblicazione dopo l’aggiornamento.
    Includere un allegato e un avviso sul contenuto in un esempio.
 3. Da un secondo account mostrare i risultati, tornare alle opzioni e votare.
    Verificare risposta personale e scelta definitiva; un altro account deve
-   vedere soltanto i propri dati. Come autore aprire «Consulta le risposte»,
+   vedere soltanto i propri dati. Come autore aprire «Dettaglio risposte»,
    cambiare opzione e consultare i partecipanti. Lo stesso URL deve respingere
    altri account, compresi amministratori/moderatori.
 4. Ripetere in una community locale privata e con visibilità follower.

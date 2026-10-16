@@ -1,68 +1,49 @@
-> Documentation: [English](README.md) · [Italiano](README.it.md)
+> Documentation: [English](README.md) · [Italiano](roadmap.it.md)
 
-## Roadmap and project status
+# Product status and limitations
 
-Current version: **26.38.rc1**. Release notes are in Italian in
-[`CHANGELOG.md`](../CHANGELOG.md).
+Current version: **26.38.rc1**. Release changes are in the
+[CHANGELOG](../CHANGELOG.md). Stable versions use `year.week`; follow-up patch
+candidates of the same week add `.rcN` and come after that stable version.
+The footer shows the installed version.
 
-### Versioning
+## Available features
 
-From 26.34 onward, a stable release uses `YY.week` (this release is `26.34`,
-codename Lovable Pancake). Follow-up patch candidates of the same week are
-`26.34.rc1`, `26.34.rc2`, and so on. `26.34.rc1` comes *after* the `26.34`
-stable (it is not a pre-release before it). The `0.x` versions in the changelog
-are pre-stable history.
+- Guided installation, updates and administration suitable for shared hosting.
+- Profiles, posts, attachments, comments, likes, shares and quotes.
+- Local and remote follows, search, chronological Home, followed hashtags and World.
+- Notifications, private conversations and push notifications when enabled.
+- Public/private local communities and membership of compatible remote communities.
+- Local and remote events, comments and participation according to source support.
+- Viewing and voting on remote polls; creation, voting, scheduled closure and
+  answer details for local polls.
+- Moderation, domain blocks, queue management and database maintenance.
+- Images and audio; optional local video processing configured by the administrator.
 
-NodeInfo and the User-Agent use the technical version (`26.38.rc1`); the footer
-shows `26.38.rc1` (release candidates have no codename).
+Interoperability is refined over time: each remote service can offer a different
+set of content and interactions.
 
-- ✅ **Phase 1 — Structure and installation**: project, configuration,
-  installer, database, authentication, administrator account, local profiles.
-- ✅ **Phase 2 — Local social domain**: posts, images, nested comments, likes,
-  shares, local follows, feed, notifications.
-- ✅ **Phase 3 — Federated identity**: `Person` Actor, WebFinger, NodeInfo,
-  content negotiation, inbox/outbox, HTTP signatures.
-- ✅ **Phase 4 — Social federation**: remote search,
-  `Follow`/`Accept`/`Reject`, `Create`/`Update`/`Delete`, `Like`, `Announce`,
-  `Undo`, MySQL queue, retry, cron; then (0.5.x–0.6.x) profile/settings, World,
-  on-demand outbox and replies, admin panel, signed fetch, live notifications.
-- ✅ **Phase 5 — Community** (0.7.x): local and remote `Group` Actors,
-  membership, wall, FEP-1b12 Announce, Lemmy/Friendica, moderators, Local/Remote
-  list. Further polish (dedicated member list, community avatar/cover) remains
-  possible without blocking Phase 6.
-- 🚧 **Phase 6 — Security and interoperability** (in progress on the first
-  stable): types `Article`/`Video`/`Image`, remote media in the gallery,
-  `/users/…` URIs, Lemmy Accept, Pixelfed Atom fallback, Wafrn blog API, Photos
-  roll on the profile, World → `/mondo/scopri`. Still to strengthen: NodeBB and
-  other edge cases; optional local download of remote media; dedicated
-  recipients for direct messages.
+## Known limitations
 
-The project does not move to the next phase until the previous phase's tests
-are green.
+- Mentions while writing recognize local and already-known remote accounts.
+  Search for a new remote account by `user@domain` first.
+- Private conversations are available in Messages. Posts with Direct visibility
+  instead use recipients mentioned in their text.
+- World and search work with content known to the instance, without crawling or
+  indexing the entire Fediverse. Search respects visibility and indexing consent
+  for other authors’ public content. Keyword search for posts and comments
+  covers local content.
+- Remote text is displayed safely, without arbitrary HTML. Remote images depend
+  on files remaining available at their source.
+- Local polls exclude private conversations, comments, events and publishing to
+  remote communities. Options, mode, deadline and visibility stay fixed; early
+  closure and changing the deadline are deferred.
+- Local pinned-post and memorial-profile management remain outside the available
+  features; compatible remote information is displayed.
+- The configured comment-depth limit is not yet applied in the interface: the
+  reply tree is displayed on the post page.
+- The administration panel does not include IP bans or advanced federation
+  signature-debugging tools.
 
-### Known limitations
-
-- Mentions on *write* resolve **local** Actors and remote ones **already in
-  cache** (`@utente` / `@utente@dominio`); an unknown remote handle is not
-  resolved on the fly via WebFinger at compose time. On *receive*, a mention of
-  a local Actor correctly generates a notification.
-- "Direct" messages (`direct` visibility) have no dedicated recipient list:
-  they are visible to the author and to whoever is mentioned in the text. A
-  conversation UI is deferred.
-- Remote content is reduced to plain text (no arbitrary HTML): labeled links
-  (`[text](url)` from `<a href>`) and images in `attachment` as remote URLs
-  remain. This is an explicit security choice.
-- Remote content in the inbox is cached only if relevant (followed author,
-  reply to something known, local mention). In addition: remote profile
-  (`RemoteOutboxFetcher`, with Atom fallback) and replies of the remote post
-  (`RemoteRepliesFetcher`). It is not a complete index of the fediverse.
-  Keyword search (`LocalSearchQuery`) covers *local* content; for remotes,
-  `utente@dominio` resolution remains.
-- Remote images use `media.remote_url` (hotlink): if the origin blocks or
-  removes the file, the gallery can appear empty. Local attachments stay on
-  `storage/app/public` → `public/storage`, with no CDN.
-- The `OPENBOOK_COMMENT_MAX_DEPTH` limit is in configuration but not yet
-  applied in the UI: a post's entire comment tree is loaded in one page.
-- The control panel covers moderation, blocked domains, queue, and settings;
-  IP bans and an HTTP-signature debug tool remain out of scope. Staff
-  promotion: UI and CLI (`openbook:make-admin` / `openbook:make-moderator`).
+For daily use, see [Using Openbook](architecture.md); for server differences and
+delivery management, see [Federation](federation.md).

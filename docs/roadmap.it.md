@@ -1,65 +1,49 @@
-> Documentazione: [Italiano](README.it.md) · [English](README.md)
+> Documentazione: [Italiano](README.it.md) · [English](roadmap.md)
 
-## Roadmap e stato del progetto
+# Stato del prodotto e limitazioni
 
-Versione corrente: **26.38.rc1**. Il dettaglio delle modifiche per versione e' in
-[`CHANGELOG.md`](../CHANGELOG.md).
+Versione corrente: **26.38.rc1**. Le modifiche per versione sono nel
+[CHANGELOG](../CHANGELOG.md). Le versioni stabili usano `anno.settimana`;
+le patch candidate della stessa settimana aggiungono `.rcN` e seguono la
+relativa stabile. Il footer mostra la versione installata.
 
-Da 26.34 in poi una stable usa `YY.settimana` (questa e' `26.34`, nome in
-codice Lovable Pancake). Le patch candidate della stessa settimana sono
-`26.34.rc1`, `26.34.rc2`, … e arrivano *dopo* la stable `26.34` (non sono
-pre-release precedenti). Le `0.x` nel changelog restano lo storico
-pre-stable. NodeInfo e User-Agent usano la versione tecnica (`26.38.rc1`); il
-footer mostra `26.38.rc1` (le release candidate non hanno nome in codice).
+## Funzioni disponibili
 
-- ✅ **Fase 1 — Struttura e installazione**: progetto, configurazione, installer,
-  database, autenticazione, account amministratore, profili locali.
-- ✅ **Fase 2 — Dominio sociale locale**: post, immagini, commenti annidati, Mi
-  piace, condivisioni, follow locali, feed, notifiche.
-- ✅ **Fase 3 — Identita' federata**: Actor `Person`, WebFinger, NodeInfo, content
-  negotiation, inbox/outbox, firme HTTP.
-- ✅ **Fase 4 — Federazione sociale**: ricerca remota,
-  `Follow`/`Accept`/`Reject`, `Create`/`Update`/`Delete`, `Like`, `Announce`, `Undo`,
-  coda MySQL, retry, cron; poi (0.5.x–0.6.x) profilo/impostazioni, Mondo, outbox e
-  replies on-demand, pannello admin, signed fetch, notifiche live.
-- ✅ **Fase 5 — Community** (0.7.x): Actor `Group` locali e remoti, iscrizione,
-  wall, Announce FEP-1b12, Lemmy/Friendica, moderatori, elenco Locali/Remote.
-  Eventuali rifiniture (elenco membri dedicato, avatar/copertina community) restano
-  possibili senza bloccare la Fase 6.
-- 🚧 **Fase 6 — Sicurezza e interoperabilita'** (0.8.x, in corso): tipi
-  `Article`/`Video`/`Image`, media remoti in galleria, URI `/users/…`, Accept Lemmy,
-  fallback Atom Pixelfed, API blog Wafrn, rullino Foto sul profilo,
-  Mondo → `/mondo/scopri`. Ancora da rafforzare: NodeBB e altri edge-case;
-  eventuale download locale dei media remoti; destinatari dedicati per i
-  messaggi diretti.
+- Installazione guidata, aggiornamenti e amministrazione compatibili con shared hosting.
+- Profili, post, allegati, commenti, Mi piace, condivisioni e citazioni.
+- Follow locali e remoti, ricerca, Home cronologica, hashtag seguiti e Mondo.
+- Notifiche, conversazioni private e notifiche push quando abilitate.
+- Community locali pubbliche/private e iscrizioni a community remote compatibili.
+- Eventi locali e remoti, commenti e partecipazione secondo il supporto dell’origine.
+- Visualizzazione e voto di sondaggi remoti; creazione, voto, chiusura programmata
+  e dettaglio delle risposte per i sondaggi locali.
+- Moderazione, blocchi di dominio, gestione delle code e manutenzione database.
+- Immagini e audio; video locali opzionali con elaborazione configurata dall’amministratore.
 
-Non si passa a una fase successiva finche' i test della fase precedente non sono
-verdi.
+L’interoperabilità viene affinata nel tempo: ogni servizio remoto può offrire
+un insieme differente di contenuti e interazioni.
 
-### Limitazioni note
+## Limitazioni note
 
-- Le menzioni in *scrittura* risolvono Actor **locali** e remoti **gia' in cache**
-  (`@utente` / `@utente@dominio`); un handle remoto sconosciuto non viene risolto
-  al volo via WebFinger in fase di compose. In *ricezione*, una menzione a un Actor
-  locale genera correttamente una notifica.
-- I messaggi "diretti" (visibilita' `direct`) non hanno un elenco destinatari
-  dedicato: sono visibili all'autore e a chi e' menzionato nel testo. Una UI di
-  conversazione e' rimandata.
-- Il contenuto remoto viene ridotto a testo semplice (niente HTML arbitrario):
-  restano pero' i link etichettati (`[testo](url)` da `<a href>`) e le immagini in
-  `attachment` come URL remoti. E' una scelta di sicurezza esplicita.
-- Un contenuto remoto in inbox e' in cache solo se rilevante (autore seguito,
-  risposta a qualcosa di noto, menzione locale). In piu': profilo remoto
-  (`RemoteOutboxFetcher`, con fallback Atom) e replies del post remoto
-  (`RemoteRepliesFetcher`). Non e' un indice completo del fediverso.
-  La ricerca per parole chiave (`LocalSearchQuery`) copre i contenuti *locali*;
-  per i remoti resta la risoluzione `utente@dominio`.
-- Le immagini remote usano `media.remote_url` (hotlink): se l'origine blocca o
-  rimuove il file, la galleria puo' risultare vuota. Gli allegati locali restano
-  su `storage/app/public` → `public/storage`, senza CDN.
-- Il limite `OPENBOOK_COMMENT_MAX_DEPTH` e' in configurazione ma non ancora
-  applicato in UI: l'intero albero commenti di un post viene caricato in una
-  pagina.
-- Il pannello di controllo copre moderazione, domini bloccati, coda e
-  impostazioni; restano fuori ban IP e un tool di debug firme HTTP. Promozione
-  staff: UI e CLI (`openbook:make-admin` / `openbook:make-moderator`).
+- Durante la scrittura, le menzioni riconoscono account locali e remoti già
+  conosciuti. Cerca prima un nuovo account remoto tramite `utente@dominio`.
+- Le conversazioni private sono disponibili nella sezione Messaggi. I post con
+  visibilità Diretta usano invece i destinatari menzionati nel testo.
+- Mondo e ricerca lavorano sui contenuti conosciuti dall’istanza, senza esplorare
+  o indicizzare tutto il Fediverso. La ricerca rispetta visibilità e consenso
+  all’indicizzazione dei contenuti pubblici altrui. La ricerca per parole chiave
+  di post e commenti riguarda i contenuti locali.
+- Il testo remoto viene visualizzato in forma sicura, senza HTML arbitrario.
+  Le immagini remote dipendono dalla disponibilità dei file presso l’origine.
+- I sondaggi locali sono esclusi da conversazioni private, commenti, eventi e
+  pubblicazione verso community remote. Opzioni, modalità, scadenza e visibilità
+  restano fisse; la chiusura anticipata e la modifica della scadenza sono rinviate.
+- La gestione di post fissati e profili commemorativi locali resta fuori dalle
+  funzioni disponibili; le informazioni remote compatibili sono visualizzate.
+- Il limite configurato di profondità dei commenti non viene ancora applicato
+  nell’interfaccia: l’albero delle risposte viene mostrato nella pagina del post.
+- Il pannello amministrativo non include ban IP o strumenti avanzati per il
+  debug delle firme federate.
+
+Per l’uso quotidiano vedi [Usare Openbook](architecture.it.md); per le differenze
+fra server e la gestione delle consegne, vedi [Federazione](federation.it.md).

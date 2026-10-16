@@ -442,7 +442,7 @@ La suite della #120 aveva due fallimenti preesistenti documentati nella sua
 revisione conclusiva: ricontrollare la baseline prima di attribuire fallimenti
 alla #121. In presenza di configurazione locale in cache usare per i test
 `APP_CONFIG_CACHE` verso un percorso inesistente, come descritto in
-`docs/development.it.md`, senza toccare il DB applicativo.
+`development/testing.it.md`, senza toccare il DB applicativo.
 
 ## Stato delle decisioni di analisi
 
@@ -761,7 +761,7 @@ rendering condiviso, composer e documentazione EN/IT.
   è contato una volta e non produce post, commenti o notifiche aggiuntivi.
 - Changelog ricomposto attorno alle funzionalità finali; guida cron aggiornata
   in entrambe le lingue. Aggiunto percorso manuale per cache, migration, due
-  account, visibilità, scadenza e federazione reale in `docs/development.it.md`.
+  account, visibilità, scadenza e federazione reale in `development/testing.it.md`.
 - Confermati un solo modello e relazione del sondaggio, servizi distinti per
   origine/autorità dei conteggi e un unico endpoint web di voto. Nessun doppio
   sistema di outbox, polling o requisito di worker permanente introdotto.
@@ -853,3 +853,30 @@ restano soltanto identità archiviate, viene mostrato il loro aggregato.
 Verifiche: 34 test UI/autorizzazione passati (305 asserzioni), browser desktop,
 mobile, tastiera e touch passati. Suite completa: 1.700 passati, 109 saltati,
 7.678 asserzioni e gli stessi due fallimenti preesistenti documentati sopra.
+
+### Review della documentazione per utenti e amministratori
+
+Come richiesto dall’utente, `docs/` descrive uso e amministrazione del prodotto:
+composer, profilo, notifiche/chat, ricerca, community, eventi e sondaggi, con
+limiti, visibilità e consegna differita spiegati senza classi, query o sprint.
+Conservate le istruzioni operative di installazione, aggiornamento, cron,
+retention, code, replay e video. Le guide IT/EN sono allineate.
+
+I riferimenti tecnici precedenti sono conservati in `development/architecture`,
+`development/federation` e `development/testing`, in entrambe le lingue;
+preparazione delle release separata in `development/releases`. README, indice
+delle guide e CONTRIBUTING indicano le nuove destinazioni. Analisi ed esiti
+rimangono in `analysis/`.
+
+Verificata l’accuratezza rispetto al codice: le conversazioni private sono già
+disponibili; gli spostamenti remoti notificano l’utente senza trasferire
+automaticamente il follow; la ricerca per parole chiave di post/commenti è
+locale; senza GD il caricamento immagini resta disponibile ma miniature e
+rimozione dei metadati compatibili vengono saltate. Nessuna modifica funzionale
+fuori dai sondaggi introdotta da questa revisione.
+
+Controllati i collegamenti locali e le ancore in 27 Markdown (guide pubbliche,
+riferimenti tecnici, README e CONTRIBUTING): nessun riferimento irrisolto.
+Pint, sintassi PHP/JS e whitespace passati. Correzioni UI nel commit `b0a863d`;
+riordino delle guide registrato separatamente, senza nuove migration o accessi
+al DB applicativo.

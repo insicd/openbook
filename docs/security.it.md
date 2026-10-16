@@ -2,8 +2,7 @@
 
 ## Sicurezza e privacy
 
-- Password con hashing moderno tramite i meccanismi nativi di Laravel (bcrypt),
-  nessun algoritmo custom.
+- Password protette con hashing bcrypt.
 - Autenticazione con rate limiting sui tentativi di login e sul reinvio delle email
   di verifica.
 - Chiavi private degli Actor cifrate a riposo, mai esposte da API/log/errori.
