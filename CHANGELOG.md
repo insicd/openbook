@@ -19,6 +19,10 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Scelta della lingua (#103)**: selettore dedicato nella barra delle pagine
+  pubbliche e dopo l'accesso. La scelta viene ricordata nel browser per un
+  anno; per gli utenti autenticati aggiorna la preferenza dell'account. I nuovi
+  account ereditano la lingua usata durante la registrazione.
 - **Primi passi nel feed (#103)**: il messaggio di benvenuto cita anche gli
   hashtag da seguire; community e «Argomenti in tendenza» sono raggiungibili
   prima della lista di persone, mentre «Scopri altre persone» resta in fondo.
@@ -258,6 +262,9 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Lingua delle pagine di accesso (#103)**: testi di navigazione, riepilogo
+  errori e messaggi di registrazione/login usano le traduzioni dell'interfaccia,
+  evitando messaggi italiani mescolati ai form inglesi.
 - **Registrazione (#103)**: gli username con maiuscole vengono convertiti in
   minuscolo prima della validazione e del controllo dei doppioni, anche rispetto
   agli Actor locali. Il form accetta le maiuscole e chiarisce come sarà salvato

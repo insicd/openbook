@@ -60,7 +60,7 @@ class RegisterRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'username.regex' => 'Il nome utente puo contenere soltanto lettere minuscole, numeri e underscore.',
+            'username.regex' => __('openbook.auth.username_invalid'),
         ];
     }
 
@@ -70,9 +70,9 @@ class RegisterRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'username' => 'nome utente',
-            'email' => 'indirizzo email',
-            'password' => 'password',
+            'username' => __('openbook.auth.username'),
+            'email' => __('openbook.auth.email'),
+            'password' => __('openbook.auth.password'),
         ];
     }
 }

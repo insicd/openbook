@@ -8,6 +8,7 @@
 --}}
 @php
     $paths = [
+        'language' => '<path d="M2 5h12M7 2v3M11 5c-1 5-4 8-8 10M5 8c1 3 3 5 6 7"/><path d="m13 22 4.5-10L22 22M15 18h5"/>',
         'arrow-left' => '<line x1="20" y1="12" x2="4" y2="12"/><polyline points="10 6 4 12 10 18"/>',
         'arrow-right' => '<line x1="4" y1="12" x2="20" y2="12"/><polyline points="14 6 20 12 14 18"/>',
         'home' => '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',

@@ -74,6 +74,7 @@ class LoginTest extends TestCase
 
     public function test_login_is_rate_limited_after_repeated_failures(): void
     {
+        $this->withHeaders(['Accept-Language' => 'it']);
         RateLimiter::clear('passwordsbagliate2|127.0.0.1');
 
         User::factory()->create(['username' => 'passwordsbagliate2']);

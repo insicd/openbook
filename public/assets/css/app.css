@@ -199,6 +199,66 @@ p {
   display: none;
 }
 
+.ob-language-selector {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ob-language-selector > summary {
+  list-style: none;
+}
+
+.ob-language-selector > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ob-language-selector .ob-icon {
+  display: block;
+}
+
+.ob-nav--guest .ob-language-selector .ob-nav__label {
+  display: none;
+}
+
+.ob-language-selector .ob-language-selector__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+  padding: 0.4rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: 0.75rem;
+  background: var(--ob-color-surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+.ob-language-selector__menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--ob-color-text);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ob-language-selector__menu button:hover,
+.ob-language-selector__menu button:focus-visible,
+.ob-language-selector__menu button[aria-current="true"] {
+  background: var(--ob-color-primary-soft);
+  color: var(--ob-color-primary);
+}
+
 .ob-nav--icons {
   gap: 0.4rem;
 }

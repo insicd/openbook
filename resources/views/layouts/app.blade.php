@@ -16,14 +16,14 @@
         'ob-guest-home--has-bg' => ($guestHome ?? false) && filled($homeBackgroundUrl ?? null),
         'ob-guest-home-feed' => $guestHomeFeed ?? false,
     ])>
-    <a href="#ob-content" class="ob-skip-link">Vai al contenuto principale</a>
+    <a href="#ob-content" class="ob-skip-link">{{ __('openbook.nav.skip_to_content') }}</a>
 
     <header class="ob-header">
         <div class="ob-header__inner">
             <div class="ob-header__start">
                 @auth
                     <button type="button" class="ob-icon-btn ob-sidebar-toggle" id="ob-sidebar-toggle"
-                        aria-label="Apri il menu" aria-controls="ob-sidebar-left" aria-expanded="false">
+                        aria-label="{{ __('openbook.nav.open_menu') }}" aria-controls="ob-sidebar-left" aria-expanded="false">
                         <x-icon name="menu" />
                     </button>
                 @elseif ($guestHomeFeed ?? false)
@@ -69,11 +69,11 @@
                     </a>
 
                     <button type="button" class="ob-icon-btn ob-nav-toggle" id="ob-nav-toggle"
-                        aria-label="Altre opzioni" aria-controls="ob-nav-icons" aria-expanded="false">
+                        aria-label="{{ __('openbook.nav.more_options') }}" aria-controls="ob-nav-icons" aria-expanded="false">
                         <x-icon name="more" />
                     </button>
 
-                    <nav class="ob-nav ob-nav--icons" id="ob-nav-icons" aria-label="Navigazione principale">
+                    <nav class="ob-nav ob-nav--icons" id="ob-nav-icons" aria-label="{{ __('openbook.nav.main') }}">
                         <a href="{{ route('feed.index') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.home') }}">
                             <x-icon name="home" /><span class="ob-nav__label">{{ __('openbook.nav.home') }}</span>
                         </a>
@@ -86,6 +86,7 @@
                         <a href="{{ route('settings.edit') }}" class="ob-icon-btn" aria-label="{{ __('openbook.nav.settings') }}">
                             <x-icon name="settings" /><span class="ob-nav__label">{{ __('openbook.nav.settings') }}</span>
                         </a>
+                        @include('partials.language-selector')
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" class="ob-icon-btn" aria-label="{{ __('openbook.nav.logout') }}">
@@ -96,6 +97,7 @@
                 </div>
             @else
                 <nav class="ob-nav ob-nav--guest" aria-label="{{ __('openbook.nav.main') }}">
+                    @include('partials.language-selector')
                     <a href="{{ route('events.index') }}" class="ob-nav__link"
                         aria-label="{{ __('openbook.nav.events') }}"
                         title="{{ __('openbook.nav.events') }}">
@@ -145,7 +147,7 @@
 
             @if ($errors->any())
                 <div class="ob-alert ob-alert--error" role="alert">
-                    <strong>Controlla i dati inseriti:</strong>
+                    <strong>{{ __('openbook.auth.check_data') }}</strong>
                     <ul>
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>

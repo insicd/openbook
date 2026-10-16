@@ -2,6 +2,18 @@
 
 ## Test
 
+Scelta della lingua e pagine di accesso (#103):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test tests/Feature/LocalePreferenceTest.php tests/Feature/GuestLocaleTest.php tests/Feature/Auth tests/Feature/SettingsTest.php tests/Feature/HomeGuestFeedTest.php
+node tests/Browser/locales.cjs
+```
+
+Il controllo browser opzionale usa il layout e il CSS di produzione con
+SQLite in memoria; verifica desktop/mobile, tastiera, invio del form e menu
+ospite senza JavaScript. Come gli altri test browser richiede Playwright;
+`BROWSER_EXECUTABLE_PATH` permette di indicare un Chromium già installato.
+
 Le fondamenta dei sondaggi locali (#121) si verificano con:
 
 ```bash

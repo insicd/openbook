@@ -9,6 +9,18 @@ istanza sia con account di altri servizi compatibili del Fediverso.
 Durante la registrazione puoi scrivere lo username anche con lettere maiuscole:
 viene salvato in minuscolo. Il nome visualizzato del profilo è personalizzabile.
 
+## Scegliere la lingua
+
+L'icona della lingua nella barra superiore apre le lingue disponibili.
+Prima dell'accesso Openbook usa la lingua del browser; una scelta esplicita
+viene ricordata sullo stesso browser per un anno e ha la precedenza.
+Il nuovo account eredita la lingua usata durante la registrazione.
+
+Dopo l'accesso viene usata la preferenza dell'account. Cambiarla dalla barra
+aggiorna anche **Impostazioni → Account → Lingua**, e vale per gli accessi
+dagli altri dispositivi. Il cambio ricarica la pagina corrente. Su mobile
+il selettore degli utenti autenticati si trova nel menu delle altre opzioni.
+
 ## Pubblicare e leggere i post
 
 Scrivi nella casella di composizione. Le icone nella barra inferiore aprono i

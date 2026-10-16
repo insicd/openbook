@@ -28,6 +28,15 @@ class LoginRequest extends FormRequest
         ];
     }
 
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'login' => __('openbook.auth.login_identifier'),
+            'password' => __('openbook.auth.password'),
+        ];
+    }
+
     /**
      * Verifica le credenziali applicando un rate limit per IP + identificativo,
      * cosi' da mitigare attacchi brute force senza dipendere da servizi esterni.
@@ -48,7 +57,7 @@ class LoginRequest extends FormRequest
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'login' => 'Le credenziali inserite non sono corrette.',
+                'login' => __('openbook.auth.credentials_invalid'),
             ]);
         }
 
@@ -59,7 +68,7 @@ class LoginRequest extends FormRequest
             Auth::logout();
 
             throw ValidationException::withMessages([
-                'login' => 'Questo account e stato sospeso o disabilitato.',
+                'login' => __('openbook.auth.account_inactive'),
             ]);
         }
 
@@ -77,7 +86,7 @@ class LoginRequest extends FormRequest
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'login' => "Troppi tentativi di accesso. Riprova tra {$seconds} secondi.",
+            'login' => __('openbook.auth.login_throttled', ['seconds' => $seconds]),
         ]);
     }
 

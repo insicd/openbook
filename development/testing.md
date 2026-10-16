@@ -2,6 +2,18 @@
 
 ## Tests
 
+Language selection and authentication pages (#103):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test tests/Feature/LocalePreferenceTest.php tests/Feature/GuestLocaleTest.php tests/Feature/Auth tests/Feature/SettingsTest.php tests/Feature/HomeGuestFeedTest.php
+node tests/Browser/locales.cjs
+```
+
+The optional browser check uses the production layout and CSS with in-memory
+SQLite. It checks desktop/mobile, keyboard navigation, form submission and
+the guest menu without JavaScript. Like the other browser checks it requires
+Playwright; `BROWSER_EXECUTABLE_PATH` can point to an installed Chromium.
+
 Local poll foundations (#121) can be checked with:
 
 ```bash

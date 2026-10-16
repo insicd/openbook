@@ -2,6 +2,11 @@
 
 return [
 
+    'language' => [
+        'choose' => 'Lingua',
+        'invalid_return' => 'Scegli una pagina di Openbook a cui tornare.',
+    ],
+
     'app' => [
         'tagline' => 'Istanza di Openbook - Il social network federato, semplice e libero.',
     ],
@@ -23,6 +28,9 @@ return [
     ],
 
     'nav' => [
+        'skip_to_content' => 'Vai al contenuto principale',
+        'open_menu' => 'Apri il menu',
+        'more_options' => 'Altre opzioni',
         'main' => 'Navigazione principale',
         'home' => 'Home',
         'world' => 'Mondo',
@@ -175,6 +183,11 @@ return [
     ],
 
     'auth' => [
+        'check_data' => 'Controlla i dati inseriti:',
+        'username_invalid' => 'Il nome utente può contenere soltanto lettere, numeri e underscore.',
+        'credentials_invalid' => 'Le credenziali inserite non sono corrette.',
+        'account_inactive' => 'Questo account è stato sospeso o disabilitato.',
+        'login_throttled' => 'Troppi tentativi di accesso. Riprova tra :seconds secondi.',
         'register_title' => 'Crea il tuo account',
         'login_title' => 'Accedi a :app',
         'username' => 'Nome utente',

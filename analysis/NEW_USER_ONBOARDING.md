@@ -1,8 +1,9 @@
 # Primi passi dei nuovi utenti — issue #103
 
-Stato al 16 ottobre 2026: sprint 1 completato, verificato localmente con
-l'utente e approvato per il commit dopo la review tecnica. Analisi iniziale
-congelata in `b2291fc`; gli sprint successivi restano in analisi.
+Stato al 16 ottobre 2026: sprint 1 chiuso in `7dae56a`, dopo verifica locale e
+review tecnica; analisi iniziale congelata in `b2291fc`. Sprint 2 completato,
+verificato localmente e approvato dopo la review tecnica, con analisi
+congelata in `17162e5`. Gli sprint 3–5 restano in analisi.
 
 Issue: https://github.com/insicd/openbook/issues/103
 Discussione: https://github.com/insicd/openbook/issues/103#issuecomment-5877611768
@@ -22,7 +23,7 @@ di un intero percorso guidato.
 
 | Voce | Comportamento richiesto | Complessità iniziale | Stato |
 | --- | --- | --- | --- |
-| Lingua nella homepage pubblica | Conservare il rilevamento dal browser e aggiungere una scelta esplicita, per esempio con il globo in alto a destra. | Contenuta, con decisioni sulla persistenza | Da analizzare nel dettaglio |
+| Lingua dell'interfaccia | Selettore dedicato su pagine pubbliche e autenticate, scelta persistente e lingua ereditata alla registrazione. | Contenuta | Completato nello sprint 2 |
 | Username nella registrazione | Convertire `PettiRosso` in `pettirosso`, mantenendo gli identificatori locali minuscoli. | Piccola | Completato nello sprint 1 |
 | Testo del feed vuoto | Citare persone da seguire, argomenti tramite hashtag e pubblicazione del primo post. | Piccola | Completato nello sprint 1 |
 | Collegamenti del feed vuoto | Mostrare community e «Argomenti in tendenza» prima delle persone suggerite, con «Scopri altre persone» in fondo. | Piccola | Completato nello sprint 1 |
@@ -187,7 +188,8 @@ proporre. In questo modo i primi post diventano più facilmente raggiungibili.
 
 ### Sprint 2 — Lingua dell’interfaccia prima e dopo l’accesso
 
-Stato: analisi approvata e congelata, pronta per l’implementazione.
+Stato: analisi congelata in `17162e5`; implementazione verificata localmente
+dall'utente e review tecnica completata, approvata per il commit.
 
 #### Decisioni concordate
 
@@ -242,8 +244,8 @@ soltanto lingue supportate e mantenere eventuali redirect all'interno del sito.
   messaggi di validazione. Nella prova locale del 16 ottobre l'utente ha
   osservato il form inglese con «Controlla i dati inseriti:» in italiano:
   il titolo è scritto direttamente nel layout condiviso `layouts/app`.
-  Anche `RegisterRequest` contiene messaggi e nomi dei campi in italiano
-  fisso; le traduzioni delle regole password esistono già nelle due lingue.
+  Nella ricognizione anche `RegisterRequest` conteneva messaggi e nomi dei
+  campi in italiano fisso; le regole password erano già tradotte nelle due lingue.
   Verificare GET, POST invalido e pagina dopo il redirect, con errori nella
   stessa lingua dell'interfaccia; includere username occupato e password debole.
 - Test mirati: scelta esplicita contro browser, fallback preesistente, lingua
@@ -253,6 +255,51 @@ soltanto lingue supportate e mantenere eventuali redirect all'interno del sito.
   ripetere con homepage semplice e feed pubblico, mobile e tastiera. Da
   autenticato cambiare lingua e verificare la preferenza nelle Impostazioni;
   controllare che gli altri valori delle preferenze restino invariati.
+
+#### Esito e review finale
+
+- Selettore nativo `details` condiviso nel layout, icona di traduzione
+  dedicata e nomi delle lingue ricavati da `openbook.locales`. Nella barra
+  autenticata è accanto alle impostazioni; su mobile rientra nel menu delle
+  altre opzioni esistente. Nessun JavaScript aggiunto al composer.
+- POST `/lingua` protetto da CSRF: verifica lingua supportata e percorso
+  interno di ritorno, blocca URL esterni, backslash e caratteri di controllo.
+  Cookie cifrato dal middleware Laravel, HttpOnly, SameSite=Lax, Secure su
+  HTTPS, durata un anno. Anche una scelta da autenticato aggiorna il cookie
+  del browser per mantenere l'ultima scelta dopo il logout.
+- La preferenza account prevale sul cookie; quella dell'ospite precede il
+  browser. Il rilevamento usa la stessa lista configurata, mantenendo il
+  fallback inglese per browser senza corrispondenze e il default dell'istanza
+  quando manca `Accept-Language`.
+- Il cambio da autenticato aggiorna soltanto `user_settings.locale` tramite
+  il servizio delle preferenze. Il nuovo account riceve la lingua effettiva
+  della richiesta; installer/CLI mantengono il default esistente.
+- Revisione dei template guest, login, registrazione, pagine informative e
+  layout condiviso: testi applicativi passati alle traduzioni, inclusi link
+  di accessibilità, etichette, riepilogo errori, campi e messaggi di login.
+  Nomi/descrizioni dell'istanza e testi amministrabili rimangono contenuti,
+  non traduzioni dell'interfaccia. Italiano e inglese allineati.
+- Verifiche: 74 test mirati superati, 311 assertion (LocalePreferenceTest,
+  GuestLocaleTest, Auth, SettingsTest, HomeGuestFeedTest). Verificati cookie,
+  priorità, registrazione, impostazioni preservate, pagine guest nelle due
+  modalità, CSRF, redirect e messaggi di errore in entrambe le lingue.
+- Test browser passato: menu su desktop e mobile, ospite/autenticato,
+  apertura da tastiera, lingua corrente, invio con CSRF e menu ospite senza
+  JavaScript. Fixture con SQLite in memoria, senza DB dell'istanza locale.
+- Review finale: suite completa con 1.746 test superati, 109 saltati e
+  2 fallimenti preesistenti (7.919 assertion), gli stessi documentati nello
+  sprint 1: tabella `actors` assente nel test unitario di audience e soglia
+  dell'estratto configurata a 400 anziché i 150 presupposti da FeedTest.
+  Nessuna nuova regressione emersa. Test browser finale, Pint e whitespace OK.
+- Changelog, guide utente e istruzioni di sviluppo aggiornati nelle due
+  lingue. Nessuna migration o build; prima della prova locale eliminare la
+  cache delle route se presente (`php artisan route:clear`).
+- Il 16 ottobre l'utente ha verificato il cambio lingua prima dell'accesso
+  e dentro l'applicazione autenticata, confermando il funzionamento e
+  autorizzando il commit dopo la review. Review completa del diff conclusa:
+  controllati confini di autenticazione, cookie/CSRF/redirect, aggiornamento
+  parziale delle preferenze, registrazione, traduzioni e menu condiviso.
+  Nessuna anomalia bloccante o refactor estraneo necessario.
 
 ### Sprint 3 — Privacy e Regole multilingua
 
