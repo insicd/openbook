@@ -44,6 +44,13 @@
     $selectedCommunityId = old('community_id', $selectedCommunityId ?? null);
     $addressedGroupActor = $addressedGroupActor ?? null;
 
+    $canCreatePoll = $isPost && ! $isEditing && ! $addressedGroupActor;
+    $pollOptions = old('poll.options', ['', '']);
+    $pollOptions = is_array($pollOptions) ? array_values(array_slice($pollOptions, 0, \App\Domain\Polls\LocalPollDefinition::MAX_OPTIONS)) : ['', ''];
+    $pollOptions = array_pad($pollOptions, \App\Domain\Polls\LocalPollDefinition::MIN_OPTIONS, '');
+    $pollFilled = collect($pollOptions)->contains(fn ($value) => is_string($value) && trim($value) !== '');
+    $pollOpen = $pollFilled || $errors->has('poll') || $errors->has('poll.*') || old('poll_expanded', false);
+
     $titleValue = old('title', $isEditing ? $editingPost->title : '');
     $cwValue = old('content_warning', $isEditing ? $editingPost->content_warning : '');
     $bodyValue = old('body', $isEditing ? $editingPost->body : '');
@@ -243,7 +250,7 @@
 
                 @endif
 
-                @if (! $isEditing && ! $addressedGroupActor)
+                @if ($canCreatePoll)
                     @include('composer._poll')
                 @endif
 
@@ -341,6 +348,16 @@
                         title="{{ __('openbook.composer.visibility_label') }}">
                         <x-icon name="globe" />
                     </button>
+                    @endif
+                    @if ($canCreatePoll)
+                        <button type="button" class="ob-icon-btn ob-composer__toggle {{ $pollOpen ? 'is-active' : '' }} {{ $pollFilled ? 'is-filled' : '' }}"
+                            data-composer-toggle="{{ $prefix }}-panel-poll"
+                            aria-controls="{{ $prefix }}-panel-poll"
+                            aria-label="{{ __('openbook.polls.attach') }}"
+                            aria-expanded="{{ $pollOpen ? 'true' : 'false' }}"
+                            title="{{ __('openbook.polls.attach') }}">
+                            <x-icon name="poll" />
+                        </button>
                     @endif
                     @if ($locationsEnabled)
                         <button type="button" class="ob-icon-btn ob-composer__toggle {{ $locationOpen ? 'is-active' : '' }} {{ $locationFilled ? 'is-filled' : '' }}"

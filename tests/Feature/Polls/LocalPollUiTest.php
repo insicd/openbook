@@ -50,6 +50,9 @@ class LocalPollUiTest extends TestCase
         $this->assertStringContainsString('Allega un sondaggio', $html);
         $this->assertStringContainsString('value="86400" selected', $html);
         $this->assertStringContainsString('data-poll-option-add', $html);
+        $this->assertStringContainsString('data-composer-toggle="composer-panel-poll"', $html);
+        $this->assertStringContainsString('aria-controls="composer-panel-poll"', $html);
+        $this->assertStringNotContainsString('<summary>Allega un sondaggio', $html);
         $this->assertStringNotContainsString('name="poll[ends_at]"', $html);
     }
 
@@ -82,7 +85,7 @@ class LocalPollUiTest extends TestCase
         $data = $this->input(true);
         $data['poll_option_action'] = 'add';
         $this->actingAs($user)->from(route('feed.index'))->post(route('posts.poll.options'), $data)
-            ->assertRedirect(route('feed.index').'#composer-poll')->assertSessionHasInput('body', $data['body'])
+            ->assertRedirect(route('feed.index').'#composer-panel-poll')->assertSessionHasInput('body', $data['body'])
             ->assertSessionHasInput('poll.options', ['Sabato', 'Domenica', ''])
             ->assertSessionHasInput('poll.multiple', true);
         $this->get(route('feed.index'))->assertOk()->assertSee('Quando ci vediamo?')->assertSee('value="Sabato"', false);
@@ -103,6 +106,8 @@ class LocalPollUiTest extends TestCase
         $this->actingAs($user)->from(route('feed.index'))->post(route('posts.store'), $data)
             ->assertSessionHasErrors('poll.options.1')->assertSessionHasInput('body', $data['body'])
             ->assertSessionHasInput('poll.options.0', 'Sabato');
+        $response = $this->get(route('feed.index'))->assertOk()->assertSee('value="Sabato"', false);
+        $this->assertMatchesRegularExpression('/data-composer-toggle="composer-panel-poll"[^>]*aria-expanded="true"/s', $response->getContent());
         $this->assertSame(0, Post::count());
     }
 
@@ -113,7 +118,9 @@ class LocalPollUiTest extends TestCase
             'status' => 'accepted', 'requested_at' => now(), 'accepted_at' => now()]);
         foreach ([route('posts.show', $poll->post), route('feed.index')] as $url) {
             $this->actingAs($voter)->get($url, ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->assertSee('data-poll-form', false)
-                ->assertSee('data-poll-results="0"', false)->assertSee('Mostra risultati')
+                ->assertSee('data-poll-results="0"', false)->assertSee('Anteprima risultati')
+                ->assertSee('<strong>Sondaggio</strong>', false)->assertDontSee('Sondaggio aperto')
+                ->assertSee('Il voto non può essere modificato dopo l’invio.')
                 ->assertSee('L’autore del sondaggio può consultare le risposte di ciascun partecipante.');
         }
     }
@@ -128,7 +135,7 @@ class LocalPollUiTest extends TestCase
         $this->from(route('posts.show', $poll->post))->post(route('posts.poll.vote', $poll->post), $this->selection($poll))
             ->assertRedirect(route('posts.show', $poll->post).'#poll-'.$poll->post_id)->assertSessionHas('status', 'Voto registrato.');
         $this->get(route('posts.show', $poll->post))->assertSee('data-poll-results="1"', false)
-            ->assertSee('La tua risposta')->assertDontSee('data-poll-form', false);
+            ->assertSee('La tua risposta')->assertSee('Hai votato il')->assertDontSee('data-poll-form', false);
     }
 
     public function test_multiple_json_vote_updates_counts_and_returns_confirmed_personal_choices(): void
@@ -169,8 +176,9 @@ class LocalPollUiTest extends TestCase
     public function test_own_choice_stays_private_across_users_and_guests(): void
     {
         [$author, $voter, $poll] = $this->fixture();
-        app(LocalPollVoter::class)->vote($voter->actor, $poll, [$poll->options[0]->id], $poll->optionsVersion());
-        $this->actingAs($voter)->get(route('posts.show', $poll->post))->assertSee('La tua risposta');
+        $ballot = app(LocalPollVoter::class)->vote($voter->actor, $poll, [$poll->options[0]->id], $poll->optionsVersion());
+        $this->actingAs($voter)->get(route('posts.show', $poll->post))->assertSee('La tua risposta')
+            ->assertSee('Hai votato il')->assertSee($ballot->created_at->toIso8601String(), false);
         $this->actingAs($author)->get(route('posts.show', $poll->post))->assertDontSee('La tua risposta')->assertSee('data-poll-form', false);
         auth()->forgetGuards();
         $this->get(route('posts.show', $poll->post))->assertOk()->assertDontSee('La tua risposta')

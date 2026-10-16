@@ -15,19 +15,22 @@
         $choicesUrl = route('posts.show', $post).'#poll-'.$post->id;
         $percentages = $poll->resultPercentages();
         $previousChoices = $choices->filter(fn ($choice) => ! $poll->options->contains(fn ($option) => $option->name === $choice->name));
+        $voteFormId = 'poll-vote-'.$poll->id;
+        $canPreview = $local && $vote === null && ! $closed && ! $embed;
+        $canViewAnswers = $local && ! $embed && auth()->check() && auth()->user()->can('viewPollVoters', $post);
         $pollErrors = isset($errors) ? $errors->getBag('poll-'.$post->id)->all() : [];
     @endphp
     @if ($poll->getRelation('viewerCanSee'))
-    <section class="ob-poll" @unless ($embed) id="poll-{{ $post->id }}" @endunless data-poll-id="{{ $poll->id }}" data-poll-results="{{ $showResults ? 1 : 0 }}" tabindex="-1" aria-label="{{ __('openbook.polls.title') }}">
+    <section class="ob-poll" @unless ($embed) id="poll-{{ $post->id }}" @endunless data-poll-id="{{ $poll->id }}" data-poll-results="{{ $showResults ? 1 : 0 }}" aria-label="{{ __('openbook.polls.title') }}">
         <div class="ob-poll__heading">
-            <strong>{{ $closed ? __('openbook.polls.closed') : __('openbook.polls.open') }}</strong>
+            <strong>{{ $closed ? __('openbook.polls.closed') : ($poll->ends_at === null ? __('openbook.polls.open') : __('openbook.polls.title')) }}</strong>
             @if (! $closed && $poll->ends_at !== null)
-                <span>{{ __('openbook.polls.ends') }} <time datetime="{{ $poll->ends_at->toIso8601String() }}">{{ $poll->ends_at->translatedFormat('j M Y, H:i') }}</time></span>
+                <em>({{ __('openbook.polls.ends_hint') }} <time datetime="{{ $poll->ends_at->toIso8601String() }}">{{ $poll->ends_at->translatedFormat('j M Y, H:i') }}</time>)</em>
             @endif
         </div>
 
         @if ($canChoose)
-            <form method="POST" action="{{ route('posts.poll.vote', $post) }}" data-poll-form>
+            <form id="{{ $voteFormId }}" method="POST" action="{{ route('posts.poll.vote', $post) }}" data-poll-form>
                 @csrf
                 <input type="hidden" name="options_version" value="{{ $poll->optionsVersion() }}">
                 <fieldset class="ob-poll__fieldset">
@@ -65,11 +68,6 @@
 
         @if ($canChoose)
                 </fieldset>
-                <div data-poll-vote-controls @if ($showResults && $local) hidden @endif>
-                @if ($local)<p class="ob-poll__hint">{{ __('openbook.polls.author_can_see') }}</p>@endif
-                <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.polls.vote') }}</button>
-                <p class="ob-poll__hint">{{ __('openbook.polls.final_choice') }}</p>
-                </div>
             </form>
         @endif
 
@@ -80,23 +78,48 @@
                 <p>{{ __('openbook.polls.updated_choices') }}</p>
             </div>
         @endif
-        @if ($vote !== null)
-            <p class="ob-poll__confirmed">✓ {{ __('openbook.polls.confirmed') }}</p>
-        @elseif (! $closed && ! $embed && ! auth()->check())
+        @if ($vote === null && ! $closed && ! $embed && ! auth()->check())
             <p><a href="{{ route('login') }}">{{ __('openbook.polls.sign_in') }}</a></p>
-        @elseif (! $local && ! $closed && ! $embed && ! $canChoose)
+        @elseif ($vote === null && ! $local && ! $closed && ! $embed && ! $canChoose)
             <p><a href="{{ $post->uri }}" target="_blank" rel="noopener noreferrer">{{ __('openbook.polls.original') }}</a></p>
         @endif
-        @if ($local && $vote === null && ! $closed && ! $embed)
-            <a class="ob-btn ob-btn--secondary ob-poll__results-toggle" href="{{ $showResults ? $choicesUrl : $resultsUrl }}"
-                data-poll-results-toggle data-results-url="{{ $resultsUrl }}" data-choices-url="{{ $choicesUrl }}" aria-expanded="{{ $showResults ? 'true' : 'false' }}">
-                <span data-poll-show-label @if ($showResults) hidden @endif>{{ __('openbook.polls.show_results') }}</span>
-                <span data-poll-choices-label @unless ($showResults) hidden @endunless>{{ __('openbook.polls.back_to_choices') }}</span>
-            </a>
-        @endif
-        <p class="ob-poll__total" data-poll-result @unless ($showResults) hidden @endunless>{{ $poll->voters_count === null ? __('openbook.polls.results_pending') : trans_choice('openbook.polls.voters', $poll->voters_count, ['count' => $poll->voters_count]) }}</p>
-        @if ($local && ! $embed && auth()->check() && auth()->user()->can('viewPollVoters', $post))
-            <p class="ob-poll__author-tools"><a href="{{ route('posts.poll.voters', $post) }}">{{ __('openbook.polls.view_voters') }}</a></p>
+        <div class="ob-poll__summary" data-poll-result @unless ($showResults) hidden @endunless>
+            @if ($vote !== null)
+                <p class="ob-poll__confirmed" data-poll-confirmed tabindex="-1">✓
+                    @if ($vote->created_at !== null)
+                        <time datetime="{{ $vote->created_at->toIso8601String() }}">{{ __('openbook.polls.voted_on', ['date' => $vote->created_at->translatedFormat('j M Y, H:i')]) }}</time>
+                    @else
+                        {{ __('openbook.polls.voted') }}
+                    @endif
+                </p>
+            @endif
+            <p class="ob-poll__total">{{ $poll->voters_count === null ? __('openbook.polls.results_pending') : trans_choice('openbook.polls.voters', $poll->voters_count, ['count' => $poll->voters_count]) }}</p>
+        </div>
+        @if ($canChoose || $canPreview || $canViewAnswers)
+            <div class="ob-poll__actions">
+                @if ($canChoose)
+                    <button type="submit" form="{{ $voteFormId }}" class="ob-btn ob-btn--primary" data-poll-submit data-poll-vote-controls @if ($showResults && $local) hidden @endif>{{ __('openbook.polls.vote') }}</button>
+                @endif
+                @if ($canPreview)
+                    <a class="ob-btn ob-btn--secondary" href="{{ $showResults ? $choicesUrl : $resultsUrl }}"
+                        data-poll-results-toggle data-results-url="{{ $resultsUrl }}" data-choices-url="{{ $choicesUrl }}" aria-expanded="{{ $showResults ? 'true' : 'false' }}">
+                        <span data-poll-show-label @if ($showResults) hidden @endif>{{ __('openbook.polls.show_results') }}</span>
+                        <span data-poll-choices-label @unless ($showResults) hidden @endunless>{{ __('openbook.polls.back_to_choices') }}</span>
+                    </a>
+                @endif
+                @if ($canViewAnswers)
+                    <a class="ob-btn ob-btn--secondary" href="{{ route('posts.poll.voters', $post) }}">{{ __('openbook.polls.view_voters') }}</a>
+                @endif
+                @if ($canChoose)
+                    <details class="ob-poll__info">
+                        <summary class="ob-icon-btn" aria-label="{{ __('openbook.polls.voting_info') }}" title="{{ __('openbook.polls.final_choice').($local ? ' '.__('openbook.polls.author_can_see') : '') }}"><x-icon name="info" /></summary>
+                        <div class="ob-poll__info-panel" role="note">
+                            <p>{{ __('openbook.polls.final_choice') }}</p>
+                            @if ($local)<p>{{ __('openbook.polls.author_can_see') }}</p>@endif
+                        </div>
+                    </details>
+                @endif
+            </div>
         @endif
         <div data-poll-feedback role="alert" @if ($pollErrors === []) hidden @endif>@foreach ($pollErrors as $error)<p>{{ $error }}</p>@endforeach</div>
         <p class="sr-only" data-poll-status role="status" aria-live="polite"></p>

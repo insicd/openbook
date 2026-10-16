@@ -68,9 +68,9 @@ class RemotePollUiTest extends TestCase
     {
         [$voter, $poll] = $this->fixtureForPage();
         app(RemotePollVoter::class)->vote($voter, $poll, [$poll->options[0]->id], $poll->optionsVersion());
-        $this->actingAs($voter->user)->get(route('posts.show', $poll->post))->assertSee('La tua risposta')->assertSee('Voto registrato.');
+        $this->actingAs($voter->user)->get(route('posts.show', $poll->post))->assertSee('La tua risposta')->assertSee('Hai votato il');
         $other = $this->createFullAccount('otherpollreader');
-        $this->actingAs($other)->get(route('posts.show', $poll->post))->assertDontSee('La tua risposta')->assertDontSee('Voto registrato.')->assertSee('data-poll-form', false);
+        $this->actingAs($other)->get(route('posts.show', $poll->post))->assertDontSee('La tua risposta')->assertDontSee('Hai votato il')->assertSee('data-poll-form', false);
         auth()->forgetGuards();
         $this->get(route('posts.show', $poll->post))->assertOk()->assertDontSee('La tua risposta')->assertDontSee('data-poll-form', false)->assertSee('Sign in with an active account');
         $document = json_encode(NoteSerializer::forPost($poll->post));

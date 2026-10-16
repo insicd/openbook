@@ -19,18 +19,18 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Sondaggi locali (#121)**: creazione dal composer con 2–6 opzioni di massimo
-  50 caratteri, aggiunta progressiva, scelta singola o multipla e durata da 5
-  minuti a 7 giorni (predefinita: un giorno). Allegati, video e community locali
-  anche private seguono i flussi dei post. Definizione e visibilità restano
+- **Sondaggi locali (#121)**: creazione dall’icona nella barra del composer, con
+  2–6 opzioni di massimo 50 caratteri, aggiunta progressiva, scelta singola o
+  multipla e durata da 5 minuti a 7 giorni (predefinita: un giorno). Allegati,
+  video e community locali anche private seguono i flussi dei post. Definizione e visibilità restano
   fissate alla pubblicazione; il testo può essere corretto.
 - **Voto e risultati (#120, #121)**: sondaggi remoti importati come `Question`
   tramite inbox, outbox, condivisioni e refresh esistenti, visibili nelle card e
   nel dettaglio. Voto definitivo, confermato alla registrazione locale e
-  all’accodamento del lavoro federato; risposta personale evidenziata anche
-  dopo variazioni delle opzioni remote. I conteggi remoti restano quelli
+  all’accodamento del lavoro federato; risposta personale e data del voto visibili
+  anche dopo variazioni delle opzioni remote. I conteggi remoti restano quelli
   dell’origine; quelli locali sono aggiornati in modo transazionale. I risultati
-  locali si mostrano dopo il voto o la chiusura, oppure con «Mostra risultati».
+  locali si mostrano dopo il voto o la chiusura, oppure con «Anteprima risultati».
   Form e link funzionano anche senza JavaScript; nessun polling dei risultati.
 - **Risposte riservate all’autore (#121)**: pagina con una scheda per opzione e
   partecipanti locali/remoti paginati. Gli altri lettori vedono gli aggregati e

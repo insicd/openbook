@@ -24,11 +24,13 @@ class PollVotersTest extends TestCase
             $other = $this->createFullAccount('other'.$i);
             $other->forceFill($role)->save();
             $this->actingAs($other)->get($url)->assertForbidden();
-            $this->get(route('posts.show', $poll->post))->assertOk()->assertDontSee('Consulta le risposte');
+            $this->get(route('posts.show', $poll->post))->assertOk()->assertDontSee('Dettaglio risposte');
         }
         $this->actingAs($author)->get($url)->assertOk()->assertSee('Sabato')->assertSee('Domenica')
+            ->assertSee('Questo dettaglio è visibile solo all’autore del sondaggio.')
+            ->assertSee('Nessuno ha votato per questa opzione')
             ->assertViewHas('selected', fn ($option) => $option->id === $poll->options[0]->id);
-        $this->get(route('posts.show', $poll->post))->assertSee('Consulta le risposte');
+        $this->get(route('posts.show', $poll->post))->assertSee('Dettaglio risposte');
         $author->actor->update(['status' => 'suspended']);
         $this->get($url)->assertForbidden();
     }
@@ -71,7 +73,7 @@ class PollVotersTest extends TestCase
         $this->assertStringNotContainsString('secretlocal', $shared);
         $this->assertStringNotContainsString('secretremote', $shared);
         Poll::annotateViewerState([$poll], $author->actor);
-        $this->assertStringNotContainsString('Consulta le risposte', view('posts._poll', ['post' => $poll->post, 'embed' => true])->render());
+        $this->assertStringNotContainsString('Dettaglio risposte', view('posts._poll', ['post' => $poll->post, 'embed' => true])->render());
         $this->assertStringNotContainsString('secretlocal', $poll->load('votes.choices', 'votes.actor')->toJson());
         $this->assertStringNotContainsString('secretremote', $poll->toJson());
         $local->delete();

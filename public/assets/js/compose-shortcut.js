@@ -135,7 +135,9 @@
     function setPollControlsVisible(composer, visible) {
         var panel = composer.querySelector('[data-poll-composer]');
         if (!panel) return;
-        panel.hidden = !visible;
+        setPanelBySuffix(composer, 'poll', false);
+        var toggle = composer.querySelector('[data-composer-toggle$="panel-poll"]');
+        if (toggle) toggle.hidden = !visible;
         var fields = panel.querySelector('[data-poll-composer-fields]');
         if (fields) fields.disabled = !visible;
     }

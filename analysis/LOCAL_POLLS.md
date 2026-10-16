@@ -138,7 +138,7 @@ da documentare sulla base di fixture/fonti e prove, senza dichiararla già acqui
 | Numero di opzioni | Da 2 a 6; il composer parte con due campi e «+ Aggiungi opzione» aggiunge un campo alla volta fino al massimo. Le opzioni aggiunte si possono rimuovere mantenendone almeno due prima della pubblicazione. | Numero massimo e aggiunta progressiva concordati; rimozione come normale controllo del composer |
 | Testo delle opzioni | Massimo 50 caratteri Unicode ciascuna, distinte dopo trim; confronto esatto e case-sensitive dei nomi federati. | Limite di lunghezza concordato, distinto dal limite difensivo di 1.000 caratteri della #120 |
 | Durata | Obbligatoria, da 5 minuti a 7 giorni, default 1 giorno. Menu nel composer: 5 minuti, 30 minuti, 1 ora, 6 ore, 1 giorno, 3 giorni, 7 giorni. | Concordato |
-| Risultati | All'apertura mostrare le opzioni; dopo il voto o alla chiusura mostrare i risultati. «Mostra risultati» permette di consultarli prima del voto e di tornare alla selezione per votare finché il sondaggio è aperto. | Concordato |
+| Risultati | All'apertura mostrare le opzioni; dopo il voto o alla chiusura mostrare i risultati. «Anteprima risultati» permette di consultarli prima del voto e di tornare alla selezione per votare finché il sondaggio è aperto. | Concordato |
 | Dettaglio per l'autore | Popup o pagina separata, con un tab per opzione e i votanti per quell'opzione, locali e remoti. Elenchi paginati; gli altri utenti vedono solo aggregati e proprie scelte. | Concordato; scelta popup/pagina lasciata all'implementazione |
 | Autore | Può votare, con le stesse regole degli altri. | Concordato |
 | Media/citazioni | Consentire la composizione con immagini, audio, video e citazioni già supportati; una citazione visualizza il sondaggio originale in sola lettura. La durata parte dalla pubblicazione effettiva del post, anche dopo l'elaborazione di un video. | Concordato; coprire anche lo staging video |
@@ -149,7 +149,7 @@ da documentare sulla base di fixture/fonti e prove, senza dichiararla già acqui
 | Modifica del post | Correggere testo, titolo, avviso e lingua; mantenere la visibilità fissata alla pubblicazione. I permessi correnti di accesso e interazione restano verificati, comprese variazioni di follow e membership. | Visibilità immutabile concordata |
 | Chiusura | Chiusura automatica alla scadenza fissata alla pubblicazione, senza chiusura manuale anticipata o proroga nella #121. Eventuali modifiche alla data di chiusura sono rinviate a un intervento successivo. | Concordato; limite intenzionale da dichiarare nella PR |
 
-Il comando «Mostra risultati» è una preferenza di presentazione. I risultati
+Il comando «Anteprima risultati» è una preferenza di presentazione. I risultati
 aggregati sono consultabili da chi può vedere il post e vengono federati;
 non promettere segretezza dei conteggi prima del voto. Evitare di introdurre
 una preferenza persistente in DB per la sola apertura dei risultati.
@@ -408,7 +408,7 @@ Primo confronto con una seconda istanza di test, senza destinatari reali.
 ### Sprint 4 — Composer e interfaccia completa
 
 Campi opzioni/modalità/durata, validazione conservando gli input, voto nel
-feed/dettaglio, «Mostra risultati» e scelta personale. Riusare l'esperienza
+feed/dettaglio, «Anteprima risultati» e scelta personale. Riusare l'esperienza
 remota senza cambiare il suo contratto sui conteggi. Gestire editor, avvisi,
 citazioni e audience delle community incluse nel perimetro. Comunicare prima
 del voto che l'autore può consultare le risposte individuali.
@@ -796,3 +796,60 @@ esplicitamente separate dagli esiti automatici sopra.
 Il perimetro intenzionalmente escluso rimane quello concordato sopra e va
 riportato nella futura PR. Nessuna PR o pubblicazione del ramo eseguita in
 questa sessione; testo e invio saranno richiesti dopo la verifica manuale.
+
+## Verifica manuale e correzione UI — 16 ottobre 2026
+
+Migration applicate dall’utente; primo controllo del sondaggio remoto superato,
+con conteggi aggiornati dal server d’origine (53 partecipanti). La prova del
+composer locale ha evidenziato una difformità dalle convenzioni del progetto:
+il controllo a tendina viene sostituito con l’icona nella barra inferiore e un
+normale pannello del composer, come richiesto dall’utente.
+
+Il pannello riusa apertura/chiusura a fisarmonica, evidenziazione dell’icona,
+focus e stato accessibile degli altri controlli. Le opzioni restano conservate
+alla chiusura e il pannello riappare per correggere errori. Reset/rimozione e
+modal di modifica mantengono i comportamenti previsti. Senza JavaScript i campi
+restano visibili e utilizzabili. Browser ora esercitato con l’intero composer
+Blade e il relativo JavaScript condiviso, oltre ai controlli specifici dei poll.
+Le prove manuali di pubblicazione e voto locali proseguono dopo questa correzione.
+
+La prova di pubblicazione locale è riuscita. Su richiesta dell’utente la card
+viene riordinata: intestazione «Sondaggio» e scadenza piccola in corsivo quando
+nota; «Sondaggio aperto» riservato alla scadenza sconosciuta. Azioni affiancate
+«Vota», «Anteprima risultati», «Dettaglio risposte» (solo autore), con ritorno
+alle scelte dopo l’anteprima. Definitività del voto spiegata esplicitamente e
+raccolta insieme alla nota sull’autore nell’icona informazioni a destra:
+hover nativo oppure apertura da click/tastiera/touch. Eliminato il bordo inferiore
+del sondaggio che duplicava il separatore delle azioni del post. Aggiornate
+traduzioni EN/IT e verifiche di voto HTML/AJAX, layout e accessibilità.
+
+Dopo la prova di voto multiplo, conferma personale e totale vengono raccolti
+in una riga separata dalle opzioni: «Hai votato il …» in verde a sinistra e
+partecipanti a destra, con la stessa dimensione del testo. La data è il
+`created_at` della scheda già persistita, personale e stabile; nessun campo o
+ricalcolo aggiunto. Il focus dopo il voto AJAX passa alla conferma testuale
+anziché all’intero sondaggio: eliminato il riquadro blu programmatico, mantenuti
+annuncio accessibile e indicatori di focus sui controlli interattivi.
+
+### Chiusura del giro manuale e review UI
+
+L’utente ha confermato pubblicazione locale, scelta multipla da due account,
+conteggio di due partecipanti con tre scelte, persistenza dopo refresh, privacy
+delle scelte personali, accesso diretto negato al dettaglio dell’autore e
+corretta associazione dei votanti alle tre opzioni. Confermati anche scelta
+singola, scadenza a cinque minuti vista da un account senza voto, cron senza
+errori né variazioni dei conteggi e correzione del testo con sondaggio invariato.
+Le prove generiche di visibilità dei post sono state escluse dall’utente perché
+riusano flussi già verificati. Scambio con una seconda istanza reale ancora da
+eseguire, come dichiarato nella review precedente.
+
+La review delle correzioni verifica integrazione nella toolbar/accordion,
+reset e disabilitazione in modifica, fallback HTML, voto AJAX con pulsante
+associato al form, anteprima e ritorno alle scelte, focus accessibile, data
+persistita del voto e conteggi allineati. Nessuna nuova migration o query.
+Il messaggio «Nessuno ha votato» è limitato alle opzioni davvero vuote: quando
+restano soltanto identità archiviate, viene mostrato il loro aggregato.
+
+Verifiche: 34 test UI/autorizzazione passati (305 asserzioni), browser desktop,
+mobile, tastiera e touch passati. Suite completa: 1.700 passati, 109 saltati,
+7.678 asserzioni e gli stessi due fallimenti preesistenti documentati sopra.

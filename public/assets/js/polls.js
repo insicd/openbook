@@ -31,7 +31,7 @@
             return;
         }
         var poll = form.closest('[data-poll-id]');
-        var button = form.querySelector('button[type="submit"]');
+        var button = poll.querySelector('[data-poll-submit]');
         var feedback = poll.querySelector('[data-poll-feedback]');
         var body = new FormData(form);
         form.dataset.busy = '1';
@@ -63,7 +63,8 @@
                 }
                 poll.replaceWith(updated);
                 updated.querySelector('[data-poll-status]').textContent = data.message;
-                updated.focus();
+                var confirmation = updated.querySelector('[data-poll-confirmed]');
+                if (confirmation) confirmation.focus({preventScroll: true});
             });
         }).catch(function () {
             // Repeating the same POST is safe: the service returns the original vote.

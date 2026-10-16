@@ -88,5 +88,8 @@ trait TestsPollVoters
             ->assertDontSee('Participant participant2')->assertSee('Participant participant3');
         $this->assertSame(4, $poll->fresh()->voters_count);
         $this->assertSame(4, app(PollVotersQuery::class)->total($poll->options[0]));
+        DB::table('actors')->where('id', $ids[3])->update(['status' => 'deleted']);
+        $this->get(route('posts.poll.voters', $poll->post))->assertOk()->assertViewHas('archivedCount', 4)
+            ->assertDontSee('Nessuno ha votato per questa opzione');
     }
 }

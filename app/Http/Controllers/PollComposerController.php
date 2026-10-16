@@ -33,6 +33,6 @@ final class PollComposerController extends Controller
         }
         $input['poll_expanded'] = $action !== 'clear';
 
-        return back()->withInput($input)->withFragment('composer-poll');
+        return back()->withInput($input)->withFragment('composer-panel-poll');
     }
 }

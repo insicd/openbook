@@ -1,18 +1,12 @@
 @php
     $definition = \App\Domain\Polls\LocalPollDefinition::class;
-    $pollOptions = old('poll.options', ['', '']);
-    $pollOptions = is_array($pollOptions) ? array_values(array_slice($pollOptions, 0, $definition::MAX_OPTIONS)) : ['', ''];
-    $pollOptions = array_pad($pollOptions, $definition::MIN_OPTIONS, '');
-    $hasPoll = collect($pollOptions)->contains(fn ($value) => is_string($value) && trim($value) !== '');
-    $pollOpen = $hasPoll || $errors->has('poll') || $errors->has('poll.*') || old('poll_expanded', false);
 @endphp
-<details class="ob-composer__poll" id="{{ $prefix }}-poll" data-poll-composer
+<div class="ob-composer__panel" id="{{ $prefix }}-panel-poll" data-composer-panel data-poll-composer
     data-option-label="{{ __('openbook.polls.option') }}"
     data-option-remove="{{ __('openbook.polls.remove_option') }}"
     data-option-length="{{ __('openbook.polls.option_length') }}"
     data-option-limit="{{ $definition::MAX_OPTIONS }}"
-    data-option-maxlength="{{ $definition::MAX_OPTION_LENGTH }}" @if ($pollOpen) open @endif>
-    <summary>{{ __('openbook.polls.attach') }}</summary>
+    data-option-maxlength="{{ $definition::MAX_OPTION_LENGTH }}" @unless ($pollOpen) hidden @endunless>
     <fieldset class="ob-poll__fieldset" data-poll-composer-fields>
     <legend class="sr-only">{{ __('openbook.polls.title') }}</legend>
     <input type="hidden" name="poll_composer" value="1">
@@ -56,4 +50,5 @@
     <p class="ob-field__help">{{ __('openbook.polls.immutable') }}</p>
     <noscript><p class="ob-field__help">{{ __('openbook.polls.noscript_options') }}</p></noscript>
     </fieldset>
-</details>
+</div>
+<noscript><style>[data-poll-composer][hidden] { display: block !important; }</style></noscript>

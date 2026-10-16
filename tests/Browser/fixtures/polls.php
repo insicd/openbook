@@ -27,7 +27,7 @@ request()->setLaravelSession(app('session.store'));
 view()->share('errors', new ViewErrorBag);
 $user = (new User)->forceFill(['id' => '00000000-0000-4000-8000-000000000001', 'status' => User::STATUS_ACTIVE]);
 $actor = (new Actor)->forceFill(['id' => '00000000-0000-4000-8000-000000000002', 'user_id' => $user->id, 'is_local' => true, 'status' => Actor::STATUS_ACTIVE, 'uri' => 'http://openbook.test/users/author']);
-$user->setRelation('actor', $actor);
+$user->setRelation('actor', $actor)->setRelation('settings', null)->setRelation('profile', null);
 $actor->setRelation('user', $user);
 auth()->setUser($user);
 $post = (new Post)->forceFill(['id' => '00000000-0000-4000-8000-000000000003', 'actor_id' => $actor->id, 'visibility' => 'public', 'status' => Post::STATUS_PUBLISHED, 'published_at' => now()]);
@@ -45,7 +45,7 @@ $initial = view('posts._poll', ['post' => $post])->render();
 request()->query->set('poll_results', $post->id);
 $results = view('posts._poll', ['post' => $post])->render();
 request()->query->remove('poll_results');
-$vote = new PollVote;
+$vote = (new PollVote)->forceFill(['created_at' => now()]);
 $vote->setRelation('choices', new Collection([(new PollVoteChoice)->forceFill(['name' => 'Saturday', 'position' => 0])]));
 $poll->setRelation('viewerVote', $vote);
 $poll->voters_count = 1;
@@ -73,5 +73,5 @@ foreach ($options as $selected) {
     $votersHtml[$selected->id] = view('polls._voters', ['post' => $post, 'poll' => $poll, 'selected' => $selected,
         'voters' => $paginator, 'archivedCount' => 3])->render();
 }
-echo json_encode(['composer' => view('composer._poll', ['prefix' => 'browser', 'errors' => new ViewErrorBag])->render(),
+echo json_encode(['composer' => view('composer.form', ['prefix' => 'browser', 'errors' => new ViewErrorBag])->render(),
     'poll' => $initial, 'results' => $results, 'confirmed' => $confirmed, 'voters' => $votersHtml], JSON_THROW_ON_ERROR);

@@ -26,7 +26,9 @@
                 </a>
             </div>
         @empty
-            <p class="ob-field__help">{{ __('openbook.polls.voters_empty') }}</p>
+            @if ($archivedCount === 0)
+                <p class="ob-field__help">{{ __('openbook.polls.voters_empty') }}</p>
+            @endif
         @endforelse
     </div>
     @if ($archivedCount > 0)

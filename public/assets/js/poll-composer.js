@@ -1,11 +1,16 @@
 /** Progressive poll fields. Native submit buttons provide the HTML fallback. */
 (function () {
     'use strict';
+    function toggleFor(panel) {
+        return panel.closest('[data-composer]').querySelector('[data-composer-toggle="' + panel.id + '"]');
+    }
     function sync(panel) {
         var rows = panel.querySelectorAll('[data-poll-option-row]');
         var active = Array.from(rows).some(function (row) {
             return row.querySelector('input').value.trim() !== '';
         });
+        var toggle = toggleFor(panel);
+        if (toggle) toggle.classList.toggle('is-filled', active);
         rows.forEach(function (row, index) {
             var field = row.querySelector('input');
             field.id = panel.id + '-option-' + index;
@@ -35,8 +40,9 @@
             panel.querySelector('input[type="checkbox"]').checked = false;
             panel.querySelector('select').value = '86400';
             panel.querySelectorAll('.ob-field__error').forEach(function (error) { error.remove(); });
-            panel.open = false;
-            panel.querySelector('summary').focus();
+            var toggle = toggleFor(panel);
+            if (!panel.hidden && toggle) toggle.click();
+            if (toggle) toggle.focus();
         } else if (button.hasAttribute('data-poll-option-add')) {
             if (list.children.length >= Number(panel.dataset.optionLimit)) return;
             var row = list.firstElementChild.cloneNode(true);
@@ -61,7 +67,8 @@
             var list = panel.querySelector('[data-poll-option-list]');
             while (list.children.length > 2) list.lastElementChild.remove();
             list.querySelectorAll('input').forEach(function (field) { field.value = ''; });
-            panel.open = false;
+            var toggle = toggleFor(panel);
+            if (!panel.hidden && toggle) toggle.click();
             sync(panel);
         }, 0);
     });
@@ -70,10 +77,10 @@
     });
     document.addEventListener('invalid', function (event) {
         var panel = event.target.closest('[data-poll-composer]');
-        if (panel) panel.open = true;
-    }, true);
-    document.addEventListener('toggle', function (event) {
-        if (event.target.matches('[data-poll-composer]')) sync(event.target);
+        if (panel && panel.hidden) {
+            var toggle = toggleFor(panel);
+            if (toggle) toggle.click();
+        }
     }, true);
     function init() { document.querySelectorAll('[data-poll-composer]').forEach(sync); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
