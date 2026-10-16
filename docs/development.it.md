@@ -22,6 +22,37 @@ Il progetto usa PHPUnit. La suite gira di default su SQLite in memoria (vedi
 php artisan test
 ```
 
+Le basi dei sondaggi remoti sono coperte da `RemotePollDocumentTest` e
+`RemotePollPersistenceTest`, con fixture anonimizzate in
+`tests/Fixtures/Federation/Polls`. Una verifica MySQL/MariaDB opzionale esegue
+gli stessi casi di persistenza, voto e transazione della coda database, oltre
+al rollback della migration, alla concorrenza tra due processi e a `EXPLAIN`:
+
+```bash
+OPENBOOK_TEST_POLLS_MYSQL=1 php artisan test --filter=RemotePollMysqlPersistenceTest
+```
+
+Usa `OPENBOOK_TEST_MYSQL_HOST`, `OPENBOOK_TEST_MYSQL_PORT`,
+`OPENBOOK_TEST_MYSQL_USERNAME` e `OPENBOOK_TEST_MYSQL_PASSWORD`; facoltativamente
+`OPENBOOK_TEST_MYSQL_SOCKET` seleziona un socket Unix. L'account deve poter
+creare ed eliminare schemi con nome `openbook_polls_test_*`. Ogni caso crea un
+proprio schema casuale, esegue le migration applicative e lo elimina al termine.
+Non migra né svuota il database applicativo locale o quello indicato da
+`OPENBOOK_TEST_MYSQL_DATABASE`. Usare un server usa-e-getta. Senza il flag di
+attivazione questi test vengono saltati; quando è attivo, errori di connessione
+o migration fanno fallire il test. Importazione e servizio di voto sono
+implementati e collegati all'interfaccia web. `RemotePollVotingTest`
+verifica scelta singola/multipla, idempotenza, rollback e retry;
+`DeliverPollVotesCommandTest` verifica il consumo attraverso il comando esistente.
+`RemotePollUiTest` copre feed, dettaglio, form HTML/JSON, privacy tra utenti,
+avvisi sui contenuti e snapshot delle scelte precedenti.
+Per eseguirli con la configurazione di produzione in cache, indicare un percorso
+inesistente per `APP_CONFIG_CACHE`, preservando così la cache locale:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --filter=RemotePoll
+```
+
 La suite copre bootstrap/installer/autenticazione, il dominio sociale locale
 (post, media, commenti, reazioni, follow, feed, notifiche), l'identita' e la
 federazione sociale (`tests/Feature/Federation`,

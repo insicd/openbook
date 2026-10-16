@@ -232,6 +232,8 @@ class PostController extends Controller
             } catch (\Throwable $exception) {
                 report($exception);
             }
+            // A Question refresh can change the text, warning and audience together.
+            $post = Post::query()->whereKey($post->id)->visibleTo($viewer)->firstOrFail();
         }
 
         $post->load(Post::CARD_RELATIONS);

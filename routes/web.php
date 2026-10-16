@@ -38,6 +38,7 @@ use App\Http\Controllers\PostReactionController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PushSubscriptionController;
+use App\Http\Controllers\RemotePollVoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SearchSuggestController;
@@ -116,6 +117,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/posts/{post}/commenti', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('/commenti/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+
+    Route::post('/posts/{post}/vota', RemotePollVoteController::class)
+        ->middleware('throttle:30,1')->name('posts.poll.vote');
 
     Route::post('/posts/{post}/mi-piace', [LikeController::class, 'likePost'])->name('posts.like');
     Route::delete('/posts/{post}/mi-piace', [LikeController::class, 'unlikePost'])->name('posts.unlike');

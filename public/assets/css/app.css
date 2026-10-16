@@ -4369,3 +4369,128 @@ a.ob-post__menu-item {
   margin: 0;
   min-width: 0;
 }
+
+/* Remote polls share the post card and stay inside its content warning. */
+.ob-poll {
+  margin-block: 1rem;
+  padding-block: .85rem;
+  border-block: 1px solid var(--ob-color-border);
+}
+
+.ob-poll__heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem 1rem;
+  align-items: baseline;
+  margin-bottom: .65rem;
+}
+
+.ob-poll__heading > span,
+.ob-poll__hint,
+.ob-poll__total {
+  color: var(--ob-color-text-muted);
+  font-size: .85rem;
+}
+
+.ob-poll__fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 .75rem;
+  min-width: 0;
+}
+
+.ob-poll__fieldset legend {
+  padding: 0;
+  margin-bottom: .5rem;
+  font-size: .9rem;
+}
+
+.ob-poll__options {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: .5rem;
+}
+
+.ob-poll__option {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--ob-color-border);
+  border-radius: .45rem;
+}
+
+.ob-poll__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ob-color-primary-soft);
+  z-index: -1;
+}
+
+.ob-poll__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .35rem .6rem;
+  padding: .65rem .75rem;
+  min-height: 2.75rem;
+}
+
+.ob-poll__row input {
+  flex: 0 0 auto;
+  accent-color: var(--ob-color-primary);
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+}
+
+.ob-poll__name {
+  flex: 1 1 10rem;
+  overflow-wrap: anywhere;
+}
+
+label.ob-poll__name {
+  cursor: pointer;
+}
+
+.ob-poll__count {
+  font-size: .85rem;
+  color: var(--ob-color-text-muted);
+}
+
+.ob-poll__option--selected {
+  border-color: var(--ob-color-primary);
+}
+
+.ob-poll__choice {
+  flex-basis: 100%;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--ob-color-primary-dark);
+}
+
+.ob-poll__confirmed {
+  font-weight: 600;
+  color: var(--ob-color-success);
+}
+
+.ob-poll__previous {
+  padding: .6rem .75rem;
+  border-inline-start: 3px solid var(--ob-color-primary);
+  overflow-wrap: anywhere;
+}
+
+.ob-poll__previous p,
+.ob-poll__previous ul {
+  margin-block: .3rem;
+}
+
+.ob-poll__hint,
+.ob-poll__total {
+  margin-block: .5rem 0;
+}
+
+.ob-poll [data-poll-feedback] {
+  color: var(--ob-color-danger);
+}

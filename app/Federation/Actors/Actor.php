@@ -260,6 +260,14 @@ class Actor extends Model
         return $this->type === self::TYPE_APPLICATION;
     }
 
+    /** Cached delivery endpoint; network resolution belongs to ActivityDelivery. */
+    public function deliveryInboxUrl(): ?string
+    {
+        $inbox = $this->endpoints?->shared_inbox ?: $this->endpoints?->inbox;
+
+        return filled($inbox) ? (string) $inbox : null;
+    }
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;

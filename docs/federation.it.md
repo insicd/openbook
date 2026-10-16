@@ -298,11 +298,12 @@ finalmente bidirezionale.
   - `Like`/`Announce` su un post o commento locale aggiornano i contatori e generano
     una notifica, esattamente come un Mi piace/condivisione locale;
   - `Create`/`Update` con oggetto postabile (`Note`, `Page`, `Article`, `Video`,
-    `Image`) mettono in cache localmente il post o commento remoto (tabelle
+    `Image`, `Question`) mettono in cache localmente il post o commento remoto (tabelle
     `posts`/`comments`, identificati dalla colonna `uri`), ma **solo se rilevanti**
     per questa istanza (l'autore e' seguito da un Actor locale, la Note risponde a
     un contenuto che gia' conosciamo, oppure menziona esplicitamente un Actor
-    locale): nessun contenuto remoto viene conservato "a caso". Il contenuto HTML
+    locale; sono rilevanti anche gli aggiornamenti dei sondaggi già in cache):
+    nessun contenuto remoto viene conservato "a caso". Il contenuto HTML
     viene ridotto a testo semplice (`RemoteContentSanitizer`), preservando gli
     `<a href>` come `[etichetta](url)`; le immagini in `attachment` restano come
     URL remoti in galleria. Poi passa dalla stessa pipeline di rendering sicura
@@ -432,6 +433,81 @@ solo se l'account ha abilitato la condivisione sul Fediverso). La sezione Mondo
 propone account remoti da scoprire e, oltre i primi 5, l'elenco completo in
 `/mondo/scopri` con scorrimento infinito. SSRF, blocco domini e firme HTTP
 restano i vincoli di sicurezza di base.
+
+### Sondaggi remoti (#120)
+
+Gli oggetti `Question` nel formato Mastodon vengono importati tramite i flussi
+esistenti di inbox, outbox, collection dei post fissati, Announce e refresh di
+post/risposte. I metadati vivono in `remote_polls` e `remote_poll_options`; il
+post conserva le normali regole di autore, audience e moderazione. Le Question
+di risposta sono escluse. Il sondaggio compare nella card del feed e nella
+pagina del post (`/posts/{post}`), identificato da `remote_polls.post_id`.
+Restano i percorsi di aggiornamento esistenti, senza polling o worker dedicati. L'apertura
+della pagina rilegge testo, avviso e visibilità dopo il refresh, applicando
+il pubblico corrente prima di mostrare il contenuto.
+
+`oneOf` e `anyOf` conservano scelta singola/multipla, nomi esatti delle opzioni,
+conteggi nullable di risposte/votanti, scadenza e chiusura esplicita. I conteggi
+assenti restano sconosciuti; le scelte locali non alterano i risultati remoti.
+Il normalizzatore accetta attualmente 2–50 opzioni distinte di massimo 1.000
+caratteri Unicode. I metadati malformati vengono ignorati preservando lo stato
+valido precedente. Il riordino conserva l'identità delle opzioni; la rinomina
+la sostituisce preservando eventuali snapshot del voto personale. Una chiusura
+già acquisita resta tale.
+
+Le versioni remote esplicite `updated` hanno precedenza; altrimenti data e ID
+originali dell'inbox determinano l'ordine del replay. I fetch usano il momento
+di osservazione locale. Senza una revisione remota, l'ordine originale del
+server non si può ricavare dall'ordine di consegna: snapshot più recenti
+accettati possono legittimamente ridurre i conteggi. I sondaggi incorporati da
+terzi vengono verificati all'endpoint canonico. I Create/Note con forma di voto
+vengono scartati prima di diventare post, commenti o messaggi, anche quando il
+destinatario del voto è sconosciuto.
+
+Applicare le migration con `php artisan migrate`. L'ordinamento usa
+`results_received_at`, senza dipendere dalla permanenza delle righe inbox.
+Sondaggi e opzioni remote omettono i timestamp automatici `created_at`/`updated_at`:
+la pubblicazione è nel `published_at` del post associato, mentre i voti personali
+conservano le proprie date. La migration correttiva rinomina il precedente
+`observed_at` e rimuove i timestamp ridondanti, preservando sondaggi in cache,
+risultati e voti personali. Il replay storico resta disponibile con `openbook:reprocess-inbox`, che
+riaccoda tutte le attività ignored/pending, comprese quelle ordinarie. Per una
+verifica limitata ai sondaggi usare le fixture o una copia del DB.
+
+Le risposte si selezionano tramite radio o checkbox; «Vota» conferma subito
+«Voto registrato» dopo il commit e mostra «La tua risposta» solo al proprietario.
+L'endpoint autenticato `POST /posts/{post}/vota` riusa il servizio di voto e
+controlla visibilità, scadenza e versione delle opzioni. JavaScript aggiorna la
+sola card dopo il POST; il normale form HTML funziona anche senza JavaScript.
+Nelle citazioni il sondaggio è in sola lettura. Gli avvisi sui contenuti
+racchiudono anche il sondaggio. Testi e snapshot remoti vengono escapati.
+
+I conteggi assenti mostrano «Risultati in aggiornamento». Le percentuali usano i
+votanti dichiarati dall'origine: richiedono un totale positivo e nessuna opzione
+sopra quel totale; nella scelta singola richiedono anche tutti i conteggi e la
+loro somma uguale al totale. I dati discordanti rimangono visibili come ricevuti,
+senza percentuali inventate. Le risposte personali eliminate o rinominate restano
+in un riquadro separato con il loro testo originale.
+
+Il servizio di voto salva atomicamente le scelte personali e un `Create/Note`
+per ciascuna scelta. La Note usa il nome esatto dell'opzione, risponde all'URI
+della Question ed è indirizzata soltanto al suo autore. Gli UUID persistiti delle
+scelte mantengono stabili gli ID nei retry. Invii duplicati restituiscono il voto
+originale definitivo, anche dopo la chiusura. La versione delle opzioni rileva
+rinomina, riordino e cambio di modalità; gli aggiornamenti dei conteggi remoti
+preservano la selezione. Scadenza e accesso sono ricontrollati sotto lock;
+la consegna ricontrolla visibilità e moderazione. I voti locali lasciano invariati
+i risultati dichiarati dal server remoto.
+
+La coda database interna `local_delivery` usa la connessione del dominio e la
+tabella `jobs` esistente, indipendentemente dal driver globale o da
+`DB_QUEUE_CONNECTION`. `openbook:deliver` consuma questa coda e il backend di
+consegna configurato entro il budget esistente, evitando worker duplicati quando
+condividono la stessa tabella. Questo incremento usa migration e cron già
+esistenti. Se la configurazione è in cache, rigenerarla con
+`php artisan config:cache` dopo l'aggiornamento. Chi usa soltanto un worker
+personalizzato per un backend separato deve consumare anche `local_delivery`
+oppure usare `openbook:deliver`.
 
 ### Eventi federati
 

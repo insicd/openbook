@@ -55,6 +55,15 @@ remote Actor: that is the only point where domain logic "knows" about
 federation, and it remains an after-the-fact addition, never a condition for
 the local action to succeed.
 
+For remote polls, `RemotePollVoter` persists the vote and delivery jobs in the
+same transaction through `ActivityDelivery::enqueueDirectInTransaction()`.
+The internal `local_delivery` database backend shares the domain connection and
+`jobs` table; signing, sending and retries remain in `DeliverActivityJob` and
+`openbook:deliver`. The commit confirms the vote to the user independently of
+remote delivery. `RemotePollInteractionPolicy` shares account and moderation
+checks across UI, voting and delivery; expiry and visibility are checked in the
+relevant phases. See [remote polls](federation.md#remote-polls-120).
+
 Every local account has from the start an ActivityPub Actor of type `Person`
 (tables `actors`, `actor_keys`, `actor_endpoints`), exposed to the Fediverse
 (see [Federation](federation.md#federation-phase-3) below). The local social domain is

@@ -1,0 +1,15 @@
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://openbook.test/users/bob#votes/example-choice/activity",
+  "type": "Create",
+  "actor": "https://openbook.test/users/bob",
+  "to": "https://remote.example/users/alice",
+  "object": {
+    "id": "https://openbook.test/users/bob#votes/example-choice",
+    "type": "Note",
+    "name": "Domenica",
+    "attributedTo": "https://openbook.test/users/bob",
+    "inReplyTo": "https://remote.example/users/alice/statuses/poll-1",
+    "to": "https://remote.example/users/alice"
+  }
+}

@@ -9,7 +9,7 @@ use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 
 /**
- * Recupera un documento postabile remoto (Note/Page/Article/Video/Image)
+ * Recupera un documento postabile remoto (Note/Page/Article/Video/Image/Question)
  * via HTTP (Accept: activity+json), usato quando un Group ritrasmette un
  * post non ancora in cache o quando un Create porta solo l'id dell'oggetto.
  */
@@ -28,7 +28,12 @@ final class RemoteNoteDocumentFetcher
     {
         $document = $this->fetchDocument($uri, $signingActor);
 
-        return $document !== null ? RemotePostObject::unwrap($document) : null;
+        $note = $document !== null ? RemotePostObject::unwrap($document) : null;
+        if ($note !== null && RemotePostObject::hasType($note['type'] ?? null, 'Question') && ($note['id'] ?? null) !== $uri) {
+            return null;
+        }
+
+        return $note;
     }
 
     /**

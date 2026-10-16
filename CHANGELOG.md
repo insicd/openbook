@@ -19,6 +19,22 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Sondaggi remoti (#120)**: importazione degli oggetti `Question` attraverso
+  inbox, outbox, condivisioni e refresh esistenti; visualizzazione nelle card e
+  nel dettaglio del post, con voto singolo/multiplo e conferma «Voto registrato»
+  alla persistenza atomica delle scelte e delle attività nella coda locale.
+  Le risposte personali restano evidenziate anche dopo rinomina/rimozione delle
+  opzioni; conteggi e percentuali provengono dai dati dichiarati dall'origine.
+  Consegna al solo autore, retry con ID stabili, controlli di accesso e
+  moderazione anche prima dell'invio. Nessun polling dedicato; funzionamento
+  anche senza JavaScript, con avvisi sui contenuti e visibilità del post.
+  Le Note di voto sono escluse da commenti e messaggi; il replay storico
+  preserva lo snapshot più recente. `openbook:deliver` consuma la coda database
+  del dominio anche con driver globale `sync` o backend separato. Applicare le
+  migration e rigenerare cache di configurazione e route, se usate. La migration
+  correttiva preserva anche i DB locali che avevano applicato gli incrementi
+  iniziali, usando `results_received_at` e omettendo i timestamp automatici di
+  sondaggi e opzioni remote.
 - **Campanella sui Group**: Mastodon tiene `notify` solo in locale e non lo
   mette nel Follow; l'Announce FEP-1b12 e' un boost e non fa suonare la
   campanella. I nuovi post sul wall di un Group locale vengono quindi

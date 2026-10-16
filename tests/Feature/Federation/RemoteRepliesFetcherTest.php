@@ -383,6 +383,24 @@ class RemoteRepliesFetcherTest extends TestCase
         Http::assertNotSent(fn ($request) => $request->url() === $post->uri.'/likes' || $request->url() === $post->uri.'/shares');
     }
 
+    public function test_article_refresh_still_updates_reaction_totals(): void
+    {
+        $viewer = $this->createFullAccount('articlereader');
+        $author = $this->createRemoteActor('articleauthor');
+        $post = $this->createRemotePost($author);
+        Http::preventStrayRequests();
+        Http::fake([$post->uri => Http::response([
+            'id' => $post->uri, 'type' => 'Article', 'attributedTo' => $author->uri,
+            'content' => '<p>Article body.</p>', 'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            'likes' => ['type' => 'Collection', 'totalItems' => 18],
+            'shares' => ['type' => 'Collection', 'totalItems' => 5],
+        ])]);
+        $this->actingAs($viewer)->get(route('posts.show', $post))->assertOk();
+        $this->assertSame(18, $post->fresh()->likes_count);
+        $this->assertSame(5, $post->fresh()->announces_count);
+        Http::assertSentCount(1);
+    }
+
     public function test_origin_reaction_totals_do_not_drop_below_local_counts(): void
     {
         $viewer = $this->createFullAccount('lettorefloor');

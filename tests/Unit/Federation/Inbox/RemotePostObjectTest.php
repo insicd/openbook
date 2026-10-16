@@ -61,7 +61,7 @@ class RemotePostObjectTest extends TestCase
         $this->assertTrue(RemotePostObject::isPostable('Image'));
         $this->assertTrue(RemotePostObject::isPostable(['Object', 'Article']));
         $this->assertTrue(RemotePostObject::isPostable('https://www.w3.org/ns/activitystreams#Article'));
-        $this->assertFalse(RemotePostObject::isPostable('Question'));
+        $this->assertTrue(RemotePostObject::isPostable('Question'));
     }
 
     public function test_body_falls_back_through_content_map_summary_and_html_url(): void

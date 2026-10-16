@@ -1121,6 +1121,28 @@ return [
         ],
     ],
 
+    'polls' => [
+        'title' => 'Sondaggio',
+        'open' => 'Sondaggio aperto',
+        'ends' => 'Termina il',
+        'select_single' => 'Scegli una risposta',
+        'select_multiple' => 'Scegli una o più risposte',
+        'vote' => 'Vota',
+        'final_choice' => 'Confermando, la tua scelta è definitiva.',
+        'confirmed' => 'Voto registrato.',
+        'your_answer' => 'La tua risposta',
+        'updated_choices' => 'Le opzioni del sondaggio sono state aggiornate. La tua scelta resta registrata.',
+        'results_pending' => 'Risultati in aggiornamento',
+        'votes' => '{0} 0 voti|{1} 1 voto|[2,*] :count voti',
+        'voters' => '{0} 0 partecipanti|{1} 1 partecipante|[2,*] :count partecipanti',
+        'original' => 'Apri il sondaggio sul sito originale',
+        'choose' => 'Seleziona le risposte disponibili per questo sondaggio.',
+        'closed' => 'Sondaggio concluso.',
+        'changed' => 'Le risposte sono state aggiornate. Ricarica il sondaggio e scegli di nuovo.',
+        'retry' => 'Riprova tra poco per confermare il voto.',
+        'sign_in' => 'Accedi con un account attivo per partecipare.',
+    ],
+
     'footer' => [
         'rules' => 'Regole',
         'privacy' => 'Privacy',
