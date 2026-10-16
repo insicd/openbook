@@ -5,12 +5,15 @@ namespace App\Http\Presenters;
 use App\Domain\Posts\Post;
 use App\Domain\Posts\PostBodyRenderer;
 use App\Federation\Actors\Actor;
+use App\Support\UserDate;
 
 /**
  * Serializza un messaggio diretto per feed JSON / risposte Ajax.
  */
 final class ConversationMessagePresenter
 {
+    public function __construct(private readonly UserDate $dates) {}
+
     /**
      * @return array{id: string, mine: bool, author_name: string, published_at: string, published_label: string, body_html: string, quote_html: string}
      */
@@ -46,7 +49,7 @@ final class ConversationMessagePresenter
             'mine' => $message->actor_id === $viewer->id,
             'author_name' => $message->actor->displayNameForText(),
             'published_at' => $message->published_at->toIso8601String(),
-            'published_label' => $message->published_at->format('d/m/Y H:i'),
+            'published_label' => $this->dates->format($message->published_at, 'd/m/Y H:i'),
             'body_html' => (string) PostBodyRenderer::render($message->body, $message->custom_emojis),
             'quote_html' => $quoteHtml,
         ];

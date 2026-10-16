@@ -59,15 +59,6 @@
             </div>
         @else
             @php
-                $offset = $event->utc_offset_minutes;
-                $timezone = $event->timezone
-                    ?? ($offset !== null
-                        ? sprintf('%s%02d:%02d', $offset >= 0 ? '+' : '-', intdiv(abs($offset), 60), abs($offset) % 60)
-                        : config('app.timezone'));
-                $timezoneLabel = $event->timezone
-                    ?? ($offset !== null ? 'UTC'.$timezone : $timezone);
-                $startsAt = $event->start_at->copy()->setTimezone($timezone);
-                $endsAt = $event->end_at?->copy()->setTimezone($timezone);
                 $location = $event->location;
                 $locationAddress = $location?->address ?: collect([
                     $location?->street_address,
@@ -98,11 +89,11 @@
             </div>
 
             <dl class="ob-event-detail__facts">
-                <div><dt>{{ __('openbook.events.starts_at') }}</dt><dd>{{ $startsAt->translatedFormat('j F Y, H:i') }}</dd></div>
-                @if ($endsAt)
-                    <div><dt>{{ __('openbook.events.ends_at') }}</dt><dd>{{ $endsAt->translatedFormat('j F Y, H:i') }}</dd></div>
+                <div><dt>{{ __('openbook.events.starts_at') }}</dt><dd><x-event-date :event="$event" :date="$event->start_at" /></dd></div>
+                @if ($event->end_at)
+                    <div><dt>{{ __('openbook.events.ends_at') }}</dt><dd><x-event-date :event="$event" :date="$event->end_at" /></dd></div>
                 @endif
-                <div><dt>{{ __('openbook.events.timezone_label') }}</dt><dd>{{ $timezoneLabel }}</dd></div>
+                <div><dt>{{ __('openbook.events.timezone_label') }}</dt><dd>{{ $event->timezoneLabel() }}</dd></div>
                 @if ($location)
                     <div>
                         <dt>{{ __('openbook.events.location') }}</dt>

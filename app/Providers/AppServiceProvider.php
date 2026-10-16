@@ -31,7 +31,9 @@ use App\Policies\CommunityPolicy;
 use App\Policies\EventCommentPolicy;
 use App\Policies\EventPolicy;
 use App\Policies\PostPolicy;
+use App\Support\UserDate;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -56,6 +58,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Blade::directive('userdate', fn (string $expression): string => '<?php echo e(app(\\'.UserDate::class.'::class)->format('.$expression.')); ?>');
+
         Post::updated(function (Post $post): void {
             app(ConversationReadTracker::class)->invalidateOnPostChange($post);
             if ($post->wasChanged('status') && $post->status === Post::STATUS_DELETED) {

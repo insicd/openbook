@@ -4,6 +4,7 @@
 
 @section('content')
     <h1>{{ __('openbook.admin.domain_blocks.title') }}</h1>
+    @include('admin.partials.timezone-note')
     <p class="ob-field__help">{{ __('openbook.admin.domain_blocks.intro') }}</p>
 
     <form method="POST" action="{{ route('admin.domain_blocks.store') }}" class="ob-card" style="margin-top:1rem">
@@ -28,7 +29,7 @@
                         <p class="ob-field__help" style="margin:0.35rem 0 0">{{ $block->reason }}</p>
                     @endif
                     <p class="ob-field__help" style="margin:0.35rem 0 0">
-                        {{ $block->creator?->username ?? '—' }} &middot; {{ $block->created_at?->format('Y-m-d H:i') }}
+                        {{ $block->creator?->username ?? '—' }} &middot; @userdate($block->created_at, 'Y-m-d H:i')
                     </p>
                 </div>
                 <form method="POST" action="{{ route('admin.domain_blocks.destroy', $block) }}">

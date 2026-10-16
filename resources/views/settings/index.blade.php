@@ -80,6 +80,21 @@
             </div>
 
             <div class="ob-field">
+                <label for="settings-timezone">{{ __('openbook.settings.timezone_label') }}</label>
+                @php $selectedTimezone = old('timezone', $viewer->settings?->timezone); @endphp
+                <select id="settings-timezone" name="timezone" aria-describedby="settings-timezone-help">
+                    <option value="" @selected($selectedTimezone === null || $selectedTimezone === '')>{{ __('openbook.settings.timezone_automatic') }}</option>
+                    @foreach (\DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC) as $timezone)
+                        <option value="{{ $timezone }}" @selected($selectedTimezone === $timezone)>{{ str_replace('_', ' ', $timezone) }}</option>
+                    @endforeach
+                </select>
+                <p id="settings-timezone-help" class="ob-field__help">{{ __('openbook.settings.timezone_help') }}</p>
+                @error('timezone')
+                    <p class="ob-field__error">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="ob-field">
                 <label for="settings-visibility">{{ __('openbook.settings.default_visibility_label') }}</label>
                 @php $defaultVisibility = old('default_post_visibility', $viewer->settings?->default_post_visibility ?: 'public'); @endphp
                 <select id="settings-visibility" name="default_post_visibility">

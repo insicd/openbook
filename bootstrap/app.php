@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureApplicationIsInstalled;
 use App\Http\Middleware\EnsureStaff;
 use App\Http\Middleware\SetUserLocale;
 use App\Infrastructure\Database\TransientConnectionHandler;
+use App\Support\UserDate;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -29,6 +30,8 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Device timezone is written by JavaScript and validated before use.
+        $middleware->encryptCookies(except: [UserDate::COOKIE_NAME]);
         $middleware->web(append: [
             EnsureApplicationIsInstalled::class,
             SetUserLocale::class,

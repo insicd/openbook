@@ -135,6 +135,12 @@ sui contenuti, i permessi del post e i blocchi applicati dall’amministratore.
 
 ## Eventi
 
+Gli orari principali sono quelli dell'evento, con il relativo fuso. Se il tuo
+orario è diverso, una nota più piccola mostra «… nel tuo fuso», anche con il
+giorno quando necessario. Creando un evento viene proposto il tuo fuso personale:
+puoi cambiarlo se l'evento si svolge altrove. Modificando un evento si conserva
+il fuso già assegnato.
+
 La sezione **Eventi** contiene appuntamenti in arrivo e passati. Gli utenti
 autenticati possono creare eventi pubblici o non elencati, con descrizione,
 copertina, fuso orario, luogo fisico/online/ibrido e partecipazione aperta,

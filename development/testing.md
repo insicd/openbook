@@ -2,6 +2,22 @@
 
 ## Tests
 
+Personal time zones:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test tests/Feature/UserTimezoneTest.php tests/Feature/UserDatePresentationTest.php tests/Unit/Support/UserDateTest.php
+node tests/Browser/timezones.cjs
+OPENBOOK_TEST_TIMEZONE_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test tests/Feature/UserTimezoneMysqlTest.php
+```
+
+The MySQL check uses `OPENBOOK_TEST_MYSQL_HOST`, `PORT`, `SOCKET`, `USERNAME`
+and `PASSWORD` (with the same prefix). It creates and drops a random schema,
+never migrating the application's database, and verifies rollback, nullability
+and defaults. Browser checks use in-memory SQLite and cover detection, device
+changes, explicit preferences, guests, events, missing JavaScript/Intl/cookies
+and POST responses never being repeated. Verification screenshots are saved
+in the system temporary directory.
+
 Language selection and authentication pages (#103):
 
 ```bash

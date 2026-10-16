@@ -126,11 +126,23 @@ Puoi aggiornare nome, biografia, avatar, copertina e fino a otto campi, condivis
 fra Link e Informazioni aggiuntive. Le immagini vengono mostrate in anteprima
 prima del salvataggio. Le modifiche del profilo sono comunicate ai follower remoti.
 
-Le preferenze permettono di scegliere lingua dell’interfaccia e visibilità
-iniziale dei nuovi post. Con **Account protetto** approvi le richieste di follow.
+Le preferenze permettono di scegliere lingua dell’interfaccia, fuso orario e
+visibilità iniziale dei nuovi post. Con **Account protetto** approvi le richieste di follow.
 Puoi scegliere se comparire nei suggerimenti e se consentire l’indicizzazione
 dei tuoi post pubblici. Disattivare i suggerimenti lascia raggiungibile il profilo
 tramite il suo indirizzo esatto.
+
+In **Impostazioni → Account → Fuso orario**, **Automatico — dal dispositivo**
+segue il fuso del browser, anche quando viaggi o cambi dispositivo. Puoi
+scegliere un fuso specifico per usare sempre quello e tornare ad Automatico
+in qualsiasi momento. I nuovi account e quelli aggiornati partono in Automatico.
+La lingua dell'interfaccia è indipendente dal fuso scelto.
+
+Messaggi, scadenze dei sondaggi e date dei profili seguono il tuo fuso.
+Anche gli ospiti vedono gli orari nel fuso del proprio browser. Il rilevamento
+non richiede permessi di geolocalizzazione; in Automatico, senza JavaScript,
+cookie o un fuso valido si usa quello dell'istanza. Il cambio del fuso non
+modifica le scadenze o gli istanti di pubblicazione.
 
 ## Notifiche e messaggi
 

@@ -4406,6 +4406,17 @@ a.ob-post__menu-item {
   font-weight: 700;
 }
 
+.ob-event-timezone {
+  display: block;
+}
+
+.ob-event-local-time {
+  display: block;
+  color: var(--ob-color-text-muted);
+  font-size: 0.875em;
+  font-weight: normal;
+}
+
 .ob-event-card__location {
   display: flex;
   align-items: flex-start;

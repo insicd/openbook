@@ -50,7 +50,7 @@ final class AccountRegistrar
             UserSetting::query()->create([
                 'user_id' => $user->id,
                 'locale' => $data['locale'] ?? config('app.locale', 'it'),
-                'timezone' => config('app.timezone', 'UTC'),
+                'timezone' => null,
             ]);
 
             $urls = LocalActorUrls::forUsername($username, isGroup: false);

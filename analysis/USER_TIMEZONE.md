@@ -1,8 +1,8 @@
 # Fuso orario personale
 
-Stato al 16 ottobre 2026: analisi revisionata, decisioni funzionali concordate
-e impostazione tecnica verificata sulla documentazione Laravel 12 e Carbon.
-Nessuna implementazione avviata. Ramo `codex/user-timezone`, creato sopra
+Stato al 16 ottobre 2026: analisi congelata in `4dd87e3`; implementazione
+completata, verificata sull'istanza locale e sottoposta a review finale.
+Ramo `codex/user-timezone`, creato sopra
 `codex/finnish-language` al commit `e0b8049`.
 
 ## Obiettivo
@@ -56,7 +56,7 @@ le scadenze, la federazione o il fuso dichiarato da un evento.
    Il trasporto del fuso rilevato verso il server e la gestione della prima
    pagina prima del rilevamento restano dettagli da definire nell'implementazione.
 4. **Eventi in lettura:** l'orario principale resta quello dell'evento, con
-   il relativo fuso. Quando il fuso del visitatore differisce, affiancare
+   il relativo fuso. Quando l'orario nel fuso del visitatore differisce, affiancare
    oppure mostrare sotto, secondo lo spazio della pagina, l'orario convertito
    con la dicitura «… nel tuo fuso», in grigio e con carattere più piccolo.
    Applicare il criterio a inizio e fine, dove presenti, nelle schede,
@@ -64,6 +64,12 @@ le scadenze, la federazione o il fuso dichiarato da un evento.
    attraversa la mezzanotte, indicare anche il giorno per evitare ambiguità.
    Per gli eventi remoti conservare la gestione esistente di fuso, offset
    e ripiego, senza dedurre un fuso geografico da un semplice offset.
+   Raffinamento dalla verifica manuale: nelle card, se l'orario coincide con
+   quello personale, mostrare soltanto data e ora. Altrimenti mostrare il
+   fuso dell'evento tra parentesi su una riga separata e poi la nota personale.
+   La nota contiene solo l'ora quando il giorno coincide con quello principale;
+   include anche la data quando cambia il giorno. Lo stesso criterio sulla
+   ripetizione della data vale nel dettaglio attraverso il componente condiviso.
 5. **Composer degli eventi:** per un nuovo evento proporre il fuso personale
    effettivo: scelta esplicita dell'account oppure fuso del dispositivo in
    Automatico, con il ripiego concordato sul fuso dell'istanza. L'autore può
@@ -119,7 +125,7 @@ Realizzare le decisioni concordate riutilizzando i flussi esistenti.
 | Date dei profili | `profile/show.blade.php`, `actors/show.blade.php` | Convertire i timestamp nel fuso del visitatore prima di mostrarne il giorno; non convertire date di calendario prive di un istante associato. |
 | Tempi relativi | `posts/_card`, `comments/_comment`, `events/_comment`, `profile/_activity_item`, notifiche, ricerca, elenco conversazioni | Conservare la rappresentazione relativa e verificare che il medesimo istante produca una distanza coerente. Non convertire stringhe già formattate. |
 | Notifiche Ajax | `NotificationController` | Il campo testuale `time` deve restare coerente con la view iniziale; gli istanti non cambiano. |
-| Eventi: lettura | `events/_card.blade.php`, `events/show.blade.php`, citazioni nei messaggi | Orario dell'evento principale; orario personale secondario, più piccolo e grigio, quando il fuso differisce. Riutilizzare il rendering condiviso nelle citazioni. Gestire anche eventi remoti con solo offset o senza fuso. |
+| Eventi: lettura | `events/_card.blade.php`, `events/show.blade.php`, citazioni nei messaggi | Orario dell'evento principale; orario personale secondario, più piccolo e grigio, quando l'orario differisce. Riutilizzare il rendering condiviso nelle citazioni. Gestire anche eventi remoti con solo offset o senza fuso. |
 | Eventi: inserimento | `events/create.blade.php`, `EventController`, `StoreEventRequest`, `EventComposer` | Proporre il fuso personale effettivo nei nuovi eventi, lasciandolo modificabile. Conservare il fuso degli eventi in modifica e i valori inviati dopo errori. Interpretare gli input nel fuso dichiarato dal form. |
 | Amministrazione | `admin/reports/show`, `admin/audit/index`, `admin/domain-blocks/index`, `admin/relays/index` | Usare il fuso personale effettivo; nelle pagine con orari assoluti indicarlo una volta. Log server e cron mantengono il riferimento dell'applicazione. |
 | Confine tecnico | `ActivityPubTimestamp`, serializer ActivityPub/Mastodon, firme, job, scadenze e `openbook:cron` | Preservare il riferimento dell'applicazione e i formati di protocollo; nessuna preferenza personale in processi senza utente. |
@@ -207,12 +213,71 @@ la verifica manuale dell'utente precede il commit conclusivo del codice.
    Verificare creazione/modifica, eventi remoti con fuso/offset e citazioni.
    Review completa, suite PHPUnit e verifica manuale prima del commit finale.
 
-I test dovranno coprire una `APP_TIMEZONE` diversa da UTC, separazione tra
-lingua e fuso (per esempio italiano con `Europe/Helsinki`), impostazioni
-assenti/non valide, isolamento tra richieste di utenti diversi, invarianza
-degli istanti serializzati e delle scadenze. Le conversioni non devono mutare
-le istanze Carbon riutilizzate dai modelli. Se emergono modifiche a schema
-o query, applicare anche le verifiche MySQL/MariaDB richieste dal progetto.
+### Esito dell'implementazione e della review
+
+I tre stadi sono completati. `UserDate` risolve il riferimento una volta per
+richiesta, tramite gli attributi della richiesta, e formatta CarbonImmutable
+senza mutare le date originali. `@userdate` è la direttiva Blade condivisa;
+il presenter dei messaggi usa lo stesso servizio. Il componente `event-date`
+riusa le conversioni per schede, dettaglio e citazioni: omette la nota personale
+quando l'orario è identico, anche se i nomi dei due fusi differiscono.
+Il precedente rilevamento del browser nel solo form degli eventi è stato
+rimosso, evitando che sovrascriva una preferenza esplicita.
+
+La review ha incluso i confini di autorizzazione e federazione e ha individuato
+un adeguamento necessario agli ETag dei messaggi: ora includono anche fuso e
+lingua, perché il payload contiene etichette e schede localizzate.
+Non sono state introdotte nuove route, dipendenze o query di lettura.
+La nuova migration è l'unica modifica allo schema.
+
+Verifiche eseguite:
+
+- Test mirati per preferenze, Automatico, cambio dispositivo, ripieghi,
+  isolamento delle richieste, registrazione, HTML/Ajax, profili, amministrazione,
+  eventi, timestamp federati e conversioni con offset estivo/invernale.
+- Migration e rollback verificati su SQLite e MySQL reale in uno schema
+  casuale temporaneo, poi eliminato. Nessun server MariaDB dedicato usato.
+  Gli EXPLAIN degli aggiornamenti una tantum mostrano la scansione della
+  chiave primaria: si deve attraversare l'insieme delle impostazioni, quindi
+  un indice aggiuntivo sul fuso non è giustificato. Nessuna nuova query
+  applicativa che richieda indici.
+- Browser Chromium: Automatico e scelta esplicita, ospiti, cambio dispositivo,
+  selezione del fuso nel composer eventi, mobile senza overflow, cookie bloccati,
+  JavaScript/Intl assenti e risposte POST mai ripetute. Controllo visivo delle
+  schermate desktop/mobile e regressione del selettore di lingua superati.
+- Suite completa finale dopo il raffinamento delle card: **1.770 superati,
+  110 saltati, 2 errori preesistenti** (12.838 asserzioni).
+  `VisibilityFromAudienceTest` usa una tabella `actors`
+  senza inizializzare il database; il test di troncamento di `FeedTest`
+  presume una soglia diversa da `OPENBOOK_FEED_BODY_EXCERPT` dell'ambiente
+  locale. Sono gli stessi errori riscontrati prima di questo ramo.
+- Pint, controllo sintassi PHP/JavaScript e diff senza errori di whitespace.
+
+Manualistica utente/amministratore aggiornata in italiano e inglese;
+traduzioni nuove mantenute in italiano, inglese e finlandese. Il database
+dell'istanza locale non è stato migrato durante lo sviluppo.
+
+### Verifica manuale conclusa
+
+L'utente ha eseguito `php artisan migrate` e `php artisan view:clear` sulla
+propria istanza e confermato:
+
+- Account inizialmente in Automatico, scelta di Asia/Tokyo salvata e mantenuta
+  dopo refresh; una scadenza di sondaggio passa correttamente dalle 10:30 alle 17:30.
+- Messaggio mostrato a Tokyo come `09/09/2026 03:51` e in Automatico a Roma
+  come `08/09/2026 20:51`, con differenza di sette ore e cambio di giorno.
+- Nuovo evento: fuso proposto Europe/Rome in Automatico e Asia/Tokyo con
+  preferenza esplicita, indipendentemente dal dispositivo.
+- Evento di Helsinki: orario principale 16:00 e nota personale 15:00 per Roma.
+- Raffinamento delle card approvato dopo verifica visiva: nessuna indicazione
+  superflua quando l'orario coincide; fuso diverso tra parentesi a capo e nota
+  personale con la data solo quando cambia il giorno. Test di regressione
+  aggiunti per fusi nominativi e per eventi remoti con solo offset.
+
+Le verifiche manuali si sono concluse con esito positivo. La review finale
+del diff completo non ha individuato anomalie bloccanti, duplicazioni da
+rimuovere o modifiche estranee al perimetro. Non sono necessarie ulteriori
+prove manuali form per form; i percorsi restanti sono coperti dai test.
 
 ## Esclusioni iniziali
 

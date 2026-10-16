@@ -169,7 +169,7 @@
 
             @if ($profileActor->published_at)
                 <p class="ob-field__help" style="margin-top:1rem">
-                    {{ __('openbook.profile.joined_on', ['date' => $profileActor->published_at->translatedFormat('d F Y')]) }}
+                    {{ __('openbook.profile.joined_on', ['date' => app(\App\Support\UserDate::class)->format($profileActor->published_at, 'd F Y')]) }}
                 </p>
             @endif
 
