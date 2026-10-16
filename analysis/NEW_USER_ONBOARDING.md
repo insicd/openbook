@@ -185,16 +185,20 @@ proporre. In questo modo i primi post diventano più facilmente raggiungibili.
   temporaneo eliminato e server di test spento al termine.
 - Nessuna migration, build o modifica ai dati dell'istanza locale.
 
-### Sprint 2 — Lingua prima della registrazione
+### Sprint 2 — Lingua dell’interfaccia prima e dopo l’accesso
+
+Stato: analisi approvata e congelata, pronta per l’implementazione.
 
 #### Decisioni concordate
 
 - Decisione approvata: ricordare la scelta esplicita anche nelle visite
-  successive sullo stesso browser, tramite cookie persistente. La durata
-  concreta sarà definita nell'implementazione.
-- Il globo/selettore deve essere disponibile nel login e nella homepage
-  guest introdotta dopo l'apertura dell'issue, comprese entrambe le sue
-  modalità (presentazione semplice e feed pubblico).
+  successive sullo stesso browser, tramite cookie persistente di un anno,
+  rinnovato quando si sceglie nuovamente una lingua.
+- Il selettore deve essere disponibile su tutte le pagine pubbliche prima
+  dell'accesso, inclusi login, registrazione, pagine informative e homepage
+  guest in entrambe le modalità (presentazione semplice e feed pubblico).
+- Il nuovo account eredita la lingua effettivamente usata durante la
+  registrazione, sia scelta esplicitamente sia rilevata dal browser.
 - La scelta esplicita dell'ospite prevale sul rilevamento del browser;
   dopo l'accesso continua a prevalere la preferenza salvata dell'account.
 - Ricognizione: esiste già `config('openbook.locales')`, oggi Italiano e
@@ -202,20 +206,38 @@ proporre. In questo modo i primi post diventano più facilmente raggiungibili.
   Decisione approvata: riutilizzare questa lista anche nel selettore ospiti, senza
   dedurre automaticamente le lingue dalla sola presenza di cartelle Laravel.
 
-#### Decisioni ancora aperte
+#### Raffinamenti concordati
 
-- Oltre a login e homepage guest, mostrare il selettore anche su
-  registrazione e pagine informative?
-- Il nuovo account eredita la lingua scelta prima dell'iscrizione? Come
-  trattare la lingua dedotta automaticamente dal browser?
+- Mantenere il selettore anche nella barra in alto
+  a destra dopo l'accesso. In quel caso la scelta aggiorna la preferenza
+  dell'account e deve essere coerente con la pagina Impostazioni.
+- Usare un'icona dedicata alla lingua: il mondo è già associato ad altre
+  funzioni di Openbook. Usare il simbolo di traduzione con «A» e «文», nello
+  stesso stile delle icone esistenti, con etichetta accessibile «Lingua».
+- Per gli autenticati aggiornare soltanto la lingua, senza richiedere il
+  salvataggio dell'intero form delle preferenze account.
+- Il cambio lingua ricarica normalmente la pagina corrente. Decisione
+  esplicita: nessuna conservazione aggiuntiva del testo, degli allegati o
+  dei pannelli aperti nel composer; nessun nuovo autosalvataggio, gestione
+  bozze o avviso dedicato per questa operazione.
 
 Conservare il rilevamento attuale quando manca una scelta esplicita; accettare
 soltanto lingue supportate e mantenere eventuali redirect all'interno del sito.
 
 #### Implementazione e verifiche
 
-- Chiudere le decisioni sulla collocazione aggiuntiva e sulla lingua del nuovo account.
+- Menu nativo accessibile da tastiera, utilizzabile anche senza JavaScript.
+  Cambio tramite POST con CSRF e ritorno soltanto a percorsi interni; cookie
+  HttpOnly, SameSite=Lax e Secure su HTTPS. Nessuna migration.
+- Usare un selettore condiviso prima e dopo l'accesso; icona dedicata alla
+  lingua coerente con lo stile esistente.
 - Aggiungere il selettore riusando il middleware e i controlli disponibili.
+- Rivedere tutte le pagine guest, registrazione e login, inclusi partial e
+  layout condivisi, cercando testi visibili scritti direttamente nei template
+  o nel codice anziché ottenuti dalle traduzioni. Spostare i testi nelle
+  risorse di lingua italiane/inglesi e verificare anche tooltip, etichette
+  accessibili, aiuti dei form e messaggi di errore. I contenuti amministrabili
+  dell'istanza restano distinti: il loro multilingua appartiene allo sprint 3.
 - Correggere la coerenza linguistica di registrazione, riepilogo errori e
   messaggi di validazione. Nella prova locale del 16 ottobre l'utente ha
   osservato il form inglese con «Controlla i dati inseriti:» in italiano:
@@ -228,7 +250,9 @@ soltanto lingue supportate e mantenere eventuali redirect all'interno del sito.
   non supportata, passaggi fra homepage/signup/login, prevalenza della preferenza
   dell'account; sicurezza dei redirect se previsti.
 - Prova locale: browser in inglese, scelta italiano, navigazione e registrazione;
-  ripetere con homepage semplice e feed pubblico, mobile e tastiera.
+  ripetere con homepage semplice e feed pubblico, mobile e tastiera. Da
+  autenticato cambiare lingua e verificare la preferenza nelle Impostazioni;
+  controllare che gli altri valori delle preferenze restino invariati.
 
 ### Sprint 3 — Privacy e Regole multilingua
 
