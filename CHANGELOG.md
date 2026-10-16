@@ -19,6 +19,13 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Primi passi nel feed (#103)**: il messaggio di benvenuto cita anche gli
+  hashtag da seguire; community e «Argomenti in tendenza» sono raggiungibili
+  prima della lista di persone, mentre «Scopri altre persone» resta in fondo.
+  Il riquadro resta sopra i post finché si seguono meno di 10 persone e hashtag
+  complessivamente, soltanto nella prima pagina del feed. Testi aggiornati in
+  italiano e inglese. La lista «Dal fediverso» compare solo a zero seguiti;
+  dopo il primo follow resta il pulsante per continuare la scoperta.
 - **Flusso pubblico sulla home per gli ospiti**: in Aspetto, un'opzione
   (disattivata di default) sposta le informazioni sull'istanza a sinistra e
   mostra al centro i post pubblici visibili a questa istanza (locali e remoti
@@ -251,6 +258,10 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Registrazione (#103)**: gli username con maiuscole vengono convertiti in
+  minuscolo prima della validazione e del controllo dei doppioni, anche rispetto
+  agli Actor locali. Il form accetta le maiuscole e chiarisce come sarà salvato
+  il nome utente.
 - **Post remoti dal futuro** (#125): le date di pubblicazione future vengono
   limitate all'ora corrente al salvataggio, dopo la conversione del fuso orario.
   Gli aggiornamenti con date future conservano la data valida gia' in cache,

@@ -1,5 +1,5 @@
 @php
-    /** @var array{staff: \Illuminate\Support\Collection, local: \Illuminate\Support\Collection, remote: \Illuminate\Support\Collection} $welcomeKit */
+    /** @var array{staff: \Illuminate\Support\Collection, local: \Illuminate\Support\Collection, remote: \Illuminate\Support\Collection, showRemoteSuggestions: bool} $welcomeKit */
     $hasSuggestions = $welcomeKit['staff']->isNotEmpty()
         || $welcomeKit['local']->isNotEmpty()
         || $welcomeKit['remote']->isNotEmpty();
@@ -38,6 +38,14 @@
         </section>
     @endif
 
+    <div class="ob-welcome__actions">
+        <a href="{{ route('communities.index') }}" class="ob-btn ob-btn--ghost">{{ __('openbook.feed.welcome_communities') }}</a>
+        <a href="{{ route('hashtags.index') }}" class="ob-btn ob-btn--ghost">{{ __('openbook.feed.welcome_trending') }}</a>
+        @unless ($hasSuggestions)
+            <p class="ob-field__help">{{ __('openbook.feed.welcome_empty_instance') }}</p>
+        @endunless
+    </div>
+
     @if ($welcomeKit['local']->isNotEmpty())
         <section class="ob-welcome__section" aria-labelledby="ob-welcome-local">
             <h3 id="ob-welcome-local" class="ob-welcome__section-title">{{ __('openbook.feed.welcome_local') }}</h3>
@@ -65,7 +73,7 @@
         </section>
     @endif
 
-    @if ($welcomeKit['remote']->isNotEmpty())
+    @if ($welcomeKit['showRemoteSuggestions'] && $welcomeKit['remote']->isNotEmpty())
         <section class="ob-welcome__section" aria-labelledby="ob-welcome-remote">
             <h3 id="ob-welcome-remote" class="ob-welcome__section-title">{{ __('openbook.feed.welcome_remote') }}</h3>
             @foreach ($welcomeKit['remote'] as $rowActor)
@@ -74,13 +82,9 @@
         </section>
     @endif
 
-    <div class="ob-welcome__actions">
-        @if ($hasSuggestions)
+    @if ($hasSuggestions)
+        <div class="ob-welcome__actions">
             <a href="{{ route('world.discover') }}" class="ob-btn ob-btn--ghost">{{ __('openbook.feed.welcome_world') }}</a>
-        @endif
-        <a href="{{ route('communities.index') }}" class="ob-btn ob-btn--ghost">{{ __('openbook.feed.welcome_communities') }}</a>
-        @unless ($hasSuggestions)
-            <p class="ob-field__help">{{ __('openbook.feed.welcome_empty_instance') }}</p>
-        @endunless
-    </div>
+        </div>
+    @endif
 </div>

@@ -26,12 +26,13 @@
     data-error-label="{{ (($homeFeed ?? false) || ($asyncFeed ?? false)) ? __('openbook.infinite_scroll.retry_error') : __('openbook.infinite_scroll.error') }}"
 >
     @if (! ($initialLoading ?? false))
+        @if (($welcomeKit ?? null) !== null)
+            @include('feed._welcome', ['welcomeKit' => $welcomeKit])
+        @endif
         @forelse ($hasPosts ? $posts : [] as $post)
             @include('posts._card', ['post' => $post, 'truncateBody' => true])
         @empty
-            @if (($welcomeKit ?? null) !== null)
-                @include('feed._welcome', ['welcomeKit' => $welcomeKit])
-            @else
+            @if (($welcomeKit ?? null) === null)
                 <div class="ob-card">
                     <div class="ob-empty-state">
                         <p>{{ $emptyMessage }}</p>

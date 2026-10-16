@@ -6,6 +6,9 @@ Openbook permette di pubblicare, seguire persone, conversare e partecipare a
 community ed eventi. Un account può interagire sia con persone della stessa
 istanza sia con account di altri servizi compatibili del Fediverso.
 
+Durante la registrazione puoi scrivere lo username anche con lettere maiuscole:
+viene salvato in minuscolo. Il nome visualizzato del profilo è personalizzabile.
+
 ## Pubblicare e leggere i post
 
 Scrivi nella casella di composizione. Le icone nella barra inferiore aprono i
@@ -80,6 +83,16 @@ La Home mostra in ordine cronologico inverso i tuoi post, quelli degli account
 seguiti e le loro condivisioni. Seguendo un hashtag entrano nella Home anche
 post pubblici pertinenti già conosciuti dall’istanza. Gli hashtag seguiti sono
 una preferenza privata del tuo account.
+
+Finché segui meno di 10 persone e hashtag complessivamente, un riquadro di
+benvenuto sopra i post suggerisce come popolare il feed. Contano le persone
+locali e remote con follow accettato e gli hashtag; community e richieste
+in attesa sono escluse. A 10 il riquadro scompare; tornando sotto 10 riappare.
+Il riquadro compare solo all'inizio del feed. Le azioni per esplorare community e
+argomenti in tendenza compaiono dopo lo staff e prima delle persone suggerite;
+«Scopri altre persone» si trova in fondo ai suggerimenti.
+La lista «Dal fediverso» compare soltanto finché segui zero persone e hashtag;
+dopo il primo follow puoi continuare la scoperta dal pulsante in fondo.
 
 La ricerca trova persone, hashtag ed eventi visibili; per post e commenti
 la ricerca per parole chiave riguarda i contenuti locali. Per trovare un account

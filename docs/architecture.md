@@ -6,6 +6,9 @@ Openbook lets you publish, follow people, hold conversations and participate in
 communities and events. Your account can interact with people on the same
 instance and with accounts on other compatible Fediverse services.
 
+During registration you can enter uppercase letters in your username:
+it is saved in lowercase. You can customize your profile's display name.
+
 ## Publishing and reading posts
 
 Write in the composer. Icons in the lower toolbar open advanced controls such
@@ -78,6 +81,16 @@ Home shows your posts, posts from followed accounts and their shares in reverse
 chronological order. Following a hashtag also brings relevant public posts
 already known to the instance into Home. Followed hashtags are private account
 preferences.
+
+While you follow fewer than 10 people and hashtags combined, a welcome panel
+above the posts suggests how to populate your feed. Accepted follows of local
+and remote people and followed hashtags count; communities and pending requests
+are excluded. The panel disappears at 10 and returns if the total drops below 10.
+It appears only at the start of the feed. The actions for exploring communities
+and trending topics appear after the staff and before the suggested people;
+“Discover more people” follows the suggestions.
+The “From the fediverse” list appears only while you follow zero people and
+hashtags; after your first follow, the button at the bottom lets you keep exploring.
 
 Search finds people, hashtags and visible events; keyword search for posts and
 comments covers local content. To find a remote account,

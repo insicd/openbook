@@ -36,7 +36,7 @@ class RegisterController extends Controller
         $data = $request->validated();
 
         $user = $this->accountRegistrar->register([
-            'username' => mb_strtolower($data['username']),
+            'username' => $data['username'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);

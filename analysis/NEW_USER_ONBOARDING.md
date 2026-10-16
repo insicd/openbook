@@ -1,7 +1,8 @@
 # Primi passi dei nuovi utenti — issue #103
 
-Stato al 16 ottobre 2026: analisi dello sprint 1 congelata; implementazione
-da iniziare. Gli sprint successivi restano in analisi.
+Stato al 16 ottobre 2026: sprint 1 completato, verificato localmente con
+l'utente e approvato per il commit dopo la review tecnica. Analisi iniziale
+congelata in `b2291fc`; gli sprint successivi restano in analisi.
 
 Issue: https://github.com/insicd/openbook/issues/103
 Discussione: https://github.com/insicd/openbook/issues/103#issuecomment-5877611768
@@ -22,9 +23,9 @@ di un intero percorso guidato.
 | Voce | Comportamento richiesto | Complessità iniziale | Stato |
 | --- | --- | --- | --- |
 | Lingua nella homepage pubblica | Conservare il rilevamento dal browser e aggiungere una scelta esplicita, per esempio con il globo in alto a destra. | Contenuta, con decisioni sulla persistenza | Da analizzare nel dettaglio |
-| Username nella registrazione | Convertire `PettiRosso` in `pettirosso`, mantenendo gli identificatori locali minuscoli. | Piccola | Decisione approvata, da implementare |
-| Testo del feed vuoto | Citare persone da seguire, argomenti tramite hashtag e pubblicazione del primo post. | Piccola | Testo approvato, da implementare |
-| Collegamenti del feed vuoto | Aggiungere «Argomenti in tendenza» verso `/tendenze` accanto a persone e community. | Piccola | Decisione approvata, da implementare |
+| Username nella registrazione | Convertire `PettiRosso` in `pettirosso`, mantenendo gli identificatori locali minuscoli. | Piccola | Completato nello sprint 1 |
+| Testo del feed vuoto | Citare persone da seguire, argomenti tramite hashtag e pubblicazione del primo post. | Piccola | Completato nello sprint 1 |
+| Collegamenti del feed vuoto | Mostrare community e «Argomenti in tendenza» prima delle persone suggerite, con «Scopri altre persone» in fondo. | Piccola | Completato nello sprint 1 |
 | Privacy e Regole multilingua | Mostrare il testo nella lingua dell'utente, con ripiego sulla lingua principale se manca la traduzione. | Strutturale | Decisioni di contenuto e amministrazione aperte |
 | Pagina Welcome | Aggiungere una pagina generale di benvenuto, amministrabile e multilingua come Privacy e Regole. | Media, dipendente dalla voce precedente | Collocazione e comportamento da decidere |
 
@@ -39,7 +40,7 @@ Queste proposte sono parte dell'analisi, ma non sono ancora decisioni sul
 formato di salvataggio o sui requisiti del percorso guidato. La soglia di cinque
 persone è un esempio del commento, non un requisito già approvato.
 
-## Stato attuale verificato nel codice
+## Ricognizione iniziale del codice (prima dello sprint 1)
 
 | Area | Punti esistenti | Conseguenza |
 | --- | --- | --- |
@@ -86,9 +87,10 @@ documentazione/changelog quando dovuti e indicazioni per una prova locale.
 Il commit chiude lo sprint secondo il metodo concordato; l'analisi viene
 aggiornata con decisioni ed esiti. Suite completa prima della PR.
 
-### Sprint 1 — Username e feed vuoto
+### Sprint 1 — Username e primi passi nel feed
 
-Stato: analisi approvata e congelata, senza decisioni aperte per questo sprint.
+Stato: implementazione approvata dopo le prove locali; review tecnica finale
+completata. Nessuna decisione aperta per questo sprint.
 
 #### Username nella registrazione
 
@@ -102,7 +104,7 @@ Stato: analisi approvata e congelata, senza decisioni aperte per questo sprint.
 - Conservare gli altri limiti sui caratteri ammessi. Nessuna modifica ad
   account esistenti, identificatori federati o nomi visualizzati dei profili.
 
-#### Feed vuoto e collegamenti
+#### Benvenuto nel feed e collegamenti
 
 Testo italiano approvato:
 
@@ -110,22 +112,78 @@ Testo italiano approvato:
 > tramite hashtag, oppure pubblica il tuo primo post.
 
 Aggiungere il pulsante «Argomenti in tendenza» verso la pagina esistente
-`/tendenze`, accanto alle azioni per scoprire persone ed esplorare community.
+`/tendenze`, accanto all'azione per esplorare community. Dopo la prova locale,
+concordato di mostrare questi due pulsanti dopo lo staff e prima delle persone
+suggerite, per renderli raggiungibili senza scorrere l'intera lista.
+«Scopri altre persone» resta in fondo, come prosecuzione dei suggerimenti.
 Aggiornare anche la versione inglese con lo stesso significato. L'intervento
 riguarda testo e collegamenti, riutilizzando le funzioni esistenti.
+
+Ampliamento approvato durante la verifica locale: il welcome kit resta visibile
+finché la somma di persone seguite e hashtag seguiti è inferiore a 10, anche
+quando il feed contiene già post. Compare sopra i post soltanto nella prima
+pagina, senza ripetersi durante lo scorrimento; a 10 scompare. Contare follow
+accettati verso Person locali/remoti e preferenze hashtag del solo utente;
+community e richieste in attesa non contribuiscono alla soglia. Gli account
+già seguiti restano esclusi dai suggerimenti. La condizione segue il conteggio
+attuale: scendendo nuovamente sotto 10 il riquadro torna visibile.
+
+Ulteriore raffinamento concordato: la sezione «Dal fediverso» è visibile
+soltanto a zero persone/hashtag seguiti. Da 1 a 9 restano staff, azioni
+community/tendenze e persone locali; «Scopri altre persone» resta disponibile
+anche quando i suggerimenti remoti sono nascosti, se ci sono account da
+proporre. In questo modo i primi post diventano più facilmente raggiungibili.
 
 #### Implementazione e verifiche
 
 - Normalizzare lo username prima della validazione; rivedere il punto di
   conversione già esistente per evitare duplicazioni inutili.
 - Aggiornare il messaggio del welcome kit in entrambe le lingue.
-- Aggiungere l'azione verso le tendenze accanto alle azioni esistenti.
+- Aggiungere l'azione verso le tendenze accanto alle community, prima della
+  lista di persone e dopo lo staff; mantenere «Scopri altre persone» in fondo.
 - Test mirati: username misto salvato minuscolo in utente/Actor; collisione
   con username già presente anche nell'Actor locale; input non ammessi ancora
-  respinti; feed vuoto con testo/link corretti, welcome kit nascosto quando
-  il feed contiene post.
+  respinti; welcome kit con testo/link corretti, prima dei post sotto soglia,
+  nascosto a 10 follow complessivi e nelle pagine successive del feed.
 - Prova locale: nuovo account con username misto, poi verifica del feed vuoto
   e dei tre collegamenti. Nessuna migration prevista per questi interventi.
+
+#### Esito e review finale
+
+- Username normalizzato con `strtolower` prima della validazione e dei
+  controlli di unicità; rimossa la conversione successiva nel controller.
+  Form e anteprima dell'indirizzo coerenti con il salvataggio in minuscolo.
+- Review: protetto il rendering del form dopo input username malformato,
+  verificando anche la pagina successiva al redirect di validazione.
+- Welcome kit gestito da `FeedWelcomeQuery`, con controller sottile e
+  conteggi limitati alla soglia. Riutilizzate le query di suggerimento e
+  lo scorrimento esistenti; nessun nuovo flusso di follow o esposizione delle
+  preferenze hashtag altrui.
+- Recepiti i riscontri locali dell'utente: anteprima minuscola, azioni
+  community/tendenze sopra le persone, visibilità fino a 9 seguiti e lista
+  remota solo a zero. Il 16 ottobre l'utente ha autorizzato la chiusura e il
+  commit dello sprint dopo la review.
+- Changelog e guide utente italiana/inglese allineati al comportamento finale.
+  Il problema preesistente dei messaggi in lingue miste resta nello sprint 2.
+- Verifica finale mirata: 55 test e 200 assertion superati (Auth,
+  FeedWelcomeTest, GuestLocaleTest, HomeGuestFeedTest). Casi 0/1/9/10 con
+  persone locali/remote e hashtag; follow pendenti/Group esclusi, suggerimenti
+  già seguiti esclusi, post conservati, kit assente nelle pagine successive.
+  Pint sui sei file PHP coinvolti e controllo whitespace superati.
+- Suite completa: 1.728 test superati, 109 saltati, 2 fallimenti preesistenti
+  (7.798 assertion). Riprodotti entrambi sulla base `b2291fc` in una copia
+  temporanea senza modifiche applicative: `VisibilityFromAudienceTest` manca
+  della tabella `actors`; il test del testo lungo in `FeedTest` presuppone
+  un estratto di 150 caratteri, mentre l'ambiente locale configura
+  `OPENBOOK_FEED_BODY_EXCERPT=400`. Il secondo passa con il valore predefinito.
+  Nessuna correzione estranea allo sprint applicata a questi due casi.
+- Verifica MySQL in schema temporaneo popolato con 1.200 Actor e hashtag:
+  soglia mista 9/10 corretta. EXPLAIN delle query effettive usa l'indice
+  `follows_follower_id_following_id_unique` per i follow (`ref`), la PK Actor
+  per l'identità seguita (`eq_ref`) e la PK di `hashtag_follows` (`ref`,
+  covering). Nessuna scansione completa o nuovo indice necessario. Schema
+  temporaneo eliminato e server di test spento al termine.
+- Nessuna migration, build o modifica ai dati dell'istanza locale.
 
 ### Sprint 2 — Lingua prima della registrazione
 
@@ -158,6 +216,14 @@ soltanto lingue supportate e mantenere eventuali redirect all'interno del sito.
 
 - Chiudere le decisioni sulla collocazione aggiuntiva e sulla lingua del nuovo account.
 - Aggiungere il selettore riusando il middleware e i controlli disponibili.
+- Correggere la coerenza linguistica di registrazione, riepilogo errori e
+  messaggi di validazione. Nella prova locale del 16 ottobre l'utente ha
+  osservato il form inglese con «Controlla i dati inseriti:» in italiano:
+  il titolo è scritto direttamente nel layout condiviso `layouts/app`.
+  Anche `RegisterRequest` contiene messaggi e nomi dei campi in italiano
+  fisso; le traduzioni delle regole password esistono già nelle due lingue.
+  Verificare GET, POST invalido e pagina dopo il redirect, con errori nella
+  stessa lingua dell'interfaccia; includere username occupato e password debole.
 - Test mirati: scelta esplicita contro browser, fallback preesistente, lingua
   non supportata, passaggi fra homepage/signup/login, prevalenza della preferenza
   dell'account; sicurezza dei redirect se previsti.
@@ -231,7 +297,7 @@ completamento delle attività, persistenza e possibilità di saltare il percorso
 
 ## Perimetro e sequenza di chiusura
 
-Lo sprint 1 comprende soltanto username e feed vuoto: nessuna migration,
+Lo sprint 1 comprende username e primi passi nel feed: nessuna migration,
 modifica alla federazione, refactor estraneo o nuovo sistema di raccomandazione.
 Le decisioni aperte degli sprint successivi non ne bloccano l'implementazione.
 

@@ -3,6 +3,10 @@
 @section('title', __('openbook.auth.register_title').' - '.config('app.name'))
 
 @section('content')
+    @php
+        $username = old('username');
+        $username = is_string($username) ? $username : '';
+    @endphp
     <div class="ob-card ob-narrow">
         <h1>{{ __('openbook.auth.register_title') }}</h1>
 
@@ -11,12 +15,12 @@
 
             <div class="ob-field">
                 <label for="username">{{ __('openbook.auth.username') }}</label>
-                <input type="text" id="username" name="username" value="{{ old('username') }}"
-                       required minlength="3" maxlength="32" pattern="[a-z0-9_]+"
+                <input type="text" id="username" name="username" value="{{ $username }}"
+                       required minlength="3" maxlength="32" pattern="[a-zA-Z0-9_]+"
                        autocomplete="username" aria-describedby="username-help"
                        @if ($errors->has('username')) aria-invalid="true" @endif>
                 <p id="username-help" class="ob-field__help">
-                    {{ __('openbook.auth.username_help', ['handle' => '@'.(old('username') ?: 'nomeutente').'@'.config('openbook.domain')]) }}
+                    {{ __('openbook.auth.username_help', ['handle' => '@'.strtolower($username ?: 'nomeutente').'@'.config('openbook.domain')]) }}
                 </p>
                 @error('username')
                     <p class="ob-field__error">{{ $message }}</p>
