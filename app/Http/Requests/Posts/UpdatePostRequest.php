@@ -31,6 +31,7 @@ class UpdatePostRequest extends FormRequest
         $maxNew = max(0, $maxAttachments - $existing);
 
         return [
+            'poll' => ['prohibited'],
             'title' => ['nullable', 'string', 'max:255'],
             'content_warning' => ['nullable', 'string', 'max:255'],
             'body' => ['required', 'string', 'max:'.(int) config('openbook.posts.max_length')],

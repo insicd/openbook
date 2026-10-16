@@ -23,15 +23,15 @@ All Openbook-specific settings are centralized in
 | `OPENBOOK_PUBLICATION_QUEUE_RETENTION_DAYS` | Days to retain completed or failed video publication jobs before database rows and any residual private staging files are removed. |
 | `OPENBOOK_ACTOR_KEY_BITS` | Length (bits) of the RSA keys generated for new ActivityPub Actors (recommended minimum: 2048). |
 | `OPENBOOK_SIGNATURE_MAX_SKEW` | Maximum skew (seconds) tolerated between the `Date` header of an incoming signed request and the local clock, before rejecting it. |
-| `OPENBOOK_FETCH_MAX_REDIRECTS` / `OPENBOOK_FETCH_TIMEOUT` / `OPENBOOK_FETCH_CONNECT_TIMEOUT` / `OPENBOOK_FETCH_MAX_BYTES` | Limits applied by the SSRF-protected HTTP client (`SafeHttpClient`) used to fetch remote Actors and resources. |
+| `OPENBOOK_FETCH_MAX_REDIRECTS` / `OPENBOOK_FETCH_TIMEOUT` / `OPENBOOK_FETCH_CONNECT_TIMEOUT` / `OPENBOOK_FETCH_MAX_BYTES` | Limits applied by the SSRF-protected HTTP client used to fetch remote Actors and resources. |
 | `OPENBOOK_FETCH_ALLOW_INSECURE` | Allows outgoing requests over plain HTTP (local development only; production always requires HTTPS). |
 | `OPENBOOK_ACTOR_CACHE_TTL_HOURS` | How many hours an already-resolved remote Actor is considered "fresh" before being fetched again. |
 | `OPENBOOK_INBOX_MAX_BODY_BYTES` / `OPENBOOK_INBOX_MAX_JSON_DEPTH` | Size and JSON depth limits applied to incoming activities, even before cryptographic verification. |
 | `OPENBOOK_DELIVERY_MAX_ATTEMPTS` | Maximum number of attempts to deliver a single outgoing activity before it ends up in `failed_jobs`. Backoff intervals between attempts (1, 5, 15, 60, 360, 1440 minutes) are fixed. |
 
-Image uploads require the PHP `gd` extension (checked by the installer as a
-**recommended**, non-blocking requirement): without `gd` the instance works
-normally, but only text posts can be published.
+The PHP `gd` extension is recommended for thumbnails and metadata removal from
+supported images. Without GD, uploads remain available but these processing
+steps are skipped.
 
 ### Post locations
 
@@ -73,6 +73,8 @@ Configure `openbook:cron` every minute to process pending work and run periodic
 maintenance. The command coordinates these tasks:
 
 - `openbook:process-inbox` — processes the `inbox` queue;
+- `openbook:process-polls` — records scheduled poll closures and queues pending
+  publication/results in resumable batches;
 - `openbook:deliver` — processes the `delivery` queue;
 - `openbook:deliver-push` — delivers pending Web Push notifications;
 - `openbook:confirm-outgoing-follows` — confirms remote Follows still pending
@@ -253,8 +255,8 @@ php /path/to/openbook/artisan openbook:process-videos
 
 The worker polls every five seconds, handles SIGTERM/SIGINT gracefully and
 checks FFmpeg/ffprobe before claiming work. `--once` processes at most one
-queued post and is useful for diagnostics. Multiple workers are safe: a short
-claim lock and a per-item lease prevent duplicate publication.
+queued post and is useful for diagnostics. Multiple workers can coexist:
+each job is assigned exclusively to prevent duplicate publication.
 
 As a simpler, higher-latency alternative, a system cron may run one queued
 post per invocation:

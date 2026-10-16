@@ -1,557 +1,185 @@
-> Documentation: [English](README.md) · [Italiano](README.it.md)
+> Documentation: [English](README.md) · [Italiano](federation.it.md)
 
 # Federation
 
-### Federation (Phase 3)
+Federation lets an Openbook account follow and interact with accounts on other
+ActivityPub-compatible servers. Each server has its own rules, processing times
+and available features.
 
-Every local Actor is now reachable from the Fediverse through the standard
-ActivityPub endpoints, all served **without session or CSRF**
-(`routes/activitypub.php`, loaded outside the `web` middleware group), as
-required by protocols meant to be consumed by other servers rather than
-browsers:
+## Finding and following a remote account
 
-- **Discovery**: `/.well-known/webfinger?resource=` (resolves `acct:utente@dominio`
-  or the Actor's canonical URL) and `/.well-known/nodeinfo` + `/nodeinfo/2.1`
-  (instance metadata and aggregate usage statistics, with no personal data). The
-  NodeInfo document always declares `software.name: "openbook"`, the technical
-  version (`config('openbook.version')`) and a link to `software.homepage`, so
-  Fediverse tools that read NodeInfo correctly recognize the software behind
-  the instance (not a fork/derivative of other platforms). For the same reason
-  the User-Agent of outgoing requests
-  (`config('openbook.federation.user_agent')`) reports the real software
-  version, not a fixed value disconnected from it. These public endpoints (plus
-  the canonical profile/post/comment below, see content negotiation) also
-  expose the CORS header `Access-Control-Allow-Origin: *` (`config/cors.php`):
-  they are public documents by definition, and without that header a browser
-  would block cross-origin reads by client-side federated-software verification
-  tools.
-- **Content negotiation**: profile (`/@utente`), post (`/posts/{uuid}`), and
-  comment (`/comments/{uuid}`) pages return HTML to a browser and an
-  ActivityPub document (`Person`/`Note`/`Tombstone`) when the `Accept` header
-  requests `application/activity+json` or `application/ld+json`. Deleted
-  content is represented as a `Tombstone` rather than disappearing silently.
-- **Collections**: each user's `outbox`, `followers`, and `following` are
-  exposed as paginated `OrderedCollection`/`OrderedCollectionPage`; the outbox
-  wraps public and unlisted posts in `Create` activities.
-- **Inbox**: each user has a dedicated inbox (`/users/{utente}/inbox`) and the
-  instance has a shared inbox (`/inbox`). Incoming requests are authenticated
-  with **HTTP Signatures** (Cavage draft, `rsa-sha256`: verification of
-  `Signature`, body digest, maximum skew of the `Date` header, match between
-  the signing Actor and the activity's `actor` field, with a key-refresh
-  attempt in case of rotation), validated in minimal form (content-type, size,
-  JSON depth) and **deduplicated** via a unique constraint on
-  `remote_activity_uri`. Valid activities are stored raw in `inbox_items` with
-  status `pending`: their **semantic processing** happens outside the HTTP
-  cycle (see [Social federation](federation.md#social-federation-phase-4) below), so a
-  delivering peer is never blocked waiting for heavy processing.
-- **Fetching remote Actors**: `RemoteActorResolver` downloads, validates, and
-  caches locally the `Person` document of a remote Actor (needed to verify
-  incoming signatures, for remote search, and to resolve actors cited by
-  activities); every outgoing fetch goes through `SafeHttpClient`, which
-  applies `SsrfGuard` to reject non-public URLs (private, loopback, reserved
-  IPs), requires HTTPS in production, limits redirects/timeout/response size,
-  and blocks *DNS rebinding* by pinning the connection to the already-validated
-  IP (`CURLOPT_RESOLVE`). The same protection also applies to **outgoing**
-  delivery requests (`SafeHttpClient::post()`), which never follow a redirect
-  (the HTTP signature is computed on the exact destination URL).
-- **Mastodon-compatible relays**: administrators can configure relay inboxes
-  from **Control panel → Relays**, explicitly enable receiving and/or
-  publishing, and start or stop the subscription. Once accepted, Openbook
-  accepts public activities transported by that relay and adds its inbox to
-  the delivery fan-out for local public posts, comments, events, and event
-  comments. Relay traffic uses the normal ActivityPub queues, signatures,
-  retry/backoff policy, domain blocks, and duplicate protection; no additional
-  worker or cron entry is required. The administration page reports the last
-  successful exchange and the latest terminal delivery error. Relays can
-  generate a high volume of public content, so enabling one is always an
-  explicit instance-administrator decision. The normal periodic cron remains
-  sufficient for small installations; with a busy relay, separate permanent
-  workers are recommended so that incoming processing and slow remote
-  deliveries cannot block each other:
+Search for the full address, such as `name@domain.example`. From the remote
+profile you can follow the account and read available content. A protected
+account may require follow approval; the request stays pending until answered.
 
-  ```bash
-  php /path/to/openbook/artisan queue:work --queue=inbox --sleep=1
-  php /path/to/openbook/artisan queue:work --queue=delivery --sleep=1
-  ```
+Openbook fetches remote profiles and some content when needed and keeps a local
+copy. Fetching may take time or fail when the source server is temporarily
+unreachable. Cron handles pending updates and delivery attempts.
 
-  The workers can safely run alongside `openbook:cron`, but must be restarted
-  after each deployment so that they load the updated application code.
+A confirmation in the interface means the action has been recorded locally
+and federation work queued. Receipt by the other server may happen later.
+Following, liking, commenting, sharing and voting follow this behavior.
 
-- **Actor-based instance sources**: the same Relay panel can subscribe to a
-  remote ActivityPub `Application`/`Service` Actor, as exposed by software such
-  as Mobilizon or Gancio. In this mode administrators can enter its federated
-  identity (for example `@relay@instance.example`) or its full Actor URI, not
-  the inbox URL: Openbook discovers, resolves and validates the Actor, follows
-  it and imports public objects transported through its `Announce` activities.
-  Remote applications may likewise follow Openbook's technical `/relay` Actor to
-  receive `Announce` activities for locally produced public posts, comments,
-  events, and event comments. Unlisted, followers-only, direct, remote, and
-  private-community content is excluded. Technical subscriptions and
-  announcements do not create user notifications, social boosts, or reaction
-  counters. The Actor exposes paginated `/relay/outbox`, `/relay/followers`,
-  and `/relay/following` collections for discovery and backfill.
+## Content and updates
 
-- **LitePub-compatible relays**: relay hubs used by Pleroma/Akkoma and
-  compatible software can be configured by federated Actor identity or full
-  ActivityPub URI. Openbook performs the Actor Follow handshake, records the
-  reciprocal Follow required for outgoing fan-out, and transports local public
-  content through technical `Announce` activities. The administration page
-  distinguishes an accepted subscription that is still waiting for the
-  reciprocal Follow. Disabling publishing or unsubscribing stops new fan-out
-  immediately, including deliveries that were already queued; the normal
-  visibility, domain-block, deduplication and loop-prevention rules continue to
-  apply. Unlisted, followers-only, direct, remote and private-community content
-  is never published to a LitePub relay.
+The instance receives relevant content: followed accounts, replies to known
+content, local mentions and community activities. Visiting a profile or post
+may fetch more content. **World** shows public remote posts already known to
+the instance, not every post in the Fediverse.
 
-### Local profile fields
+Edits and deletions are communicated between servers. Update timing depends on
+cron and the availability of participating instances. Remote servers may apply
+different rules for keeping copies. Content warnings and reading permissions
+also apply to imported posts.
 
-The profile editor has separate Link and Additional information sections with
-add/remove buttons and a shared limit of eight fields. Labels accept up to 50
-characters, HTTP(S) URLs up to 255, and plain text up to 1,000. When reopening
-the editor, valid HTTP(S) values appear under Link; other values appear under
-Additional information. Saving preserves each section's order, with links first.
+Alongside ordinary posts, compatible articles, images, videos, polls and events
+are recognized. Remote text is displayed safely, preserving supported links
+and attachments. The author-declared language appears beside the date when
+available; Openbook does not infer language by analyzing the text.
 
-Local fields remain in `profiles.links`, as `label`/`value` pairs; existing
-`label`/`url` records remain readable without a data migration. The public
-profile shows labels and values below the biography. Plain text is escaped,
-without interpreting Markdown or HTML.
+Remote images load from the source server. If the file is removed or the source
+blocks access, the image may become unavailable. Content from some services
+depends on their federation behavior: for example, Threads makes posts received
+after following available when the account has enabled Fediverse sharing.
 
-Fields are published in the Actor's `attachment` array as `PropertyValue`
-entries, using the schema.org context mapping compatible with Mastodon.
-HTTP(S) values become HTML links; other values become escaped text, preserving
-line breaks. The same representation is included in profile `Update`
-activities sent to remote followers. Removing all fields publishes an empty
-array so peers can clear their cached fields. Existing profiles expose their
-fields on the next Actor fetch or profile update; no bulk delivery is triggered.
-Publishing `rel="me"` does not mean Openbook has verified the link.
+## Remote profiles
 
-### Remote profile fields
+Profile fields, biography and images are updated from information published by
+the source. Links and text remain subject to Openbook’s display protections.
+The **Pinned posts** tab appears when visible pinned content exists; pins stay
+separate from the ordinary timeline. Fetch errors preserve the last valid list.
 
-Openbook imports Actor `attachment` entries of type `PropertyValue` into
-`actors.links`, as ordered `label`/`value` pairs. Text and HTTP(S) links pass
-through the existing remote-content sanitization and rendering pipeline;
-remote HTML, inline media and custom emoji effects are not reproduced.
-The remote profile page shows these fields below the biography. Link
-verification is not implied by a remote claim or by a `rel="me"` attribute.
+An account suspended by its own server retains imported content, while new
+interactions are stopped. A later reactivation can restore them after the
+profile is updated. Local moderation stays separate from source-server decisions.
 
-The application keeps up to 16 valid fields, with labels up to 100 characters
-and normalized values up to 1,000 characters. Empty or malformed fields and
-other attachment types are ignored; duplicate labels retain their order.
-Each valid Actor document replaces the cached list, including clearing it
-when `attachment` is absent or has no usable fields. This applies both to
-ordinary Actor refreshes and incoming profile `Update` activities. Visiting
-an active remote profile also checks the Actor document cache, using its
-normal TTL (24 hours by default); a failed fetch keeps the cached profile
-available. Existing cached profiles acquire fields on their next normal
-refresh or Update; there is no bulk fetch or separate field request. Local fields remain in
-`profiles.links`, with the editor and publication behavior described above.
+When a remote account announces a verifiable move, Openbook notifies local
+followers. The notification opens the destination, where each user can choose
+Follow; existing follows stay unchanged. The old profile points to the
+destination; previous content stays associated with its original author.
+Profiles marked as memorial accounts by the source are identified as such.
+Local management of memorial profiles and pinned posts remains outside the
+current feature set.
 
-### Remote account suspension
+## Communities
 
-A valid remote Actor document's `suspended` flag is stored in
-`actors.remote_suspended`, independently of local moderation in `actors.status`.
-Both normal refreshes and incoming profile Updates use this field. A valid
-complete document without the flag, or with `false`, clears remote suspension;
-failed fetches and invalid documents leave the cached state intact.
+Local communities are available in **Communities**. You can create, join and
+publish to them according to assigned permissions. Private communities require
+approval and restrict access to authorized members. Management can be shared
+with community moderators.
 
-The remote profile displays an originating-server suspension notice. New local
-follows, messages, likes, shares/quotes, replies and event participation are
-blocked, including replies to a suspended author's comment under someone else's
-post or event. UI controls and application services enforce this restriction.
-Automatic sharing pauses without clearing its setting. Existing posts, comments,
-events and follow/reaction records are retained with their existing visibility;
-users can still withdraw earlier follows, reactions and event participation.
-Viewing content, reporting it and copying its URL remain available.
+To find a remote community, search `name@domain`, join and open its profile.
+The composer is available to members according to remote-server support.
+The bell lets you receive in-app notifications for posts relayed by the
+community. Notifications in another service’s client also depend on its own
+preferences.
 
-When the origin declares the account active again, interactions resume. Remote
-refreshes never clear a locally blocked, suspended or deleted status. This flag
-does not replace ordinary Delete/Undo processing or introduce an inbound ban.
-The schema update requires running `php artisan migrate` as usual; no new service
-or worker is required.
+The list separates **Your communities**, **Local communities** and **Remote
+communities**. You can cancel a membership request while it is pending.
+Local polls are supported in local communities; publishing them to remote
+communities is intentionally excluded.
 
-### Remote account migrations
+## Local polls
 
-An authenticated remote `Move` generates a notification for each local
-follower with an accepted follow and a notice on the old profile.
-Openbook checks that actor and object match the authenticated sender and
-fetches the destination's current profile, which must list the old account
-in `alsoKnownAs`. Failed fetches or invalid announcements produce no
-notifications. Repeated copies of the same announcement are deduplicated.
+For creation and voting, follow the [poll guide](architecture.md#polls).
+The federated format follows ActivityPub polls as used by Mastodon; actual
+support on other platforms may vary.
 
-The notification opens the new profile inside Openbook, where the user can
-choose Follow. No follow is created or removed automatically; preferences,
-previous posts, retention and visibility rules remain unchanged. An Update
-containing only `movedTo` does not generate migration notifications.
-This feature handles announcements between remote accounts, not migration
-to or from Openbook, communities or automatic migration chains.
+Openbook calculates results for its own polls. Single-choice answers are final;
+a remote client can submit multiple-choice options separately. Each participant/
+option pair counts once and a person counts as one participant even when they
+select several answers.
 
-Normal updates to the old profile also import `movedTo`: Openbook looks up
-the destination Actor, fetches it if missing and stores the link in the
-existing `moved_to_actor_id` field. This displays the notice and link without
-generating notifications. Migration chains are not followed. A subsequent
-verified Move can still notify followers; the informational link does not
-replace the announcement.
-The migration notice appears inside the card below the name and handle.
-The globe beside the name displays the remote profile information on hover,
-keyboard focus or click/tap.
+Embedded remote votes received before the deadline can be processed later.
+For answers provided only by a remote address, fetching must also happen before
+the deadline. Closed results can therefore still change when the inbox is
+processed. Current permissions and blocks continue to apply.
 
-The schema requires running `php artisan migrate` as usual; no new worker is needed.
+Cron publishes polls and distributes edits, results and closure to authorized
+recipients. Remote voters can receive updates even without following the author.
+Restricted polls stay within their audience; relays receive only eligible
+public content. Vote Notes do not appear as comments or messages.
 
-### Remote memorial profiles
+Individual identities per option are visible only to the author. Shared results
+contain aggregates only. Deleted accounts’ contributions stay in the totals
+with identities detached.
 
-The remote Actor's `memorial` flag is cached in `actors.memorial` (false by
-default), using the same Actor fetch/refresh and incoming Update flow. A valid
-document without the flag or with `false` clears it; failed fetches and invalid
-documents preserve the cached value. Existing cached profiles acquire the flag
-on their next ordinary refresh or Update, without a bulk fetch.
+## Remote polls
 
-The remote profile displays a discreet “Memorial profile” badge near its name.
-The flag is informational: it does not change visibility, follow approval,
-messages, likes, comments or shares. Any remote suspension or local moderation
-restrictions still apply independently. Creating memorial profiles for local
-accounts is outside this feature. The added boolean column requires the usual
-`php artisan migrate` and adds no service or worker requirement.
+Polls received from other servers appear in post cards and detail pages. You
+can vote while a poll is open and you have the necessary permissions. The choice
+is confirmed after local persistence and queuing delivery to the remote author;
+the interface preserves your answer and vote date.
 
-### Remote pinned posts
+Counts and percentages come from the source server. Openbook highlights your
+choice without adding it independently to remote results. Updates may arrive
+later. Opening the post detail can fetch current state; results are not
+continuously polled.
 
-The Actor's `featured` field identifies its pinned-post collection. Openbook
-stores the endpoint and a small ordered snapshot of imported posts. A “Pinned
-posts” tab appears between “Posts” and “Photos and videos” only when at least one
-post is visible to the viewer. It uses ordinary post cards and does not prepend
-pins to the timeline.
+A known deadline appears beside **Poll**. **Poll open** indicates an unknown
+deadline; **Poll closed** indicates closure. Missing counts appear as
+**Results updating**. Inconsistent data remains visible with percentages omitted.
+If the source changes or removes a selected option, your original answer stays
+available.
 
-The collection is fetched on profile visits using safe HTTP and signed requests
-when available, with `OPENBOOK_POSTS_CACHE_TTL_HOURS` (default 6 hours).
-At most 3 collection documents and 20 entries are read. Inline collections,
-`first`/`next` pages, `items`/`orderedItems` and URI references are supported.
-Only original public/unlisted posts of already-supported types are imported,
-checking authorship and without notifications. Replies, private objects and
-deleted posts are not recreated; private-community visibility still applies.
+Quoted polls are read-only. Content warnings, post permissions and
+administrator-applied blocks still apply.
 
-A valid empty snapshot removes pins from the tab without deleting the posts.
-Errors or incomplete pagination preserve the last valid snapshot; failed
-attempts are cached too. Incoming Add/Remove activities by the signer targeting
-its own collection invalidate the cache for the next visit. Changing or removing
-the Actor endpoint clears the previous snapshot. Existing cached profiles
-discover the endpoint on their next ordinary Actor refresh.
-Run `php artisan migrate` for the schema change; no new service is needed.
-Managing pins for local profiles remains outside this feature.
+## Events
 
-### Remote post language
+**Events** contains upcoming and past appointments. Authenticated users can
+create public or unlisted events with description, cover, time zone,
+physical/online/hybrid location and open, moderated or external participation.
+Organizers can edit, cancel or delete their events and manage moderated
+participation requests.
 
-Openbook stores the declared language of the imported text in `posts.language`
-when it is unambiguous. A `contentMap` with one usable BCP 47 key supplies the
-language if its value exactly matches `content`, or if that value is actually
-selected as the fallback when `content` is unavailable. Multiple languages,
-conflicting texts, malformed or undetermined tags leave `NULL`; Openbook does
-not detect the language of the text. Tags are lowercased without dropping
-regions or scripts, with an application limit of 255 characters.
+Remote events offer interest, comments and participation when supported by the
+source. Counts and updates depend on the organizing server. Sharing an event in
+a private conversation preserves the recipient’s existing access permissions.
+Content warnings also protect event descriptions and media.
 
-Without a map, an explicit `@language` in embedded contexts can label `content`.
-The object's context can override the default inherited from the activity;
-`null` clears it. Unknown remote contexts and redefinitions requiring JSON-LD
-expansion are neither interpreted nor fetched: the default remains unusable
-until an explicit context reset. Documents fetched over HTTP have a context
-independent of the referring activity.
+## Relays and administration
 
-The rule is shared by inbox processing, outbox import and refresh, including
-private messages stored as posts. Accepted updates can change or remove the
-language; stale updates cannot. There is no historical backfill, and post
-authorization and relevance rules remain unchanged.
+Use **Administration → Relays** to manage reception and publication through
+Mastodon, ActivityPub or LitePub-compatible relays. The panel shows subscription
+state, including waiting for a reciprocal follow. Enable the directions needed
+for the protocol and instance policy.
 
-Cards in feeds, post details and quoted posts display the language beside the
-date, with an accessible “Language declared by the author” description. Names
-follow the reader's interface language; regions and scripts are preserved when
-the catalogue provides the full name, otherwise the code is shown. Presentation
-uses Symfony Intl data without requiring the PHP `intl` extension. No label is
-shown for missing languages or deleted posts. Composer language selection and
-the profile's writing preference are planned for a subsequent phase.
+Disabling publication or removing a relay also stops pending deliveries to it.
+Restricted, unlisted, remote and private-community content is excluded from
+public relay publication. Domain blocks still apply.
 
-The migration widens `posts.language` from 8 to 255 characters. Rollback is
-refused while tags longer than 8 characters exist, preventing truncation.
+Federation uses signed requests and checks on contacted addresses. The instance
+must be reachable over HTTPS and have a correct clock. Check queue state, errors
+and blocked domains in the administration panel when an interaction stays
+pending. For network settings, cron and maintenance, see
+[configuration](configuration.md).
 
-The same extraction rules store the language in `comments.language`
-(nullable, 255 characters), through both inbox processing and reply fetching.
-Each upsert may change or clear it. Existing comment update ordering remains
-unchanged: it does not apply the stale-version protection used for posts.
-The language appears next to the comment date, using the same presentation
-rules as posts. No backfill or language selection is added for comments; local
-comments continue without a declaration. Event comments use a separate path.
+After updating, follow the [update procedure](install.md#updating-an-existing-instance).
+General cron already includes polls and events: these features need no extra
+cron entries or permanent workers. To prepare polls manually:
 
-### Social federation (Phase 4)
+```bash
+php artisan openbook:process-polls --max-time=5
+php artisan openbook:deliver --max-time=5
+```
 
-Activities accepted in the inbox (Phase 3) are now **processed**, and relevant
-local actions are **delivered** to the remote servers involved: federation is
-finally bidirectional.
+The first command records closures and prepares deliveries; the second attempts
+sending. Instances using a separate queue backend must also consume the internal
+`local_delivery` queue, or use `openbook:deliver`.
 
-- **Inbox processing**: each `InboxItem` with status `pending` is queued on
-  `ProcessInboxActivityJob` (`inbox` queue) immediately after receipt
-  (`InboxController::receive()`, after commit). `InboxActivityProcessor`
-  interprets the activity and produces the corresponding domain effect
-  **always reusing the same application services as the local path**
-  (`FollowManager`, `ReactionManager`, `AnnounceManager`), so the two paths
-  stay consistent:
-  - `Follow` toward a local Actor creates the row in `follows` (`pending` or
-    `accepted` depending on `manuallyApprovesFollowers`) and, if accepted
-    immediately, replies with an `Accept`;
-  - `Accept`/`Reject` complete a `Follow` originated by this instance toward a
-    remote Actor;
-  - `Undo` (of `Follow`, `Like`, or `Announce`) cancels the corresponding
-    relation or reaction;
-  - `Like`/`Announce` on a local post or comment update counters and generate a
-    notification, exactly like a local like/share;
-  - `Create`/`Update` with a postable object (`Note`, `Page`, `Article`,
-    `Video`, `Image`, `Question`) cache the remote post or comment locally (tables
-    `posts`/`comments`, identified by the `uri` column), but **only if
-    relevant** to this instance (the author is followed by a local Actor, the
-    Note replies to content we already know, or it explicitly mentions a local
-    Actor; updates to cached polls are also relevant): no remote content is
-    stored "at random". HTML content is reduced to
-    plain text (`RemoteContentSanitizer`), preserving `<a href>` as
-    `[label](url)`; images in `attachment` remain as remote URLs in the
-    gallery. Then it goes through the same safe rendering pipeline as local
-    posts. When saving a remote post, its publication timestamp is converted to
-    the application timezone and capped at the current time. Updates with a
-    future timestamp retain the cached publication date if it is already valid,
-    so repeated imports do not push the post back to the top of the timeline.
-    Existing future dates are corrected when the post is next saved;
-  - `Update` with a `Person`/`Group` object (another server notifying a change
-    to one of its users' profiles) updates the local cache of the remote Actor
-    directly (`actors`/`actor_keys`/`actor_endpoints`) by applying the embedded
-    document, with no extra HTTP fetch; accepted only if the id declared in the
-    document matches the signing Actor;
-  - `Delete` marks a local post/comment or its remote cached copy as deleted,
-    exactly like a local deletion (never a physical row delete, to preserve the
-    id).
-- **Outgoing activity delivery**: `ActivityDelivery` computes the set of
-  destination remote inboxes (deduplicated on `sharedInbox` when several
-  followers live on the same server) and queues a `DeliverActivityJob` for each
-  (`delivery` queue, `afterCommit()`). Each job signs the activity with the
-  sending local Actor's private key and sends it with `SafeHttpClient::post()`;
-  a temporary failure (network error, 5xx response) is retried with increasing
-  backoff (1, 5, 15, 60, 360, 1440 minutes, configurable), while a permanent
-  error (SSRF violation, missing private key) fails immediately without retry.
-  It is wired into every point where a local Actor performs a federatable
-  action: `FollowManager` (`Follow`/`Accept`/`Reject`/`Undo`),
-  `ReactionManager` (`Like`/`Undo`), `AnnounceManager` (`Announce`/`Undo`,
-  delivered both to the sharer's remote followers and to the original author if
-  distinct), `PostComposer`/`PostController` (`Create`/`Delete`), and
-  `CommentComposer`/`CommentController` (`Create`/`Delete`, always delivered
-  also to the parent content's author as a direct recipient). Messages with
-  "direct" visibility are delivered only to explicitly mentioned Actors, never
-  to all followers. Chat messages can also target active remote `Application`
-  Actors with an inbox, as well as people; communities and the local technical
-  `/relay` Actor are not chat recipients.
-- **Queue and cron**: the queue uses Laravel's database driver (`jobs` and
-  `failed_jobs` tables, already present from the installer), consistent with
-  shared-hosting constraints (no permanent process, no Redis/RabbitMQ). The
-  `openbook:process-inbox` and `openbook:deliver` commands process the `inbox`
-  and `delivery` queues respectively with `--stop-when-empty`, so they exit on
-  their own instead of listening indefinitely; `openbook:cron` invokes both in
-  sequence, splitting a configurable maximum time budget, and is the command
-  meant to be scheduled (see [Cron and periodic tasks](configuration.md#cron-and-periodic-tasks)).
-- **Search**: the Search page (`/cerca?q=...`, GET form) has two paths.
-  If the query is a federated address (`utente@dominio`, with or without a
-  leading `@`, `acct:...`, or a profile URL), it is resolved locally if the
-  domain matches this instance, otherwise via WebFinger + fetching the Actor
-  document (`RemoteActorResolver::resolveByHandle()`), then redirected to the
-  profile. For a keyword, phrase, or username without domain,
-  `PeopleSearchQuery` finds known local and cached remote people by username
-  or display name; local biographies are also searchable. People results
-  respect each account's `discoverable` setting. `LocalSearchQuery` separately
-  finds posts and comments of local Actors (visibility and FEP-5feb
-  `indexable` respected), visible local or cached remote events, and hashtags.
-  The header autocomplete suggests discoverable people and hashtags, but does
-  not fetch unknown Actors or suggest events. A leading `@` is optional for
-  people queries; content queries retain the original text.
-  No Elasticsearch: case-insensitive LIKE with escaped wildcards, configurable
-  limits (`OPENBOOK_SEARCH_MIN_LENGTH`, `OPENBOOK_SEARCH_PER_SECTION`). A
-  resolved remote Actor has a convenience profile page (`/attori/{id}`, never a
-  canonical ActivityPub identifier) with statistics, optional biography, and a
-  follow button that starts the real `Follow`/`Accept` flow. Across the
-  interface (post cards, comments, notifications) authors are now shown via
-  `Actor::displayName()`/`Actor::avatarUrl()`/`Actor::profileUrl()`, which work
-  identically for local and remote actors. The profile page also fetches
-  (`RemoteOutboxFetcher`, cache with a separate TTL in
-  `actors.posts_fetched_at`) recent public posts from the Actor's real outbox
-  (with fallback to the Atom feed if the outbox is a stub, typical of Pixelfed),
-  so their content can be shown even if no local Actor follows them yet:
-  without this step a newly discovered profile would often have no posts,
-  because the inbox only caches content already considered relevant (see
-  [known limitations](roadmap.md#known-limitations) below).
-- **Follower/following lists**: the "Followers" and "Following" counters on
-  every profile (local or remote) are links to a paginated page with the real
-  list (`FollowListQuery`), shared between local profiles (`/@utente/follower`,
-  `/@utente/seguiti`) and remote Actors (`/attori/{id}/follower`,
-  `/attori/{id}/seguiti` with a redirect to the local profile if the Actor
-  turns out to belong to this instance). Each row shows a follow/unfollow
-  button consistent with the visitor's real status
-  (`FollowManager::statusMapFor()`, a single query for the whole page). The
-  "Communities" counter on the profile counts the Groups (local or remote) the
-  user has joined. Profiles also expose **Posts** / **Photos** tabs (roll of
-  images attached to visible posts).
+### Recovering ignored activities after an update
 
-### Community (Phase 5)
-
-Communities are ActivityPub Actors of type `Group`:
-
-- **Local**: creation from the UI, slug `/c/{slug}`, WebFinger `nome@dominio`,
-  membership (Follow/Accept), members' post wall, outgoing Group Announce,
-  inbound FEP-1b12 (`Create` Note/Page that mentions or addresses the Group:
-  public communities accept the cite; private ones require membership),
-  private communities with approval, delegated moderators.   Incoming `Follow` activities may include a `notify` flag: it is stored
-  on the follow row. Mastodon keeps the Group bell locally and does not
-  send it; a FEP-1b12 `Announce` is a reblog and does not ring that bell.
-  New wall posts therefore also fan out a Group-signed original `Create`
-  (unlisted Note at `/users/{group}/avvisi/{post}`) to every remote
-  member, so Mastodon can notify whoever enabled the bell. The `/community`
-  directory has **Your communities**, **Local communities**, and **Remote
-  communities** tabs. The latter two also include joined Groups; all three
-  lists are ordered by handle and load twenty rows at a time as you scroll.
-  Membership actions update the row without reloading the page; pending
-  requests to private local communities can also be cancelled.
-- **Remote** (Lemmy, Friendica, …): search `nome@dominio`, federated join,
-  profile `/attori/{id}` with a composer for members, ingestion of
-  Announce/Page (FEP-1b12). Members can ring the bell on that profile to
-  receive an in-app notification for every post the Group announces, and
-  the preference is sent back as `Follow.notify`. Local Actor URIs use the
-  Mastodon scheme `/users/{username}` for compatibility (Lemmy rejects ids
-  with percent-encoded `@`).
-
-### Interoperability and remote media (Phase 6)
-
-Besides `Note` and `Page`, the inbox/outbox accept `Article` (WordPress
-ActivityPub, WriteFreely), `Video` (PeerTube, including with `attributedTo`
-Person+Group), and `Image`. Remote image attachments stay as https URLs in
-`media.remote_url` (gallery and profile photo roll) without download onto the
-instance. If the outbox is a stub (typical of Pixelfed: only `totalItems`), the
-remote profile falls back to the Atom feed `{actor}.atom`. For Wafrn (empty
-outbox) the public `/api/v2/blog` API is used. **Threads** (Meta) does not
-expose posts in the ActivityPub outbox: on the remote profile you can only see
-content already received in the inbox after a Follow (and only if the account
-has enabled sharing to the Fediverse). The World section suggests remote
-accounts to discover and, beyond the first 5, the full list at `/mondo/scopri`
-with infinite scroll. SSRF, domain blocks, and HTTP signatures remain the
-baseline security constraints.
-
-### Remote polls (#120)
-
-Mastodon-shaped `Question` objects are imported through the existing inbox,
-outbox, featured collection, Announce and post/replies refresh paths. Their
-metadata lives in `remote_polls` and `remote_poll_options`; the post retains
-its ordinary author, audience and moderation rules. Question replies are
-excluded. Polls appear in feed cards and on the post page (`/posts/{post}`),
-identified by `remote_polls.post_id`. No dedicated polling or worker is introduced. Opening
-the page reloads text, content warning and visibility after refresh, applying
-the current audience before displaying content.
-
-`oneOf` and `anyOf` preserve single/multiple choice, exact option names,
-nullable option/voter counts, expiry and explicit closure. Missing counts
-remain unknown; local choices do not alter remote results. The current
-normalizer accepts 2–50 distinct options of up to 1,000 Unicode characters.
-Malformed metadata is ignored without replacing a previously valid snapshot.
-Option reordering preserves identity; renaming replaces it and leaves any
-personal vote snapshot intact. An acquired closure remains closed.
-
-Explicit remote `updated` versions take precedence; otherwise original inbox
-receipt time and item ID determine replay order. Fetches use their local
-observation time. Without a remote revision, original server ordering cannot
-be inferred from delivery order: newer accepted snapshots may legitimately
-reduce counts. Third-party embedded polls are verified at the canonical
-endpoint. Vote-shaped Create/Note objects are skipped before becoming posts,
-comments or messages, even when their target is unknown.
-
-Apply migrations with `php artisan migrate`. Ordering metadata uses
-`results_received_at`, without depending on retained inbox rows. Poll and remote
-option rows omit automatic `created_at`/`updated_at`; publication lives in the
-associated post's `published_at`, while personal votes retain their timestamps.
-The corrective migration renames the earlier `observed_at` column and removes
-the redundant timestamps, preserving cached polls, results and personal votes.
-Historical inbox replay remains available through `openbook:reprocess-inbox`;
-it requeues all ignored/pending activities, including ordinary content. Use
-fixtures or a database copy for verification limited to polls.
-
-Answers use native radio buttons or checkboxes; “Vote” immediately confirms
-“Vote recorded” after commit and shows “Your answer” only to its owner.
-The authenticated `POST /posts/{post}/vota` endpoint reuses the voting service and
-checks visibility, expiry and option version. JavaScript updates the card after
-the POST; ordinary HTML forms also work without JavaScript. Quoted polls are
-read-only. Content warnings enclose the poll as well. Remote text and choice
-snapshots are escaped.
-
-Missing counts show “Results updating”. Percentages use the origin's voter total:
-it must be positive and no option may exceed it; single-choice polls also require
-all option counts and their sum to equal that total. Inconsistent counts remain
-visible as received, without invented percentages. Removed or renamed personal
-answers stay in a separate block with their original text.
-
-The voting service commits personal choices and one `Create/Note` per choice
-atomically. Each Note uses the exact option name, targets the Question URI and
-is addressed only to its author. Persisted choice UUIDs keep activity IDs stable
-across retries. Duplicate requests return the original immutable vote, even after
-closure. The option version detects renames, reordering and mode changes; remote
-counter updates do not invalidate the selection. Expiry and access are rechecked
-under locks, and delivery rechecks visibility and moderation. Remote results are
-never adjusted using local votes.
-
-The internal `local_delivery` database queue uses the domain connection and the
-existing `jobs` table, regardless of the global queue driver or
-`DB_QUEUE_CONNECTION`. `openbook:deliver` consumes it and the configured delivery
-backend within the existing time budget, avoiding duplicate workers when both
-use the same table. No new migration or recurring task is required for this
-stage. Regenerate configuration with `php artisan config:cache` after updating
-if configuration caching is enabled. Operators using only a custom worker for a
-separate backend should also consume `local_delivery` or use `openbook:deliver`.
-
-### Federated events
-
-Openbook recognizes ActivityStreams `Event` objects received through signed
-`Create` and `Announce` activities and keeps them separate from timeline
-posts. The public **Events** section (`/eventi`) provides upcoming and past
-event lists, local detail pages, location and time-zone information, media,
-hashtags, search results, remote counters, and federated comment
-threads. Visibility follows the event audience: public and unlisted events can
-be opened by link, while followers-only and direct events require a recorded
-local recipient. Deleted events remain as tombstones instead of becoming an
-ambiguous 404 for users who were allowed to see them.
-
-Authenticated users can create public or unlisted events from the Events
-section or from their profile. The composer supports a cover image, Markdown
-description, explicit time zone, physical/online/hybrid location, hashtags,
-mentions, and open, moderated, or external participation. Local events can be
-edited, cancelled, or deleted; Openbook publishes the corresponding
-`Create(Event)`, `Update(Event)`, and `Delete(Event)` activities and exposes
-them in both the Actor outbox and its dedicated `events` collection.
-
-Users can send `Like`/`Undo(Like)` as an expression of interest and, where
-supported by the origin, `Join`, `Undo(Join)`, or `Leave` for an RSVP. Local
-organizers receive notifications for new participants and can accept or reject
-moderated requests. Event comments and nested replies are federated as `Note`
-objects whose `inReplyTo` points to the Event or parent comment; comments also
-support attachments, likes, notifications, and tombstone deletion. An event
-can be shared in a private Openbook conversation only when the recipient
-already belongs to its audience; sharing never grants access to restricted
-content. Events marked `sensitive` keep descriptions and media behind an
-explicit reveal control. Hashtags used by recent public/unlisted events also
-contribute to the trending ranking alongside post hashtags.
-
-No additional worker is required: event activities use the existing inbox and
-delivery queues processed by `openbook:cron`. After deploying support for a
-new inbox object type, an administrator may retry retained rows previously
-classified as `ignored`, and enqueue `pending` rows missing their jobs
-(for example after a database import), with:
+When a version adds support for previously ignored content, an administrator
+can reprocess retained activities:
 
 ```bash
 php artisan openbook:reprocess-inbox
 ```
 
-The command enqueues `ignored` and `pending` items, excluding `processed` and
-`failed` rows. With the database queue, then run
+The command queues `ignored` and `pending` entries, excluding `processed` and
+`failed` entries. With a database queue, then run
 `php artisan openbook:process-inbox`; with `QUEUE_CONNECTION=sync`, processing
-is immediate. This is not a dry-run and does not deduplicate existing queued
-jobs: it is a manual recovery command. Jobs check for `pending` status before
-processing; unsupported activities return to `ignored`.
-
-Not yet part of the mature product: a real recipient system for direct
-messages (beyond mentions), and advanced federation-debug tools (beyond the
-admin queue panel).
+happens immediately. This command changes the queue and has no preview: use it
+for manual recovery. It can queue jobs already present; previously processed
+entries are recognized and skipped.

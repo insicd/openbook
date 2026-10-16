@@ -1,0 +1,9 @@
+{
+  "body": "Quando ci vediamo?",
+  "visibility": "public",
+  "poll": {
+    "options": [" Sabato ", "Domenica"],
+    "multiple": false,
+    "duration_seconds": 86400
+  }
+}

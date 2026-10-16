@@ -132,6 +132,16 @@
         });
     }
 
+    function setPollControlsVisible(composer, visible) {
+        var panel = composer.querySelector('[data-poll-composer]');
+        if (!panel) return;
+        setPanelBySuffix(composer, 'poll', false);
+        var toggle = composer.querySelector('[data-composer-toggle$="panel-poll"]');
+        if (toggle) toggle.hidden = !visible;
+        var fields = panel.querySelector('[data-poll-composer-fields]');
+        if (fields) fields.disabled = !visible;
+    }
+
     function refreshComposerUi(composer) {
         composer.querySelectorAll('[data-composer-body]').forEach(function (textarea) {
             textarea.dispatchEvent(new Event('input', { bubbles: true }));
@@ -206,6 +216,7 @@
         form.reset();
         restoreMediaHelp(form);
         setCommunityControlsVisible(composer, true);
+        setPollControlsVisible(composer, true);
         setModalChrome(false);
 
         var visibility = form.querySelector('[data-composer-fill="visibility"]');
@@ -287,6 +298,7 @@
         }
 
         setCommunityControlsVisible(composer, false);
+        setPollControlsVisible(composer, false);
         setModalChrome(true);
         setPanelBySuffix(composer, 'title', titleValue.trim() !== '');
         setPanelBySuffix(composer, 'cw', cwValue.trim() !== '');

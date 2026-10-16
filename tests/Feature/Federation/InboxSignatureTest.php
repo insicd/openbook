@@ -2,16 +2,20 @@
 
 namespace Tests\Feature\Federation;
 
+use App\Application\Services\PollResultsProcessor;
+use App\Application\Services\PostComposer;
 use App\Domain\Federation\Relay;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\ActorKey;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Inbox\InboxItem;
+use App\Federation\Serialization\NoteSerializer;
 use App\Infrastructure\Security\HttpSignatureSigner;
 use App\Infrastructure\Security\KeyPair;
 use App\Infrastructure\Security\LinkedData\LinkedDataSignature;
 use App\Infrastructure\Security\RsaKeyPairGenerator;
+use App\Jobs\Federation\ProcessInboxActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -25,7 +29,8 @@ use Tests\TestCase;
  * deduplicazione): l'elaborazione semantica delle attivita' (Fase 4) e'
  * accodata su un job separato, qui intercettato con Queue::fake() cosi' che
  * questi test restino concentrati sul solo livello di trasporto e non
- * effettuino consegne reali in uscita.
+ * effettuino consegne reali in uscita. Il caso sondaggio verifica anche il
+ * passaggio dal trasporto autenticato al job di raccolta differita.
  */
 class InboxSignatureTest extends TestCase
 {
@@ -126,6 +131,43 @@ class InboxSignatureTest extends TestCase
         ], $overrideServer);
 
         return $this->call('POST', $parts['path'], [], [], [], $server, $parts['body']);
+    }
+
+    public function test_signed_poll_vote_retains_authenticated_receipt_through_duplicate_http_and_late_job(): void
+    {
+        $this->travelTo(now()->startOfSecond());
+        $author = $this->createFullAccount('pollauthor');
+        $post = app(PostComposer::class)->compose($author->actor, ['body' => 'Quando?',
+            'poll' => ['options' => ['Sabato', 'Domenica'], 'multiple' => false, 'duration_seconds' => 300]]);
+        $activity = ['@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => 'https://remoto.example/activities/poll-vote', 'type' => 'Create',
+            'actor' => self::REMOTE_ACTOR_URI, 'to' => [$author->actor->uri],
+            'object' => ['id' => 'https://remoto.example/notes/poll-vote', 'type' => 'Note',
+                'attributedTo' => self::REMOTE_ACTOR_URI, 'name' => 'Sabato',
+                'inReplyTo' => NoteSerializer::postUri($post), 'to' => [$author->actor->uri]]];
+        $parts = $this->signedActivityParts('/users/pollauthor/inbox', $activity, self::REMOTE_ACTOR_URI, $this->remoteKeyPair);
+        $this->postSigned($parts)->assertStatus(202);
+        $this->postSigned($parts)->assertStatus(202);
+        $this->assertDatabaseCount('inbox_items', 1);
+        $item = InboxItem::sole();
+        $receipt = $item->received_at;
+        $this->assertTrue($item->signature_valid);
+        $this->assertSame($author->actor->id, $item->target_actor_id);
+        Queue::assertPushed(ProcessInboxActivityJob::class, 1);
+        $this->assertDatabaseCount('poll_votes', 0);
+        $this->travelTo($post->poll->ends_at->copy()->addMinute());
+        app(PollResultsProcessor::class)->close($post->poll->id);
+        $job = new ProcessInboxActivityJob($item->id);
+        app()->call([$job, 'handle']);
+        app()->call([$job, 'handle']);
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $item->fresh()->status);
+        $this->assertTrue($receipt->equalTo($item->fresh()->received_at));
+        $this->assertTrue($post->poll->fresh()->closed);
+        $this->assertSame(1, $post->poll->fresh()->voters_count);
+        $this->assertSame([1, 0], $post->poll->fresh()->options->pluck('votes_count')->all());
+        $this->assertDatabaseCount('posts', 1);
+        $this->assertDatabaseCount('comments', 0);
+        $this->assertDatabaseCount('notifications', 0);
     }
 
     public function test_a_validly_signed_activity_is_accepted_and_stored(): void

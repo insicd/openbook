@@ -139,6 +139,35 @@ class PostPublicationStagerTest extends TestCase
         $this->assertFalse(Storage::disk('local')->directoryExists('post-publication/'.$publication->id));
     }
 
+    public function test_staged_poll_duration_starts_at_actual_publication(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        config([
+            'openbook.video.enabled' => true,
+            'openbook.video.ffprobe_path' => $this->fakeProbe(duration: 10, width: 608, height: 1080),
+            'openbook.video.ffmpeg_path' => $this->fakeFfmpeg(),
+        ]);
+        $author = $this->createFullAccount('stagedpoll');
+        $publication = app(PostPublicationStager::class)->stage($author->actor, [
+            'body' => 'Un video e una domanda', 'visibility' => 'public',
+            'images' => [UploadedFile::fake()->createWithContent('clip.mp4', $this->mp4Bytes())],
+            'poll' => ['options' => ['Sì', 'Forse'], 'multiple' => true, 'duration_seconds' => 300],
+        ]);
+        $this->assertSame(300, $publication->payload['poll']['duration_seconds']);
+        $this->assertDatabaseCount('polls', 0);
+        $this->travel(30)->minutes();
+        $post = app(PendingPostFinalizer::class)->finalize($publication);
+        $again = app(PendingPostFinalizer::class)->finalize($publication);
+        $this->assertSame($post->id, $again->id);
+        $this->assertTrue($post->poll->ends_at->equalTo($post->published_at->copy()->addMinutes(5)));
+        $this->assertFalse($post->poll->isClosed());
+        $this->assertDatabaseCount('polls', 1);
+        $note = NoteSerializer::forPost($post);
+        $this->assertSame('Question', $note['type']);
+        $this->assertSame('Document', $note['attachment'][0]['type']);
+    }
+
     private function fakeProbe(int $duration, int $width, int $height, string $codec = 'h264'): string
     {
         $output = json_encode([

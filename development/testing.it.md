@@ -2,6 +2,62 @@
 
 ## Test
 
+Le fondamenta dei sondaggi locali (#121) si verificano con:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/LocalPollFoundationsTest.php tests/Feature/Posts/PostPublicationStagerTest.php
+```
+
+I casi coprono persistenza, validazione, Question canonica/outbox, audience,
+immutabilità, cancellazioni e scadenza dopo lo staging video.
+`LocalPollMysqlPersistenceTest` riusa i casi su schemi casuali isolati e aggiunge
+rollback della migration ed EXPLAIN. Si abilita con `OPENBOOK_TEST_POLLS_MYSQL`
+e le variabili `OPENBOOK_TEST_MYSQL_*` descritte sotto, selezionando la classe
+con `--filter=LocalPollMysqlPersistenceTest`.
+
+Raccolta dei voti locali/federati (#121, sprint 2):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/LocalPollVotingTest.php tests/Feature/Federation/LocalPollVoteImportTest.php
+```
+
+`LocalPollMysqlVotingTest` ripete i casi di dominio in schemi MySQL isolati e
+verifica invii concorrenti reali e piani EXPLAIN. Attivare le stesse variabili
+opt-in e selezionare `--filter=LocalPollMysqlVotingTest`. Lo sprint 2 non aggiunge
+migration. Queste verifiche usano direttamente servizi e inbox.
+
+Risultati e chiusura programmata (#121, sprint 3):
+
+```bash
+php artisan migrate
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/PollResultsTest.php tests/Feature/Console/ProcessPollsCommandTest.php
+```
+
+La nuova migration aggiunge gli snapshot transitori `poll_distributions`.
+Per una prova manuale, `php artisan openbook:process-polls --max-time=5` prepara
+i job e `php artisan openbook:deliver --max-time=5` li invia; `openbook:cron`
+include già entrambi. `--limit=1 --batch-size=1` sul comando dei sondaggi consente
+di osservare un avanzamento parziale e riprenderlo al passaggio seguente.
+`PollResultsMysqlTest` aggiunge processi cron concorrenti reali e piani EXPLAIN
+per ogni ramo UNION dei destinatari, con le stesse variabili opt-in per schemi
+isolati descritte sotto.
+
+Interfaccia di creazione/voto (#121, sprint 4):
+
+```bash
+php artisan route:clear
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/LocalPollUiTest.php tests/Feature/Polls/RemotePollUiTest.php
+node tests/Browser/polls.cjs
+```
+
+Il controllo browser opzionale renderizza partial Blade di produzione con
+modelli in memoria, carica JS/CSS reali e verifica campi desktop/mobile,
+limiti Unicode, reset/editing del modal, passaggio ai risultati e conferma del
+voto. Richiede Playwright e un browser installato (`BROWSER_EXECUTABLE_PATH`
+per sceglierlo). I link nativi sono verificati con JavaScript disabilitato;
+i test HTTP coprono controlli delle opzioni e invii HTML. PHPUnit usa un percorso
+isolato per la cache delle route, evitando quelle obsolete dell’istanza locale.
+
 Per il ritorno dal dettaglio post, una verifica browser opzionale usa JS/CSS
 di produzione con una fixture HTTP locale per i redirect dei form normali:
 `node tests/Browser/post-back.cjs`. Richiede Node.js, Playwright e un browser
@@ -21,6 +77,12 @@ Il progetto usa PHPUnit. La suite gira di default su SQLite in memoria (vedi
 ```bash
 php artisan test
 ```
+
+Il dettaglio riservato all’autore (#121, sprint 5) è coperto da `PollVotersTest`;
+`PollVotersMysqlTest` ripete paginazione/cancellazione e verifica i piani reali
+con 211 votanti del sondaggio e 1.000 di un altro sondaggio. La fixture browser
+verifica anche schede, tastiera e paginazione desktop/mobile, senza accedere
+al database applicativo.
 
 Le basi dei sondaggi remoti sono coperte da `RemotePollDocumentTest` e
 `RemotePollPersistenceTest`, con fixture anonimizzate in
@@ -50,8 +112,45 @@ Per eseguirli con la configurazione di produzione in cache, indicare un percorso
 inesistente per `APP_CONFIG_CACHE`, preservando così la cache locale:
 
 ```bash
-APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --filter=RemotePoll
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --filter=Poll
 ```
+
+### Verifica manuale dei sondaggi
+
+Dopo aver aggiornato questo ramo sull’istanza di sviluppo, aggiornare le cache
+obsolete e applicare le migration (i test automatici non modificano il database
+applicativo):
+
+```bash
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan migrate
+```
+
+Se il deployment usa normalmente cache di configurazione/route, rigenerarle
+con la consueta procedura di pubblicazione dopo l’aggiornamento.
+
+1. Aprire un post remoto già importato tramite `polls.post_id`, anziché
+   `source_item_id`. Controllare testi delle opzioni, conteggi e stato aperto/chiuso.
+2. Creare un sondaggio locale pubblico di cinque minuti. Partire da due opzioni,
+   aggiungerle/rimuoverle e provare scelta singola e multipla, fino a sei risposte.
+   Includere un allegato e un avviso sul contenuto in un esempio.
+3. Da un secondo account mostrare i risultati, tornare alle opzioni e votare.
+   Verificare risposta personale e scelta definitiva; un altro account deve
+   vedere soltanto i propri dati. Come autore aprire «Dettaglio risposte»,
+   cambiare opzione e consultare i partecipanti. Lo stesso URL deve respingere
+   altri account, compresi amministratori/moderatori.
+4. Ripetere in una community locale privata e con visibilità follower.
+   Verificare che un account escluso non apra il post e non voti. Correggere il
+   testo: definizione e visibilità devono restare fissate.
+5. Dopo cinque minuti verificare la chiusura, poi eseguire
+   `php artisan openbook:cron`: elabora inbox, registra chiusure, prepara snapshot
+   e tenta le normali consegne accodate. Nessuna nuova voce cron richiesta.
+   Per la sola preparazione: `php artisan openbook:process-polls --max-time=5`.
+6. Con una seconda istanza federata di test verificare pubblicazione, voti
+   singoli/multipli in ingresso e Update di risultati/chiusura. Queste prove
+   reali integrano le fixture HTTP automatiche e richiedono account di test.
 
 La suite copre bootstrap/installer/autenticazione, il dominio sociale locale
 (post, media, commenti, reazioni, follow, feed, notifiche), l'identita' e la

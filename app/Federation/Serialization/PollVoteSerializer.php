@@ -2,14 +2,14 @@
 
 namespace App\Federation\Serialization;
 
-use App\Domain\Polls\RemotePollVoteChoice;
+use App\Domain\Polls\PollVoteChoice;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 
 final class PollVoteSerializer
 {
     /** @return array<string, mixed> */
-    public static function create(RemotePollVoteChoice $choice, Actor $voter, Post $post): array
+    public static function create(PollVoteChoice $choice, Actor $voter, Post $post): array
     {
         $objectId = $voter->uri.'#votes/'.$choice->id;
         $audience = [$post->actor->uri];

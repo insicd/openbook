@@ -4,7 +4,7 @@ namespace App\Federation\Polls;
 
 use App\Application\Services\DomainBlockManager;
 use App\Application\Services\RemotePollInteractionPolicy;
-use App\Domain\Polls\RemotePollVoteChoice;
+use App\Domain\Polls\PollVoteChoice;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 
@@ -18,7 +18,7 @@ final class PollVoteDeliveryGuard
 
     public function allows(string $choiceId, Actor $voter, string $inbox): bool
     {
-        $choice = RemotePollVoteChoice::query()->with('vote.poll.post.actor')->find($choiceId);
+        $choice = PollVoteChoice::query()->with('vote.poll.post.actor')->find($choiceId);
         $post = $choice?->vote?->poll?->post;
         if ($post === null || $choice->vote->actor_id !== $voter->id
             || ! $this->interactionPolicy->allows($voter, $post) || $this->blocks->isBlockedUrl($inbox)) {

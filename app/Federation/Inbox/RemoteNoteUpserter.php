@@ -95,7 +95,7 @@ final class RemoteNoteUpserter
         $post = Post::query()->where('uri', $noteUri)->lockForUpdate()->first() ?? new Post(['uri' => $noteUri]);
         $wasNew = ! $post->exists;
         $pollDocument = null;
-        $poll = $wasNew ? null : $post->remotePoll()->lockForUpdate()->first();
+        $poll = $wasNew ? null : $post->poll()->lockForUpdate()->first();
         if ($poll !== null && ! RemotePostObject::hasType($note['type'] ?? null, 'Question')) {
             return null;
         }

@@ -4,13 +4,16 @@ namespace App\Jobs\Federation;
 
 use App\Application\Services\DomainBlockManager;
 use App\Domain\Federation\Relay;
+use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
+use App\Federation\Polls\PollResultsDeliveryGuard;
 use App\Federation\Polls\PollVoteDeliveryGuard;
 use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Infrastructure\Security\Http\SsrfViolationException;
 use App\Infrastructure\Security\HttpSignatureSigner;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -42,6 +45,10 @@ final class DeliverActivityJob implements ShouldQueue
 
     public int $tries;
 
+    public readonly ?string $localPollPostId;
+
+    public readonly bool $pollResultsDelivery;
+
     /**
      * @param  array<string, mixed>  $activity
      */
@@ -51,8 +58,18 @@ final class DeliverActivityJob implements ShouldQueue
         public readonly string $signingActorId,
         public readonly ?string $relayId = null,
         public readonly ?string $pollVoteChoiceId = null,
+        public readonly ?string $pollRecipientActorId = null,
+        ?string $pollPostId = null,
     ) {
         $this->onQueue('delivery');
+
+        $object = $activity['object'] ?? null;
+        $postPrefix = rtrim(url('/posts'), '/').'/';
+        $this->pollResultsDelivery = $pollPostId !== null;
+        $this->localPollPostId = $pollPostId ?? (in_array($activity['type'] ?? null, ['Create', 'Update'], true)
+            && is_array($object) && ($object['type'] ?? null) === 'Question'
+            && is_string($object['id'] ?? null) && str_starts_with($object['id'], $postPrefix)
+                ? substr($object['id'], strlen($postPrefix)) : null);
 
         $this->tries = max(1, (int) config('openbook.delivery.max_attempts', 10));
 
@@ -64,11 +81,24 @@ final class DeliverActivityJob implements ShouldQueue
 
     public function handle(SafeHttpClient $client, DomainBlockManager $domainBlocks): void
     {
+        // Keep the queued identity even if APP_URL changes before delivery.
+        if (($this->localPollPostId ?? null) !== null) {
+            if (! Post::query()->whereKey($this->localPollPostId)
+                ->where('status', Post::STATUS_PUBLISHED)->whereHas('poll')
+                ->when(! ($this->pollResultsDelivery ?? false), fn (Builder $query): Builder => $query->where('actor_id', $this->signingActorId))->exists()) {
+                return;
+            }
+        }
         if ($this->shouldSkipRelayDelivery($domainBlocks)) {
             return;
         }
 
         $actor = Actor::query()->with('key')->find($this->signingActorId);
+
+        if (($this->localPollPostId ?? null) !== null
+            && ($actor === null || ! $actor->isActive() || ($actor->isPerson() && ! $actor->user?->isActive()))) {
+            return;
+        }
 
         if ($actor === null || $actor->key === null || ! $actor->key->hasPrivateKey()) {
             // Non e' un errore transitorio (nessun retry ha senso: la chiave
@@ -88,17 +118,36 @@ final class DeliverActivityJob implements ShouldQueue
             return;
         }
 
-        $body = json_encode($this->activity, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $inboxUrl = $this->inboxUrl;
+        if (($this->pollRecipientActorId ?? null) !== null) {
+            $recipient = Actor::query()->find($this->pollRecipientActorId);
+            if ($recipient === null || ! $recipient->isActive() || $recipient->isRemotelySuspended()
+                || $domainBlocks->isBlockedUrl($recipient->uri)) {
+                return;
+            }
+            $inboxUrl = app(ActivityDelivery::class)->remoteActorInbox($recipient);
+            if (blank($inboxUrl)) {
+                throw new RuntimeException('Poll recipient inbox is awaiting resolution.');
+            }
+        }
+        if (($this->pollResultsDelivery ?? false)
+            && ! app(PollResultsDeliveryGuard::class)->allows($this->localPollPostId, $inboxUrl, $this->signingActorId, $this->activity)) {
+            return;
+        }
+
+        $activity = ($this->pollResultsDelivery ?? false)
+            ? app(ActivityDelivery::class)->signedActivity($actor, $this->activity) : $this->activity;
+        $body = json_encode($activity, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         $headers = (new HttpSignatureSigner)->authorizationHeaders(
             'POST',
-            $this->inboxUrl,
+            $inboxUrl,
             $actor,
             $body,
         );
 
         try {
-            $response = $client->post($this->inboxUrl, $body, $headers);
+            $response = $client->post($inboxUrl, $body, $headers);
         } catch (SsrfViolationException $exception) {
             // Un'inbox che non risolve piu' a un indirizzo pubblico non e'
             // un problema temporaneo di rete: non ha senso ritentare.
@@ -109,7 +158,7 @@ final class DeliverActivityJob implements ShouldQueue
 
         if (! $response->successful()) {
             Log::channel('single')->info('federation.delivery_rejected', [
-                'inbox' => $this->inboxUrl,
+                'inbox' => $inboxUrl,
                 'activity_type' => $this->activity['type'] ?? null,
                 'activity_id' => $this->activity['id'] ?? null,
                 'http_status' => $response->status,
@@ -117,12 +166,12 @@ final class DeliverActivityJob implements ShouldQueue
             ]);
 
             throw new RuntimeException(
-                "Consegna a {$this->inboxUrl} fallita con HTTP {$response->status}."
+                "Consegna a {$inboxUrl} fallita con HTTP {$response->status}."
             );
         }
 
         Log::channel('single')->info('federation.delivery_ok', [
-            'inbox' => $this->inboxUrl,
+            'inbox' => $inboxUrl,
             'activity_type' => $this->activity['type'] ?? null,
             'activity_id' => $this->activity['id'] ?? null,
             'http_status' => $response->status,

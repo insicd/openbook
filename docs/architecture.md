@@ -1,397 +1,138 @@
-> Documentation: [English](README.md) · [Italiano](README.it.md)
+> Documentation: [English](README.md) · [Italiano](architecture.it.md)
 
-## Architecture
+# Using Openbook
 
-The code is organized to **explicitly separate** the local application domain
-from the ActivityPub representation and federation mechanics, as required by
-the project design:
+Openbook lets you publish, follow people, hold conversations and participate in
+communities and events. Your account can interact with people on the same
+instance and with accounts on other compatible Fediverse services.
 
-```
-app/
-  Domain/            # Local application domain
-    Accounts/
-    Profiles/
-    Posts/           # Posts, attachments, hashtags, mentions, text rendering
-    Comments/        # Comments (top-level and nested replies)
-    Events/          # Federated events, locations, RSVP and comment threads
-    Reactions/        # Likes and shares (Like/Announce at the local level)
-    SocialGraph/      # Follows between Actors (local and remote)
-    Notifications/    # Local notifications (not federated)
-  Federation/        # Everything related to ActivityPub
-    Actors/           # Actors (local and remote), RemoteActorResolver (fetch + WebFinger)
-    Inbox/            # Raw InboxItem + InboxActivityProcessor (semantic processing)
-    Resolution/       # ObjectResolver: ActivityPub URI -> local Actor/content
-    Delivery/         # ActivityDelivery: fan-out of outgoing activities to remote inboxes
-    Serialization/    # ActorSerializer, NoteSerializer, CollectionSerializer, ActivitySerializer
-  Jobs/
-    Federation/       # ProcessInboxActivityJob, DeliverActivityJob ("inbox"/"delivery" queues)
-  Infrastructure/    # Cross-cutting technical details (DB, security, installation, media)
-    Database/
-    Installation/
-    Security/
-      Http/           # SsrfGuard, SafeHttpClient, DnsResolver: remote fetch protected from SSRF
-    Media/            # Upload, validation, thumbnails (Media, MediaVariant, MediaUploader)
-  Application/       # Application services that orchestrate the domain
-    Services/
-    Queries/          # Complex read queries (e.g. FeedQuery)
-  Http/              # Controllers, HTTP requests, middleware
-  Policies/          # Centralized authorization (PostPolicy, CommentPolicy)
-```
+## Publishing and reading posts
 
-Controllers **contain no domain logic**: they validate the request, check
-authorization/authentication, call an application service (in
-`app/Application/Services`), and return the response. For example, complete
-account creation (user + profile + settings + ActivityPub Actor + RSA key pair
-+ endpoints) is wrapped in a single transaction by
-`App\Application\Services\AccountRegistrar`, used by the registration
-controller, the installer, and the `openbook:make-admin` CLI command. In the
-same way, `PostComposer`, `CommentComposer`, `FollowManager`, `ReactionManager`,
-and `AnnounceManager` each wrap a single domain operation in a transaction,
-updating denormalized counters and creating the relevant notifications via
-`NotificationCreator`. From Phase 4 onward, each of these services also calls
-`ActivityDelivery` **after** the transaction commit, when the actor performing
-the action is local and the recipient (or the followers) involve at least one
-remote Actor: that is the only point where domain logic "knows" about
-federation, and it remains an after-the-fact addition, never a condition for
-the local action to succeed.
+Write in the composer. Icons in the lower toolbar open advanced controls such
+as title, content warning, attachments, visibility and polls. Opening another
+panel preserves the values you have already entered.
 
-For remote polls, `RemotePollVoter` persists the vote and delivery jobs in the
-same transaction through `ActivityDelivery::enqueueDirectInTransaction()`.
-The internal `local_delivery` database backend shares the domain connection and
-`jobs` table; signing, sending and retries remain in `DeliverActivityJob` and
-`openbook:deliver`. The commit confirms the vote to the user independently of
-remote delivery. `RemotePollInteractionPolicy` shares account and moderation
-checks across UI, voting and delivery; expiry and visibility are checked in the
-relevant phases. See [remote polls](federation.md#remote-polls-120).
+Text supports Markdown, links, hashtags and mentions. You can attach images and
+audio; local video uploads are available when enabled by the administrator.
+Videos require processing and publish when it finishes. Content warnings let
+readers choose when to reveal text and attachments. Click an image to open it
+full screen; use arrows to browse and Esc to close.
 
-Every local account has from the start an ActivityPub Actor of type `Person`
-(tables `actors`, `actor_keys`, `actor_endpoints`), exposed to the Fediverse
-(see [Federation](federation.md#federation-phase-3) below). The local social domain is
-modeled with federation in mind: `follows` and `likes` connect **Actors** (not
-users), so remote actors can be accepted without schema changes.
+Icons below a post let you like, comment and share it. The three-dot menu offers
+available content actions, including editing and deleting your own posts.
+Shares retain the link to the original and appear in the sharer’s timeline.
 
-Remote suspension declared by an Actor's origin is cached separately in
-`actors.remote_suspended`. It preserves imported content and local moderation
-status. `RemoteInteractionGuard` prevents new outgoing user interactions in the
-shared application services; direct-message permissions and event interaction
-availability also respect this flag. Ordinary profile refreshes and Updates can
-clear it when the origin reactivates the account.
+In lists, the card header opens the local detail page. The author’s name opens
+their profile; a remote post’s date opens the original on its source server.
+The Back control on the detail page returns to the previous page when the post
+was opened from the same instance.
 
-Actor private keys are encrypted at rest (Eloquent `encrypted` cast, based on
-`APP_KEY`) and are never exposed by APIs, logs, or error messages.
+## Visibility
 
-### Posts, comments, and reactions
+Choose visibility before publishing:
 
-- The body of posts and comments is text with broad Markdown (GFM), rendered to
-  safe HTML by `App\Domain\Posts\PostBodyRenderer` (raw HTML stripped, external
-  links with restrictive `rel`, Markdown images ignored). Hashtags and mentions
-  are linkified after conversion; HTML content of remote posts (Phase 4) is
-  reduced to plain text before entering the same pipeline (see
-  [Social federation](federation.md#social-federation-phase-4)).
-- Comments live in a dedicated table (`comments`), separate from `posts`, with
-  `parent_comment_id` for nested replies: a post's entire tree is loaded with a
-  single query and rebuilt in memory. They can have image attachments like
-  posts (`comment_attachments`, same MIME/size limits).
-- Likes (`likes`) and mentions (`mentions`) are polymorphic relations, already
-  ready to apply to both posts and comments.
-- Shares (`announces`) never duplicate the original post: they are a simple
-  "actor shared this post" reference, which the feed uses to show the content
-  also to people who follow the sharer (not the original author). They also
-  appear in the personal feed and on the sharer's profile (`FeedQuery`), with
-  the "shared this post" label above the card — ordered by the share time, not
-  the original post's publication date, so a recent share of an old post still
-  appears at the top. Sharing your own post does not add the label (it would be
-  redundant: it already appears as your own post).
-- Counters (`likes_count`, `comments_count`, `announces_count`) are
-  denormalized on post/comment rows and updated transactionally, to avoid heavy
-  counts on every feed request.
-- The feed (`App\Application\Queries\FeedQuery`) unions your own posts, posts
-  from people you follow, and shares made by people you follow, respecting
-  visibility (public, unlisted, followers-only, direct) and with no
-  recommendation algorithm: always reverse-chronological order.
+| Visibility | Who can read |
+| --- | --- |
+| Public | Anyone; the post may appear in public lists. |
+| Unlisted | Anyone with the link; the post stays out of public lists. |
+| Followers only | The author and authorized followers, according to current permissions. |
+| Direct | The author and mentioned recipients; use Messages for conversations. |
 
-### Profile customization and account settings
+Private communities apply their own access rules. Sharing a link or quoting
+restricted content preserves those rules. A copy already delivered to another
+server also depends on that server’s rules and administration.
 
-From the earliest phases the database already had columns for account
-customization (`profiles.avatar_path`/`cover_path`/`bio`/`links`,
-`user_settings.locale`/`default_post_visibility`/`manually_approves_followers`
-/`discoverable`); the **Settings** page (`/impostazioni`, link in the user menu
-and "Edit profile" button on your own profile) makes them editable:
+## Polls
 
-- **Public profile**: display name, biography (max 500 characters), up to 8
-  labeled fields shared between Link and Additional information, avatar and
-  cover image. Saving the public profile returns to its display page with a
-  confirmation message. Image upload (`ProfileImageUploader`)
-  validates the file's actual type (never the extension alone), strips EXIF
-  metadata, and resizes with GD when available (avatar max 512px, cover max
-  1600px on the longest side), reusing the same base logic already used for
-  post attachments (`ManipulatesImagesWithGd`, trait shared with
-  `MediaUploader`). The previous file is always removed when a new one is
-  uploaded, so orphan copies do not accumulate on quota-limited hosting.
-  Changing the display name also updates the local ActivityPub Actor's `name`
-  field, which is the value actually exposed to remote servers
-  (`ActorSerializer`). Every change to the public profile (name, biography,
-  links, avatar, cover) or to the "Protected account" option also sends an
-  ActivityPub `Update` to all remote followers
-  (`ProfileUpdater`/`AccountPreferencesUpdater` +
-  `ActivityDelivery::deliverToFollowers()`), with the full updated Actor
-  document as the embedded object: without this step remote servers would keep
-  showing a stale copy of the profile until their local cache expired (up to
-  `openbook.federation.actor_cache_ttl_hours`, 24 hours by default).
-  Symmetrically, an `Update` with a `Person`/`Group` object received from
-  another instance (because a remote user changed their profile) immediately
-  updates the cached copy of their Actor
-  (`InboxActivityProcessor::handleUpdateActor()`), applying the embedded
-  document directly instead of waiting for a new fetch; it is accepted only if
-  the id declared in the document matches the Actor that signed the request, so
-  nobody can update someone else's profile. Before saving, the chosen file is
-  shown immediately as a preview (client-side, via `FileReader`, with no
-  upload). `Profile::avatarUrl()`/`coverUrl()` build the public URL through the
-  configured "public" disk (`Storage::disk('public')->url()`), as already
-  happens for post attachments (`Media::url()`), instead of relying on the
-  `asset()` helper: the latter depends on the scheme/host detected on the
-  individual request and can produce inconsistent URLs (e.g. `http://` instead
-  of `https://`) behind a proxy or load balancer that does not correctly report
-  the original scheme.
-- **Interface language**: each user can choose among the languages listed in
-  `config('openbook.locales')` (Italian and English at the moment). The
-  `SetUserLocale` middleware, applied to all web requests, sets the app
-  language from `user_settings.locale` for authenticated users; visitors who
-  have not signed in yet see the language deduced from the browser's
-  `Accept-Language` header (Italian if preferred, English in every other case),
-  so the public homepage already appears in the right language before
-  registration. A request without that header (never a real browser, typical of
-  crawlers/monitoring) is not forced and stays on the instance default language
-  (`app.locale`).
-- **Default visibility of new posts**: the visibility selector in the composer
-  now uses `user_settings.default_post_visibility` as the initial value (the
-  panel opens automatically if the default is not "public"), remaining
-  changeable post by post.
-- **Protected account**: the "Protected account" checkbox updates both
-  `user_settings.manually_approves_followers` and (the column actually read by
-  `FollowManager`) `actors.manually_approves_followers`, so the two stay
-  consistent.
-- **Presence in suggestions**: turning off "Include my account in suggestions
-  and search results" (`user_settings.discoverable` and `actors.discoverable`)
-  stops the account from appearing in the sidebar "People to follow" box, and
-  the federated Actor document declares `discoverable: false` (Mastodon
-  directories and similar). It remains reachable directly, for example via
-  federated search of the exact address.
-- **Search indexing (FEP-5feb)**: the "Allow my public posts to be indexed for
-  search" checkbox (`user_settings.indexable` / `actors.indexable`, off by
-  default) is the ActivityPub profile `indexable` consent. Other people's
-  public posts and comments appear in local search only if the author enabled
-  the option; the author still finds their own content.
-- **"This instance" box**: it no longer shows the subscriber count (a figure
-  that needlessly exposes the instance's real size), but the most used tags
-  recently by the local community (`App\Application\Queries\PopularHashtagsQuery`):
-  only hashtags on posts published by *local* Actors, with public or unlisted
-  visibility, never from remote content merely in cache or from posts reserved
-  to followers/direct recipients.
-- **Followed hashtags**: authenticated users can follow or unfollow tags from
-  a hashtag page or the full trends page. Public posts already known to the
-  instance then join the personal Home feed, with the existing timeline
-  deduplication and cursor pagination. This is a local preference rather than
-  a federated ActivityPub follow: it does not discover content the instance
-  has not received. Followed tags stay private and are shown only to their
-  owner, mixed chronologically with Actors in the owner's "Following" list.
-- **Image lightbox**: clicking an image attached to a post or comment opens a
-  full-screen overlay with the original at full resolution (previous/next
-  arrows if the post has more than one, close with Esc, click outside the image,
-  or a dedicated button). No external library: shared markup in `layouts.app`
-  and a single script (`public/assets/js/lightbox.js`) that delegates events
-  across the page, so it works the same on the feed, profile, single-post page,
-  and World section. This was also the chance to finally use in the feed the
-  thumbnail already generated at upload (`MediaUploader`, unused until now):
-  the in-post preview shows the thumbnail in full (never cropped: `object-fit:
-  contain` with a neutral background filling any side/top bands when the
-  aspect ratio does not match the box); the lightbox instead loads the original
-  at full resolution via the `data-full-src` attribute and shows it as large as
-  possible without ever enlarging it beyond its natural size.
-- **Static asset versioning (`App\Support\Assets`)**: `app.css` and
-  `lightbox.js` are served from `public/` with no build pipeline (no
-  Vite/webpack, to stay compatible with shared hosting): without a query string
-  that changes on every modification, the browser can keep serving a stale copy
-  of the file even after a software update (typical cause of "I updated but
-  nothing changes", or worse of new markup paired with old CSS/JS behaving
-  inconsistently). Views now reference these two files through
-  `App\Support\Assets::url()`, which automatically appends
-  `?v=<last modification of the file>` to the URL.
-- **Infinite scroll instead of numbered pagination**: feed, World, profile
-  (local or remote), and hashtag pages no longer show page arrows/numbers at
-  the bottom of the post list. When the user nears the end of the page,
-  `public/assets/js/infinite-scroll.js` requests the next `?cursor=…` URL and
-  appends its posts to the current list, with no dedicated route/API or
-  external library. A normal request to `/home` renders the layout, composer,
-  any quoted post, and pending video publications without querying the feed or
-  building the welcome kit. An AJAX request to the same `/home` endpoint
-  returns an HTML fragment with post cards, or the welcome kit when the first
-  block is empty; AJAX cursor requests return later cards. The same loader
-  handles both and offers a retry link after an error. Without JavaScript,
-  Home explains that the feed requires it. Profile, community, and hashtag
-  post lists still fetch full pages and offer classic pagination inside
-  `<noscript>`. Setting
-  `data-infinite-scroll` and `data-next-url` on a post container is enough for
-  the script to activate: see `resources/views/posts/_feed.blade.php`, the
-  partial shared by all these pages. This was also the chance to give
-  `FeedQuery`/`HashtagController` a
-  truly deterministic sort (`ORDER BY ... , id DESC`): without a tie-breaker,
-  two posts published in the same second could end up duplicated or skipped
-  when moving from one page to the next, a defect already present with classic
-  pagination but much more visible with continuous scrolling.
-- **World and suggested people**: a normal `/mondo` request renders the page
-  shell without querying posts or suggested people. The scroll script requests
-  the first and later post blocks from `/mondo` as HTML fragments, while
-  `/mondo/suggeriti` loads the first five suggestions and the link to
-  `/mondo/scopri` separately. Opening Discover directly returns a full page;
-  later pages requested by its scroll return only the list. World posts require
-  JavaScript, and posts and suggestions have independent error states.
-- **Event list scrolling**: the initial `/eventi` or `/eventi/passati` request
-  renders the complete page. For later pages, an XMLHttpRequest to the same
-  `?page=N` URL returns only the event grid and its next-page URL. The browser
-  appends its cards using the shared infinite-scroll script. On `/eventi`, the
-  "Your events" section is rendered only with a full page request; opening a
-  later page directly still returns the complete page.
-- **Trending sidebar**: the authenticated layout renders a loading placeholder
-  without running `PopularHashtagsQuery`. On viewports at least 1024 px wide,
-  `public/assets/js/trending-sidebar.js` requests `/tendenze/sidebar` when the
-  widget enters view. The JSON response contains the five formatted rows and
-  whether the full Trending page has more; it uses the same query and moderation
-  rules as that page. Hidden mobile sidebars make no request. The sidebar
-  result is cached for five minutes using the configured Laravel cache store.
-  Visiting `/tendenze` invalidates it immediately; changes to the ranking
-  window or moderation settings also bypass the previous result.
-- **Post card**: like / comment / share are icons only (with the numeric
-  counter beside them; the texts remain as `aria-label` for accessibility).
-  Deletion is no longer in line with the other actions: it appears only for
-  *your own local posts* (never for cached remote Notes, nor for an admin:
-  `PostPolicy::delete` rejects posts with `uri` set) and lives in a
-  three-vertical-dots menu at the top right of the card
-  (`<details class="ob-post__menu">`, with `post-menu.js` to close on outside
-  click). On remote posts, clicking the timestamp opens the original
-  ActivityPub `uri` in a new tab (`target="_blank" rel="noopener noreferrer"`);
-  on local posts it still goes to the Openbook post page. The same pattern
-  (icons + three-dot menu for Delete, never on remotes) is applied to comments
-  too (`comments/_comment.blade.php`, `CommentPolicy`).
-- **Post card header**: in lists, a native link covers the header background
-  and opens the local post detail without a fragment. Author, timestamp and
-  menu controls remain above that link and keep their behavior. The overlay
-  is absent on the open post detail and embedded quote cards; no JS is needed.
-- **Navbar**: the bell icon opens a dropdown with recent notifications (the
-  full page remains in the left sidebar); the search icon opens an inline input
-  instead of going straight to `/cerca` (submitting the form still uses the
-  same local/federated search). Dedicated script:
-  `public/assets/js/header-panels.js`. Its autocomplete lists known
-  discoverable local and remote people plus hashtags; the full search also
-  searches visible posts, comments, and events. On desktop, after scrolling
-  past the composer, a **+** button appears in the center of the header that
-  returns focus to the composer (or to Home if you are elsewhere); on mobile the same
-  control is a discreet FAB at the bottom right (`compose-shortcut.js`).
-- **Post detail back navigation**: on desktop and mobile, `/posts/{post}` has
-  a separate Back row inside the sticky header when opened from another
-  same-origin page.
-  `post-back.js` stores a small distance/pending-submit context in
-  `sessionStorage` and marks the current history entry so reloads and native
-  back/forward do not inflate it. Normal form redirects, including validation
-  errors, add a step; AJAX actions do not. Back clears the context and calls
-  `history.go(-depth)`. Other pages clear the context; direct/external access
-  and new tabs without a previous entry do not show the control. Comment
-  endpoints are unchanged. The browser manages page cache and scroll recovery.
-- **Direct message notifications**: incoming messages in the same conversation
-  reuse its notification, moving it to the latest message and marking it
-  unread again. Opening the conversation marks that notification as read.
-  An irreversible data migration removes previous duplicates per recipient
-  and conversation, retaining the latest notification and marking it unread
-  if any duplicate was unread. Unlinked notifications are left intact.
-  Reusing a notification also queues browser push after commit. Multiple
-  messages before delivery share one pending push without resetting its grace
-  period; a new message after delivery or browser consumption can queue it
-  again. The existing visible-tab polling suppresses pending pushes, and the
-  payload contains the sender's notification text rather than private content.
-- **Chat ordering and read state**: thread ordering, polling cursors, previews,
-  and conversation activity use local arrival (`posts.created_at`). The
-  timestamp above each message still shows its original `published_at`.
-  Per-participant read cursors store the arrival timestamp and ID of the last
-  message shown, distinguishing arrivals in the same second. Polling marks
-  only messages in its response as read; the sidebar count measures unread
-  conversations. Each unread conversation has an explicit badge and a
-  highlighted background in the chat list. A migration converts existing
-  reads and conversation activity to this arrival order. Opening a thread
-  shows its latest 100 messages in arrival order.
-- **Live sidebar badges**: `notifications.feed` returns both unread notification
-  and unread conversation counts. The existing 60-second notification poll
-  updates both badges, pausing while the tab is hidden. A shared revision
-  invalidates the ETag on incoming messages and advancing read cursors, even
-  when the general notification was already read, and on message status or
-  visibility changes. Reading general notifications
-  does not mark conversations read. The chat requests an immediate refresh from
-  the same poller after receiving or sending messages.
-  The migration invalidates existing badge revisions, replaces redundant
-  single-column post indexes with their covering prefixes, and adds a
-  recipient/type/creation/ID index for notification reuse regardless of read state.
-- **Emoji**: in post and comment composers (including replies) a smile icon
-  opens a local Mastodon-style picker (categories, search, recents in
-  `localStorage`). System-native Unicode only, no CDN / Twemoji
-  (`emoji-data.js` + `emoji-picker.js`).
-- **Reports**: from the three-dot menu of every post that is not yours (local
-  or remote) you can open a local report (reason + optional details), stored in
-  `reports` and handled by the control panel (`/admin/segnalazioni`). It is not
-  federated; you cannot report your own post. Throttle on
-  `POST /posts/{post}/segnala`.
-- **Control panel** (`/admin`, v0.5.0–0.6.0): accessible to administrators and
-  moderators (`is_admin` / `is_moderator`). Includes dashboard, report queue
-  for posts and comments (review / archive / action, with optional soft-delete
-  of local content only), local user management (suspension / disable;
-  promoting moderators and admins), instance settings (`site_name`,
-  `registration_open`, Markdown rules and privacy policy, post/comment/media
-  limits, guest homepage background), federated domain blocks, federation queue inspection, and an action
-  log. CLI still available: `openbook:make-admin` / `openbook:make-moderator`.
-- **Video embeds**: if a post body contains a YouTube link (`youtube.com`,
-  `youtu.be`, Shorts, ...) or PeerTube (`/w/...`, `/videos/watch/...`), an
-  iframe player is shown under the text (only the *first* video link in the
-  post). YouTube uses `youtube-nocookie.com`; PeerTube is recognized from the
-  path shape typical of instances (`VideoEmbedFinder`).
-- **Hashtags in bios**: hashtags (and URLs/mentions) in local and remote
-  profile biographies are linkified with the same `PostBodyRenderer` used for
-  posts and comments; this also applies to the bio snippet in search results.
-  On remotes the HTML `summary` is first reduced to plain text
-  (`RemoteContentSanitizer::toPlainText`).
-- **Quote sharing**: the share icon on the card opens a menu with *Share
-  directly* (Announce / boost, as before) or *Share with quote*. The quote
-  takes you to the Home composer with the original post nested under the text;
-  on publish a new post is created (`quoted_post_id`) that in the feed shows
-  the original card inside its own. The quote also increments the original's
-  share counter (the same `announces` row as a direct share; if the user had
-  already shared, it is not doubled). Quote-only shares do not add a separate
-  boost to the personal feed or profile. Outgoing federation sends the new
-  Note with `quoteUrl` and a fallback link in `content`, without an Announce
-  of the original. An explicit direct share still sends an Announce, including
-  when made after a quote. Group Announce delivery for community posts remains
-  unchanged. Comments have no share (only like/reply).
+The poll icon opens two initial answer fields. Add options one at a time up to
+six, with at most 50 characters per answer. The post text is the question.
+Allow one or multiple answers and choose a duration from five minutes to seven
+days; the initial duration is one day.
 
-### "World" section
+After publication, options, mode, deadline and visibility stay fixed. You can
+correct the post text. Duration starts at actual publication, including posts
+with a video awaiting processing.
 
-A new "World" item in the left sidebar (`/mondo`) gives a window onto what
-arrives from the rest of the fediverse toward this instance. **It is not and
-cannot be a complete index of the fediverse**: Openbook neither crawls nor
-actively indexes it, so this page shows only what has already been cached
-locally because it is relevant (`InboxActivityProcessor::isRelevant()` —
-author followed by a local Actor, reply to already-known content, or mention
-of a local Actor). That limit is stated in the interface, not a hidden
-implementation detail.
+**Vote** confirms a final choice. **Preview results** shows aggregates before
+voting; **Back to options** restores selection. After voting, your answer and
+“You voted on …”, with date and time, appear beside the participant total.
+The poll closes at its deadline. In multiple-choice polls one person can
+contribute to several answers: percentages may add up to more than 100%, while
+participants are counted once.
 
-- **Timeline**: all public posts of *remote* Actors already in cache
-  (`FeedQuery::world()`), ordered by descending publication date, regardless of
-  who follows them (unlike the personal feed). Local posts do not appear: they
-  already live on Home.
-- **Accounts to discover**: a small list of proposed remote Actors
-  (`PopularRemoteActorsQuery`), with the same "Follow" button used elsewhere
-  (`actors.follow`). If there are more than five, a "See more" link opens
-  `/mondo/scopri` with the paginated list and infinite scroll. There being no
-  authoritative follower count for a remote Actor (nor an index of "real
-  popularity" in the fediverse), the ranking uses only signals visible from
-  this instance, in order: how many local Actors already follow them
-  (`follows.status = accepted`), then the date of their most recent public post
-  in cache. An Actor with neither signal (never followed locally, never a
-  public post in cache) is not proposed, and anyone already followed by the
-  visitor is excluded.
+The author can open **Answer details** to inspect local and remote voters per
+option, with pagination. Other users see aggregates and their own choices.
+The information icon beside the actions explains these rules. Polls are not
+anonymous to their author. Deleted accounts’ contributions remain in the totals
+with their identities detached.
+
+Polls are available in personal posts and local communities, including private
+ones. Private conversations, comments, events and publishing to remote
+communities are excluded. Closure is scheduled: its date and time stay as
+chosen at publication. For polls from other servers, see
+[remote polls](federation.md#remote-polls).
+
+## Home, hashtags and search
+
+Home shows your posts, posts from followed accounts and their shares in reverse
+chronological order. Following a hashtag also brings relevant public posts
+already known to the instance into Home. Followed hashtags are private account
+preferences.
+
+Search finds people, hashtags and visible events; keyword search for posts and
+comments covers local content. To find a remote account,
+use its full address `user@domain`. Mentions while writing recognize local and
+already-known remote accounts: search for a new remote address first. Inclusion
+of other authors’ public posts in search also depends on their indexing consent.
+
+Trending shows hashtags recently used in local public or unlisted content.
+Home and World require JavaScript to load their feeds. Profiles, communities
+and hashtag pages also provide pagination links with JavaScript disabled.
+
+## Profile and settings
+
+Open **Settings** from the user menu or **Edit profile** on your profile. You
+can update your name, biography, avatar, cover and up to eight fields shared
+between Links and Additional information. Images are previewed before saving.
+Profile changes are communicated to remote followers.
+
+Preferences let you choose interface language and initial visibility for new
+posts. With **Protected account**, you approve follow requests. You can choose
+whether to appear in suggestions and whether to allow indexing of your public
+posts. Opting out of suggestions keeps your profile reachable by its exact
+address.
+
+## Notifications and messages
+
+The bell opens recent notifications; the Notifications page contains the full
+list. Badges update while the tab is visible. Push notifications are available
+when enabled and permitted in the browser.
+
+**Messages** contains private conversations. New messages in the same
+conversation update its notification. Opening the conversation marks it read;
+reading general notifications keeps message read status separate. Threads use
+arrival order on the instance, while each message’s displayed date remains its
+original publication date.
+
+## World, communities and events
+
+**World** shows public remote content already known to the instance. **Discover**
+suggests remote accounts to follow. These pages depend on content received or
+fetched by the instance and do not represent a complete Fediverse directory.
+
+**Communities** separates your memberships, local communities and remote ones.
+**Events** shows upcoming and past appointments and lets authenticated users
+create them. For memberships, bells, participation and interaction with other
+servers, see the [federation guide](federation.md).
+
+## Running an instance
+
+Administrators manage settings, accounts, moderation, blocked domains, queues
+and maintenance from the administration panel. Moderators can use functions
+assigned to their role; staff roles grant no access to another author’s
+individual poll answers.
+
+For installation and updates, follow the [installation guide](install.md).
+For cron, maintenance, retention and videos, see
+[configuration](configuration.md); for current limits, see the
+[roadmap](roadmap.md).

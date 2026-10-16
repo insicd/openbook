@@ -4,8 +4,8 @@ namespace Tests\Feature\Polls;
 
 use App\Application\Services\FollowManager;
 use App\Application\Services\RemotePollVoter;
-use App\Domain\Polls\RemotePoll;
-use App\Domain\Polls\RemotePollVote;
+use App\Domain\Polls\Poll;
+use App\Domain\Polls\PollVote;
 use App\Domain\Posts\Post;
 use App\Federation\Serialization\NoteSerializer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,7 +60,7 @@ class RemotePollUiTest extends TestCase
         $this->assertSame($count, $poll->fresh()->voters_count);
         $this->actingAs($voter->user)->from(route('posts.show', $poll->post))->post(route('posts.poll.vote', $poll->post), $this->selection($poll))
             ->assertRedirect(route('posts.show', $poll->post).'#poll-'.$poll->post_id)->assertSessionHas('status', 'Voto registrato.');
-        $this->assertSame(1, RemotePollVote::count());
+        $this->assertSame(1, PollVote::count());
         Http::assertNothingSent();
     }
 
@@ -68,17 +68,17 @@ class RemotePollUiTest extends TestCase
     {
         [$voter, $poll] = $this->fixtureForPage();
         app(RemotePollVoter::class)->vote($voter, $poll, [$poll->options[0]->id], $poll->optionsVersion());
-        $this->actingAs($voter->user)->get(route('posts.show', $poll->post))->assertSee('La tua risposta')->assertSee('Voto registrato.');
+        $this->actingAs($voter->user)->get(route('posts.show', $poll->post))->assertSee('La tua risposta')->assertSee('Hai votato il');
         $other = $this->createFullAccount('otherpollreader');
-        $this->actingAs($other)->get(route('posts.show', $poll->post))->assertDontSee('La tua risposta')->assertDontSee('Voto registrato.')->assertSee('data-poll-form', false);
+        $this->actingAs($other)->get(route('posts.show', $poll->post))->assertDontSee('La tua risposta')->assertDontSee('Hai votato il')->assertSee('data-poll-form', false);
         auth()->forgetGuards();
         $this->get(route('posts.show', $poll->post))->assertOk()->assertDontSee('La tua risposta')->assertDontSee('data-poll-form', false)->assertSee('Sign in with an active account');
         $document = json_encode(NoteSerializer::forPost($poll->post));
         $this->assertStringNotContainsString('viewerVote', $document);
         $this->assertStringNotContainsString('pollvoter', $document);
-        RemotePoll::annotateViewerState([$poll], $voter);
+        Poll::annotateViewerState([$poll], $voter);
         $this->assertArrayNotHasKey('viewerVote', $poll->toArray());
-        RemotePoll::annotateViewerState([$poll], null);
+        Poll::annotateViewerState([$poll], null);
         $this->assertNull($poll->getRelation('viewerVote'));
     }
 
@@ -91,7 +91,7 @@ class RemotePollUiTest extends TestCase
         $poll = $poll->fresh('options');
         $poll->update(['ends_at' => now()->subSecond()]);
         $this->postJson(route('posts.poll.vote', $poll->post), $this->selection($poll))->assertUnprocessable()->assertJsonValidationErrors('poll');
-        $this->assertSame(0, RemotePollVote::count());
+        $this->assertSame(0, PollVote::count());
     }
 
     public function test_removed_or_renamed_choices_remain_visible_as_the_original_snapshot(): void
@@ -128,7 +128,7 @@ class RemotePollUiTest extends TestCase
         $poll->post->update(['status' => 'published']);
         $poll->delete();
         $this->postJson(route('posts.poll.vote', $poll->post), $this->selection($poll))->assertNotFound();
-        $this->assertSame(0, RemotePollVote::count());
+        $this->assertSame(0, PollVote::count());
     }
 
     public function test_html_validation_errors_belong_to_the_poll_and_guests_must_sign_in(): void
@@ -161,17 +161,17 @@ class RemotePollUiTest extends TestCase
         $post = Post::create(['actor_id' => $voter->id, 'quoted_post_id' => $poll->post_id, 'body' => 'Citazione', 'status' => 'published', 'visibility' => 'public', 'published_at' => now()])->load(Post::CARD_RELATIONS);
         $queries = [];
         DB::listen(function ($query) use (&$queries): void {
-            if (str_contains($query->sql, 'remote_poll_vote')) {
+            if (str_contains($query->sql, 'poll_vote')) {
                 $queries[] = $query->sql;
             }
         });
         Post::annotateViewerState(array_fill(0, 10, $post), $voter);
         $this->assertCount(2, $queries);
-        $this->assertNotNull($post->quotedPost->remotePoll->getRelation('viewerVote'));
+        $this->assertNotNull($post->quotedPost->poll->getRelation('viewerVote'));
         Post::whereKey($poll->post_id)->update(['visibility' => 'followers']);
-        RemotePoll::annotateViewerState([$post->quotedPost->remotePoll], $voter);
-        $this->assertFalse($post->quotedPost->remotePoll->getRelation('viewerCanSee'));
-        $this->assertNull($post->quotedPost->remotePoll->getRelation('viewerVote'));
+        Poll::annotateViewerState([$post->quotedPost->poll], $voter);
+        $this->assertFalse($post->quotedPost->poll->getRelation('viewerCanSee'));
+        $this->assertNull($post->quotedPost->poll->getRelation('viewerVote'));
         $this->actingAs($voter->user);
         $this->assertStringNotContainsString('data-poll-id', view('posts._card', ['post' => $post])->render());
     }
@@ -221,7 +221,7 @@ class RemotePollUiTest extends TestCase
         return [$voter, $poll];
     }
 
-    private function selection(RemotePoll $poll): array
+    private function selection(Poll $poll): array
     {
         return ['choices' => [$poll->options[0]->id], 'options_version' => $poll->optionsVersion()];
     }

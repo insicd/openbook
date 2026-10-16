@@ -2,17 +2,23 @@
 
 namespace Tests\Concerns;
 
-use App\Domain\Polls\RemotePoll;
-use App\Domain\Polls\RemotePollOption;
-use App\Domain\Polls\RemotePollVote;
-use App\Domain\Polls\RemotePollVoteChoice;
+use App\Application\Services\AccountRegistrar;
+use App\Application\Services\DomainBlockManager;
+use App\Domain\Polls\Poll;
+use App\Domain\Polls\PollOption;
+use App\Domain\Polls\PollVote;
+use App\Domain\Polls\PollVoteChoice;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\RemoteNoteUpserter;
+use App\Federation\Polls\PollVoteDeliveryGuard;
+use App\Federation\Serialization\PollVoteSerializer;
+use App\Infrastructure\Security\Http\SafeHttpClient;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Database\QueryException;
 use Illuminate\Queue\DatabaseQueue;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -29,7 +35,7 @@ trait TestsRemotePollPersistence
             $poll->options()->create(['position' => 0, 'name' => 'Sabato', 'votes_count' => 0]);
             $poll = $poll->fresh();
 
-            $this->assertSame($poll->id, $poll->post->remotePoll->id);
+            $this->assertSame($poll->id, $poll->post->poll->id);
             $this->assertSame(['Sabato', 'Domenica'], $poll->options->pluck('name')->all());
             $this->assertSame(0, $poll->options[0]->votes_count);
             $this->assertNull($poll->options[1]->votes_count);
@@ -52,7 +58,7 @@ trait TestsRemotePollPersistence
     public function test_database_enforces_one_poll_per_post_and_one_vote_per_actor(): void
     {
         $poll = $this->newPoll();
-        $this->assertUniqueViolation(fn () => RemotePoll::create(['post_id' => $poll->post_id, 'multiple' => true]));
+        $this->assertUniqueViolation(fn () => Poll::create(['post_id' => $poll->post_id, 'multiple' => true]));
         $actor = $this->pollActor(true);
         $vote = $poll->votes()->create(['actor_id' => $actor->id]);
         $this->assertSame($actor->id, $vote->actor->id);
@@ -97,15 +103,16 @@ trait TestsRemotePollPersistence
         $vote = $poll->votes()->create(['actor_id' => $actor->id]);
         $vote->choices()->create(['position' => 0, 'name' => 'Sabato']);
         $actor->delete();
-        $this->assertSame(0, RemotePollVote::count());
-        $this->assertSame(0, RemotePollVoteChoice::count());
+        $this->assertSame(1, PollVote::count());
+        $this->assertSame(1, PollVoteChoice::count());
+        $this->assertNull($vote->fresh()->actor_id);
         $vote = $poll->votes()->create(['actor_id' => $this->pollActor(true)->id]);
         $vote->choices()->create(['position' => 0, 'name' => 'Sabato']);
         $poll->post->delete();
-        $this->assertSame(0, RemotePoll::count());
-        $this->assertSame(0, RemotePollOption::count());
-        $this->assertSame(0, RemotePollVote::count());
-        $this->assertSame(0, RemotePollVoteChoice::count());
+        $this->assertSame(0, Poll::count());
+        $this->assertSame(0, PollOption::count());
+        $this->assertSame(0, PollVote::count());
+        $this->assertSame(0, PollVoteChoice::count());
     }
 
     public function test_database_queue_can_persist_choices_and_jobs_in_one_transaction(): void
@@ -113,7 +120,7 @@ trait TestsRemotePollPersistence
         $poll = $this->newPoll(true);
         $actor = $this->pollActor(true);
         $queue = $this->pollDatabaseQueue();
-        $vote = DB::transaction(function () use ($poll, $actor, $queue): RemotePollVote {
+        $vote = DB::transaction(function () use ($poll, $actor, $queue): PollVote {
             $vote = $poll->votes()->create(['actor_id' => $actor->id]);
             foreach (['Sabato', 'Domenica'] as $position => $name) {
                 $choice = $vote->choices()->create(['position' => $position, 'name' => $name]);
@@ -163,8 +170,8 @@ trait TestsRemotePollPersistence
         } finally {
             Queue::createPayloadUsing(null);
         }
-        $this->assertSame(0, RemotePollVote::count());
-        $this->assertSame(0, RemotePollVoteChoice::count());
+        $this->assertSame(0, PollVote::count());
+        $this->assertSame(0, PollVoteChoice::count());
         $this->assertSame(0, DB::table('jobs')->count());
     }
 
@@ -192,6 +199,8 @@ trait TestsRemotePollPersistence
     {
         $simplification = require base_path('database/migrations/2026_10_15_000002_simplify_remote_poll_timestamps.php');
         $observation = require base_path('database/migrations/2026_10_15_000001_add_observation_to_remote_polls.php');
+        $unification = require base_path('database/migrations/2026_10_15_000003_unify_poll_tables.php');
+        $unification->down();
         $simplification->down();
         $observation->down();
         $this->assertFalse(DB::connection()->getSchemaBuilder()->hasColumn('remote_polls', 'observed_at'));
@@ -200,6 +209,7 @@ trait TestsRemotePollPersistence
         $simplification->up();
         $this->assertTrue(DB::connection()->getSchemaBuilder()->hasColumn('remote_polls', 'results_received_at'));
         $this->assertFalse(DB::connection()->getSchemaBuilder()->hasColumn('remote_polls', 'observed_at'));
+        $unification->up();
     }
 
     public function test_timestamp_simplification_preserves_results_receipt_and_vote_dates(): void
@@ -210,12 +220,15 @@ trait TestsRemotePollPersistence
         $vote = $poll->votes()->create(['actor_id' => $this->pollActor(true)->id]);
         $choice = $vote->choices()->create(['position' => 0, 'name' => 'Sabato']);
         $migration = require base_path('database/migrations/2026_10_15_000002_simplify_remote_poll_timestamps.php');
+        $unification = require base_path('database/migrations/2026_10_15_000003_unify_poll_tables.php');
+        $unification->down();
         $migration->down();
         // Simulate a local DB that already ran the earlier sprint migrations.
         DB::table('remote_polls')->where('id', $poll->id)->update(['created_at' => '2026-10-08 10:00:00', 'updated_at' => '2026-10-08 10:06:00']);
         $migration->up();
+        $unification->up();
         $schema = DB::connection()->getSchemaBuilder();
-        foreach (['remote_polls', 'remote_poll_options'] as $table) {
+        foreach (['polls', 'poll_options'] as $table) {
             $this->assertFalse($schema->hasColumn($table, 'created_at'));
             $this->assertFalse($schema->hasColumn($table, 'updated_at'));
         }
@@ -228,11 +241,58 @@ trait TestsRemotePollPersistence
         $this->assertNotNull($choice->fresh()->created_at);
     }
 
-    private function newPoll(bool $multiple = false): RemotePoll
+    private function newPoll(bool $multiple = false): Poll
     {
         $post = Post::create(['actor_id' => $this->pollActor()->id, 'uri' => 'https://remote.example/posts/'.Str::uuid(), 'body' => 'Poll', 'visibility' => 'public', 'status' => 'published', 'published_at' => now()]);
 
-        return RemotePoll::create(['post_id' => $post->id, 'multiple' => $multiple, 'voters_count' => 0]);
+        return Poll::create(['post_id' => $post->id, 'multiple' => $multiple, 'voters_count' => 0]);
+    }
+
+    public function test_unification_preserves_all_four_tables_and_already_queued_votes(): void
+    {
+        $poll = $this->newPoll();
+        $poll->forceFill(['voters_count' => null, 'remote_updated_at' => '2026-10-08 10:03:00',
+            'results_received_at' => '2026-10-08 10:05:00', 'source_item_id' => (string) Str::uuid()])->save();
+        $option = $poll->options()->create(['position' => 0, 'name' => 'Sabato 💪', 'votes_count' => null]);
+        $voter = app(AccountRegistrar::class)->register([
+            'username' => 'migrationvoter', 'email' => 'migrationvoter@example.test', 'password' => 'Password123',
+        ])->actor;
+        $vote = $poll->votes()->create(['actor_id' => $voter->id]);
+        $choice = $vote->choices()->create(['position' => 0, 'name' => $option->name]);
+        $activity = PollVoteSerializer::create($choice, $voter, $poll->post);
+        $this->pollDatabaseQueue()->push(new DeliverActivityJob('https://remote.example/inbox', $activity, $voter->id, pollVoteChoiceId: $choice->id), '', 'delivery');
+        $queued = DB::table('jobs')->value('payload');
+        $optionsVersion = $poll->fresh()->load('options')->optionsVersion();
+        $migration = require base_path('database/migrations/2026_10_15_000003_unify_poll_tables.php');
+        $migration->down();
+        $tables = ['remote_polls' => 'polls', 'remote_poll_options' => 'poll_options',
+            'remote_poll_votes' => 'poll_votes', 'remote_poll_vote_choices' => 'poll_vote_choices'];
+        $before = [];
+        foreach ($tables as $old => $new) {
+            $this->assertTrue(DB::connection()->getSchemaBuilder()->hasTable($old));
+            $before[$new] = (array) DB::table($old)->first();
+        }
+        $migration->up();
+        foreach ($tables as $old => $new) {
+            $this->assertFalse(DB::connection()->getSchemaBuilder()->hasTable($old));
+            $row = (array) DB::table($new)->first();
+            $this->assertSame($before[$new], array_intersect_key($row, $before[$new]), $new);
+        }
+        $this->assertSame($queued, DB::table('jobs')->value('payload'));
+        $this->assertSame($optionsVersion, $poll->fresh()->load('options')->optionsVersion());
+        $this->assertSame($poll->id, $poll->post->fresh()->poll->id);
+        $this->assertNull($poll->fresh()->voters_count);
+        $this->assertFalse($poll->fresh()->needs_delivery);
+        $this->assertFalse($poll->fresh()->publication_pending);
+        $this->assertSame(PollVote::identityHash($voter->uri), $vote->fresh()->voter_hash);
+        $this->assertTrue(app(PollVoteDeliveryGuard::class)->allows($choice->id, $voter, 'https://remote.example/inbox'));
+        Http::fake(['*' => Http::response('', 202)]);
+        $job = unserialize(json_decode($queued, true, 512, JSON_THROW_ON_ERROR)['data']['command']);
+        $job->handle(app(SafeHttpClient::class), app(DomainBlockManager::class));
+        Http::assertSentCount(1);
+        $this->assertSame($activity['id'], $job->activity['id']);
+        $this->assertSame($activity['object']['id'], $job->activity['object']['id']);
+        $this->assertSame($choice->id, $job->pollVoteChoiceId);
     }
 
     private function pollActor(bool $local = false): Actor
@@ -260,7 +320,7 @@ trait TestsRemotePollPersistence
         return $queue;
     }
 
-    private function pollDeliveryJob(RemotePollVoteChoice $choice, Actor $actor): DeliverActivityJob
+    private function pollDeliveryJob(PollVoteChoice $choice, Actor $actor): DeliverActivityJob
     {
         return (new DeliverActivityJob('https://remote.example/inbox', ['id' => $actor->uri.'#votes/'.$choice->id.'/activity', 'type' => 'Create'], $actor->id))->beforeCommit();
     }

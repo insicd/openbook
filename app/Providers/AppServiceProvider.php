@@ -7,6 +7,7 @@ use App\Application\Queries\SuggestedActorsByBioQuery;
 use App\Application\Queries\SuggestedLocalActorsQuery;
 use App\Application\Services\ConversationReadTracker;
 use App\Application\Services\InstanceSettings;
+use App\Application\Services\PollLifecycle;
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
 use App\Domain\Communities\Community;
@@ -57,6 +58,21 @@ class AppServiceProvider extends ServiceProvider
     {
         Post::updated(function (Post $post): void {
             app(ConversationReadTracker::class)->invalidateOnPostChange($post);
+            if ($post->wasChanged('status') && $post->status === Post::STATUS_DELETED) {
+                app(PollLifecycle::class)->removeFromDeletedPost($post);
+            }
+        });
+
+        Actor::updated(function (Actor $actor): void {
+            if (($actor->wasChanged('status') && $actor->status === Actor::STATUS_DELETED)
+                || ($actor->isLocal() && $actor->wasChanged('user_id') && $actor->user_id === null)) {
+                app(PollLifecycle::class)->detachVoter($actor->id);
+            }
+        });
+        User::deleting(function (User $user): void {
+            foreach ($user->actor()->pluck('id') as $actorId) {
+                app(PollLifecycle::class)->detachVoter($actorId);
+            }
         });
 
         if (config('app.env') === 'production') {

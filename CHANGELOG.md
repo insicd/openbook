@@ -19,22 +19,40 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Sondaggi remoti (#120)**: importazione degli oggetti `Question` attraverso
-  inbox, outbox, condivisioni e refresh esistenti; visualizzazione nelle card e
-  nel dettaglio del post, con voto singolo/multiplo e conferma «Voto registrato»
-  alla persistenza atomica delle scelte e delle attività nella coda locale.
-  Le risposte personali restano evidenziate anche dopo rinomina/rimozione delle
-  opzioni; conteggi e percentuali provengono dai dati dichiarati dall'origine.
-  Consegna al solo autore, retry con ID stabili, controlli di accesso e
-  moderazione anche prima dell'invio. Nessun polling dedicato; funzionamento
-  anche senza JavaScript, con avvisi sui contenuti e visibilità del post.
-  Le Note di voto sono escluse da commenti e messaggi; il replay storico
-  preserva lo snapshot più recente. `openbook:deliver` consuma la coda database
-  del dominio anche con driver globale `sync` o backend separato. Applicare le
-  migration e rigenerare cache di configurazione e route, se usate. La migration
-  correttiva preserva anche i DB locali che avevano applicato gli incrementi
-  iniziali, usando `results_received_at` e omettendo i timestamp automatici di
-  sondaggi e opzioni remote.
+- **Sondaggi locali (#121)**: creazione dall’icona nella barra del composer, con
+  2–6 opzioni di massimo 50 caratteri, aggiunta progressiva, scelta singola o
+  multipla e durata da 5 minuti a 7 giorni (predefinita: un giorno). Allegati,
+  video e community locali anche private seguono i flussi dei post. Definizione e visibilità restano
+  fissate alla pubblicazione; il testo può essere corretto.
+- **Voto e risultati (#120, #121)**: sondaggi remoti importati come `Question`
+  tramite inbox, outbox, condivisioni e refresh esistenti, visibili nelle card e
+  nel dettaglio. Voto definitivo, confermato alla registrazione locale e
+  all’accodamento del lavoro federato; risposta personale e data del voto visibili
+  anche dopo variazioni delle opzioni remote. I conteggi remoti restano quelli
+  dell’origine; quelli locali sono aggiornati in modo transazionale. I risultati
+  locali si mostrano dopo il voto o la chiusura, oppure con «Anteprima risultati».
+  Form e link funzionano anche senza JavaScript; nessun polling dei risultati.
+- **Risposte riservate all’autore (#121)**: pagina con una scheda per opzione e
+  partecipanti locali/remoti paginati. Gli altri lettori vedono gli aggregati e
+  la propria scelta. Le identità cancellate restano soltanto nei conteggi.
+- **Federazione dei sondaggi (#120, #121)**: voti remoti recapitati al solo autore,
+  senza generare commenti o messaggi. Per i sondaggi locali, pubblicazione,
+  correzioni, risultati e chiusura programmata usano snapshot recuperabili e
+  consegne a batch nel cron generale. Le risposte incorporate ricevute entro
+  la scadenza valgono anche se elaborate dopo; quelle tramite URI richiedono
+  anche il recupero in tempo. Deduplicazione, ID stabili nei retry e ricontrollo
+  di accesso, audience e blocchi prima dell’invio. Intenzionalmente esclusi
+  sondaggi in conversazioni private, commenti/eventi e pubblicazione verso Group
+  remoti; chiusura soltanto programmata, senza modifica della scadenza.
+- **Aggiornamento dello schema dei sondaggi**: modello unico `Poll` collegato al
+  post; le quattro tabelle `remote_poll*` vengono rinominate in `polls`,
+  `poll_options`, `poll_votes`, `poll_vote_choices`, preservando UUID, dati e voti
+  già accodati. Applicare le migration e rigenerare le cache di configurazione
+  e route, se usate. `openbook:cron` include `openbook:process-polls` prima della
+  consegna; `openbook:deliver` consuma anche la coda database del dominio con
+  driver globale `sync` o backend separato. Nessun cron aggiuntivo o worker
+  permanente richiesto. Il replay storico dell’inbox preserva lo snapshot
+  remoto più recente.
 - **Campanella sui Group**: Mastodon tiene `notify` solo in locale e non lo
   mette nel Follow; l'Announce FEP-1b12 e' un boost e non fa suonare la
   campanella. I nuovi post sul wall di un Group locale vengono quindi
@@ -168,6 +186,12 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Documentazione per utenti e amministratori**: guide d’uso, sondaggi,
+  federazione e limiti del prodotto riscritte in italiano e inglese; istruzioni
+  operative mantenute nelle guide di installazione/configurazione. Riferimenti
+  a codice, test e preparazione delle release spostati in `development/`, con
+  indici e collegamenti aggiornati. Chiariti chat, spostamenti degli account
+  e disponibilità degli upload senza GD.
 - **Homepage ospite**: nome e descrizione dell'istanza sono in evidenza;
   i riferimenti al software Openbook restano piu' in basso. I box e la
   navbar sono semitrasparenti. Dalle impostazioni admin si puo' caricare

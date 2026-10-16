@@ -22,13 +22,17 @@ final class PostPublicationStager
         'image/gif',
     ];
 
-    public function __construct(private readonly VideoProbe $videoProbe) {}
+    public function __construct(private readonly VideoProbe $videoProbe, private readonly LocalPollPublisher $pollPublisher) {}
 
     /**
      * @param  array{title?: ?string, content_warning?: ?string, body: string, visibility?: string, language?: ?string, quoted_post_id?: ?string, community_id?: ?string, addressed_group_actor_id?: ?string, images: array<int, UploadedFile>, alt_texts?: array<int, ?string>}  $data
      */
     public function stage(Actor $author, array $data): PendingPostPublication
     {
+        $pollDefinition = $this->pollPublisher->definitionFor($author, $data);
+        if ($pollDefinition !== null) {
+            $data['poll'] = $pollDefinition->toArray();
+        }
         if (! config('openbook.video.enabled', false)) {
             throw new InvalidArgumentException('Il supporto video non e\' abilitato.');
         }
@@ -121,6 +125,7 @@ final class PostPublicationStager
             'community_id',
             'addressed_group_actor_id',
             'location_id',
+            'poll',
         ]));
     }
 

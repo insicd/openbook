@@ -20,15 +20,15 @@ Tutte le impostazioni specifiche di Openbook sono centralizzate in
 | `OPENBOOK_FEED_PER_PAGE` | Numero di post per pagina nel feed personale, nel feed locale e nelle pagine profilo/hashtag. |
 | `OPENBOOK_ACTOR_KEY_BITS` | Lunghezza (bit) delle chiavi RSA generate per i nuovi Actor ActivityPub (minimo consigliato: 2048). |
 | `OPENBOOK_SIGNATURE_MAX_SKEW` | Scarto massimo (secondi) tollerato tra l'header `Date` di una richiesta firmata in ingresso e l'orologio locale, prima di rifiutarla. |
-| `OPENBOOK_FETCH_MAX_REDIRECTS` / `OPENBOOK_FETCH_TIMEOUT` / `OPENBOOK_FETCH_CONNECT_TIMEOUT` / `OPENBOOK_FETCH_MAX_BYTES` | Limiti applicati dal client HTTP protetto da SSRF (`SafeHttpClient`) usato per recuperare Actor e risorse remote. |
+| `OPENBOOK_FETCH_MAX_REDIRECTS` / `OPENBOOK_FETCH_TIMEOUT` / `OPENBOOK_FETCH_CONNECT_TIMEOUT` / `OPENBOOK_FETCH_MAX_BYTES` | Limiti applicati dal client HTTP protetto da SSRF usato per recuperare Actor e risorse remote. |
 | `OPENBOOK_FETCH_ALLOW_INSECURE` | Consente richieste in uscita su HTTP semplice (solo per sviluppo locale; in produzione resta sempre richiesto HTTPS). |
 | `OPENBOOK_ACTOR_CACHE_TTL_HOURS` | Per quante ore un Actor remoto gia' risolto viene considerato "fresco" prima di essere ri-scaricato. |
 | `OPENBOOK_INBOX_MAX_BODY_BYTES` / `OPENBOOK_INBOX_MAX_JSON_DEPTH` | Limiti di dimensione e profondita' JSON applicati alle attivita' in ingresso, prima ancora della verifica crittografica. |
 | `OPENBOOK_DELIVERY_MAX_ATTEMPTS` | Numero massimo di tentativi per la consegna di una singola attivita' in uscita, prima che finisca in `failed_jobs`. Gli intervalli di backoff tra un tentativo e l'altro (1, 5, 15, 60, 360, 1440 minuti) sono fissi. |
 
-Il caricamento di immagini richiede l'estensione PHP `gd` (verificata dall'installer come
-requisito **consigliato**, non bloccante): senza `gd` l'istanza funziona regolarmente,
-ma sara' possibile pubblicare solo post testuali.
+L’estensione PHP `gd` è consigliata per generare miniature e rimuovere i
+metadati dalle immagini compatibili. Senza GD il caricamento resta disponibile,
+ma queste elaborazioni vengono saltate.
 
 ### Posizione dei post
 
@@ -72,6 +72,8 @@ Configura `openbook:cron` ogni minuto per elaborare le attività in attesa e
 eseguire le manutenzioni periodiche. Il comando coordina questi task:
 
 - `openbook:process-inbox` — processa la coda `inbox`;
+- `openbook:process-polls` — registra le chiusure programmate dei sondaggi e accoda
+  pubblicazione/risultati pendenti in batch riprendibili;
 - `openbook:deliver` — processa la coda `delivery`;
 - `openbook:deliver-push` — consegna le notifiche Web Push in attesa;
 - `openbook:confirm-outgoing-follows` — conferma Follow remoti ancora pending
@@ -254,8 +256,8 @@ php /percorso/openbook/artisan openbook:process-videos
 Il worker interroga la coda ogni cinque secondi, gestisce SIGTERM/SIGINT in
 modo graceful e verifica FFmpeg/ffprobe prima di acquisire un lavoro. `--once`
 elabora al massimo un post ed e' utile per la diagnostica. Piu' worker possono
-convivere: un lock breve sul claim e una lease per riga impediscono la doppia
-pubblicazione.
+convivere: ogni lavoro viene assegnato in modo esclusivo per evitare
+pubblicazioni duplicate.
 
 Come alternativa piu' semplice, ma con maggiore latenza, un cron di sistema
 puo' elaborare un post in coda per ogni esecuzione:

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Posts;
 
+use App\Domain\Polls\LocalPollDefinition;
 use App\Domain\Posts\Post;
 use App\Domain\Posts\PostLanguage;
 use Illuminate\Foundation\Http\FormRequest;
@@ -9,6 +10,20 @@ use Illuminate\Validation\Validator;
 
 class StorePostRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $options = $this->input('poll.options');
+        if ($this->boolean('poll_composer') && is_array($options)
+            && collect($options)->every(fn ($value): bool => $value === null || (is_string($value) && trim($value) === ''))) {
+            $this->merge(['poll' => null]);
+        }
+    }
+
+    public function messages(): array
+    {
+        return LocalPollDefinition::messages();
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -32,7 +47,7 @@ class StorePostRequest extends FormRequest
 
         $allowedMimes = implode(',', $allowed);
 
-        return [
+        return array_merge(LocalPollDefinition::rules(), [
             'title' => ['nullable', 'string', 'max:255'],
             'content_warning' => ['nullable', 'string', 'max:255'],
             'body' => ['required', 'string', 'max:'.(int) config('openbook.posts.max_length')],
@@ -52,7 +67,7 @@ class StorePostRequest extends FormRequest
             'addressed_group_actor_id' => ['nullable', 'uuid', 'exists:actors,id'],
             'location_id' => ['nullable', 'required_with:location_label', 'integer', 'exists:geo_cities,geoname_id'],
             'location_label' => ['nullable', 'string', 'max:600'],
-        ];
+        ]);
     }
 
     public function withValidator(Validator $validator): void

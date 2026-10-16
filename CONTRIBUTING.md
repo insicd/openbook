@@ -15,7 +15,7 @@ proporre modifiche in modo coerente con l'architettura e gli obiettivi del proge
 - La federazione ActivityPub e' parte integrante dell'architettura, non un plugin:
   mantieni separati dominio applicativo locale, rappresentazione ActivityStreams,
   ricezione/consegna delle attivita' e interfaccia web (vedi
-  [Architettura](docs/architecture.it.md)).
+  [Architettura](development/architecture.it.md)).
 - I controller non devono contenere logica di dominio o di federazione: devono
   validare, autorizzare, invocare un servizio applicativo e restituire la risposta.
 
@@ -24,7 +24,7 @@ proporre modifiche in modo coerente con l'architettura e gli obiettivi del proge
 - PHP 8.2+, Composer.
 - Un client MySQL/MariaDB e' opzionale per lo sviluppo quotidiano (la suite di test
   usa SQLite in memoria di default) ma e' necessario per esercitare i test di
-  integrazione specifici sull'installer (vedi [Test](docs/development.it.md)).
+  integrazione specifici sull'installer (vedi [Test](development/testing.it.md)).
 
 ## Flusso di lavoro
 

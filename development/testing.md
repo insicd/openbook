@@ -2,6 +2,61 @@
 
 ## Tests
 
+Local poll foundations (#121) can be checked with:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/LocalPollFoundationsTest.php tests/Feature/Posts/PostPublicationStagerTest.php
+```
+
+These cases cover persistence, validation, canonical/outbox Questions,
+audience, immutability, deletion and expiry after video staging.
+`LocalPollMysqlPersistenceTest` reuses the cases in isolated random schemas and
+adds migration rollback and EXPLAIN checks. Enable it with
+`OPENBOOK_TEST_POLLS_MYSQL` and the `OPENBOOK_TEST_MYSQL_*` variables described
+below, selecting the class with `--filter=LocalPollMysqlPersistenceTest`.
+
+Local/federated vote collection (#121, sprint 2):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/LocalPollVotingTest.php tests/Feature/Federation/LocalPollVoteImportTest.php
+```
+
+`LocalPollMysqlVotingTest` repeats domain cases in isolated MySQL schemas and
+checks real concurrent submissions and EXPLAIN plans. Enable the same opt-in
+variables and select `--filter=LocalPollMysqlVotingTest`. No new migration is
+introduced by sprint 2. These checks exercise services and inbox processing directly.
+
+Poll results and scheduled closure (#121, sprint 3):
+
+```bash
+php artisan migrate
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/PollResultsTest.php tests/Feature/Console/ProcessPollsCommandTest.php
+```
+
+The new migration adds transient `poll_distributions` snapshots. For manual
+checks, `php artisan openbook:process-polls --max-time=5` prepares jobs and
+`php artisan openbook:deliver --max-time=5` sends them; `openbook:cron` already
+includes both. `--limit=1 --batch-size=1` on the poll command lets you inspect
+partial progress and resume in a later pass. `PollResultsMysqlTest` adds real
+concurrent cron processes and EXPLAIN checks of every recipient UNION branch,
+using the same isolated-schema opt-in variables described below.
+
+Poll creation/voting UI (#121, sprint 4):
+
+```bash
+php artisan route:clear
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Polls/LocalPollUiTest.php tests/Feature/Polls/RemotePollUiTest.php
+node tests/Browser/polls.cjs
+```
+
+The optional browser check renders production Blade partials against in-memory
+model fixtures, loads production JS/CSS and checks desktop/mobile fields,
+Unicode limits, modal reset/edit isolation, results switching and vote feedback.
+It requires Playwright and an installed browser (`BROWSER_EXECUTABLE_PATH` can
+select one). Native links are checked with JavaScript disabled; HTTP tests cover
+native option controls and submissions. PHPUnit uses an isolated routes cache
+path, avoiding stale routes from the developer instance.
+
 For post-detail back navigation, an optional browser check uses the production
 JS/CSS with a local HTTP fixture for ordinary form redirects:
 `node tests/Browser/post-back.cjs`. It requires Node.js, Playwright and an
@@ -21,6 +76,12 @@ The project uses PHPUnit. The suite runs by default on in-memory SQLite (see
 ```bash
 php artisan test
 ```
+
+Author-only poll answers (#121, sprint 5) are covered by `PollVotersTest`;
+`PollVotersMysqlTest` repeats pagination/deletion cases and checks actual query
+plans with 211 target voters and 1,000 voters belonging to another poll. The
+browser fixture also checks option links, keyboard navigation and pagination
+on desktop/mobile, without accessing the application database.
 
 Remote poll foundations are covered by `RemotePollDocumentTest` and
 `RemotePollPersistenceTest`, using anonymized fixtures in
@@ -49,8 +110,43 @@ When production configuration is cached, point `APP_CONFIG_CACHE` to a nonexiste
 path to preserve the local cache while using the test configuration:
 
 ```bash
-APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --filter=RemotePoll
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --filter=Poll
 ```
+
+### Manual poll verification
+
+After updating this branch on a development instance, refresh stale caches and
+apply migrations (the automated tests do not modify the application database):
+
+```bash
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan migrate
+```
+
+If the deployment normally caches configuration/routes, regenerate those caches
+through its normal deployment procedure after updating.
+
+1. Open an already imported remote post using `polls.post_id`, rather than
+   `source_item_id`. Check option text, aggregate counts and closed/open state.
+2. Create a public local poll with a five-minute duration. Start with two options,
+   add/remove options, and try both single and multiple choice (up to six).
+   Include an attachment and a content warning in one example.
+3. From a second account, show results, return to choices and vote. Confirm the
+   personal answer and final choice; another account must not see that answer.
+   As the author, open “Answer details”, switch options and inspect participants.
+   The same URL must reject another account, including a moderator/admin.
+4. Repeat in a private local community and with followers-only visibility.
+   Check that an excluded account cannot open or vote on the post. Edit the
+   text: definition and visibility must remain fixed.
+5. After five minutes, check closure, then run `php artisan openbook:cron`.
+   This processes the inbox, records closures, prepares snapshots and attempts
+   ordinary queued delivery. No extra cron entry is required. A preparation-only
+   pass is `php artisan openbook:process-polls --max-time=5`.
+6. With a second test federation instance, verify publication, incoming single/
+   multiple votes and results/closure Updates. These live interoperability
+   checks complement the automated HTTP fixtures; they require test accounts.
 
 The suite covers bootstrap/installer/authentication, the local social domain
 (posts, media, comments, reactions, follows, feed, notifications), identity and

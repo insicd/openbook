@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Application\Services\DomainBlockManager;
+use App\Application\Services\LocalPollInteractionPolicy;
 use App\Application\Services\RemotePollInteractionPolicy;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
@@ -12,7 +13,11 @@ class PostPolicy
     public function vote(User $user, Post $post): bool
     {
         $actor = $user->actor;
-        $poll = $post->remotePoll;
+        $poll = $post->poll;
+        if ($actor !== null && ! $post->isRemote()) {
+            return app(LocalPollInteractionPolicy::class)->allows($actor, $post)
+                && $poll !== null && ! $poll->isClosed() && $poll->options->count() >= 2;
+        }
         if ($actor === null || ! app(RemotePollInteractionPolicy::class)->allows($actor, $post)
             || $poll === null || $poll->isClosed()
             || $poll->options->count() < 2 || ! $actor->key?->hasPrivateKey()) {
@@ -22,6 +27,13 @@ class PostPolicy
         $blocks = app(DomainBlockManager::class);
 
         return filled($inbox) && ! $blocks->isBlockedUrl($inbox);
+    }
+
+    public function viewPollVoters(User $user, Post $post): bool
+    {
+        return $user->isActive() && $user->actor?->isActive()
+            && $post->actor_id === $user->actor->id && $user->actor->user_id === $user->id
+            && ! $post->isRemote() && $post->isPublished() && $post->poll !== null;
     }
 
     public function update(User $user, Post $post): bool

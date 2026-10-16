@@ -2,7 +2,7 @@
 
 namespace App\Federation\Polls;
 
-use App\Domain\Polls\RemotePoll;
+use App\Domain\Polls\Poll;
 use App\Domain\Posts\Post;
 use App\Federation\Inbox\InboxItem;
 use Illuminate\Support\Carbon;
@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 /** Called with the post and poll locked inside the shared import transaction. */
 final class RemotePollSynchronizer
 {
-    public function accepts(RemotePoll $poll, RemotePollDocument $document, ?InboxItem $source): bool
+    public function accepts(Poll $poll, RemotePollDocument $document, ?InboxItem $source): bool
     {
         if ($document->updatedAt !== null && $poll->remote_updated_at !== null
             && ! $document->updatedAt->equalTo($poll->remote_updated_at)) {
@@ -31,9 +31,10 @@ final class RemotePollSynchronizer
     }
 
     /** @param array<string, mixed> $raw */
-    public function sync(Post $post, ?RemotePoll $poll, RemotePollDocument $document, array $raw, ?InboxItem $source): void
+    public function sync(Post $post, ?Poll $poll, RemotePollDocument $document, array $raw, ?InboxItem $source): void
     {
-        $poll ??= new RemotePoll(['post_id' => $post->id]);
+        $poll ??= new Poll(['post_id' => $post->id]);
+        $poll->setRelation('post', $post);
         $poll->fill([
             'multiple' => $document->multiple,
             'ends_at' => array_key_exists('endTime', $raw) ? $document->endsAt : $poll->ends_at,
@@ -47,6 +48,9 @@ final class RemotePollSynchronizer
         ])->save();
 
         $existing = $poll->options()->lockForUpdate()->get()->keyBy('name_hash');
+        foreach ($existing as $option) {
+            $option->setRelation('poll', $poll);
+        }
         // Temporary positions avoid unique collisions during swaps and removals.
         foreach ($existing->values() as $offset => $option) {
             $option->forceFill(['position' => RemotePollDocument::MAX_OPTIONS + $offset])->save();

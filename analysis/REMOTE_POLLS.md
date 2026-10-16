@@ -7,6 +7,12 @@ esclusi dall'utente. I paragrafi sugli esiti degli sprint documentano le verific
 incrementali e vanno letti insieme alla revisione conclusiva.
 Issue: https://github.com/insicd/openbook/issues/120
 
+Evoluzione nella #121: lo schema descritto negli esiti storici sotto è stato
+unificato in `polls`, `poll_options`, `poll_votes` e `poll_vote_choices`, con
+modelli comuni e relazione `Post::poll`. Le migration della #120 restano
+invariate; una nuova migration rinomina le quattro tabelle e le estende senza
+perdere i dati. Vedi [analisi dei sondaggi locali](LOCAL_POLLS.md).
+
 ## Obiettivo e vincoli
 
 Visualizzazione e voto sono un'unica funzionalità: domanda, opzioni, scelta

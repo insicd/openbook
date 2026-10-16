@@ -4,8 +4,8 @@ namespace Tests\Concerns;
 
 use App\Application\Services\DomainBlockManager;
 use App\Application\Services\RemotePollVoter;
-use App\Domain\Polls\RemotePollVote;
-use App\Domain\Polls\RemotePollVoteChoice;
+use App\Domain\Polls\PollVote;
+use App\Domain\Polls\PollVoteChoice;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -59,7 +59,7 @@ trait TestsRemotePollVoting
         try {
             app(RemotePollVoter::class)->vote($voter, $poll, [$poll->options[0]->id], $poll->optionsVersion());
         } finally {
-            $this->assertSame(0, RemotePollVote::count());
+            $this->assertSame(0, PollVote::count());
             $this->assertSame(0, DB::table('jobs')->count());
         }
     }
@@ -92,7 +92,7 @@ trait TestsRemotePollVoting
         $second = $service->vote($voter, $poll, [$poll->options[1]->id], 'old-version');
         $this->assertSame($first->id, $second->id);
         $this->assertSame(['Sabato'], $second->choices->pluck('name')->all());
-        $this->assertSame(1, RemotePollVote::count());
+        $this->assertSame(1, PollVote::count());
         $this->assertSame(1, DB::table('jobs')->count());
     }
 
@@ -135,8 +135,8 @@ trait TestsRemotePollVoting
         } finally {
             Queue::createPayloadUsing(null);
         }
-        $this->assertSame(0, RemotePollVote::count());
-        $this->assertSame(0, RemotePollVoteChoice::count());
+        $this->assertSame(0, PollVote::count());
+        $this->assertSame(0, PollVoteChoice::count());
         $this->assertSame(0, DB::table('jobs')->count());
     }
 
@@ -158,7 +158,7 @@ trait TestsRemotePollVoting
         foreach ([[], ['other-poll-option'], [$poll->options[0]->id, $poll->options[0]->id], $poll->options->take(2)->pluck('id')->all()] as $choices) {
             $this->assertVotingValidation(fn () => $service->vote($voter, $poll, $choices, $version));
         }
-        $this->assertSame(0, RemotePollVote::count());
+        $this->assertSame(0, PollVote::count());
     }
 
     public function test_option_version_changes_for_rename_reorder_or_mode_but_not_results(): void
@@ -188,7 +188,7 @@ trait TestsRemotePollVoting
             app(RemotePollVoter::class)->vote($voter, $poll, [$poll->options[0]->id], $poll->optionsVersion());
             $this->fail('Private post accepted without a follow.');
         } catch (ModelNotFoundException) {
-            $this->assertSame(0, RemotePollVote::count());
+            $this->assertSame(0, PollVote::count());
         }
         $poll->post->update(['visibility' => 'public', 'status' => 'deleted']);
         $this->expectException(ModelNotFoundException::class);
@@ -219,7 +219,7 @@ trait TestsRemotePollVoting
         $poll->post->actor->endpoints()->update(['shared_inbox' => 'https://remote.example/inbox']);
         $voter->key()->delete();
         $this->assertVotingValidation(fn () => app(RemotePollVoter::class)->vote($voter, $poll, [$poll->options[0]->id], $poll->optionsVersion()));
-        $this->assertSame(0, RemotePollVote::count());
+        $this->assertSame(0, PollVote::count());
     }
 
     public function test_retry_uses_the_same_activity_and_never_changes_the_local_vote(): void
@@ -232,7 +232,7 @@ trait TestsRemotePollVoting
             app()->call([$job, 'handle']);
             $this->fail('503 should request retry.');
         } catch (RuntimeException) {
-            $this->assertSame($vote->id, RemotePollVote::sole()->id);
+            $this->assertSame($vote->id, PollVote::sole()->id);
         }
         app()->call([$job, 'handle']);
         $requests = Http::recorded()->map(fn ($pair) => json_decode($pair[0]->body(), true)['id'])->all();
@@ -250,7 +250,7 @@ trait TestsRemotePollVoting
         app()->call([$job, 'handle']);
         $job->assertFailed();
         Http::assertNothingSent();
-        $this->assertSame(1, RemotePollVote::count());
+        $this->assertSame(1, PollVote::count());
     }
 
     public function test_open_poll_without_deadline_accepts_a_vote(): void
@@ -269,7 +269,7 @@ trait TestsRemotePollVoting
             app(RemotePollVoter::class)->vote($voter, $poll, [$poll->options[0]->id], $poll->optionsVersion());
             $this->fail('Atomic enqueue must require the domain database.');
         } catch (\LogicException) {
-            $this->assertSame(0, RemotePollVote::count());
+            $this->assertSame(0, PollVote::count());
             $this->assertSame(0, DB::table('jobs')->count());
         }
     }
@@ -283,7 +283,7 @@ trait TestsRemotePollVoting
         app()->call([$job, 'handle']);
         $job->assertFailed();
         Http::assertNothingSent();
-        $this->assertSame(1, RemotePollVote::count());
+        $this->assertSame(1, PollVote::count());
     }
 
     private function votingJob(): DeliverActivityJob

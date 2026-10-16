@@ -4370,11 +4370,11 @@ a.ob-post__menu-item {
   min-width: 0;
 }
 
-/* Remote polls share the post card and stay inside its content warning. */
+/* Polls share the post card and stay inside its content warning. */
 .ob-poll {
-  margin-block: 1rem;
-  padding-block: .85rem;
-  border-block: 1px solid var(--ob-color-border);
+  margin-block: 1rem 0;
+  padding-block: .85rem 0;
+  border-top: 1px solid var(--ob-color-border);
 }
 
 .ob-poll__heading {
@@ -4385,8 +4385,7 @@ a.ob-post__menu-item {
   margin-bottom: .65rem;
 }
 
-.ob-poll__heading > span,
-.ob-poll__hint,
+.ob-poll__heading > em,
 .ob-poll__total {
   color: var(--ob-color-text-muted);
   font-size: .85rem;
@@ -4471,7 +4470,6 @@ label.ob-poll__name {
 }
 
 .ob-poll__confirmed {
-  font-weight: 600;
   color: var(--ob-color-success);
 }
 
@@ -4486,11 +4484,88 @@ label.ob-poll__name {
   margin-block: .3rem;
 }
 
-.ob-poll__hint,
-.ob-poll__total {
-  margin-block: .5rem 0;
+.ob-poll__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .4rem 1rem;
+  margin-top: .85rem;
+  font-size: .85rem;
 }
+.ob-poll__summary p { margin: 0; }
+.ob-poll__summary .ob-poll__total { margin-inline-start: auto; text-align: end; }
+/* The non-interactive confirmation receives focus after replacing the form. */
+.ob-poll__confirmed:focus { outline: none; }
 
 .ob-poll [data-poll-feedback] {
   color: var(--ob-color-danger);
+}
+
+.ob-poll [hidden] { display: none !important; }
+.ob-poll__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .75rem;
+}
+.ob-poll__info { position: relative; margin-inline-start: auto; }
+.ob-poll__info > summary { list-style: none; cursor: pointer; color: var(--ob-color-text-muted); }
+.ob-poll__info > summary::-webkit-details-marker { display: none; }
+.ob-poll__info-panel {
+  display: none;
+  position: absolute;
+  inset-inline-end: 0;
+  bottom: calc(100% + .4rem);
+  width: min(20rem, calc(100vw - 4rem));
+  padding: .75rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: .5rem;
+  background: var(--ob-color-surface);
+  box-shadow: var(--ob-shadow);
+  color: var(--ob-color-text-muted);
+  font-size: .8rem;
+  z-index: 5;
+}
+.ob-poll__info-panel p { margin: 0; }
+.ob-poll__info-panel p + p { margin-top: .5rem; }
+.ob-poll__info[open] > .ob-poll__info-panel { display: block; }
+.ob-composer__poll--fixed {
+  margin-block: .75rem;
+  padding: .75rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: .5rem;
+}
+.ob-poll-composer__option { margin-block: .65rem; }
+.ob-poll-composer__input { display: flex; gap: .5rem; align-items: center; }
+.ob-poll-composer__input > input { min-width: 0; flex: 1; }
+.ob-poll-composer__input > button { flex: 0 0 auto; min-height: 2.75rem; }
+.ob-poll-composer__actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .75rem; }
+[data-poll-composer] .ob-field { margin-top: .75rem; }
+
+.ob-poll-composer__multiple { display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; }
+
+.ob-poll-voters__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-block: 1rem;
+}
+.ob-poll-voters__tabs > a {
+  flex: 1 1 11rem;
+  min-width: 0;
+  padding: .65rem .75rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: .45rem;
+  overflow-wrap: anywhere;
+}
+.ob-poll-voters__tabs > a > span {
+  display: block;
+  font-size: .85rem;
+  color: var(--ob-color-text-muted);
+}
+.ob-poll-voters__tabs > a[aria-current="page"] {
+  border-color: var(--ob-color-primary);
+  background: var(--ob-color-primary-soft);
+  font-weight: 600;
 }

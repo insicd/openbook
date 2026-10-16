@@ -33,12 +33,14 @@ use App\Http\Controllers\LikeController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MentionSuggestController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PollComposerController;
+use App\Http\Controllers\PollVoteController;
+use App\Http\Controllers\PollVotersController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostReactionController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PushSubscriptionController;
-use App\Http\Controllers\RemotePollVoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SearchSuggestController;
@@ -102,6 +104,7 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:6,1')
         ->name('verification.send');
 
+    Route::post('/sondaggi/opzioni', PollComposerController::class)->middleware('throttle:30,1')->name('posts.poll.options');
     Route::post('/pubblica', [PostController::class, 'store'])->name('posts.store');
     Route::delete('/pubblicazioni-in-attesa/{publication}', [PostController::class, 'destroyPending'])
         ->name('posts.pending.destroy');
@@ -118,7 +121,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/posts/{post}/commenti', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('/commenti/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
 
-    Route::post('/posts/{post}/vota', RemotePollVoteController::class)
+    Route::get('/posts/{post}/sondaggio/votanti/{option?}', PollVotersController::class)
+        ->whereUuid('option')->name('posts.poll.voters');
+
+    Route::post('/posts/{post}/vota', PollVoteController::class)
         ->middleware('throttle:30,1')->name('posts.poll.vote');
 
     Route::post('/posts/{post}/mi-piace', [LikeController::class, 'likePost'])->name('posts.like');

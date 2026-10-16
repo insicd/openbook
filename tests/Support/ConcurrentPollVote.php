@@ -1,7 +1,8 @@
 <?php
 
+use App\Application\Services\LocalPollVoter;
 use App\Application\Services\RemotePollVoter;
-use App\Domain\Polls\RemotePoll;
+use App\Domain\Polls\Poll;
 use App\Federation\Actors\Actor;
 use App\Infrastructure\Security\Http\DnsResolver;
 use Illuminate\Contracts\Console\Kernel;
@@ -20,9 +21,10 @@ fflush(STDOUT);
 if (trim(fgets(STDIN)) !== 'go') {
     exit(2);
 }
-$vote = app(RemotePollVoter::class)->vote(
+$service = ($input['local'] ?? false) ? LocalPollVoter::class : RemotePollVoter::class;
+$vote = app($service)->vote(
     Actor::findOrFail($input['voter']),
-    RemotePoll::findOrFail($input['poll']),
+    Poll::findOrFail($input['poll']),
     $input['choices'], $input['version'],
 );
 echo $vote->id."\n";

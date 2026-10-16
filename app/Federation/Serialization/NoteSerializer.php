@@ -28,7 +28,7 @@ final class NoteSerializer
      */
     public static function forPost(Post $post): array
     {
-        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor', 'quotedPost', 'quotedActor', 'quotedEvent', 'community.actor', 'location']);
+        $post->loadMissing(['actor.endpoints', 'media', 'hashtags', 'mentions.actor', 'quotedPost', 'quotedActor', 'quotedEvent', 'community.actor', 'location', 'poll.options']);
 
         $actor = $post->actor;
         $uri = self::postUri($post);
@@ -150,7 +150,9 @@ final class NoteSerializer
             $note['tag'] = $tags;
         }
 
-        return $note;
+        return $post->poll !== null && ! $post->isRemote() && $post->isPublished()
+            ? LocalPollSerializer::forPost($note, $post->poll)
+            : $note;
     }
 
     /**
@@ -232,7 +234,7 @@ final class NoteSerializer
             '@context' => 'https://www.w3.org/ns/activitystreams',
             'id' => self::postUri($post),
             'type' => 'Tombstone',
-            'formerType' => 'Note',
+            'formerType' => $post->poll()->exists() ? 'Question' : 'Note',
             'deleted' => $post->updated_at->toAtomString(),
         ];
     }
