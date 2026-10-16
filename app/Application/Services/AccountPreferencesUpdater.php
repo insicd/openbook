@@ -20,6 +20,11 @@ final class AccountPreferencesUpdater
         private readonly ActivityDelivery $delivery,
     ) {}
 
+    public function updateLocale(User $user, string $locale): void
+    {
+        $user->settings()->updateOrCreate([], ['locale' => $locale]);
+    }
+
     /**
      * @param  array{locale: string, default_post_visibility: string, manually_approves_followers?: bool|null, discoverable?: bool|null, indexable?: bool|null, direct_message_policy: string}  $data
      */

@@ -26,7 +26,7 @@ final class AccountRegistrar
     ) {}
 
     /**
-     * @param  array{username: string, email: string, password: string, is_admin?: bool}  $data
+     * @param  array{username: string, email: string, password: string, is_admin?: bool, locale?: string}  $data
      */
     public function register(array $data): User
     {
@@ -49,7 +49,7 @@ final class AccountRegistrar
 
             UserSetting::query()->create([
                 'user_id' => $user->id,
-                'locale' => config('app.locale', 'it'),
+                'locale' => $data['locale'] ?? config('app.locale', 'it'),
                 'timezone' => config('app.timezone', 'UTC'),
             ]);
 

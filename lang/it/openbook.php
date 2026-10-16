@@ -2,6 +2,11 @@
 
 return [
 
+    'language' => [
+        'choose' => 'Lingua',
+        'invalid_return' => 'Scegli una pagina di Openbook a cui tornare.',
+    ],
+
     'app' => [
         'tagline' => 'Istanza di Openbook - Il social network federato, semplice e libero.',
     ],
@@ -23,6 +28,9 @@ return [
     ],
 
     'nav' => [
+        'skip_to_content' => 'Vai al contenuto principale',
+        'open_menu' => 'Apri il menu',
+        'more_options' => 'Altre opzioni',
         'main' => 'Navigazione principale',
         'home' => 'Home',
         'world' => 'Mondo',
@@ -175,10 +183,15 @@ return [
     ],
 
     'auth' => [
+        'check_data' => 'Controlla i dati inseriti:',
+        'username_invalid' => 'Il nome utente può contenere soltanto lettere, numeri e underscore.',
+        'credentials_invalid' => 'Le credenziali inserite non sono corrette.',
+        'account_inactive' => 'Questo account è stato sospeso o disabilitato.',
+        'login_throttled' => 'Troppi tentativi di accesso. Riprova tra :seconds secondi.',
         'register_title' => 'Crea il tuo account',
         'login_title' => 'Accedi a :app',
         'username' => 'Nome utente',
-        'username_help' => 'Solo lettere minuscole, numeri e underscore. Sarà visibile come :handle',
+        'username_help' => 'Lettere, numeri e underscore. Le lettere vengono salvate in minuscolo. Sarà visibile come :handle',
         'email' => 'Indirizzo email',
         'password' => 'Password',
         'password_confirmation' => 'Conferma password',
@@ -248,12 +261,13 @@ return [
     'feed' => [
         'requires_js' => 'Per caricare il feed della Home è necessario JavaScript.',
         'welcome_title' => 'Inizia da qui',
-        'welcome_body' => 'Il tuo feed è ancora vuoto. Segui qualcuno per riempirlo di conversazioni, oppure pubblica il tuo primo post qui sopra.',
+        'welcome_body' => 'Il tuo feed prende forma con ciò che ti interessa: segui persone e argomenti tramite hashtag, oppure pubblica il tuo primo post.',
         'welcome_staff' => 'Lo staff di questa istanza',
         'welcome_local' => 'Persone su questa istanza',
         'welcome_remote' => 'Dal fediverso',
         'welcome_world' => 'Scopri altre persone',
         'welcome_communities' => 'Esplora le community',
+        'welcome_trending' => 'Argomenti in tendenza',
         'welcome_empty_instance' => 'Per ora non ci sono ancora altri account da suggerire. Pubblica qualcosa o invita qualcuno a unirsi!',
         'view_profile' => 'Vai al tuo profilo',
         'empty' => 'Non ci sono ancora post da mostrare. Segui altre persone o pubblica il tuo primo post.',

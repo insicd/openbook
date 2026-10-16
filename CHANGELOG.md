@@ -193,6 +193,16 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Registrazione e primi passi (#103)**: selettore della lingua condiviso tra
+  pagine pubbliche e applicazione autenticata. La scelta è ricordata nel browser
+  per un anno, aggiorna la preferenza dell'account dopo l'accesso ed è ereditata
+  dai nuovi account alla registrazione. Form, navigazione e messaggi di errore
+  usano traduzioni coerenti; gli username con maiuscole vengono accettati e
+  salvati in minuscolo, con controllo dei doppioni sul valore normalizzato.
+  Il benvenuto nel feed propone persone, community e argomenti in tendenza,
+  restando sopra i post fino a 9 persone/hashtag seguiti complessivamente.
+  Community e tendenze precedono la lista di persone; «Scopri altre persone»
+  resta in fondo e la lista «Dal fediverso» compare soltanto a zero seguiti.
 - **Documentazione per utenti e amministratori**: guide d’uso, sondaggi,
   federazione e limiti del prodotto riscritte in italiano e inglese; istruzioni
   operative mantenute nelle guide di installazione/configurazione. Riferimenti

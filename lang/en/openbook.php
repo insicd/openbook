@@ -2,6 +2,11 @@
 
 return [
 
+    'language' => [
+        'choose' => 'Language',
+        'invalid_return' => 'Choose an Openbook page to return to.',
+    ],
+
     'app' => [
         'tagline' => 'Openbook instance - The federated, simple, no-masters social network.',
     ],
@@ -23,6 +28,9 @@ return [
     ],
 
     'nav' => [
+        'skip_to_content' => 'Skip to main content',
+        'open_menu' => 'Open menu',
+        'more_options' => 'More options',
         'main' => 'Main navigation',
         'home' => 'Home',
         'world' => 'World',
@@ -175,10 +183,15 @@ return [
     ],
 
     'auth' => [
+        'check_data' => 'Check the information entered:',
+        'username_invalid' => 'The username may contain only letters, numbers and underscores.',
+        'credentials_invalid' => 'The credentials entered are incorrect.',
+        'account_inactive' => 'This account has been suspended or disabled.',
+        'login_throttled' => 'Too many login attempts. Try again in :seconds seconds.',
         'register_title' => 'Create your account',
         'login_title' => 'Log in to :app',
         'username' => 'Username',
-        'username_help' => 'Lowercase letters, numbers and underscores only. It will appear as :handle',
+        'username_help' => 'Letters, numbers and underscores. Letters are saved in lowercase. It will appear as :handle',
         'email' => 'Email address',
         'password' => 'Password',
         'password_confirmation' => 'Confirm password',
@@ -248,12 +261,13 @@ return [
     'feed' => [
         'requires_js' => 'JavaScript is required to load your Home feed.',
         'welcome_title' => 'Start here',
-        'welcome_body' => 'Your feed is still empty. Follow someone to fill it with conversations, or publish your first post above.',
+        'welcome_body' => 'Your feed takes shape around your interests: follow people and topics through hashtags, or publish your first post.',
         'welcome_staff' => 'This instance\'s staff',
         'welcome_local' => 'People on this instance',
         'welcome_remote' => 'From the fediverse',
         'welcome_world' => 'Discover more people',
         'welcome_communities' => 'Explore communities',
+        'welcome_trending' => 'Trending topics',
         'welcome_empty_instance' => 'There are no other accounts to suggest yet. Post something or invite someone to join!',
         'view_profile' => 'Go to your profile',
         'empty' => 'There are no posts to show yet. Follow other people or publish your first post.',

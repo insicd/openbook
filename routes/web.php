@@ -30,6 +30,7 @@ use App\Http\Controllers\HashtagFollowController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstanceRulesController;
 use App\Http\Controllers\LikeController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MentionSuggestController;
 use App\Http\Controllers\NotificationController;
@@ -50,6 +51,7 @@ use App\Http\Controllers\WorldController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::post('/lingua', [LocaleController::class, 'update'])->name('locale.update');
 Route::get('/regole', [InstanceRulesController::class, 'show'])->name('instance.rules');
 Route::get('/privacy', [PrivacyPolicyController::class, 'show'])->name('instance.privacy');
 Route::get('/manifest.webmanifest', [SiteManifestController::class, 'show'])->name('site.manifest');
