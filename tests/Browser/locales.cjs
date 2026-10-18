@@ -6,6 +6,7 @@ const path = require('node:path');
 const {execFileSync} = require('node:child_process');
 const {chromium} = require('playwright');
 const root = path.resolve(__dirname, '../..');
+const locale = process.env.OPENBOOK_BROWSER_LOCALE || 'en';
 const fixtures = JSON.parse(execFileSync('php', [path.join(__dirname, 'fixtures/locales.php')], {cwd: root, encoding: 'utf8'}));
 let submission;
 const server = http.createServer((request, response) => {
@@ -44,6 +45,7 @@ const server = http.createServer((request, response) => {
             const page = await context.newPage();
             for (const kind of ['guest', 'account']) {
                 await page.goto(`${origin}/${kind}`);
+                assert.equal(await page.locator('html').getAttribute('lang'), locale);
                 if (kind === 'account' && width === 375) await page.locator('#ob-nav-toggle').click();
                 const summary = page.locator('.ob-language-selector > summary');
                 await summary.focus();
@@ -51,7 +53,7 @@ const server = http.createServer((request, response) => {
                 await page.locator('.ob-language-selector__menu button[value="it"]').waitFor({state: 'visible'});
                 const box = await page.locator('.ob-language-selector__menu').boundingBox();
                 assert(box && box.x >= 0 && box.x + box.width <= width, `${kind} menu must fit at ${width}px`);
-                assert.equal(await page.locator('.ob-language-selector__menu button[aria-current="true"]').getAttribute('value'), 'en');
+                assert.equal(await page.locator('.ob-language-selector__menu button[aria-current="true"]').getAttribute('value'), locale);
                 await page.keyboard.press('Tab');
                 assert.equal(await page.locator(':focus').getAttribute('value'), 'it');
                 submission = undefined;

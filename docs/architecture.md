@@ -11,7 +11,8 @@ instance and with accounts on other compatible Fediverse services.
 During registration you can enter uppercase letters in your username:
 it is saved in lowercase. You can customize your profile's display name.
 
-The language icon in the top bar opens the available languages. Before login,
+The language icon in the top bar opens the available languages:
+Italiano, English and Suomi (Finnish). Before login,
 Openbook uses your browser's language; an explicit choice is remembered on
 the same browser for one year and takes precedence. New accounts inherit
 the language used during registration.
