@@ -11,6 +11,29 @@ APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/
 I test SQLite coprono verifica, conferma, consegna ordinaria, firme, notifiche,
 rimozione dell’indicazione e trasferimenti successivi.
 
+Schede delle impostazioni:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/SettingsTest.php tests/Feature/ProfileFieldsTest.php tests/Feature/UserTimezoneTest.php tests/Feature/PushSubscriptionTest.php
+```
+
+Questi test coprono le schede Profilo, Account e privacy, Notifiche e Trasferimento
+account, i ritorni dopo salvataggi ed errori e gli esempi tradotti dei trasferimenti
+con il nome configurato dell’istanza.
+
+Verifiche federate da eseguire su un’istanza online:
+
+- Trasferire un account Mastodon su Openbook dopo aver preparato l’alias.
+  Verificare che i Follow in arrivo rispettino l’approvazione della destinazione.
+- Trasferire un account Openbook su Mastodon. Verificare la ricezione del Move
+  firmato, il trasferimento dei follower remoti e la notifica #116 ai follower locali.
+- Verificare avviso e normale utilizzo del vecchio account, poi rimuovere
+  l’indicazione e controllare l’Update dell’Actor con `movedTo: null`.
+
+Queste verifiche restano da eseguire e richiedono un’istanza raggiungibile dai
+server remoti. I test automatici coprono flussi e payload locali, ma non
+sostituiscono la verifica di interoperabilità.
+
 Arrivo e alias degli account (#117):
 
 ```bash

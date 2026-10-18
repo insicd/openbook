@@ -30,9 +30,17 @@ L’estensione PHP `gd` è consigliata per generare miniature e rimuovere i
 metadati dalle immagini compatibili. Senza GD il caricamento resta disponibile,
 ma queste elaborazioni vengono saltate.
 
+### Impostazioni personali
+
+Le impostazioni hanno quattro schede: **Profilo** per immagini, biografia e campi
+pubblici; **Account e privacy** per lingua, fuso orario, visibilità e approvazione
+dei follower; **Notifiche** per le notifiche push del browser;
+**Trasferimento account** per arrivi e partenze. Ogni sezione ha le proprie azioni sotto la scheda dei contenuti.
+Salvataggi ed errori di validazione riportano alla scheda corrispondente.
+
 ### Fusi orari personali
 
-Gli utenti scelgono il fuso da **Impostazioni → Account**, oppure lasciano
+Gli utenti scelgono il fuso da **Impostazioni → Account e privacy**, oppure lasciano
 Automatico per seguire il dispositivo. L'aggiornamento richiede la normale
 esecuzione delle migration e imposta Automatico anche per gli account esistenti.
 Non serve modificare `APP_TIMEZONE` per consentire queste scelte: il riferimento

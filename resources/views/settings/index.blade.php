@@ -5,185 +5,20 @@
 @section('content')
     <h1>{{ __('openbook.settings.title') }}</h1>
 
-    <div class="ob-card">
-        <h2>{{ __('openbook.settings.profile_section_title') }}</h2>
+    @include('settings._tabs')
 
-        <form method="POST" action="{{ route('settings.profile.update') }}" enctype="multipart/form-data">
-            @csrf
-            @method('PUT')
+    @if ($activeTab === 'account')
+        @include('settings._account')
+    @elseif ($activeTab === 'notifications')
+        @include('settings._notifications')
+    @elseif ($activeTab === 'migration')
+        @include('settings._account_aliases')
+        @include('settings._account_migration')
+    @else
+        @include('settings._profile')
+    @endif
 
-            <div class="ob-field">
-                <label>{{ __('openbook.settings.avatar_label') }}</label>
-                <div class="ob-settings-avatar-picker">
-                    <x-avatar id="settings-avatar-preview" :user="$viewer" style="width:64px;height:64px;font-size:1.5rem" />
-                    <input type="file" name="avatar" id="settings-avatar-input" accept="image/jpeg,image/png,image/webp,image/gif">
-                </div>
-                <p class="ob-field__help">{{ __('openbook.settings.image_preview_help') }}</p>
-                @error('avatar')
-                    <p class="ob-field__error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div class="ob-field">
-                <label>{{ __('openbook.settings.cover_label') }}</label>
-                <div id="settings-cover-preview">
-                    @if ($viewer->profile?->coverUrl())
-                        <img src="{{ $viewer->profile->coverUrl() }}" alt="" class="ob-settings-cover-preview">
-                    @endif
-                </div>
-                <input type="file" name="cover" id="settings-cover-input" accept="image/jpeg,image/png,image/webp,image/gif">
-                @error('cover')
-                    <p class="ob-field__error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div class="ob-field">
-                <label for="settings-display-name">{{ __('openbook.settings.display_name_label') }}</label>
-                <input type="text" id="settings-display-name" name="display_name" maxlength="100" required
-                    value="{{ old('display_name', $viewer->profile?->display_name) }}">
-                @error('display_name')
-                    <p class="ob-field__error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div class="ob-field">
-                <label for="settings-bio">{{ __('openbook.settings.bio_label') }}</label>
-                <textarea id="settings-bio" name="bio" maxlength="500" rows="3">{{ old('bio', $viewer->profile?->bio) }}</textarea>
-                @error('bio')
-                    <p class="ob-field__error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            @include('settings._profile_fields')
-
-            <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.settings.save') }}</button>
-        </form>
-    </div>
-
-    <div class="ob-card">
-        <h2>{{ __('openbook.settings.account_section_title') }}</h2>
-
-        <form method="POST" action="{{ route('settings.account.update') }}">
-            @csrf
-            @method('PUT')
-
-            <div class="ob-field">
-                <label for="settings-locale">{{ __('openbook.settings.locale_label') }}</label>
-                <select id="settings-locale" name="locale">
-                    @foreach (config('openbook.locales') as $code => $label)
-                        <option value="{{ $code }}" @selected(old('locale', $viewer->settings?->locale) === $code)>{{ $label }}</option>
-                    @endforeach
-                </select>
-                @error('locale')
-                    <p class="ob-field__error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div class="ob-field">
-                <label for="settings-timezone">{{ __('openbook.settings.timezone_label') }}</label>
-                @php $selectedTimezone = old('timezone', $viewer->settings?->timezone); @endphp
-                <select id="settings-timezone" name="timezone" aria-describedby="settings-timezone-help">
-                    <option value="" @selected($selectedTimezone === null || $selectedTimezone === '')>{{ __('openbook.settings.timezone_automatic') }}</option>
-                    @foreach (\DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC) as $timezone)
-                        <option value="{{ $timezone }}" @selected($selectedTimezone === $timezone)>{{ str_replace('_', ' ', $timezone) }}</option>
-                    @endforeach
-                </select>
-                <p id="settings-timezone-help" class="ob-field__help">{{ __('openbook.settings.timezone_help') }}</p>
-                @error('timezone')
-                    <p class="ob-field__error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div class="ob-field">
-                <label for="settings-visibility">{{ __('openbook.settings.default_visibility_label') }}</label>
-                @php $defaultVisibility = old('default_post_visibility', $viewer->settings?->default_post_visibility ?: 'public'); @endphp
-                <select id="settings-visibility" name="default_post_visibility">
-                    <option value="public" @selected($defaultVisibility === 'public')>{{ __('openbook.visibility.public') }}</option>
-                    <option value="unlisted" @selected($defaultVisibility === 'unlisted')>{{ __('openbook.visibility.unlisted') }}</option>
-                    <option value="followers" @selected($defaultVisibility === 'followers')>{{ __('openbook.visibility.followers') }}</option>
-                    <option value="direct" @selected($defaultVisibility === 'direct')>{{ __('openbook.visibility.direct') }}</option>
-                </select>
-                @error('default_post_visibility')
-                    <p class="ob-field__error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div class="ob-field">
-                <label class="ob-checkbox">
-                    <input type="checkbox" name="manually_approves_followers" value="1"
-                        @checked(old('manually_approves_followers', $viewer->actor?->manually_approves_followers))>
-                    {{ __('openbook.settings.protected_account_label') }}
-                </label>
-                <p class="ob-field__help">{{ __('openbook.settings.protected_account_help') }}</p>
-            </div>
-
-            <div class="ob-field">
-                <label class="ob-checkbox">
-                    <input type="checkbox" name="discoverable" value="1"
-                        @checked(old('discoverable', $viewer->settings?->discoverable))>
-                    {{ __('openbook.settings.discoverable_label') }}
-                </label>
-                <p class="ob-field__help">{{ __('openbook.settings.discoverable_help') }}</p>
-            </div>
-
-            <div class="ob-field">
-                <label class="ob-checkbox">
-                    <input type="checkbox" name="indexable" value="1"
-                        @checked(old('indexable', $viewer->settings?->indexable))>
-                    {{ __('openbook.settings.indexable_label') }}
-                </label>
-                <p class="ob-field__help">{{ __('openbook.settings.indexable_help') }}</p>
-            </div>
-
-            <div class="ob-field">
-                <label for="settings-dm-policy">{{ __('openbook.settings.direct_message_policy_label') }}</label>
-                @php $dmPolicy = old('direct_message_policy', $viewer->settings?->direct_message_policy ?: 'everyone'); @endphp
-                <select id="settings-dm-policy" name="direct_message_policy">
-                    <option value="everyone" @selected($dmPolicy === 'everyone')>{{ __('openbook.settings.direct_message_policy_everyone') }}</option>
-                    <option value="followers" @selected($dmPolicy === 'followers')>{{ __('openbook.settings.direct_message_policy_followers') }}</option>
-                    <option value="nobody" @selected($dmPolicy === 'nobody')>{{ __('openbook.settings.direct_message_policy_nobody') }}</option>
-                </select>
-                <p class="ob-field__help">{{ __('openbook.settings.direct_message_policy_help') }}</p>
-                @error('direct_message_policy')
-                    <p class="ob-field__error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div
-                id="push-notification-settings"
-                class="ob-field ob-push-settings"
-                hidden
-                data-vapid-public-key="{{ $pushVapidPublicKey }}"
-                data-subscribe-url="{{ route('settings.push_subscriptions.store') }}"
-                data-unsubscribe-url="{{ route('settings.push_subscriptions.destroy') }}"
-                data-subscription-hashes='@json($pushSubscriptionHashes)'
-                data-label-inactive="{{ __('openbook.settings.push_inactive') }}"
-                data-label-active="{{ __('openbook.settings.push_active') }}"
-                data-label-reattach="{{ __('openbook.settings.push_reattach') }}"
-                data-label-unsupported="{{ __('openbook.settings.push_unsupported') }}"
-                data-label-denied="{{ __('openbook.settings.push_denied') }}"
-                data-label-error="{{ __('openbook.settings.push_error') }}"
-            >
-                <span class="ob-push-settings__label">{{ __('openbook.settings.push_label') }}</span>
-                <p class="ob-field__help" data-push-status aria-live="polite"></p>
-                <div class="ob-push-settings__actions">
-                    <button type="button" class="ob-btn ob-btn--secondary" data-push-enable hidden>
-                        {{ __('openbook.settings.push_enable') }}
-                    </button>
-                    <button type="button" class="ob-btn ob-btn--secondary" data-push-disable hidden>
-                        {{ __('openbook.settings.push_disable') }}
-                    </button>
-                </div>
-                <p class="ob-field__help">{{ __('openbook.settings.push_ios_help') }}</p>
-            </div>
-
-            <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.settings.save') }}</button>
-        </form>
-    </div>
-
-    @include('settings._account_aliases')
-    @include('settings._account_migration')
-
+    @if ($activeTab === 'profile')
     <script>
         (function () {
             function previewImage(inputId, containerId, imgClass) {
@@ -221,5 +56,8 @@
         })();
     </script>
     <script src="{{ \App\Support\Assets::url('assets/js/profile-fields.js') }}" defer></script>
+    @endif
+    @if ($activeTab === 'notifications')
     <script src="{{ \App\Support\Assets::url('assets/js/push-notifications.js') }}" defer></script>
+    @endif
 @endsection

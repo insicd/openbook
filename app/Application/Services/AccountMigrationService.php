@@ -28,7 +28,7 @@ final class AccountMigrationService
         $target = $this->actors->resolveAddress($address, forceRefresh: true);
         if ($target === null || $target->isLocal()
             || ! $this->targets->isValid($target, $user->actor->activityPubId(), $target->uri)) {
-            throw ValidationException::withMessages(['destination' => __('openbook.settings.migration_invalid')]);
+            throw ValidationException::withMessages(['destination' => __('openbook.settings.migration_invalid', ['app' => config('app.name')])]);
         }
 
         return $target;

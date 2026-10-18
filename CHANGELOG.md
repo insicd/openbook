@@ -19,6 +19,9 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Impostazioni in quattro schede**: Profilo, Account e privacy, Notifiche e
+  Trasferimento account, con azioni principali allineate sotto le rispettive schede.
+  Salvataggi e messaggi di errore riportano alla sezione corrispondente.
 - **Partenza verso un altro server (#117)**: verifica del nuovo account tramite
   alias, conferma con password e annuncio Move ai follower remoti con il normale
   flusso di consegna. I follower locali ricevono una notifica e scelgono se

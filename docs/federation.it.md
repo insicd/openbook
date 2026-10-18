@@ -69,8 +69,8 @@ resta fuori dalle funzioni attuali.
 
 ## Arrivare su Openbook da un altro server
 
-In **Impostazioni → Arrivo da un’altra istanza**, aggiungi il vecchio account
-tramite indirizzo completo (`nome@example.org`) o URL Actor ActivityPub.
+In **Impostazioni → Trasferimento account → Arrivo da un’altra istanza**, aggiungi il
+vecchio account tramite indirizzo completo (`nome@example.org`) o URL Actor ActivityPub.
 Openbook salva l’URL canonico dell’Actor come alias pubblico `alsoKnownAs`.
 Puoi gestire fino a dieci alias; rimuoverne uno può impedire un trasferimento
 che non è ancora stato verificato.
@@ -89,8 +89,8 @@ aggiornamento del profilo da solo non invia questa notifica.
 ## Trasferirsi da Openbook a un altro server
 
 Sul nuovo server aggiungi il vecchio account Openbook tra gli alias. Poi apri
-**Impostazioni → Trasferisci il tuo account** su Openbook, inserisci l’indirizzo
-del nuovo account e premi **Verifica destinazione**. Openbook controlla l’alias
+**Impostazioni → Trasferimento account → Trasferisci il tuo account** su Openbook,
+inserisci l’indirizzo del nuovo account e premi **Verifica destinazione**. Openbook controlla l’alias
 sul nuovo profilo. Per annunciare il trasferimento conferma la destinazione
 con la tua password Openbook attuale e la casella di conferma.
 

@@ -28,7 +28,7 @@ class ProfileFieldsTest extends TestCase
 
         $this->actingAs($user)->put(route('settings.profile.update'), [
             'display_name' => 'Alice', 'links' => $fields,
-        ])->assertSessionHasNoErrors()->assertRedirect(route('profile.show', $user->username));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('settings.edit'));
 
         $stored = array_map(fn (array $field): array => ['label' => $field['label'], 'value' => $field['value']], $fields);
         $this->assertSame($stored, $user->profile->fresh()->links);

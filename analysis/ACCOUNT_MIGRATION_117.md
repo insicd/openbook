@@ -1,7 +1,8 @@
 # Migrazione degli account verso e da Openbook — issue #117
 
 **Issue:** [#117](https://github.com/insicd/openbook/issues/117).
-**Stato:** arrivo e partenza implementati; portabilità dei seguiti da completare.
+**Stato:** arrivo e partenza implementati; verifica tra istanze online da eseguire.
+La portabilità dei seguiti costituisce lo stadio successivo.
 **Analisi collegata:** [ACCOUNT_MOVE.md](ACCOUNT_MOVE.md), relativa alla #116.
 
 ## 1. Obiettivo
@@ -21,7 +22,8 @@ trasferimento dei propri follower secondo il loro supporto a Move.
 
 ## 2. Arrivo su Openbook
 
-Nelle impostazioni, la sezione **Arrivo da un’altra istanza** permette di
+Nelle impostazioni, la scheda **Trasferimento account** riunisce arrivo e
+partenza. La sezione **Arrivo da un’altra istanza** permette di
 aggiungere il vecchio account tramite indirizzo completo (`nome@server`)
 o URL Actor ActivityPub.
 
@@ -161,4 +163,6 @@ rimozione dell’indicazione, possa effettuare un nuovo trasferimento.
 Per ogni stadio aggiornare documentazione e traduzioni, eseguire i test pertinenti
 e la suite completa. Nuovi schemi e query seguono le verifiche SQLite e
 MySQL/MariaDB previste dal progetto. Completare la verifica della federazione
-con prove tra istanze Openbook e un server Mastodon.
+con prove tra istanze Openbook e un server Mastodon quando è disponibile
+un’istanza online raggiungibile dagli altri server. Questa verifica resta
+da eseguire; i test automatici non attestano l’interoperabilità tra server reali.

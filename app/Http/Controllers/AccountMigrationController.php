@@ -13,9 +13,13 @@ class AccountMigrationController extends Controller
 {
     public function preview(AccountMigrationRequest $request, AccountMigrationService $migrations): View
     {
-        return view('settings.migration_confirm', [
-            'destination' => $migrations->verify($request->user(), $request->validated('destination')),
-        ]);
+        try {
+            $destination = $migrations->verify($request->user(), $request->validated('destination'));
+        } catch (ValidationException $exception) {
+            throw $exception->redirectTo(route('settings.edit', ['tab' => 'migration']));
+        }
+
+        return view('settings.migration_confirm', ['destination' => $destination]);
     }
 
     public function store(AccountMigrationRequest $request, AccountMigrationService $migrations): RedirectResponse
@@ -23,16 +27,16 @@ class AccountMigrationController extends Controller
         try {
             $migrations->start($request->user(), $request->validated('destination'));
         } catch (ValidationException $exception) {
-            throw $exception->redirectTo(route('settings.edit'));
+            throw $exception->redirectTo(route('settings.edit', ['tab' => 'migration']));
         }
 
-        return redirect()->route('settings.edit')->with('status', __('openbook.settings.migration_started'));
+        return redirect()->route('settings.edit', ['tab' => 'migration'])->with('status', __('openbook.settings.migration_started'));
     }
 
     public function destroy(Request $request, AccountMigrationService $migrations): RedirectResponse
     {
         $migrations->removeIndication($request->user());
 
-        return redirect()->route('settings.edit')->with('status', __('openbook.settings.migration_removed'));
+        return redirect()->route('settings.edit', ['tab' => 'migration'])->with('status', __('openbook.settings.migration_removed'));
     }
 }

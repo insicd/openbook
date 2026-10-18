@@ -33,9 +33,18 @@ The PHP `gd` extension is recommended for thumbnails and metadata removal from
 supported images. Without GD, uploads remain available but these processing
 steps are skipped.
 
+### Personal settings
+
+Settings has four tabs: **Profile** for images, biography and public fields;
+**Account and privacy** for language, time zone, visibility and follower approval;
+**Notifications** for browser push notifications; **Account migration** for arrivals
+and departures.
+Each section has its actions below the content card. Saving or correcting a
+validation error keeps you in the relevant tab.
+
 ### Personal time zones
 
-Users choose their time zone in **Settings → Account**, or leave Automatic
+Users choose their time zone in **Settings → Account and privacy**, or leave Automatic
 to follow their device. Updating requires the usual migrations and switches
 existing accounts to Automatic. There is no need to change `APP_TIMEZONE` to
 enable these choices: stored data, logs and cron keep the instance's reference

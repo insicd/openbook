@@ -51,7 +51,7 @@ class AccountAliasesTest extends TestCase
 
         $this->actingAs($user)->post(route('settings.aliases.store'), [
             'alias' => '@oldanna@remoto.example', 'user_id' => $other->id, 'actor_id' => $other->actor->id,
-        ])->assertSessionHasNoErrors()->assertRedirect(route('settings.edit'));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('settings.edit', ['tab' => 'migration']));
 
         $this->assertSame([$source->uri], $user->actor->fresh()->also_known_as);
         $this->assertEmpty($other->actor->fresh()->also_known_as);
@@ -59,7 +59,7 @@ class AccountAliasesTest extends TestCase
         $this->assertNull($user->actor->fresh()->moved_to_actor_id);
         $this->assertDatabaseCount('follows', 0);
         $this->assertDatabaseCount('notifications', 0);
-        $this->get(route('settings.edit'))->assertOk()->assertSee($source->uri)
+        $this->get(route('settings.edit', ['tab' => 'migration']))->assertOk()->assertSee($source->uri)
             ->assertSee(__('openbook.settings.alias_remove_help'))
             ->assertSee('action="'.route('settings.aliases.destroy').'"', false);
         $this->get('/users/anna', ['Accept' => 'application/activity+json'])->assertOk()
@@ -134,7 +134,8 @@ class AccountAliasesTest extends TestCase
     public function test_invalid_input_does_not_change_aliases(mixed $input): void
     {
         $user = $this->createFullAccount('anna');
-        $this->actingAs($user)->post(route('settings.aliases.store'), ['alias' => $input])->assertSessionHasErrors('alias');
+        $this->actingAs($user)->post(route('settings.aliases.store'), ['alias' => $input])->assertSessionHasErrors('alias')
+            ->assertRedirect(route('settings.edit', ['tab' => 'migration']));
         $this->assertEmpty($user->actor->fresh()->also_known_as);
         Queue::assertNothingPushed();
     }

@@ -18,7 +18,7 @@ viene ricordata sullo stesso browser per un anno e ha la precedenza.
 Il nuovo account eredita la lingua usata durante la registrazione.
 
 Dopo l'accesso viene usata la preferenza dell'account. Cambiarla dalla barra
-aggiorna anche **Impostazioni → Account → Lingua**, e vale per gli accessi
+aggiorna anche **Impostazioni → Account e privacy → Lingua**, e vale per gli accessi
 dagli altri dispositivi. Il cambio ricarica la pagina corrente. Su mobile
 il selettore degli utenti autenticati si trova nel menu delle altre opzioni.
 
@@ -132,7 +132,7 @@ Puoi scegliere se comparire nei suggerimenti e se consentire l’indicizzazione
 dei tuoi post pubblici. Disattivare i suggerimenti lascia raggiungibile il profilo
 tramite il suo indirizzo esatto.
 
-In **Impostazioni → Account → Fuso orario**, **Automatico — dal dispositivo**
+In **Impostazioni → Account e privacy → Fuso orario**, **Automatico — dal dispositivo**
 segue il fuso del browser, anche quando viaggi o cambi dispositivo. Puoi
 scegliere un fuso specifico per usare sempre quello e tornare ad Automatico
 in qualsiasi momento. I nuovi account e quelli aggiornati partono in Automatico.

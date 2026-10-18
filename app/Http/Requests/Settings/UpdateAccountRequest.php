@@ -42,4 +42,9 @@ class UpdateAccountRequest extends FormRequest
     {
         return ['timezone' => __('openbook.settings.timezone_label')];
     }
+
+    protected function getRedirectUrl(): string
+    {
+        return route('settings.edit', ['tab' => 'account']);
+    }
 }

@@ -89,6 +89,19 @@ class AccountMigrationTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_preview_errors_return_to_the_migration_tab_with_the_entered_destination(): void
+    {
+        $this->fakeDestination(['alsoKnownAs' => []]);
+        $response = $this->actingAs($this->owner)->from(route('settings.edit', ['tab' => 'profile']))
+            ->post(route('settings.migration.preview'), ['destination' => $this->target->uri]);
+        $response->assertRedirect(route('settings.edit', ['tab' => 'migration']))->assertSessionHasErrors('destination');
+        $this->get($response->headers->get('Location'))->assertOk()->assertViewHas('activeTab', 'migration')
+            ->assertSee('value="'.$this->target->uri.'"', false)
+            ->assertSee(__('openbook.settings.migration_invalid', ['app' => config('app.name')]));
+        $this->assertNull($this->owner->actor->fresh()->moved_to_actor_id);
+        Queue::assertNothingPushed();
+    }
+
     public function test_confirmation_announces_one_move_per_remote_inbox_and_notifies_local_followers_without_moving_follows(): void
     {
         $luca = $this->createFullAccount('luca');
@@ -99,7 +112,7 @@ class AccountMigrationTest extends TestCase
         $this->follow($this->createFullAccount('waitinglocal')->actor, Follow::STATUS_PENDING);
         $before = Follow::query()->orderBy('id')->get()->toArray();
 
-        $this->confirm()->assertSessionHasNoErrors()->assertRedirect(route('settings.edit'));
+        $this->confirm()->assertSessionHasNoErrors()->assertRedirect(route('settings.edit', ['tab' => 'migration']));
         $sourceUri = $this->owner->actor->activityPubId();
         $this->assertSame($this->target->id, $this->owner->actor->fresh()->moved_to_actor_id);
         $this->assertSame($before, Follow::query()->orderBy('id')->get()->toArray());
@@ -131,7 +144,7 @@ class AccountMigrationTest extends TestCase
 
     public function test_password_and_confirmation_are_required_before_any_fetch_or_changes(): void
     {
-        $this->confirm(['password' => 'wrong'])->assertSessionHasErrors('password')->assertRedirect(route('settings.edit'));
+        $this->confirm(['password' => 'wrong'])->assertSessionHasErrors('password')->assertRedirect(route('settings.edit', ['tab' => 'migration']));
         $this->confirm(['confirm_migration' => null])->assertSessionHasErrors('confirm_migration');
         $this->assertNull($this->owner->actor->fresh()->moved_to_actor_id);
         Http::assertNothingSent();
@@ -150,7 +163,7 @@ class AccountMigrationTest extends TestCase
     public function test_an_unverified_destination_cannot_start_a_move(array $overrides): void
     {
         $this->fakeDestination($overrides);
-        $this->from(route('settings.migration.preview'))->confirm()->assertSessionHasErrors('destination')->assertRedirect(route('settings.edit'));
+        $this->from(route('settings.migration.preview'))->confirm()->assertSessionHasErrors('destination')->assertRedirect(route('settings.edit', ['tab' => 'migration']));
         $this->assertNull($this->owner->actor->fresh()->moved_to_actor_id);
         Queue::assertNothingPushed();
     }
@@ -181,9 +194,9 @@ class AccountMigrationTest extends TestCase
         $this->confirm()->assertSessionHasNoErrors();
         $before = Follow::query()->get()->toArray();
         $this->get('/@anna')->assertOk()->assertSee(__('openbook.settings.migration_notice'));
-        $this->get(route('settings.edit'))->assertOk()->assertSee(__('openbook.settings.migration_remove'));
+        $this->get(route('settings.edit', ['tab' => 'migration']))->assertOk()->assertSee(__('openbook.settings.migration_remove'));
         Queue::fake();
-        $this->delete(route('settings.migration.destroy'))->assertRedirect(route('settings.edit'));
+        $this->delete(route('settings.migration.destroy'))->assertRedirect(route('settings.edit', ['tab' => 'migration']));
         $this->assertNull($this->owner->actor->fresh()->moved_to_actor_id);
         $this->assertSame($before, Follow::query()->get()->toArray());
         $this->get('/users/anna', ['Accept' => 'application/activity+json'])->assertJsonPath('movedTo', null);
@@ -192,7 +205,7 @@ class AccountMigrationTest extends TestCase
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Update' && array_key_exists('movedTo', $job->activity['object'])
             && $job->activity['object']['movedTo'] === null);
         Queue::fake();
-        $this->delete(route('settings.migration.destroy'))->assertRedirect(route('settings.edit'));
+        $this->delete(route('settings.migration.destroy'))->assertRedirect(route('settings.edit', ['tab' => 'migration']));
         Queue::assertNothingPushed();
     }
 
@@ -202,7 +215,7 @@ class AccountMigrationTest extends TestCase
         $this->follow($this->createRemoteActor('follower'));
         $this->confirm()->assertSessionHasNoErrors();
         $first = Queue::pushed(DeliverActivityJob::class)->first(fn ($job) => $job->activity['type'] === 'Move')->activity['id'];
-        $this->delete(route('settings.migration.destroy'))->assertRedirect(route('settings.edit'));
+        $this->delete(route('settings.migration.destroy'))->assertRedirect(route('settings.edit', ['tab' => 'migration']));
         $this->confirm()->assertSessionHasNoErrors();
         $moves = Queue::pushed(DeliverActivityJob::class)->filter(fn ($job) => $job->activity['type'] === 'Move')->values();
         $this->assertCount(2, $moves);
@@ -261,7 +274,7 @@ class AccountMigrationTest extends TestCase
     {
         $this->confirm()->assertSessionHasNoErrors();
         $other = $this->createFullAccount('other');
-        $this->actingAs($other)->delete(route('settings.migration.destroy'), ['user_id' => $this->owner->id])->assertRedirect(route('settings.edit'));
+        $this->actingAs($other)->delete(route('settings.migration.destroy'), ['user_id' => $this->owner->id])->assertRedirect(route('settings.edit', ['tab' => 'migration']));
         $this->assertSame($this->target->id, $this->owner->actor->fresh()->moved_to_actor_id);
         $this->post(route('settings.migration.store'), [
             'user_id' => $this->owner->id, 'destination' => $this->target->uri,

@@ -21,4 +21,9 @@ class AccountAliasRequest extends FormRequest
     {
         return ['alias' => __('openbook.settings.alias_label')];
     }
+
+    protected function getRedirectUrl(): string
+    {
+        return route('settings.edit', ['tab' => 'migration']);
+    }
 }

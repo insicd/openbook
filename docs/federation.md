@@ -63,8 +63,8 @@ current feature set.
 
 ## Moving to Openbook from another server
 
-In **Settings → Moving from another instance**, add your previous account using
-its full address (`name@example.org`) or ActivityPub actor URL. Openbook saves
+In **Settings → Account migration → Moving from another instance**, add your previous
+account using its full address (`name@example.org`) or ActivityPub actor URL. Openbook saves
 its canonical actor URL as a public `alsoKnownAs` alias. You can manage up to ten
 aliases; removing one may prevent a move that has not yet been verified.
 
@@ -82,7 +82,7 @@ profile update alone does not send this notification.
 ## Moving from Openbook to another server
 
 On your new server, add your old Openbook account as an alias. Then open
-**Settings → Move your account** in Openbook, enter the new account address
+**Settings → Account migration → Move your account** in Openbook, enter the new account address
 and choose **Verify destination**. Openbook checks the alias on the new profile.
 Confirm the destination with your current Openbook password and the confirmation
 checkbox to announce the move.

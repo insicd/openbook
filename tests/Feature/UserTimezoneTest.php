@@ -70,12 +70,12 @@ class UserTimezoneTest extends TestCase
             'manually_approves_followers' => $user->settings->manually_approves_followers,
         ];
         $this->actingAs($user)->put(route('settings.account.update'), $data + ['timezone' => 'Europe/Helsinki'])
-            ->assertRedirect(route('settings.edit'))->assertSessionHasNoErrors();
+            ->assertRedirect(route('settings.edit', ['tab' => 'account']))->assertSessionHasNoErrors();
         $this->assertSame('Europe/Helsinki', $user->settings->fresh()->timezone);
-        $this->actingAs($user->fresh())->get(route('settings.edit'))->assertOk()
+        $this->actingAs($user->fresh())->get(route('settings.edit', ['tab' => 'account']))->assertOk()
             ->assertSee('id="settings-timezone"', false)->assertSee('Europe/Helsinki');
         $this->put(route('settings.account.update'), $data + ['timezone' => ''])
-            ->assertRedirect(route('settings.edit'))->assertSessionHasNoErrors();
+            ->assertRedirect(route('settings.edit', ['tab' => 'account']))->assertSessionHasNoErrors();
         $this->assertNull($user->settings->fresh()->timezone);
         Queue::assertNothingPushed();
         $this->put(route('settings.account.update'), $data + ['timezone' => '+02:00'])

@@ -1210,7 +1210,8 @@ html.ob-compose-modal-open {
   gap: 0.75rem;
 }
 
-.ob-admin-database-tabs {
+.ob-admin-database-tabs,
+.ob-settings-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
@@ -1364,12 +1365,50 @@ html.ob-compose-modal-open {
 
 /* Impostazioni */
 
+.ob-settings-section + .ob-settings-section {
+  margin-top: 2rem;
+}
+
+.ob-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.ob-settings-actions [hidden] {
+  display: none;
+}
+
+.ob-settings-section input[type='file'] {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .ob-settings-aliases {
   padding-left: 1.25rem;
 }
 
 .ob-settings-aliases li {
   margin-bottom: 0.75rem;
+}
+
+.ob-settings-alias-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ob-settings-alias-row > a {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ob-settings-alias-row > form {
+  flex: 0 0 auto;
+  margin: 0;
 }
 
 .ob-settings-aliases a {

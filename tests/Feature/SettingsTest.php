@@ -34,6 +34,94 @@ class SettingsTest extends TestCase
         $response->assertSee(__('openbook.settings.title'));
     }
 
+    public function test_settings_tabs_show_only_the_fields_for_the_selected_section(): void
+    {
+        $user = $this->createFullAccount('alice');
+        $sections = [
+            'profile' => ['settings-display-name', ['settings-locale', 'settings-alias', 'migration-destination', 'push-notification-settings']],
+            'account' => ['settings-locale', ['settings-display-name', 'settings-alias', 'migration-destination', 'push-notification-settings']],
+            'notifications' => ['push-notification-settings', ['settings-display-name', 'settings-locale', 'settings-alias', 'migration-destination']],
+            'migration' => ['settings-alias', ['settings-display-name', 'settings-locale', 'push-notification-settings']],
+        ];
+
+        foreach ($sections as $tab => [$field, $absent]) {
+            $response = $this->actingAs($user)->get(route('settings.edit', ['tab' => $tab]));
+            $response->assertOk()->assertViewHas('activeTab', $tab)
+                ->assertSee('id="'.$field.'"', false)
+                ->assertSee('aria-current="page"', false);
+            foreach ($absent as $name) {
+                $response->assertDontSee('id="'.$name.'"', false);
+            }
+            foreach (['tab_profile', 'tab_account', 'tab_notifications', 'tab_migration'] as $label) {
+                $response->assertSee(__('openbook.settings.'.$label));
+            }
+        }
+        $this->get(route('settings.edit', ['tab' => 'migration']))->assertSee('name="destination"', false);
+    }
+
+    public function test_migration_examples_are_localized_consistently_and_use_the_instance_name(): void
+    {
+        config(['app.name' => 'Punk Kitchen']);
+        $user = $this->createFullAccount('alice');
+
+        foreach (['it' => 'nome@example.org', 'en' => 'name@example.org', 'fi' => 'nimi@example.org'] as $locale => $example) {
+            $user->settings->update(['locale' => $locale]);
+            $response = $this->actingAs($user->fresh())->get(route('settings.edit', ['tab' => 'migration']));
+            $response->assertOk()
+                ->assertSee(__('openbook.settings.alias_help', ['app' => 'Punk Kitchen'], $locale))
+                ->assertSee(__('openbook.settings.migration_help', ['app' => 'Punk Kitchen'], $locale))
+                ->assertSee(__('openbook.settings.alias_input_help', ['example' => $example, 'max' => 10], $locale))
+                ->assertSee(__('openbook.settings.migration_input_help', ['example' => $example], $locale));
+            $this->assertSame(2, substr_count($response->getContent(), 'placeholder="'.$example.'"'));
+            $response->assertDontSee(':app')->assertDontSee(':example');
+        }
+    }
+
+    public function test_only_the_notifications_tab_loads_the_browser_notification_controls_and_script(): void
+    {
+        $user = $this->createFullAccount('alice');
+        $this->actingAs($user)->get(route('settings.edit', ['tab' => 'notifications']))->assertOk()
+            ->assertSee('data-push-enable', false)->assertSee('data-push-disable', false)
+            ->assertSee('assets/js/push-notifications.js', false)
+            ->assertDontSee('settings-account-form', false)
+            ->assertSeeInOrder([
+                __('openbook.settings.tab_profile'), __('openbook.settings.tab_account'),
+                __('openbook.settings.tab_notifications'), __('openbook.settings.tab_migration'),
+            ]);
+        $this->get(route('settings.edit', ['tab' => 'account']))->assertOk()
+            ->assertDontSee('data-push-enable', false)->assertDontSee('assets/js/push-notifications.js', false);
+    }
+
+    public function test_the_profile_tab_is_the_default_and_handles_unknown_tab_values(): void
+    {
+        $user = $this->createFullAccount('alice');
+        $this->actingAs($user)->get(route('settings.edit'))->assertOk()->assertViewHas('activeTab', 'profile');
+        $this->get(route('settings.edit', ['tab' => 'unknown']))->assertOk()->assertViewHas('activeTab', 'profile');
+        $this->get(route('settings.edit', ['tab' => ['account']]))->assertOk()->assertViewHas('activeTab', 'profile');
+    }
+
+    public function test_account_validation_returns_to_the_account_tab_with_errors_and_entered_values(): void
+    {
+        $user = $this->createFullAccount('alice');
+        $response = $this->actingAs($user)->from(route('settings.edit', ['tab' => 'profile']))
+            ->put(route('settings.account.update'), [
+                'locale' => 'it', 'timezone' => 'Invalid/Zone', 'default_post_visibility' => 'followers',
+            ]);
+        $response->assertRedirect(route('settings.edit', ['tab' => 'account']))->assertSessionHasErrors('timezone');
+        $this->get($response->headers->get('Location'))->assertOk()->assertViewHas('activeTab', 'account')
+            ->assertSee('ob-field__error', false)->assertSee('value="followers" selected', false);
+    }
+
+    public function test_profile_validation_returns_to_the_profile_tab_with_entered_values(): void
+    {
+        $user = $this->createFullAccount('alice');
+        $response = $this->actingAs($user)->from(route('settings.edit', ['tab' => 'account']))
+            ->put(route('settings.profile.update'), ['display_name' => '', 'bio' => 'Unsaved biography']);
+        $response->assertRedirect(route('settings.edit'))->assertSessionHasErrors('display_name');
+        $this->get($response->headers->get('Location'))->assertOk()->assertViewHas('activeTab', 'profile')
+            ->assertSee('Unsaved biography')->assertSee('ob-field__error', false);
+    }
+
     public function test_a_user_can_update_their_display_name_bio_and_links(): void
     {
         $user = $this->createFullAccount('alice');
@@ -47,10 +135,10 @@ class SettingsTest extends TestCase
             ],
         ]);
 
-        $response->assertRedirect(route('profile.show', $user->username));
+        $response->assertRedirect(route('settings.edit'));
 
         $response->assertSessionHas('status', __('openbook.settings.profile_updated'));
-        $this->get(route('profile.show', $user->username))->assertOk()
+        $this->get(route('settings.edit'))->assertOk()
             ->assertSee(__('openbook.settings.profile_updated'));
 
         $user->profile->refresh();
@@ -102,7 +190,7 @@ class SettingsTest extends TestCase
         $this->actingAs($user)->put(route('settings.profile.update'), [
             'display_name' => 'Alice',
             'links' => [['label' => 'Sito', 'url' => 'https://new.example.test']],
-        ])->assertSessionHasNoErrors()->assertRedirect(route('profile.show', $user->username));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('settings.edit'));
 
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Update'
             && $job->activity['object']['attachment'] === [[
@@ -115,7 +203,7 @@ class SettingsTest extends TestCase
         $this->actingAs($user->fresh())->put(route('settings.profile.update'), [
             'display_name' => 'Alice',
             'links' => [],
-        ])->assertSessionHasNoErrors()->assertRedirect(route('profile.show', $user->username));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('settings.edit'));
 
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->activity['type'] === 'Update'
             && $job->activity['object']['attachment'] === []);
@@ -172,10 +260,10 @@ class SettingsTest extends TestCase
             'default_post_visibility' => 'public',
         ]);
 
-        $response->assertRedirect(route('settings.edit'));
+        $response->assertRedirect(route('settings.edit', ['tab' => 'account']));
         $this->assertSame('en', $user->settings->fresh()->locale);
 
-        $response = $this->actingAs($user)->get(route('settings.edit'));
+        $response = $this->actingAs($user)->get(route('settings.edit', ['tab' => 'account']));
         $response->assertSee(__('openbook.settings.title', [], 'en'));
     }
 
@@ -289,7 +377,7 @@ class SettingsTest extends TestCase
     {
         $user = $this->createFullAccount('alice');
 
-        $this->actingAs($user)->get('/impostazioni')
+        $this->actingAs($user)->get(route('settings.edit', ['tab' => 'account']))
             ->assertOk()
             ->assertSee(__('openbook.settings.indexable_label'));
     }

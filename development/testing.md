@@ -11,6 +11,29 @@ APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/
 The SQLite tests cover verification, confirmation, ordinary delivery, profile
 signatures, notification behavior, removal and subsequent moves.
 
+Settings tabs:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/SettingsTest.php tests/Feature/ProfileFieldsTest.php tests/Feature/UserTimezoneTest.php tests/Feature/PushSubscriptionTest.php
+```
+
+These tests cover the Profile, Account and privacy, Notifications and Account
+migration tabs, return destinations after saves and validation failures, and
+localized migration examples with the configured instance name.
+
+Federation checks to run on an online instance:
+
+- Move a Mastodon account to Openbook after preparing its alias. Check that
+  incoming Follow requests retain the destination account's approval rules.
+- Move an Openbook account to Mastodon. Check reception of the signed Move,
+  transfer of remote followers, and the #116 notification for local followers.
+- Check the old account's profile notice and continued use, then remove the
+  notice and check the Actor Update with `movedTo: null`.
+
+These checks are still pending and require an instance reachable by remote
+servers. Automated tests cover the local flows and payloads, but do not replace
+this interoperability check.
+
 Account arrival and aliases (#117):
 
 ```bash

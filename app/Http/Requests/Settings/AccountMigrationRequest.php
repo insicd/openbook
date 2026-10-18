@@ -33,6 +33,6 @@ class AccountMigrationRequest extends FormRequest
 
     protected function getRedirectUrl(): string
     {
-        return route('settings.edit');
+        return route('settings.edit', ['tab' => 'migration']);
     }
 }
