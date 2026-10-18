@@ -19,6 +19,12 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Partenza verso un altro server (#117)**: verifica del nuovo account tramite
+  alias, conferma con password e annuncio Move ai follower remoti con il normale
+  flusso di consegna. I follower locali ricevono una notifica e scelgono se
+  seguire il nuovo profilo. Il vecchio account resta utilizzabile; nelle
+  impostazioni puoi rimuovere l’indicazione di trasferimento e trasferirti
+  nuovamente. Aggiornare la cache delle route.
 - **Arrivo da un’altra istanza (#117)**: nelle impostazioni puoi dichiarare fino
   a dieci vecchi account come alias pubblici (`alsoKnownAs`) e rimuoverli.
   Il trasferimento si avvia dal server precedente; i Follow ricevuti rispettano

@@ -182,13 +182,15 @@ class AccountAliasesTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_moved_accounts_cannot_change_aliases(): void
+    public function test_moved_accounts_can_manage_aliases_normally(): void
     {
         $user = $this->createFullAccount('anna');
         $target = $this->createRemoteActor('destination');
         $user->actor->update(['moved_to_actor_id' => $target->id]);
-        $this->actingAs($user)->post(route('settings.aliases.store'), ['alias' => $target->uri])->assertSessionHasErrors('alias');
-        $this->delete(route('settings.aliases.destroy'), ['alias' => $target->uri])->assertSessionHasErrors('alias');
+        $this->actingAs($user)->post(route('settings.aliases.store'), ['alias' => $target->uri])->assertSessionHasNoErrors();
+        $this->assertSame([$target->uri], $user->actor->fresh()->also_known_as);
+        $this->delete(route('settings.aliases.destroy'), ['alias' => $target->uri])->assertSessionHasNoErrors();
+        $this->assertSame([], $user->actor->fresh()->also_known_as);
         Http::assertNothingSent();
     }
 }

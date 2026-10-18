@@ -2,6 +2,15 @@
 
 ## Test
 
+Partenza degli account (#117):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/AccountMigrationTest.php tests/Feature/AccountAliasesTest.php tests/Feature/Federation/RemoteAccountMoveTest.php
+```
+
+I test SQLite coprono verifica, conferma, consegna ordinaria, firme, notifiche,
+rimozione dell’indicazione e trasferimenti successivi.
+
 Arrivo e alias degli account (#117):
 
 ```bash

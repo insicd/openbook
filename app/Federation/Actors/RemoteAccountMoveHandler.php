@@ -2,10 +2,7 @@
 
 namespace App\Federation\Actors;
 
-use App\Application\Services\NotificationCreator;
-use App\Domain\Accounts\User;
-use App\Domain\Notifications\Notification;
-use App\Domain\SocialGraph\Follow;
+use App\Application\Services\AccountMoveNotifier;
 use App\Federation\Inbox\InboxItem;
 use App\Federation\Support\ActivityPubUri;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +11,7 @@ final class RemoteAccountMoveHandler
 {
     public function __construct(
         private readonly AccountMoveTargetResolver $targets,
-        private readonly NotificationCreator $notifications,
+        private readonly AccountMoveNotifier $notifications,
     ) {}
 
     /** @param array<string, mixed> $activity */
@@ -53,35 +50,7 @@ final class RemoteAccountMoveHandler
                 return InboxItem::STATUS_IGNORED;
             }
 
-            // The profile may already have supplied movedTo without any Move.
-            // Deduplicate notifications themselves, not the informational link.
-            $notified = array_flip(Notification::query()
-                ->where('actor_id', $source->id)
-                ->where('type', Notification::TYPE_ACCOUNT_MOVED)
-                ->where('notifiable_type', $target->getMorphClass())
-                ->where('notifiable_id', $target->id)
-                ->pluck('recipient_id')->all());
-
-            $followers = Actor::query()
-                ->select('actors.*')
-                ->join('follows', 'follows.follower_id', '=', 'actors.id')
-                ->join('users', 'users.id', '=', 'actors.user_id')
-                ->where('follows.following_id', $source->id)
-                ->where('follows.status', Follow::STATUS_ACCEPTED)
-                ->where('actors.is_local', true)
-                ->where('actors.type', Actor::TYPE_PERSON)
-                ->where('actors.status', Actor::STATUS_ACTIVE)
-                ->where('users.status', User::STATUS_ACTIVE)
-                ->get();
-
-            foreach ($followers as $follower) {
-                if (isset($notified[$follower->user_id])) {
-                    continue;
-                }
-                // The destination is the stable notification target. Following
-                // it remains an explicit user action, preserving old follows.
-                $this->notifications->notify($follower, Notification::TYPE_ACCOUNT_MOVED, $source, $target);
-            }
+            $this->notifications->notifyFollowers($source, $target);
 
             $source->forceFill(['moved_to_actor_id' => $target->id])->save();
 

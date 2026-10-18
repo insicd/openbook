@@ -59,6 +59,7 @@ final class ActorSerializer
                     'discoverable' => 'toot:discoverable',
                     'indexable' => 'toot:indexable',
                     'manuallyApprovesFollowers' => 'as:manuallyApprovesFollowers',
+                    'movedTo' => ['@id' => 'as:movedTo', '@type' => '@id'],
                     'schema' => 'http://schema.org#',
                     'PropertyValue' => 'schema:PropertyValue',
                     'value' => 'schema:value',
@@ -90,6 +91,8 @@ final class ActorSerializer
         if ($actor->isLocal() && $actor->isPerson()) {
             // An empty list also communicates alias removals to remote caches.
             $document['alsoKnownAs'] = $actor->also_known_as ?? [];
+            $actor->loadMissing('movedTo');
+            $document['movedTo'] = $actor->movedTo?->uri;
         }
 
         if ($urls !== null && ($actor->isFeed() || ($actor->isLocal() && $actor->isApplication()))) {

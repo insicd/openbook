@@ -79,13 +79,30 @@ Aggiungere un alias prepara soltanto la destinazione. Avvia il trasferimento
 dal vecchio account sul server di origine. I follower sui server compatibili
 possono quindi inviare normali richieste di follow a Openbook. Se il tuo account
 Openbook è protetto, devi comunque approvarle. Post, allegati e messaggi privati
-non vengono importati; questa funzione non consente ancora di trasferire altrove
-un account Openbook.
+non vengono importati.
 
 Se qualcuno su questa istanza Openbook segue il vecchio account, un Move
 verificato verso il tuo nuovo account locale lo avvisa e rimanda al nuovo profilo.
 Sceglie autonomamente se seguirlo; il vecchio follow resta invariato. Un normale
 aggiornamento del profilo da solo non invia questa notifica.
+
+## Trasferirsi da Openbook a un altro server
+
+Sul nuovo server aggiungi il vecchio account Openbook tra gli alias. Poi apri
+**Impostazioni → Trasferisci il tuo account** su Openbook, inserisci l’indirizzo
+del nuovo account e premi **Verifica destinazione**. Openbook controlla l’alias
+sul nuovo profilo. Per annunciare il trasferimento conferma la destinazione
+con la tua password Openbook attuale e la casella di conferma.
+
+Openbook indica il nuovo indirizzo sul profilo e invia un Move firmato ai
+follower remoti tramite la normale coda di consegna. I follower locali ricevono
+una notifica e scelgono se seguire il nuovo account. Il vecchio account resta
+utilizzabile: puoi pubblicare, interagire e ricevere nuovi follower. Post,
+allegati e messaggi rimangono associati al vecchio account.
+
+Nelle impostazioni, **Rimuovi l’indicazione di trasferimento** elimina l’avviso
+e invia un aggiornamento del profilo. I follower già trasferiti restano dove
+sono. Puoi poi avviare un altro trasferimento con le stesse verifiche e conferme.
 
 ## Community
 

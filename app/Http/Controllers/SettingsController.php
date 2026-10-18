@@ -27,7 +27,7 @@ class SettingsController extends Controller
     public function edit(): View
     {
         $user = auth()->user();
-        $user->loadMissing(['profile', 'settings', 'actor']);
+        $user->loadMissing(['profile', 'settings', 'actor.movedTo']);
 
         return view('settings.index', [
             'viewer' => $user,

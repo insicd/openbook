@@ -1,7 +1,7 @@
 # Migrazione degli account verso e da Openbook — issue #117
 
 **Issue:** [#117](https://github.com/insicd/openbook/issues/117).
-**Stato:** arrivo implementato; da completare partenza e portabilità dei seguiti.
+**Stato:** arrivo e partenza implementati; portabilità dei seguiti da completare.
 **Analisi collegata:** [ACCOUNT_MOVE.md](ACCOUNT_MOVE.md), relativa alla #116.
 
 ## 1. Obiettivo
@@ -126,19 +126,20 @@ Questa funzionalità costituisce uno stadio separato dalla partenza.
 | Componente | Responsabilità |
 | --- | --- |
 | `AccountAliasManager` e impostazioni | Gestione degli alias locali, già implementata. |
-| `ActorSerializer` | Pubblica `alsoKnownAs`; da estendere con `movedTo` per la partenza. |
+| `ActorSerializer` | Pubblica `alsoKnownAs` e `movedTo` nel profilo federato. |
 | `RemoteActorResolver` e `AccountMoveTargetResolver` | Risoluzione degli account e verifica degli alias su destinazioni locali e remote. |
-| `RemoteAccountMoveHandler` e `NotificationCreator` | Gestione degli annunci e notifiche della #116; riusare le notifiche anche per una sorgente locale. |
+| `RemoteAccountMoveHandler` e `AccountMoveNotifier` | Gestione degli annunci e notifiche della #116, condivise con le partenze locali. |
 | `FollowManager` e inbox | Normali richieste Follow e approvazioni dei follower in arrivo. |
-| Nuovo servizio applicativo per la partenza | Verifica, conferma, registrazione del trasferimento e rimozione dell’indicazione. |
-| `ActivitySerializer` | Da estendere con la rappresentazione del Move in uscita. |
+| `AccountMigrationService` | Verifica, conferma, registrazione del trasferimento e rimozione dell’indicazione. |
+| `ActivitySerializer` | Rappresentazione del Move in uscita. |
 | `ActivityDelivery` e `DeliverActivityJob` | Consegna del Move attraverso il flusso federato ordinario. |
 | Profilo locale | Avviso di trasferimento e collegamento al nuovo account. |
 
-I campi `actors.also_known_as` e `actors.moved_to_actor_id` sono già presenti.
-La partenza deve conservare anche l’identità dell’annuncio, gli URI coinvolti
-e lo stato dell’indicazione di trasferimento. Lo schema preciso verrà definito
-nell’implementazione, seguendo le convenzioni del progetto.
+Gli alias sono conservati in `actors.also_known_as`; la destinazione del
+trasferimento in `actors.moved_to_actor_id`. Profilo e documento Actor leggono
+la destinazione dalla relazione `movedTo`. Rimuovere l’indicazione svuota
+`moved_to_actor_id`. L’ID del Move viene generato quando si costruisce l’attività;
+i normali job di consegna conservano il payload per i tentativi successivi.
 
 I controller validano e autorizzano le richieste, delegando il comportamento
 ai servizi applicativi. Risoluzione e consegna remota usano le protezioni HTTP
@@ -148,7 +149,7 @@ e le regole di moderazione esistenti.
 
 1. **Arrivo, completato:** alias locali, pubblicazione di `alsoKnownAs`,
    ricezione dei follower e Move verso account locali.
-2. **Partenza:** verifica e conferma della destinazione, Move in uscita,
+2. **Partenza, completata:** verifica e conferma della destinazione, Move in uscita,
    indicazione sul profilo e sua rimozione, notifiche ai follower locali.
 3. **Portabilità dei seguiti:** esportazione e importazione CSV.
 

@@ -389,6 +389,24 @@ final class RemoteActorResolver
         return $this->fetchAndStore($actorUri) ?? $existing;
     }
 
+    public function resolveAddress(string $address, bool $forceRefresh = false): ?Actor
+    {
+        $address = trim($address);
+        if (strlen($address) > 2048) {
+            return null;
+        }
+        if (filter_var($address, FILTER_VALIDATE_URL) !== false
+            && in_array(strtolower((string) parse_url($address, PHP_URL_SCHEME)), ['http', 'https'], true)
+            && parse_url($address, PHP_URL_USER) === null && parse_url($address, PHP_URL_PASS) === null) {
+            return $this->resolveByUri($address, $forceRefresh);
+        }
+        if (preg_match('~^(?:acct:)?@?[^@\s/:?#]+@[^@\s/?#]+$~uD', $address) === 1) {
+            return $this->resolveByHandle($address, $forceRefresh);
+        }
+
+        return null;
+    }
+
     private function isLocalDomainUri(string $uri): bool
     {
         $host = parse_url($uri, PHP_URL_HOST);
@@ -414,7 +432,7 @@ final class RemoteActorResolver
      * remota). Restituisce null se l'indirizzo e' malformato, il dominio non
      * risponde, o l'account non esiste.
      */
-    public function resolveByHandle(string $handle): ?Actor
+    public function resolveByHandle(string $handle, bool $forceRefresh = false): ?Actor
     {
         $handle = ltrim(trim($handle), '@');
 
@@ -475,7 +493,7 @@ final class RemoteActorResolver
             return null;
         }
 
-        return $this->resolveByUri($selfUri);
+        return $this->resolveByUri($selfUri, $forceRefresh);
     }
 
     /**
@@ -690,7 +708,9 @@ final class RemoteActorResolver
 
             $actor = Actor::query()->firstOrCreate(['uri' => $uri], $attributes + ['status' => Actor::STATUS_ACTIVE]);
             // Profile discovery is informational; only the Move handler notifies followers.
-            if ($actor->moved_to_actor_id === null && $movedTo !== null) {
+            if (array_key_exists('movedTo', $document) && $document['movedTo'] === null) {
+                $attributes['moved_to_actor_id'] = null;
+            } elseif ($actor->moved_to_actor_id === null && $movedTo !== null) {
                 $attributes['moved_to_actor_id'] = $movedTo->id;
             }
             $actor->fill($attributes)->save();

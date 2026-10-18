@@ -182,6 +182,7 @@
     </div>
 
     @include('settings._account_aliases')
+    @include('settings._account_migration')
 
     <script>
         (function () {

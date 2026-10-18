@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountAliasController;
+use App\Http\Controllers\AccountMigrationController;
 use App\Http\Controllers\ActorProfileController;
 use App\Http\Controllers\Admin\AppearanceController as AdminAppearanceController;
 use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
@@ -209,6 +210,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/messaggi/{conversation}', [ConversationController::class, 'store'])->name('messages.store');
 
     Route::get('/impostazioni', [SettingsController::class, 'edit'])->name('settings.edit');
+    Route::post('/impostazioni/account/trasferimento/verifica', [AccountMigrationController::class, 'preview'])
+        ->middleware('throttle:10,1')->name('settings.migration.preview');
+    Route::post('/impostazioni/account/trasferimento', [AccountMigrationController::class, 'store'])
+        ->middleware('throttle:10,1')->name('settings.migration.store');
+    Route::delete('/impostazioni/account/trasferimento', [AccountMigrationController::class, 'destroy'])
+        ->middleware('throttle:10,1')->name('settings.migration.destroy');
     Route::post('/impostazioni/account/alias', [AccountAliasController::class, 'store'])
         ->middleware('throttle:10,1')->name('settings.aliases.store');
     Route::delete('/impostazioni/account/alias', [AccountAliasController::class, 'destroy'])

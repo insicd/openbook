@@ -1376,6 +1376,11 @@ html.ob-compose-modal-open {
   overflow-wrap: anywhere;
 }
 
+.ob-migration-destination,
+.ob-profile-moved a {
+  overflow-wrap: anywhere;
+}
+
 .ob-settings-link-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;

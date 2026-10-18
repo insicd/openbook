@@ -183,7 +183,7 @@ Gli annunci remoti possono avere anche un account locale come destinazione,
 preparato tramite alias. `AccountMoveTargetResolver` verifica questo caso
 separatamente dalla consultazione informativa dei profili; rilegge alias e
 stato locali sotto lock dell’Actor prima di creare notifiche. Community e
-catene automatiche restano escluse; la partenza da Openbook non è ancora implementata.
+catene automatiche restano escluse.
 
 `AccountAliasManager` gestisce fino a dieci alias sul Person locale autenticato
 tramite le route POST/DELETE delle impostazioni. Handle e URI vengono risolti
@@ -207,6 +207,28 @@ del mouse, al focus da tastiera o al click/tocco.
 
 Lo schema della #116 richiede il consueto `php artisan migrate`. Lo stadio di
 arrivo della #117 riusa quelle colonne e non aggiunge migration o worker.
+
+### Migrazioni in uscita (#117)
+
+`AccountMigrationService` verifica la destinazione con un fetch protetto
+aggiornato, la salva nella colonna esistente `actors.moved_to_actor_id` e chiama
+il normale `ActivityDelivery::deliverToFollowers()` per Update e Move.
+`ActivitySerializer::move()` genera l’ID quando costruisce il payload; i normali
+job di consegna conservano quel payload, ID compreso, per i tentativi successivi.
+
+Il lock della sorgente serializza conferma e rimozione. La relazione esistente
+`movedTo` fornisce la destinazione per il documento Actor e il link del profilo.
+`AccountMoveNotifier` condivide con il gestore in ingresso le notifiche locali
+della #116, conservando i follow. Confermare nuovamente la destinazione corrente
+non invia un altro annuncio.
+
+La rimozione dell’indicazione svuota `moved_to_actor_id` e invia un Update con
+`movedTo: null` esplicito. L’importazione dei profili remoti riconosce quel null;
+l’omissione conserva il collegamento precedente. Il vecchio account resta attivo
+e può pubblicare, ricevere follow, gestire alias e trasferirsi ancora.
+
+Dopo l’aggiornamento ricreare o svuotare la cache delle route.
+Questa fase non aggiunge migration dello schema.
 
 ### Profili commemorativi remoti
 

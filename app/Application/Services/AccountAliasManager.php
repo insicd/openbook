@@ -25,16 +25,7 @@ final class AccountAliasManager
     public function add(User $user, string $address): void
     {
         $this->assertEditable($user, $user->actor);
-        $address = trim($address);
-        $source = null;
-        if (strlen($address) <= 2048) {
-            if (filter_var($address, FILTER_VALIDATE_URL) !== false
-                && in_array(strtolower((string) parse_url($address, PHP_URL_SCHEME)), ['http', 'https'], true)) {
-                $source = $this->actors->resolveByUri($address);
-            } elseif (preg_match('~^(?:acct:)?@?[^@\s/:?#]+@[^@\s/?#]+$~uD', $address) === 1) {
-                $source = $this->actors->resolveByHandle($address);
-            }
-        }
+        $source = $this->actors->resolveAddress($address);
 
         if ($source === null || $source->isLocal() || ! $source->isActive()
             || $source->isRemotelySuspended() || (! $source->isPerson() && ! $source->isApplication())
@@ -84,9 +75,6 @@ final class AccountAliasManager
         if ($user === null || ! $user->isActive() || $actor === null || ! $actor->isLocal()
             || ! $actor->isPerson() || ! $actor->isActive() || $actor->user_id !== $user->id) {
             throw new AuthorizationException;
-        }
-        if ($actor->moved_to_actor_id !== null) {
-            throw ValidationException::withMessages(['alias' => __('openbook.settings.alias_account_moved')]);
         }
     }
 }

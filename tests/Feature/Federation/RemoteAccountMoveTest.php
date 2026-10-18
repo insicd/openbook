@@ -449,6 +449,18 @@ class RemoteAccountMoveTest extends TestCase
         $this->assertSame([], $this->source->fresh()->also_known_as);
     }
 
+    public function test_an_explicit_null_moved_to_removes_the_notice_without_changing_follows_or_notifications(): void
+    {
+        $this->follow($this->createFullAccount('luca')->actor);
+        $this->process();
+        $this->assertNotNull($this->source->fresh()->moved_to_actor_id);
+        $before = Follow::query()->get()->toArray();
+        app(RemoteActorResolver::class)->applyRemoteDocument($this->sourceDocument(['movedTo' => null]), $this->source->uri);
+        $this->assertNull($this->source->fresh()->moved_to_actor_id);
+        $this->assertSame($before, Follow::query()->get()->toArray());
+        $this->assertDatabaseCount('notifications', 1);
+    }
+
     public static function moveDestinationOrigins(): array
     {
         return ['remote destination' => [false], 'local destination' => [true]];

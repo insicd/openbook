@@ -187,7 +187,7 @@ Remote announcements may also target a local account prepared with an alias.
 `AccountMoveTargetResolver` handles this check separately from informational
 profile discovery; local aliases and state are read again under the Actor lock
 before notifications are created. Communities and automatic migration chains
-remain excluded; outgoing moves from Openbook are not yet implemented.
+remain excluded.
 
 `AccountAliasManager` manages up to ten aliases on the authenticated local
 Person through the settings POST/DELETE routes. Handle/URI resolution uses the
@@ -211,6 +211,27 @@ keyboard focus or click/tap.
 
 The #116 schema requires running `php artisan migrate` as usual. The #117 arrival
 stage reuses those columns and adds no migration or worker.
+
+### Outgoing account migrations (#117)
+
+`AccountMigrationService` verifies the destination with a fresh protected fetch,
+saves it in the existing `actors.moved_to_actor_id` column and calls the ordinary
+`ActivityDelivery::deliverToFollowers()` for the Actor Update and Move.
+`ActivitySerializer::move()` generates an activity id when building the payload;
+the standard delivery jobs retain that payload, including its id, across retries.
+
+Source locking serializes confirmation and removal. The existing `movedTo`
+relation supplies the destination for the Actor document and profile link.
+`AccountMoveNotifier` shares the #116 local notification behavior with the
+incoming handler, preserving follows. Repeat confirmation of the current
+destination does not send another announcement.
+
+Removing the indication clears `moved_to_actor_id` and sends an Actor Update
+with explicit `movedTo: null`. Remote profile imports recognize that explicit
+null; omission still preserves the previous link. The old account remains active
+and can publish, receive follows, manage aliases and move again.
+
+Rebuild or clear the route cache after updating. This stage adds no schema migration.
 
 ### Remote memorial profiles
 
