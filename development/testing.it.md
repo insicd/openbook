@@ -2,6 +2,22 @@
 
 ## Test
 
+Fusi orari personali:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test tests/Feature/UserTimezoneTest.php tests/Feature/UserDatePresentationTest.php tests/Unit/Support/UserDateTest.php
+node tests/Browser/timezones.cjs
+OPENBOOK_TEST_TIMEZONE_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test tests/Feature/UserTimezoneMysqlTest.php
+```
+
+Il test MySQL usa le variabili `OPENBOOK_TEST_MYSQL_HOST`, `PORT`, `SOCKET`,
+`USERNAME` e `PASSWORD` (con lo stesso prefisso); crea uno schema casuale e lo
+elimina al termine, senza migrare il database dell'applicazione. Verifica anche
+rollback, nullabilità e default. I test browser usano SQLite in memoria e
+controllano rilevamento, cambio dispositivo, scelta esplicita, ospiti, eventi,
+assenza di JavaScript/Intl/cookie e mancata ripetizione delle risposte POST.
+Le schermate di verifica vengono salvate nella directory temporanea di sistema.
+
 Scelta della lingua e pagine di accesso (#103):
 
 ```bash

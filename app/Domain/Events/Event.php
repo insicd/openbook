@@ -233,6 +233,25 @@ class Event extends Model
         return $summary !== '' ? $summary : null;
     }
 
+    public function timezoneForDisplay(): string
+    {
+        if ($this->timezone !== null) {
+            return $this->timezone;
+        }
+
+        $offset = $this->utc_offset_minutes;
+
+        return $offset === null ? (string) config('app.timezone', 'UTC')
+            : sprintf('%s%02d:%02d', $offset >= 0 ? '+' : '-', intdiv(abs($offset), 60), abs($offset) % 60);
+    }
+
+    public function timezoneLabel(): string
+    {
+        $timezone = $this->timezoneForDisplay();
+
+        return $this->timezone === null && $this->utc_offset_minutes !== null ? 'UTC'.$timezone : $timezone;
+    }
+
     public function scopeVisibleTo(Builder $query, ?Actor $viewer): Builder
     {
         return $query->where(function (Builder $query) use ($viewer): void {

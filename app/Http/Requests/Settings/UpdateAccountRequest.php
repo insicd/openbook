@@ -20,6 +20,7 @@ class UpdateAccountRequest extends FormRequest
     {
         return [
             'locale' => ['required', 'string', 'in:'.implode(',', array_keys((array) config('openbook.locales')))],
+            'timezone' => ['sometimes', 'nullable', 'string', 'timezone:all_with_bc'],
             'default_post_visibility' => ['required', 'in:'.implode(',', [
                 Post::VISIBILITY_PUBLIC,
                 Post::VISIBILITY_UNLISTED,
@@ -35,5 +36,10 @@ class UpdateAccountRequest extends FormRequest
                 UserSetting::DM_POLICY_NOBODY,
             ])],
         ];
+    }
+
+    public function attributes(): array
+    {
+        return ['timezone' => __('openbook.settings.timezone_label')];
     }
 }

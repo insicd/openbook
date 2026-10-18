@@ -122,11 +122,23 @@ can update your name, biography, avatar, cover and up to eight fields shared
 between Links and Additional information. Images are previewed before saving.
 Profile changes are communicated to remote followers.
 
-Preferences let you choose interface language and initial visibility for new
-posts. With **Protected account**, you approve follow requests. You can choose
+Preferences let you choose interface language, time zone and initial visibility
+for new posts. With **Protected account**, you approve follow requests. You can choose
 whether to appear in suggestions and whether to allow indexing of your public
 posts. Opting out of suggestions keeps your profile reachable by its exact
 address.
+
+In **Settings → Account → Time zone**, **Automatic — from your device** follows
+your browser's time zone, including when travelling or changing devices. Choose
+a specific time zone to always use it; you can return to Automatic at any time.
+New and upgraded accounts start in Automatic. Interface language is independent
+of your chosen time zone.
+
+Messages, poll deadlines and profile dates follow your time zone. Guests also
+see times in their browser's time zone. Detection needs no geolocation permission;
+in Automatic mode, without JavaScript, cookies or a valid detected zone,
+Openbook uses the instance time zone. Changing your time zone does not change
+deadlines or publication instants.
 
 ## Notifications and messages
 

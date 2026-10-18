@@ -4,13 +4,14 @@
 
 @section('content')
     <h1>{{ __('openbook.admin.audit.title') }}</h1>
+    @include('admin.partials.timezone-note')
     <p class="ob-field__help">{{ __('openbook.admin.audit.intro') }}</p>
 
     @forelse ($logs as $log)
         <article class="ob-card" style="margin-top:0.75rem">
             <p>
                 <strong>{{ $log->action }}</strong>
-                <span class="ob-field__help">{{ $log->created_at?->format('Y-m-d H:i:s') }}</span>
+                <span class="ob-field__help">@userdate($log->created_at, 'Y-m-d H:i:s')</span>
             </p>
             <p class="ob-field__help">
                 {{ $log->actor?->username ?? '—' }}

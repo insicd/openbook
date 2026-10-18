@@ -232,7 +232,7 @@
                     <div class="ob-composer__poll ob-composer__poll--fixed">
                         <strong>{{ __('openbook.polls.title') }}</strong>
                         <ul>@foreach ($editingPoll->options as $option)<li><bdi>{{ $option->name }}</bdi></li>@endforeach</ul>
-                        <p>{{ $editingPoll->multiple ? __('openbook.polls.multiple_choice') : __('openbook.polls.single_choice') }} · {{ __('openbook.polls.ends') }} <time datetime="{{ $editingPoll->ends_at->toIso8601String() }}">{{ $editingPoll->ends_at->translatedFormat('j M Y, H:i') }}</time></p>
+                        <p>{{ $editingPoll->multiple ? __('openbook.polls.multiple_choice') : __('openbook.polls.single_choice') }} · {{ __('openbook.polls.ends') }} <time datetime="{{ $editingPoll->ends_at->toIso8601String() }}">@userdate($editingPoll->ends_at)</time></p>
                         <p class="ob-field__help">{{ __('openbook.polls.immutable') }} {{ __('openbook.polls.fixed_visibility') }}</p>
                     </div>
                 @else

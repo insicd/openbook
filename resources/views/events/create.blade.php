@@ -5,7 +5,7 @@
 @section('content')
     @php
         $editing = isset($event);
-        $eventTimezone = $editing ? ($event->timezone ?: config('app.timezone')) : config('app.timezone');
+        $eventTimezone = $editing ? $event->timezoneForDisplay() : app(\App\Support\UserDate::class)->timezone();
         $defaultMode = $editing ? ($event->is_online ? ($event->location ? 'hybrid' : 'online') : 'physical') : 'physical';
         $modeValue = old('mode', $defaultMode);
         $joinModeValue = old('join_mode', $editing ? $event->join_mode : 'free');
@@ -96,7 +96,7 @@
                 </div>
                 <div class="ob-field">
                     <label for="event-timezone">{{ __('openbook.events.composer.timezone') }}</label>
-                    <select id="event-timezone" name="timezone" required data-has-old-value="{{ old('timezone') || $editing ? '1' : '0' }}">
+                    <select id="event-timezone" name="timezone" required>
                         @foreach ($timezones as $region => $identifiers)
                             <optgroup label="{{ str_replace('_', ' ', $region) }}">
                                 @foreach ($identifiers as $identifier)
@@ -210,23 +210,12 @@
 
     <script>
         (function () {
-            var timezone = document.getElementById('event-timezone');
             var mode = document.getElementById('event-mode');
             var physical = document.querySelector('[data-event-physical]');
             var participationUrl = document.querySelector('[data-event-participation-url]');
             var listed = document.getElementById('event-listed');
             var visibility = document.getElementById('event-visibility');
             var joinMode = document.getElementById('event-join-mode');
-
-            try {
-                var detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-                var knownTimezone = Array.prototype.some.call(timezone.options, function (option) {
-                    return option.value === detectedTimezone;
-                });
-                if (knownTimezone && timezone.dataset.hasOldValue !== '1') {
-                    timezone.value = detectedTimezone;
-                }
-            } catch (error) {}
 
             function updateMode() {
                 physical.hidden = mode.value === 'online';

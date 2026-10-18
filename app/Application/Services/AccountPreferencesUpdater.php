@@ -8,7 +8,7 @@ use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Serialization\ActivitySerializer;
 
 /**
- * Applica le preferenze personali dell'account (lingua, visibilita'
+ * Applica le preferenze personali dell'account (lingua, fuso orario, visibilita'
  * predefinita dei nuovi post, approvazione manuale dei follower,
  * discoverable/indexable). "manually_approves_followers", "discoverable" e
  * "indexable" sono duplicati di proposito su {@see Actor}: sono i campi
@@ -26,7 +26,7 @@ final class AccountPreferencesUpdater
     }
 
     /**
-     * @param  array{locale: string, default_post_visibility: string, manually_approves_followers?: bool|null, discoverable?: bool|null, indexable?: bool|null, direct_message_policy: string}  $data
+     * @param  array{locale: string, timezone?: string|null, default_post_visibility: string, manually_approves_followers?: bool|null, discoverable?: bool|null, indexable?: bool|null, direct_message_policy: string}  $data
      */
     public function update(User $user, array $data): void
     {
@@ -36,6 +36,7 @@ final class AccountPreferencesUpdater
 
         $user->settings->update([
             'locale' => $data['locale'],
+            'timezone' => array_key_exists('timezone', $data) ? $data['timezone'] : $user->settings->timezone,
             'default_post_visibility' => $data['default_post_visibility'],
             'manually_approves_followers' => $manuallyApprovesFollowers,
             'discoverable' => $discoverable,

@@ -41,7 +41,7 @@ class EventController extends Controller
 
     public function create(): View
     {
-        $timezones = collect(\DateTimeZone::listIdentifiers())
+        $timezones = collect(\DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC))
             ->groupBy(fn (string $timezone): string => explode('/', $timezone, 2)[0]);
 
         return view('events.create', compact('timezones'));
@@ -54,7 +54,7 @@ class EventController extends Controller
 
         return view('events.create', [
             'event' => $event,
-            'timezones' => collect(\DateTimeZone::listIdentifiers())
+            'timezones' => collect(\DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC))
                 ->groupBy(fn (string $timezone): string => explode('/', $timezone, 2)[0]),
         ]);
     }

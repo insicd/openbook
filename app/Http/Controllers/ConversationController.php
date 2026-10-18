@@ -20,6 +20,7 @@ use App\Federation\Actors\Actor;
 use App\Http\Presenters\ConversationMessagePresenter;
 use App\Http\Requests\Messages\StartMessageRequest;
 use App\Http\Requests\Messages\StoreMessageRequest;
+use App\Support\UserDate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -306,7 +307,7 @@ class ConversationController extends Controller
         abort_unless($conversation->involves($viewer), 404);
 
         $revision = $this->conversations->threadRevision($conversation);
-        $etag = '"'.md5($revision).'"';
+        $etag = $this->threadEtag($revision);
 
         if ($this->clientHasCurrentRevision($request, $etag)) {
             return response('', 304)->withHeaders([
@@ -327,7 +328,7 @@ class ConversationController extends Controller
         if ($messages->isNotEmpty()) {
             $last = $messages->last();
             $revision = $last->id.'@'.$last->created_at->timestamp;
-            $etag = '"'.md5($revision).'"';
+            $etag = $this->threadEtag($revision);
         }
 
         return response()
@@ -339,6 +340,12 @@ class ConversationController extends Controller
                 'ETag' => $etag,
                 'Cache-Control' => 'private, no-cache',
             ]);
+    }
+
+    private function threadEtag(string $revision): string
+    {
+        // The same messages have different labels and event cards for each locale/timezone.
+        return '"'.md5($revision.'|'.app(UserDate::class)->timezone().'|'.app()->getLocale()).'"';
     }
 
     private function clientHasCurrentRevision(Request $request, string $etag): bool

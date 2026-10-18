@@ -25,7 +25,7 @@
         <div class="ob-poll__heading">
             <strong>{{ $closed ? __('openbook.polls.closed') : ($poll->ends_at === null ? __('openbook.polls.open') : __('openbook.polls.title')) }}</strong>
             @if (! $closed && $poll->ends_at !== null)
-                <em>({{ __('openbook.polls.ends_hint') }} <time datetime="{{ $poll->ends_at->toIso8601String() }}">{{ $poll->ends_at->translatedFormat('j M Y, H:i') }}</time>)</em>
+                <em>({{ __('openbook.polls.ends_hint') }} <time datetime="{{ $poll->ends_at->toIso8601String() }}">@userdate($poll->ends_at)</time>)</em>
             @endif
         </div>
 
@@ -87,7 +87,7 @@
             @if ($vote !== null)
                 <p class="ob-poll__confirmed" data-poll-confirmed tabindex="-1">✓
                     @if ($vote->created_at !== null)
-                        <time datetime="{{ $vote->created_at->toIso8601String() }}">{{ __('openbook.polls.voted_on', ['date' => $vote->created_at->translatedFormat('j M Y, H:i')]) }}</time>
+                        <time datetime="{{ $vote->created_at->toIso8601String() }}">{{ __('openbook.polls.voted_on', ['date' => app(\App\Support\UserDate::class)->format($vote->created_at)]) }}</time>
                     @else
                         {{ __('openbook.polls.voted') }}
                     @endif

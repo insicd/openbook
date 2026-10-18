@@ -30,7 +30,7 @@ class StoreEventRequest extends FormRequest
             'sensitive' => ['nullable', 'boolean'],
             'start_at' => ['required', 'date_format:Y-m-d\TH:i'],
             'end_at' => ['nullable', 'date_format:Y-m-d\TH:i', 'after:start_at'],
-            'timezone' => ['required', 'string', Rule::in(\DateTimeZone::listIdentifiers())],
+            'timezone' => ['required', 'string', 'timezone:all_with_bc'],
             'mode' => ['required', Rule::in(['physical', 'online', 'hybrid'])],
             'participation_url' => ['nullable', 'url:http,https', 'max:2048'],
             'location_id' => ['nullable', 'integer', 'exists:geo_cities,geoname_id'],

@@ -6,7 +6,7 @@
     <div class="ob-message-bubble__meta">
         <span>{!! $message->actor->displayNameHtml() !!}</span>
         <time datetime="{{ $message->published_at->toIso8601String() }}">
-            {{ $message->published_at->format('d/m/Y H:i') }}
+            @userdate($message->published_at, 'd/m/Y H:i')
         </time>
     </div>
     @if (filled($message->body))
