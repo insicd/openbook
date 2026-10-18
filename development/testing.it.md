@@ -2,6 +2,17 @@
 
 ## Test
 
+Arrivo e alias degli account (#117):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/AccountAliasesTest.php tests/Feature/Federation/RemoteAccountMoveTest.php tests/Unit/Infrastructure/Security/LinkedData/LinkedDataSignatureTest.php
+```
+
+I test coprono proprietà, alias pubblici canonici, limiti/rimozione, firme degli
+Update, destinazioni locali verificate, follow invariati e normale approvazione
+dei follow in arrivo. Restano coperte le regressioni #116 sulle destinazioni
+remote e sulla consultazione dei profili. Questo stadio non aggiunge migration.
+
 Fusi orari personali:
 
 ```bash

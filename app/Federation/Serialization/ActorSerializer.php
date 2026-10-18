@@ -87,6 +87,11 @@ final class ActorSerializer
             );
         }
 
+        if ($actor->isLocal() && $actor->isPerson()) {
+            // An empty list also communicates alias removals to remote caches.
+            $document['alsoKnownAs'] = $actor->also_known_as ?? [];
+        }
+
         if ($urls !== null && ($actor->isFeed() || ($actor->isLocal() && $actor->isApplication()))) {
             $document['inbox'] = $urls['inbox'];
             $document['outbox'] = $urls['outbox'];

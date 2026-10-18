@@ -67,6 +67,26 @@ loro autore originale. I profili dichiarati commemorativi dall’origine vengono
 segnalati come tali. La gestione locale di profili commemorativi e post fissati
 resta fuori dalle funzioni attuali.
 
+## Arrivare su Openbook da un altro server
+
+In **Impostazioni → Arrivo da un’altra istanza**, aggiungi il vecchio account
+tramite indirizzo completo (`nome@example.org`) o URL Actor ActivityPub.
+Openbook salva l’URL canonico dell’Actor come alias pubblico `alsoKnownAs`.
+Puoi gestire fino a dieci alias; rimuoverne uno può impedire un trasferimento
+che non è ancora stato verificato.
+
+Aggiungere un alias prepara soltanto la destinazione. Avvia il trasferimento
+dal vecchio account sul server di origine. I follower sui server compatibili
+possono quindi inviare normali richieste di follow a Openbook. Se il tuo account
+Openbook è protetto, devi comunque approvarle. Post, allegati e messaggi privati
+non vengono importati; questa funzione non consente ancora di trasferire altrove
+un account Openbook.
+
+Se qualcuno su questa istanza Openbook segue il vecchio account, un Move
+verificato verso il tuo nuovo account locale lo avvisa e rimanda al nuovo profilo.
+Sceglie autonomamente se seguirlo; il vecchio follow resta invariato. Un normale
+aggiornamento del profilo da solo non invia questa notifica.
+
 ## Community
 
 Le community locali si trovano nella sezione **Community**. Puoi crearle,

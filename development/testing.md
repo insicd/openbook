@@ -2,6 +2,17 @@
 
 ## Tests
 
+Account arrival and aliases (#117):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/AccountAliasesTest.php tests/Feature/Federation/RemoteAccountMoveTest.php tests/Unit/Infrastructure/Security/LinkedData/LinkedDataSignatureTest.php
+```
+
+These cover ownership, canonical public aliases, limits/removal, profile Update
+signatures, verified local destinations, unchanged follows and ordinary incoming
+follow approval. The #116 remote destination and profile discovery regressions
+remain covered. No database migration is added by this stage.
+
 Personal time zones:
 
 ```bash

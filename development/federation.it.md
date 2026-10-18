@@ -169,20 +169,34 @@ servizi o worker.
 
 Un `Move` autentico da un account remoto genera una notifica per ciascun
 follower locale con follow accettato e un avviso sul vecchio profilo.
-Openbook verifica che actor e object corrispondano al mittente autenticato
-e recupera il profilo aggiornato della destinazione, che deve dichiarare
-il vecchio account in `alsoKnownAs`. Un fetch fallito o una verifica negativa
-non produce notifiche. Le copie dello stesso annuncio vengono deduplicate.
+Openbook verifica che actor e object corrispondano al mittente autenticato.
+Per una destinazione remota recupera il profilo aggiornato; per un Person locale
+legge dal database identità canonica, User attivo e alias. Entrambi devono
+dichiarare il vecchio account in `alsoKnownAs`. Un fetch fallito o una verifica
+negativa non produce notifiche. Le copie dello stesso annuncio vengono deduplicate.
 
 La notifica apre il nuovo profilo dentro Openbook, dove l'utente puo'
 scegliere Segui. Nessun follow viene creato o rimosso automaticamente;
 preferenze, post precedenti e regole di retention e visibilita' restano
 invariati. Un Update con il solo `movedTo` non genera notifiche di migrazione.
-Questa funzione riguarda annunci fra account remoti, non la migrazione di
-account da o verso Openbook, community o catene di spostamenti automatici.
+Gli annunci remoti possono avere anche un account locale come destinazione,
+preparato tramite alias. `AccountMoveTargetResolver` verifica questo caso
+separatamente dalla consultazione informativa dei profili; rilegge alias e
+stato locali sotto lock dell’Actor prima di creare notifiche. Community e
+catene automatiche restano escluse; la partenza da Openbook non è ancora implementata.
 
-Anche i normali aggiornamenti del vecchio profilo importano `movedTo`:
-Openbook cerca il nuovo Actor nel database, lo recupera se manca e salva
+`AccountAliasManager` gestisce fino a dieci alias sul Person locale autenticato
+tramite le route POST/DELETE delle impostazioni. Handle e URI vengono risolti
+con il resolver remoto protetto esistente; la rimozione non contatta il vecchio
+server. Le modifiche bloccano l’Actor per evitare aggiornamenti persi e
+pubblicano un normale Update. `ActorSerializer` espone `alsoKnownAs`, anche
+come lista vuota dopo la rimozione, con la mappatura JSON-LD ActivityStreams
+già presente. Sono dichiarazioni pubbliche preparatorie, non prove di controllo
+né istruzioni di follow. Il server precedente avvia il Move; l’elaborazione
+Follow/Accept resta invariata, inclusa l’approvazione degli account protetti.
+
+Anche i normali aggiornamenti del vecchio profilo importano destinazioni remote
+`movedTo`: Openbook cerca il nuovo Actor nel database, lo recupera se manca e salva
 il collegamento nel campo esistente `moved_to_actor_id`. Questo mostra
 l'avviso e il link al nuovo profilo senza generare notifiche. Non vengono
 inseguite catene di spostamenti. Un Move verificato successivo puo' comunque
@@ -191,7 +205,8 @@ L'avviso di trasferimento compare nella card sotto nome e handle. Il globo
 accanto al nome apre le informazioni sulla provenienza remota al passaggio
 del mouse, al focus da tastiera o al click/tocco.
 
-Lo schema richiede il consueto `php artisan migrate`; non servono nuovi worker.
+Lo schema della #116 richiede il consueto `php artisan migrate`. Lo stadio di
+arrivo della #117 riusa quelle colonne e non aggiunge migration o worker.
 
 ### Profili commemorativi remoti
 

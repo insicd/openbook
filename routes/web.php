@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountAliasController;
 use App\Http\Controllers\ActorProfileController;
 use App\Http\Controllers\Admin\AppearanceController as AdminAppearanceController;
 use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
@@ -208,6 +209,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/messaggi/{conversation}', [ConversationController::class, 'store'])->name('messages.store');
 
     Route::get('/impostazioni', [SettingsController::class, 'edit'])->name('settings.edit');
+    Route::post('/impostazioni/account/alias', [AccountAliasController::class, 'store'])
+        ->middleware('throttle:10,1')->name('settings.aliases.store');
+    Route::delete('/impostazioni/account/alias', [AccountAliasController::class, 'destroy'])
+        ->middleware('throttle:10,1')->name('settings.aliases.destroy');
     Route::put('/impostazioni/profilo', [SettingsController::class, 'updateProfile'])->name('settings.profile.update');
     Route::put('/impostazioni/account', [SettingsController::class, 'updateAccount'])->name('settings.account.update');
     Route::post('/impostazioni/notifiche-push', [PushSubscriptionController::class, 'store'])

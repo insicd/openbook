@@ -19,6 +19,12 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Arrivo da un’altra istanza (#117)**: nelle impostazioni puoi dichiarare fino
+  a dieci vecchi account come alias pubblici (`alsoKnownAs`) e rimuoverli.
+  Il trasferimento si avvia dal server precedente; i Follow ricevuti rispettano
+  l’approvazione degli account protetti. I Move verificati verso account sulla
+  stessa istanza Openbook notificano i follower locali senza modificare i loro
+  follow, mantenendo la scelta della #116. Post e messaggi non vengono importati.
 - **Fuso orario personale**: nelle impostazioni puoi scegliere un fuso oppure
   lasciare «Automatico», che segue il dispositivo anche durante i viaggi.
   Date e orari dell'interfaccia, inclusi messaggi, sondaggi e amministrazione,

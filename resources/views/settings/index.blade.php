@@ -181,6 +181,8 @@
         </form>
     </div>
 
+    @include('settings._account_aliases')
+
     <script>
         (function () {
             function previewImage(inputId, containerId, imgClass) {

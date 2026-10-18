@@ -1364,6 +1364,18 @@ html.ob-compose-modal-open {
 
 /* Impostazioni */
 
+.ob-settings-aliases {
+  padding-left: 1.25rem;
+}
+
+.ob-settings-aliases li {
+  margin-bottom: 0.75rem;
+}
+
+.ob-settings-aliases a {
+  overflow-wrap: anywhere;
+}
+
 .ob-settings-link-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;

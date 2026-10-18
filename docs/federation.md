@@ -61,6 +61,24 @@ Profiles marked as memorial accounts by the source are identified as such.
 Local management of memorial profiles and pinned posts remains outside the
 current feature set.
 
+## Moving to Openbook from another server
+
+In **Settings → Moving from another instance**, add your previous account using
+its full address (`name@example.org`) or ActivityPub actor URL. Openbook saves
+its canonical actor URL as a public `alsoKnownAs` alias. You can manage up to ten
+aliases; removing one may prevent a move that has not yet been verified.
+
+Adding an alias only prepares the destination. Start the move from the previous
+account on its original server. Followers on compatible servers may then send
+normal follow requests to Openbook. With a protected Openbook account, these
+requests still need your approval. Posts, attachments and private messages are
+not imported; this feature does not yet let you move an Openbook account away.
+
+If someone on this Openbook instance follows your old account, a verified Move
+towards your new local account notifies them and links to the new profile.
+They choose whether to follow it; their old follow stays unchanged. A normal
+profile update alone does not send this notification.
+
 ## Communities
 
 Local communities are available in **Communities**. You can create, join and
