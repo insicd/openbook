@@ -230,6 +230,18 @@ e può pubblicare, ricevere follow, gestire alias e trasferirsi ancora.
 Dopo l’aggiornamento ricreare o svuotare la cache delle route.
 Questa fase non aggiunge migration dello schema.
 
+### CSV dei seguiti (#117)
+
+`FollowingCsvService` esporta i follow accettati nel formato Mastodon
+`Account address`. Scorre `following_id` per un singolo `follower_id`, usando
+l’indice univoco esistente. L’importazione valida il CSV UTF-8 e usa subito
+`FollowManager` per le nuove relazioni. Gli Actor locali e remoti conosciuti
+sono letti dal database; gli indirizzi remoti sconosciuti usano il resolver
+WebFinger protetto. Follow accettati o in attesa già presenti vengono saltati
+senza reinviarli. Firma, coda e retry seguono la normale consegna dei Follow.
+Non servono nuove tabelle, file conservati, worker dedicati o attività cron.
+La scheda generale Importa ed esporta contiene per ora soltanto queste funzioni CSV.
+
 ### Profili commemorativi remoti
 
 Il flag `memorial` dell'Actor remoto viene conservato in `actors.memorial`

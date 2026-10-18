@@ -35,10 +35,10 @@ steps are skipped.
 
 ### Personal settings
 
-Settings has four tabs: **Profile** for images, biography and public fields;
+Settings has five tabs: **Profile** for images, biography and public fields;
 **Account and privacy** for language, time zone, visibility and follower approval;
 **Notifications** for browser push notifications; **Account migration** for arrivals
-and departures.
+and departures; **Import and export** for following CSV files.
 Each section has its actions below the content card. Saving or correcting a
 validation error keeps you in the relevant tab.
 

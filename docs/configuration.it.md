@@ -32,10 +32,11 @@ ma queste elaborazioni vengono saltate.
 
 ### Impostazioni personali
 
-Le impostazioni hanno quattro schede: **Profilo** per immagini, biografia e campi
+Le impostazioni hanno cinque schede: **Profilo** per immagini, biografia e campi
 pubblici; **Account e privacy** per lingua, fuso orario, visibilità e approvazione
 dei follower; **Notifiche** per le notifiche push del browser;
-**Trasferimento account** per arrivi e partenze. Ogni sezione ha le proprie azioni sotto la scheda dei contenuti.
+**Trasferimento account** per arrivi e partenze; **Importa ed esporta** per i CSV
+degli account seguiti. Ogni sezione ha le proprie azioni sotto la scheda dei contenuti.
 Salvataggi ed errori di validazione riportano alla scheda corrispondente.
 
 ### Fusi orari personali

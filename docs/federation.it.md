@@ -104,6 +104,25 @@ Nelle impostazioni, **Rimuovi l’indicazione di trasferimento** elimina l’avv
 e invia un aggiornamento del profilo. I follower già trasferiti restano dove
 sono. Puoi poi avviare un altro trasferimento con le stesse verifiche e conferme.
 
+## Importare ed esportare i seguiti
+
+In **Impostazioni → Importa ed esporta** puoi scaricare un CSV compatibile con
+Mastodon dei follow accettati, comprese le community federate. Richieste in attesa
+e feed RSS non sono inclusi. Sul nuovo account carica il CSV e premi
+**Importa i seguiti**. Vengono create normali richieste di follow conservando
+seguiti e richieste esistenti; gli account protetti richiedono l’approvazione.
+
+L’importazione legge la colonna `Account address` dei CSV Mastodon e accetta
+anche i vecchi file con un indirizzo per riga. Le colonne aggiuntive sono ignorate.
+Il risultato riporta nuovi seguiti, richieste in attesa, relazioni già presenti,
+duplicati e indirizzi non importati. Il file viene elaborato subito; le attività
+Follow in uscita usano la normale coda di consegna. Gli account sconosciuti devono
+prima essere risolti sul loro server remoto.
+
+Sono accettati CSV UTF-8 fino a 1 MiB e 10.000 righe. Il file caricato non viene
+conservato. Solo il proprietario autenticato può esportare i propri seguiti o
+importarne di nuovi. La funzione è utilizzabile anche senza trasferire l’account.
+
 ## Community
 
 Le community locali si trovano nella sezione **Community**. Puoi crearle,

@@ -97,6 +97,25 @@ attachments and messages stay associated with the old account.
 profile update. Followers already transferred stay where they are. You can
 then announce another move using the same verification and confirmation steps.
 
+## Importing and exporting follows
+
+In **Settings → Import and export**, download a Mastodon-compatible CSV of your
+accepted follows, including federated communities. Pending requests and RSS
+feeds are not included. On the new account, upload that CSV and choose
+**Import following**. This adds normal follow requests while preserving existing
+follows and requests; protected accounts still require approval.
+
+The import reads the `Account address` column of Mastodon CSV files and also
+accepts older files with one address per line. Extra columns are ignored.
+The result reports new follows, pending requests, existing relationships,
+duplicates and addresses that could not be imported. The upload is processed
+immediately; outgoing Follow activities use the normal delivery queue. Unknown
+accounts must first be resolved on their remote server.
+
+Files must use UTF-8 and contain at most 1 MiB and 10,000 rows. Uploaded CSV files
+are not retained. Only the authenticated owner can export their follows or
+import new ones. This feature is also available independently of account moves.
+
 ## Communities
 
 Local communities are available in **Communities**. You can create, join and

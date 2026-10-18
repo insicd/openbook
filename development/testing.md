@@ -2,6 +2,20 @@
 
 ## Tests
 
+Following CSV (#117):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/FollowingCsvTest.php tests/Feature/SettingsTest.php
+OPENBOOK_TEST_CSV_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/FollowingCsvMysqlTest.php
+```
+
+The SQLite tests cover private exports, direct imports, Mastodon and headerless
+CSV formats, invalid files, duplicate and pending follows, protected accounts,
+remote resolution and ordinary delivery jobs. The optional MySQL test creates
+an isolated schema using the `OPENBOOK_TEST_MYSQL_*` settings below. It checks
+EXPLAIN for the first and subsequent export pages and known-account lookup,
+and exports more than one page without changing the application database.
+
 Account departures (#117):
 
 ```bash
@@ -18,7 +32,7 @@ APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/
 ```
 
 These tests cover the Profile, Account and privacy, Notifications and Account
-migration tabs, return destinations after saves and validation failures, and
+migration and Import and export tabs, return destinations after saves and validation failures, and
 localized migration examples with the configured instance name.
 
 Federation checks to run on an online instance:

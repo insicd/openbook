@@ -2,7 +2,7 @@
 
 **Issue:** [#117](https://github.com/insicd/openbook/issues/117).
 **Stato:** arrivo e partenza implementati; verifica tra istanze online da eseguire.
-La portabilità dei seguiti costituisce lo stadio successivo.
+Esportazione e importazione CSV dei seguiti implementate.
 **Analisi collegata:** [ACCOUNT_MOVE.md](ACCOUNT_MOVE.md), relativa alla #116.
 
 ## 1. Obiettivo
@@ -107,20 +107,30 @@ ha un proprio identificatore Move.
 
 ## 5. Esportazione e importazione dei seguiti
 
-Una sezione **Importa/esporta seguiti** permette di ricostruire l’elenco degli
-account seguiti sul nuovo account. È utilizzabile anche indipendentemente
-dalla migrazione.
+La scheda generale **Importa ed esporta**, dopo **Trasferimento account**,
+contiene inizialmente esportazione e importazione CSV dei seguiti. Permette di
+ricostruire l’elenco degli account seguiti anche indipendentemente dalla migrazione.
+Le future esportazioni dei dati personali saranno oggetto di un ticket separato.
 
 L’esportazione produce un CSV degli account seguiti, con indirizzi completi e
-formato compatibile con Mastodon (`Account address`).
+formato compatibile con Mastodon (`Account address`). Include i follow accettati
+verso account e community con indirizzo federato; le richieste ancora in attesa
+non sono incluse. Le colonne aggiuntive dei CSV Mastodon sono accettate, ma
+questa fase importa soltanto gli indirizzi e lascia le preferenze dei follow
+alle impostazioni ordinarie di Openbook.
 
-L’importazione mostra un’anteprima e richiede conferma. Aggiunge gli account
-indicati conservando quelli già seguiti. Le richieste passano attraverso
-`FollowManager`, rispettando le normali approvazioni locali e remote.
-Al termine l’utente vede un riepilogo degli account già seguiti, delle richieste
-inviate e degli indirizzi che non è stato possibile importare.
+L’utente carica il CSV e preme **Importa i seguiti**. Il file viene letto e
+vengono create le richieste tramite `FollowManager`, rispettando le normali
+approvazioni locali e remote e conservando i seguiti esistenti. Le consegne
+federate usano i normali job in uscita. Gli account già conosciuti vengono
+risolti dal database; per gli altri serve la normale risoluzione remota.
 
-File e risultati dell’importazione sono accessibili al proprietario dell’account.
+Al termine viene mostrato il riepilogo di nuovi seguiti, richieste in attesa,
+account già seguiti o richiesti, duplicati e indirizzi non importati. Un errore
+su un indirizzo non annulla gli altri follow.
+
+File e risultati sono accessibili soltanto al proprietario. Il CSV non viene
+conservato. Sono accettati file UTF-8 fino a 1 MiB e 10.000 righe.
 Questa funzionalità costituisce uno stadio separato dalla partenza.
 
 ## 6. Integrazione con il codice esistente
@@ -132,6 +142,7 @@ Questa funzionalità costituisce uno stadio separato dalla partenza.
 | `RemoteActorResolver` e `AccountMoveTargetResolver` | Risoluzione degli account e verifica degli alias su destinazioni locali e remote. |
 | `RemoteAccountMoveHandler` e `AccountMoveNotifier` | Gestione degli annunci e notifiche della #116, condivise con le partenze locali. |
 | `FollowManager` e inbox | Normali richieste Follow e approvazioni dei follower in arrivo. |
+| `FollowingCsvService` e scheda Importa ed esporta | CSV dei seguiti e richieste tramite `FollowManager`. |
 | `AccountMigrationService` | Verifica, conferma, registrazione del trasferimento e rimozione dell’indicazione. |
 | `ActivitySerializer` | Rappresentazione del Move in uscita. |
 | `ActivityDelivery` e `DeliverActivityJob` | Consegna del Move attraverso il flusso federato ordinario. |
@@ -153,7 +164,7 @@ e le regole di moderazione esistenti.
    ricezione dei follower e Move verso account locali.
 2. **Partenza, completata:** verifica e conferma della destinazione, Move in uscita,
    indicazione sul profilo e sua rimozione, notifiche ai follower locali.
-3. **Portabilità dei seguiti:** esportazione e importazione CSV.
+3. **Portabilità dei seguiti, completata:** esportazione e importazione CSV diretta.
 
 I test devono coprire i flussi di arrivo e partenza, le verifiche di proprietà
 e destinazione, l’approvazione dei follower e il comportamento della #116.

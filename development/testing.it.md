@@ -2,6 +2,20 @@
 
 ## Test
 
+CSV dei seguiti (#117):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/FollowingCsvTest.php tests/Feature/SettingsTest.php
+OPENBOOK_TEST_CSV_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/FollowingCsvMysqlTest.php
+```
+
+I test SQLite coprono export privato, importazione diretta, CSV Mastodon e senza
+intestazione, file invalidi, duplicati e richieste esistenti, account protetti,
+risoluzione remota e normali job di consegna. Il test MySQL opzionale crea uno
+schema isolato con i parametri `OPENBOOK_TEST_MYSQL_*` descritti sotto. Controlla
+EXPLAIN della prima pagina di export, delle successive e della ricerca di account
+conosciuti, ed esporta più pagine senza modificare il database dell’applicazione.
+
 Partenza degli account (#117):
 
 ```bash
@@ -17,8 +31,8 @@ Schede delle impostazioni:
 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/SettingsTest.php tests/Feature/ProfileFieldsTest.php tests/Feature/UserTimezoneTest.php tests/Feature/PushSubscriptionTest.php
 ```
 
-Questi test coprono le schede Profilo, Account e privacy, Notifiche e Trasferimento
-account, i ritorni dopo salvataggi ed errori e gli esempi tradotti dei trasferimenti
+Questi test coprono le schede Profilo, Account e privacy, Notifiche, Trasferimento
+account e Importa ed esporta, i ritorni dopo salvataggi ed errori e gli esempi tradotti dei trasferimenti
 con il nome configurato dell’istanza.
 
 Verifiche federate da eseguire su un’istanza online:

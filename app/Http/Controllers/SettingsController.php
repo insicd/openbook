@@ -28,7 +28,7 @@ class SettingsController extends Controller
     public function edit(Request $request): View
     {
         $activeTab = $request->query('tab', 'profile');
-        if (! in_array($activeTab, ['profile', 'account', 'notifications', 'migration'], true)) {
+        if (! in_array($activeTab, ['profile', 'account', 'notifications', 'migration', 'import_export'], true)) {
             $activeTab = 'profile';
         }
         $user = $request->user();

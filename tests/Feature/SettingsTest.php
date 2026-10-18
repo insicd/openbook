@@ -41,7 +41,8 @@ class SettingsTest extends TestCase
             'profile' => ['settings-display-name', ['settings-locale', 'settings-alias', 'migration-destination', 'push-notification-settings']],
             'account' => ['settings-locale', ['settings-display-name', 'settings-alias', 'migration-destination', 'push-notification-settings']],
             'notifications' => ['push-notification-settings', ['settings-display-name', 'settings-locale', 'settings-alias', 'migration-destination']],
-            'migration' => ['settings-alias', ['settings-display-name', 'settings-locale', 'push-notification-settings']],
+            'migration' => ['settings-alias', ['settings-display-name', 'settings-locale', 'push-notification-settings', 'following-csv']],
+            'import_export' => ['following-csv', ['settings-display-name', 'settings-locale', 'settings-alias', 'push-notification-settings']],
         ];
 
         foreach ($sections as $tab => [$field, $absent]) {
@@ -52,7 +53,7 @@ class SettingsTest extends TestCase
             foreach ($absent as $name) {
                 $response->assertDontSee('id="'.$name.'"', false);
             }
-            foreach (['tab_profile', 'tab_account', 'tab_notifications', 'tab_migration'] as $label) {
+            foreach (['tab_profile', 'tab_account', 'tab_notifications', 'tab_migration', 'tab_import_export'] as $label) {
                 $response->assertSee(__('openbook.settings.'.$label));
             }
         }

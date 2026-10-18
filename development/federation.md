@@ -233,6 +233,18 @@ and can publish, receive follows, manage aliases and move again.
 
 Rebuild or clear the route cache after updating. This stage adds no schema migration.
 
+### Following CSV (#117)
+
+`FollowingCsvService` streams accepted follows in Mastodon’s `Account address`
+format. It pages by `following_id` within a single `follower_id`, using the
+existing unique index. Import validates the uploaded UTF-8 CSV and immediately
+uses `FollowManager` for new relationships. Local and cached remote actors are
+read from the database; unknown remote addresses use the protected WebFinger
+resolver. Existing accepted or pending follows are skipped without redelivery.
+The ordinary Follow delivery flow handles signatures, queueing and retries.
+No schema changes, persisted upload, dedicated worker or new cron task is needed.
+The general Import and export tab currently contains only these CSV functions.
+
 ### Remote memorial profiles
 
 The remote Actor's `memorial` flag is cached in `actors.memorial` (false by

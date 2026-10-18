@@ -11,6 +11,8 @@
         @include('settings._account')
     @elseif ($activeTab === 'notifications')
         @include('settings._notifications')
+    @elseif ($activeTab === 'import_export')
+        @include('settings._import_export')
     @elseif ($activeTab === 'migration')
         @include('settings._account_aliases')
         @include('settings._account_migration')

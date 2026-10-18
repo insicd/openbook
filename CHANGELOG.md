@@ -19,8 +19,13 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Impostazioni in quattro schede**: Profilo, Account e privacy, Notifiche e
-  Trasferimento account, con azioni principali allineate sotto le rispettive schede.
+- **CSV dei seguiti (#117)**: nella nuova scheda «Importa ed esporta» puoi
+  scaricare i seguiti in formato compatibile con Mastodon e importare un CSV.
+  Il caricamento crea subito le richieste di follow, conserva quelle esistenti
+  e mostra un riepilogo. Le consegne remote passano dalla normale coda in uscita.
+  Aggiornare la cache delle route.
+- **Impostazioni in cinque schede**: Profilo, Account e privacy, Notifiche,
+  Trasferimento account e Importa ed esporta, con azioni principali allineate sotto le rispettive schede.
   Salvataggi e messaggi di errore riportano alla sezione corrispondente.
 - **Partenza verso un altro server (#117)**: verifica del nuovo account tramite
   alias, conferma con password e annuncio Move ai follower remoti con il normale
