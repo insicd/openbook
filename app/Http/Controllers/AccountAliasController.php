@@ -22,11 +22,7 @@ class AccountAliasController extends Controller
 
     public function destroy(AccountAliasRequest $request, AccountAliasManager $aliases): RedirectResponse
     {
-        try {
-            $aliases->remove($request->user(), $request->validated('alias'));
-        } catch (ValidationException $exception) {
-            throw $exception->redirectTo(route('settings.edit', ['tab' => 'migration']));
-        }
+        $aliases->remove($request->user(), $request->validated('alias'));
 
         return redirect()->route('settings.edit', ['tab' => 'migration'])->with('status', __('openbook.settings.alias_removed'));
     }

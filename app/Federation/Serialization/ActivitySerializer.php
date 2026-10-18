@@ -19,8 +19,8 @@ use Illuminate\Support\Str;
  * server (Fase 4): Follow/Accept/Reject/Undo per il grafo sociale,
  * Create/Update/Delete per post e commenti, Like/Announce/Undo per le reazioni.
  *
- * Gli identificatori delle attivita' referenziate da Accept/Reject/Undo derivano dalla riga di
- * dominio che le origina (id della riga in "follows"/"likes"/"announces",
+ * Gli identificatori delle attivita' referenziate da Accept/Reject/Undo
+ * derivano dalla riga di dominio che le origina (id della riga in "follows"/"likes"/"announces",
  * oppure identificatore del post/commento), cosi' da non dover introdurre
  * una tabella "activities" separata solo per assegnare un id univoco:
  * qualunque server ricevente puo' comunque referenziarle in un successivo

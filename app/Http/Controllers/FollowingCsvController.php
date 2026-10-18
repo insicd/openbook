@@ -12,6 +12,7 @@ class FollowingCsvController extends Controller
 {
     public function export(Request $request, FollowingCsvService $csv): StreamedResponse
     {
+        // Authorize before the streamed response sends its headers.
         $csv->exportQuery($request->user());
 
         return response()->streamDownload(function () use ($request, $csv): void {
