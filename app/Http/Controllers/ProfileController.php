@@ -140,7 +140,7 @@ class ProfileController extends Controller
         $user = $actor->user;
         abort_if($user === null, 404);
 
-        $user->loadMissing(['profile', 'actor.endpoints']);
+        $user->loadMissing(['profile', 'actor.endpoints', 'actor.movedTo']);
 
         $profileSuspended = $actor->isSuspended();
 

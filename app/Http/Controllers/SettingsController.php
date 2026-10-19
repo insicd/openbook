@@ -9,6 +9,7 @@ use App\Http\Requests\Settings\UpdateProfileRequest;
 use App\Infrastructure\Push\VapidKeyManager;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 /**
  * Pagina "Impostazioni" dell'account autenticato: personalizzazione del
@@ -24,13 +25,18 @@ class SettingsController extends Controller
         private readonly VapidKeyManager $vapidKeyManager,
     ) {}
 
-    public function edit(): View
+    public function edit(Request $request): View
     {
-        $user = auth()->user();
-        $user->loadMissing(['profile', 'settings', 'actor']);
+        $activeTab = $request->query('tab', 'profile');
+        if (! in_array($activeTab, ['profile', 'account', 'notifications', 'migration', 'import_export'], true)) {
+            $activeTab = 'profile';
+        }
+        $user = $request->user();
+        $user->loadMissing(['profile', 'settings', 'actor.movedTo']);
 
         return view('settings.index', [
             'viewer' => $user,
+            'activeTab' => $activeTab,
             'pushVapidPublicKey' => $this->vapidKeyManager->getOrCreate()['publicKey'],
             'pushSubscriptionHashes' => $user->pushSubscriptions()->pluck('endpoint_hash')->all(),
         ]);
@@ -45,13 +51,13 @@ class SettingsController extends Controller
             $request->file('cover'),
         );
 
-        return redirect()->route('profile.show', $request->user()->username)->with('status', __('openbook.settings.profile_updated'));
+        return redirect()->route('settings.edit')->with('status', __('openbook.settings.profile_updated'));
     }
 
     public function updateAccount(UpdateAccountRequest $request): RedirectResponse
     {
         $this->accountPreferencesUpdater->update($request->user(), $request->validated());
 
-        return redirect()->route('settings.edit')->with('status', __('openbook.settings.account_updated'));
+        return redirect()->route('settings.edit', ['tab' => 'account'])->with('status', __('openbook.settings.account_updated'));
     }
 }

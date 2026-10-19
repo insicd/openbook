@@ -3,6 +3,7 @@
 namespace Tests\Feature\Federation;
 
 use App\Application\Services\DomainBlockManager;
+use App\Application\Services\FollowManager;
 use App\Domain\Accounts\User;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
@@ -13,6 +14,7 @@ use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\InboxItem;
 use App\Infrastructure\Security\HttpSignatureSigner;
 use App\Infrastructure\Security\RsaKeyPairGenerator;
+use App\Jobs\Federation\DeliverActivityJob;
 use App\Jobs\Federation\ProcessInboxActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
@@ -266,7 +268,7 @@ class RemoteAccountMoveTest extends TestCase
         $this->assertNull($this->source->fresh()->moved_to_actor_id);
     }
 
-    public function test_wrong_sender_object_self_move_and_local_target_are_ignored(): void
+    public function test_wrong_sender_object_self_move_and_unprepared_local_target_are_ignored(): void
     {
         $local = $this->createFullAccount('anna');
         foreach ([
@@ -280,6 +282,105 @@ class RemoteAccountMoveTest extends TestCase
         }
         $this->assertDatabaseCount('notifications', 0);
         Http::assertNothingSent();
+    }
+
+    public function test_verified_move_to_a_local_account_notifies_followers_without_changing_follows(): void
+    {
+        $anna = $this->createFullAccount('anna');
+        $luca = $this->createFullAccount('luca');
+        $pending = $this->createFullAccount('pending');
+        $anna->actor->update(['also_known_as' => [$this->source->uri], 'manually_approves_followers' => true]);
+        $this->follow($luca->actor);
+        $this->follow($pending->actor, status: Follow::STATUS_PENDING);
+        $before = Follow::query()->orderBy('id')->get()->toArray();
+        // Local canonical identity must work even with a legacy URI stored in DB.
+        $anna->actor->update(['uri' => url('/@anna')]);
+        $targetUri = $anna->actor->activityPubId();
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process(['target' => $targetUri]));
+        $this->assertSame($anna->actor->id, $this->source->fresh()->moved_to_actor_id);
+        $notification = Notification::query()->sole();
+        $this->assertSame($luca->id, $notification->recipient_id);
+        $this->assertSame($anna->actor->profileUrl(), $notification->targetUrl());
+        $this->assertSame($before, Follow::query()->orderBy('id')->get()->toArray());
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process(['target' => $targetUri]));
+        $this->assertDatabaseCount('notifications', 1);
+        $this->assertSame($before, Follow::query()->orderBy('id')->get()->toArray());
+        Http::assertNothingSent();
+        Queue::assertNothingPushed();
+    }
+
+    public static function ineligibleLocalTargets(): array
+    {
+        return [['also_known_as', []], ['status', Actor::STATUS_SUSPENDED],
+            ['type', Actor::TYPE_GROUP], ['type', Actor::TYPE_APPLICATION],
+            ['moved_to_actor_id', 'source'], ['user_status', User::STATUS_DISABLED]];
+    }
+
+    #[DataProvider('ineligibleLocalTargets')]
+    public function test_local_target_must_have_a_valid_alias_and_active_person_account(string $field, mixed $value): void
+    {
+        $anna = $this->createFullAccount('anna');
+        $anna->actor->update(['also_known_as' => [$this->source->uri]]);
+        if ($field === 'user_status') {
+            $anna->update(['status' => $value]);
+        } else {
+            $anna->actor->update([$field => $value === 'source' ? $this->source->id : $value]);
+        }
+        $this->assertSame(InboxItem::STATUS_IGNORED, $this->process(['target' => url('/users/anna')]));
+        $this->assertNull($this->source->fresh()->moved_to_actor_id);
+        $this->assertDatabaseCount('notifications', 0);
+        Http::assertNothingSent();
+        Queue::assertNothingPushed();
+    }
+
+    public function test_local_target_requires_canonical_identity_and_current_alias_without_self_fetches(): void
+    {
+        $anna = $this->createFullAccount('anna');
+        $anna->actor->update(['also_known_as' => [$this->source->uri]]);
+        foreach ([url('/@anna'), url('/users/anna').'?other=1', url('/users/anna').'#other',
+            'https://openbook.test:444/users/anna', 'https://attacker@openbook.test/users/anna',
+            url('/users/missing')] as $uri) {
+            $this->assertSame(InboxItem::STATUS_IGNORED, $this->process(['target' => $uri]));
+        }
+        $anna->actor->update(['also_known_as' => []]);
+        $this->assertSame(InboxItem::STATUS_IGNORED, $this->process(['target' => $anna->actor->activityPubId()]));
+        $this->assertNull($this->source->fresh()->moved_to_actor_id);
+        $this->assertDatabaseCount('notifications', 0);
+        Http::assertNothingSent();
+    }
+
+    public function test_incoming_follows_after_local_arrival_respect_approval_and_send_accept(): void
+    {
+        $anna = $this->createFullAccount('anna');
+        $anna->actor->update(['also_known_as' => [$this->source->uri], 'manually_approves_followers' => true]);
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process(['target' => $anna->actor->activityPubId()]));
+        $this->source = $this->createRemoteActor('transferredfollower');
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process([
+            'type' => 'Follow', 'object' => $anna->actor->activityPubId(),
+        ]));
+        $follow = Follow::query()->sole();
+        $this->assertSame(Follow::STATUS_PENDING, $follow->status);
+        Queue::assertNothingPushed();
+        app(FollowManager::class)->accept($anna->actor->fresh(), $this->source);
+        $this->assertSame(Follow::STATUS_ACCEPTED, $follow->fresh()->status);
+        Queue::assertPushed(DeliverActivityJob::class, fn ($job): bool => $job->activity['type'] === 'Accept' && $job->signingActorId === $anna->actor->id);
+        $this->assertDatabaseCount('follows', 1);
+    }
+
+    public function test_an_open_local_destination_accepts_normal_follow_requests_idempotently(): void
+    {
+        $anna = $this->createFullAccount('anna');
+        $anna->actor->update(['also_known_as' => [$this->source->uri]]);
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process(['target' => $anna->actor->activityPubId()]));
+        $this->source = $this->createRemoteActor('transferredfollower');
+        foreach (range(1, 2) as $attempt) {
+            $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process([
+                'type' => 'Follow', 'object' => $anna->actor->activityPubId(),
+            ]));
+        }
+        $this->assertSame(Follow::STATUS_ACCEPTED, Follow::query()->sole()->status);
+        $this->assertDatabaseCount('follows', 1);
+        Queue::assertPushed(DeliverActivityJob::class, fn ($job): bool => $job->activity['type'] === 'Accept' && $job->activity['object']['actor'] === $this->source->uri);
     }
 
     public function test_blocked_destination_and_known_migration_chain_are_ignored(): void
@@ -348,8 +449,31 @@ class RemoteAccountMoveTest extends TestCase
         $this->assertSame([], $this->source->fresh()->also_known_as);
     }
 
-    public function test_signed_move_delivered_to_two_individual_inboxes_is_processed_once_for_both_followers(): void
+    public function test_an_explicit_null_moved_to_removes_the_notice_without_changing_follows_or_notifications(): void
     {
+        $this->follow($this->createFullAccount('luca')->actor);
+        $this->process();
+        $this->assertNotNull($this->source->fresh()->moved_to_actor_id);
+        $before = Follow::query()->get()->toArray();
+        app(RemoteActorResolver::class)->applyRemoteDocument($this->sourceDocument(['movedTo' => null]), $this->source->uri);
+        $this->assertNull($this->source->fresh()->moved_to_actor_id);
+        $this->assertSame($before, Follow::query()->get()->toArray());
+        $this->assertDatabaseCount('notifications', 1);
+    }
+
+    public static function moveDestinationOrigins(): array
+    {
+        return ['remote destination' => [false], 'local destination' => [true]];
+    }
+
+    #[DataProvider('moveDestinationOrigins')]
+    public function test_signed_move_delivered_to_two_individual_inboxes_is_processed_once_for_both_followers(bool $local): void
+    {
+        if ($local) {
+            $destination = $this->createFullAccount('destination');
+            $destination->actor->update(['also_known_as' => [$this->source->uri]]);
+            $this->target = $destination->actor->fresh();
+        }
         $anna = $this->createFullAccount('anna');
         $marco = $this->createFullAccount('marco');
         $this->follow($anna->actor);

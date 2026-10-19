@@ -173,20 +173,34 @@ or worker is required.
 
 An authenticated remote `Move` generates a notification for each local
 follower with an accepted follow and a notice on the old profile.
-Openbook checks that actor and object match the authenticated sender and
-fetches the destination's current profile, which must list the old account
-in `alsoKnownAs`. Failed fetches or invalid announcements produce no
-notifications. Repeated copies of the same announcement are deduplicated.
+Openbook checks that actor and object match the authenticated sender. For a
+remote destination it fetches the current profile; for a local Person it reads
+the canonical identity, active User and aliases from the database. Both must
+list the old account in `alsoKnownAs`. Failed fetches or invalid announcements
+produce no notifications. Repeated copies of the same announcement are deduplicated.
 
 The notification opens the new profile inside Openbook, where the user can
 choose Follow. No follow is created or removed automatically; preferences,
 previous posts, retention and visibility rules remain unchanged. An Update
 containing only `movedTo` does not generate migration notifications.
-This feature handles announcements between remote accounts, not migration
-to or from Openbook, communities or automatic migration chains.
+Remote announcements may also target a local account prepared with an alias.
+`AccountMoveTargetResolver` handles this check separately from informational
+profile discovery; local aliases and state are read again under the Actor lock
+before notifications are created. Communities and automatic migration chains
+remain excluded.
 
-Normal updates to the old profile also import `movedTo`: Openbook looks up
-the destination Actor, fetches it if missing and stores the link in the
+`AccountAliasManager` manages up to ten aliases on the authenticated local
+Person through the settings POST/DELETE routes. Handle/URI resolution uses the
+existing protected remote resolver; removal does not fetch the old server.
+Alias changes lock the Actor to avoid lost updates and publish a normal Actor
+Update. `ActorSerializer` emits `alsoKnownAs`, including an empty list after
+removal, using its existing ActivityStreams JSON-LD mapping. These are public
+preparatory declarations, not proof of ownership or instructions to follow.
+The previous server starts the Move; incoming Follow/Accept processing is
+unchanged, including manual approval for protected accounts.
+
+Normal updates to the old profile also import remote `movedTo` destinations:
+Openbook looks up the destination Actor, fetches it if missing and stores the link in the
 existing `moved_to_actor_id` field. This displays the notice and link without
 generating notifications. Migration chains are not followed. A subsequent
 verified Move can still notify followers; the informational link does not
@@ -195,7 +209,41 @@ The migration notice appears inside the card below the name and handle.
 The globe beside the name displays the remote profile information on hover,
 keyboard focus or click/tap.
 
-The schema requires running `php artisan migrate` as usual; no new worker is needed.
+The #116 schema requires running `php artisan migrate` as usual. The #117 arrival
+stage reuses those columns and adds no migration or worker.
+
+### Outgoing account migrations (#117)
+
+`AccountMigrationService` verifies the destination with a fresh protected fetch,
+saves it in the existing `actors.moved_to_actor_id` column and calls the ordinary
+`ActivityDelivery::deliverToFollowers()` for the Actor Update and Move.
+`ActivitySerializer::move()` generates an activity id when building the payload;
+the standard delivery jobs retain that payload, including its id, across retries.
+
+Source locking serializes confirmation and removal. The existing `movedTo`
+relation supplies the destination for the Actor document and profile link.
+`AccountMoveNotifier` shares the #116 local notification behavior with the
+incoming handler, preserving follows. Repeat confirmation of the current
+destination does not send another announcement.
+
+Removing the indication clears `moved_to_actor_id` and sends an Actor Update
+with explicit `movedTo: null`. Remote profile imports recognize that explicit
+null; omission still preserves the previous link. The old account remains active
+and can publish, receive follows, manage aliases and move again.
+
+Rebuild or clear the route cache after updating. This stage adds no schema migration.
+
+### Following CSV (#117)
+
+`FollowingCsvService` streams accepted follows in Mastodon’s `Account address`
+format. It pages by `following_id` within a single `follower_id`, using the
+existing unique index. Import validates the uploaded UTF-8 CSV and immediately
+uses `FollowManager` for new relationships. Local and cached remote actors are
+read from the database; unknown remote addresses use the protected WebFinger
+resolver. Existing accepted or pending follows are skipped without redelivery.
+The ordinary Follow delivery flow handles signatures, queueing and retries.
+No schema changes, persisted upload, dedicated worker or new cron task is needed.
+The general Import and export tab currently contains only these CSV functions.
 
 ### Remote memorial profiles
 

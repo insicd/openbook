@@ -67,6 +67,62 @@ loro autore originale. I profili dichiarati commemorativi dall’origine vengono
 segnalati come tali. La gestione locale di profili commemorativi e post fissati
 resta fuori dalle funzioni attuali.
 
+## Arrivare su Openbook da un altro server
+
+In **Impostazioni → Trasferimento account → Arrivo da un’altra istanza**, aggiungi il
+vecchio account tramite indirizzo completo (`nome@example.org`) o URL Actor ActivityPub.
+Openbook salva l’URL canonico dell’Actor come alias pubblico `alsoKnownAs`.
+Puoi gestire fino a dieci alias; rimuoverne uno può impedire un trasferimento
+che non è ancora stato verificato.
+
+Aggiungere un alias prepara soltanto la destinazione. Avvia il trasferimento
+dal vecchio account sul server di origine. I follower sui server compatibili
+possono quindi inviare normali richieste di follow a Openbook. Se il tuo account
+Openbook è protetto, devi comunque approvarle. Post, allegati e messaggi privati
+non vengono importati.
+
+Se qualcuno su questa istanza Openbook segue il vecchio account, un Move
+verificato verso il tuo nuovo account locale lo avvisa e rimanda al nuovo profilo.
+Sceglie autonomamente se seguirlo; il vecchio follow resta invariato. Un normale
+aggiornamento del profilo da solo non invia questa notifica.
+
+## Trasferirsi da Openbook a un altro server
+
+Sul nuovo server aggiungi il vecchio account Openbook tra gli alias. Poi apri
+**Impostazioni → Trasferimento account → Trasferisci il tuo account** su Openbook,
+inserisci l’indirizzo del nuovo account e premi **Verifica destinazione**. Openbook controlla l’alias
+sul nuovo profilo. Per annunciare il trasferimento conferma la destinazione
+con la tua password Openbook attuale e la casella di conferma.
+
+Openbook indica il nuovo indirizzo sul profilo e invia un Move firmato ai
+follower remoti tramite la normale coda di consegna. I follower locali ricevono
+una notifica e scelgono se seguire il nuovo account. Il vecchio account resta
+utilizzabile: puoi pubblicare, interagire e ricevere nuovi follower. Post,
+allegati e messaggi rimangono associati al vecchio account.
+
+Nelle impostazioni, **Rimuovi l’indicazione di trasferimento** elimina l’avviso
+e invia un aggiornamento del profilo. I follower già trasferiti restano dove
+sono. Puoi poi avviare un altro trasferimento con le stesse verifiche e conferme.
+
+## Importare ed esportare i seguiti
+
+In **Impostazioni → Importa ed esporta** puoi scaricare un CSV compatibile con
+Mastodon dei follow accettati, comprese le community federate. Richieste in attesa
+e feed RSS non sono inclusi. Sul nuovo account carica il CSV e premi
+**Importa i seguiti**. Vengono create normali richieste di follow conservando
+seguiti e richieste esistenti; gli account protetti richiedono l’approvazione.
+
+L’importazione legge la colonna `Account address` dei CSV Mastodon e accetta
+anche i vecchi file con un indirizzo per riga. Le colonne aggiuntive sono ignorate.
+Il risultato riporta nuovi seguiti, richieste in attesa, relazioni già presenti,
+duplicati e indirizzi non importati. Il file viene elaborato subito; le attività
+Follow in uscita usano la normale coda di consegna. Gli account sconosciuti devono
+prima essere risolti sul loro server remoto.
+
+Sono accettati CSV UTF-8 fino a 1 MiB e 10.000 righe. Il file caricato non viene
+conservato. Solo il proprietario autenticato può esportare i propri seguiti o
+importarne di nuovi. La funzione è utilizzabile anche senza trasferire l’account.
+
 ## Community
 
 Le community locali si trovano nella sezione **Community**. Puoi crearle,

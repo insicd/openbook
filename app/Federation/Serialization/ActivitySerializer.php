@@ -12,14 +12,15 @@ use App\Domain\Reactions\Like;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorUrls;
+use Illuminate\Support\Str;
 
 /**
  * Costruisce le attivita' ActivityStreams che Openbook invia verso altri
  * server (Fase 4): Follow/Accept/Reject/Undo per il grafo sociale,
  * Create/Update/Delete per post e commenti, Like/Announce/Undo per le reazioni.
  *
- * Gli identificatori delle attivita' sono sempre *derivati* dalla riga di
- * dominio che le origina (id della riga in "follows"/"likes"/"announces",
+ * Gli identificatori delle attivita' referenziate da Accept/Reject/Undo
+ * derivano dalla riga di dominio che le origina (id della riga in "follows"/"likes"/"announces",
  * oppure identificatore del post/commento), cosi' da non dover introdurre
  * una tabella "activities" separata solo per assegnare un id univoco:
  * qualunque server ricevente puo' comunque referenziarle in un successivo
@@ -28,6 +29,20 @@ use App\Federation\Actors\LocalActorUrls;
 final class ActivitySerializer
 {
     private const CONTEXT = 'https://www.w3.org/ns/activitystreams';
+
+    /** @return array<string, mixed> */
+    public static function move(Actor $source, Actor $target): array
+    {
+        return [
+            '@context' => self::CONTEXT,
+            'id' => $source->activityPubId().'/moves/'.Str::uuid(),
+            'type' => 'Move',
+            'actor' => $source->activityPubId(),
+            'object' => $source->activityPubId(),
+            'target' => $target->activityPubId(),
+            'to' => [$source->activityPubId().'/followers'],
+        ];
+    }
 
     public static function followActivityUri(Follow $follow): string
     {

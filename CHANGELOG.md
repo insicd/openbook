@@ -19,6 +19,26 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **CSV dei seguiti (#117)**: nella nuova scheda «Importa ed esporta» puoi
+  scaricare i seguiti in formato compatibile con Mastodon e importare un CSV.
+  Il caricamento crea subito le richieste di follow, conserva quelle esistenti
+  e mostra un riepilogo. Le consegne remote passano dalla normale coda in uscita.
+  Aggiornare la cache delle route.
+- **Impostazioni in cinque schede**: Profilo, Account e privacy, Notifiche,
+  Trasferimento account e Importa ed esporta, con azioni principali allineate sotto le rispettive schede.
+  Salvataggi e messaggi di errore riportano alla sezione corrispondente.
+- **Partenza verso un altro server (#117)**: verifica del nuovo account tramite
+  alias, conferma con password e annuncio Move ai follower remoti con il normale
+  flusso di consegna. I follower locali ricevono una notifica e scelgono se
+  seguire il nuovo profilo. Il vecchio account resta utilizzabile; nelle
+  impostazioni puoi rimuovere l’indicazione di trasferimento e trasferirti
+  nuovamente. Aggiornare la cache delle route.
+- **Arrivo da un’altra istanza (#117)**: nelle impostazioni puoi dichiarare fino
+  a dieci vecchi account come alias pubblici (`alsoKnownAs`) e rimuoverli.
+  Il trasferimento si avvia dal server precedente; i Follow ricevuti rispettano
+  l’approvazione degli account protetti. I Move verificati verso account sulla
+  stessa istanza Openbook notificano i follower locali senza modificare i loro
+  follow, mantenendo la scelta della #116. Post e messaggi non vengono importati.
 - **Fuso orario personale**: nelle impostazioni puoi scegliere un fuso oppure
   lasciare «Automatico», che segue il dispositivo anche durante i viaggi.
   Date e orari dell'interfaccia, inclusi messaggi, sondaggi e amministrazione,

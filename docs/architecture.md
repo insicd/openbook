@@ -18,7 +18,7 @@ the same browser for one year and takes precedence. New accounts inherit
 the language used during registration.
 
 After login, your account preference takes precedence. Changing it in the bar
-also updates **Settings → Account → Language**, including for visits from
+also updates **Settings → Account and privacy → Language**, including for visits from
 other devices. Switching language reloads the current page. On mobile,
 signed-in users can find the selector in the menu of additional options.
 
@@ -128,7 +128,7 @@ whether to appear in suggestions and whether to allow indexing of your public
 posts. Opting out of suggestions keeps your profile reachable by its exact
 address.
 
-In **Settings → Account → Time zone**, **Automatic — from your device** follows
+In **Settings → Account and privacy → Time zone**, **Automatic — from your device** follows
 your browser's time zone, including when travelling or changing devices. Choose
 a specific time zone to always use it; you can return to Automatic at any time.
 New and upgraded accounts start in Automatic. Interface language is independent

@@ -106,4 +106,9 @@ class UpdateProfileRequest extends FormRequest
             'cover' => 'immagine di copertina',
         ];
     }
+
+    protected function getRedirectUrl(): string
+    {
+        return route('settings.edit');
+    }
 }

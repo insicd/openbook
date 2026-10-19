@@ -61,6 +61,61 @@ Profiles marked as memorial accounts by the source are identified as such.
 Local management of memorial profiles and pinned posts remains outside the
 current feature set.
 
+## Moving to Openbook from another server
+
+In **Settings → Account migration → Moving from another instance**, add your previous
+account using its full address (`name@example.org`) or ActivityPub actor URL. Openbook saves
+its canonical actor URL as a public `alsoKnownAs` alias. You can manage up to ten
+aliases; removing one may prevent a move that has not yet been verified.
+
+Adding an alias only prepares the destination. Start the move from the previous
+account on its original server. Followers on compatible servers may then send
+normal follow requests to Openbook. With a protected Openbook account, these
+requests still need your approval. Posts, attachments and private messages are
+not imported.
+
+If someone on this Openbook instance follows your old account, a verified Move
+towards your new local account notifies them and links to the new profile.
+They choose whether to follow it; their old follow stays unchanged. A normal
+profile update alone does not send this notification.
+
+## Moving from Openbook to another server
+
+On your new server, add your old Openbook account as an alias. Then open
+**Settings → Account migration → Move your account** in Openbook, enter the new account address
+and choose **Verify destination**. Openbook checks the alias on the new profile.
+Confirm the destination with your current Openbook password and the confirmation
+checkbox to announce the move.
+
+Openbook marks your profile with the new address and sends a signed Move to
+your remote followers using the ordinary delivery queue. Local followers receive
+a notification and choose whether to follow the new account. Your old account
+remains usable: you can publish, interact and receive new followers. Posts,
+attachments and messages stay associated with the old account.
+
+**Remove the move indication** in settings removes the notice and sends a
+profile update. Followers already transferred stay where they are. You can
+then announce another move using the same verification and confirmation steps.
+
+## Importing and exporting follows
+
+In **Settings → Import and export**, download a Mastodon-compatible CSV of your
+accepted follows, including federated communities. Pending requests and RSS
+feeds are not included. On the new account, upload that CSV and choose
+**Import following**. This adds normal follow requests while preserving existing
+follows and requests; protected accounts still require approval.
+
+The import reads the `Account address` column of Mastodon CSV files and also
+accepts older files with one address per line. Extra columns are ignored.
+The result reports new follows, pending requests, existing relationships,
+duplicates and addresses that could not be imported. The upload is processed
+immediately; outgoing Follow activities use the normal delivery queue. Unknown
+accounts must first be resolved on their remote server.
+
+Files must use UTF-8 and contain at most 1 MiB and 10,000 rows. Uploaded CSV files
+are not retained. Only the authenticated owner can export their follows or
+import new ones. This feature is also available independently of account moves.
+
 ## Communities
 
 Local communities are available in **Communities**. You can create, join and

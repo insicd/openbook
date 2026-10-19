@@ -2,6 +2,63 @@
 
 ## Tests
 
+Following CSV (#117):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/FollowingCsvTest.php tests/Feature/SettingsTest.php
+OPENBOOK_TEST_CSV_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/FollowingCsvMysqlTest.php
+```
+
+The SQLite tests cover private exports, direct imports, Mastodon and headerless
+CSV formats, invalid files, duplicate and pending follows, protected accounts,
+remote resolution and ordinary delivery jobs. The optional MySQL test creates
+an isolated schema using the `OPENBOOK_TEST_MYSQL_*` settings below. It checks
+EXPLAIN for the first and subsequent export pages and known-account lookup,
+and exports more than one page without changing the application database.
+
+Account departures (#117):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/AccountMigrationTest.php tests/Feature/AccountAliasesTest.php tests/Feature/Federation/RemoteAccountMoveTest.php
+```
+
+The SQLite tests cover verification, confirmation, ordinary delivery, profile
+signatures, notification behavior, removal and subsequent moves.
+
+Settings tabs:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/SettingsTest.php tests/Feature/ProfileFieldsTest.php tests/Feature/UserTimezoneTest.php tests/Feature/PushSubscriptionTest.php
+```
+
+These tests cover the Profile, Account and privacy, Notifications and Account
+migration and Import and export tabs, return destinations after saves and validation failures, and
+localized migration examples with the configured instance name.
+
+Federation checks to run on an online instance:
+
+- Move a Mastodon account to Openbook after preparing its alias. Check that
+  incoming Follow requests retain the destination account's approval rules.
+- Move an Openbook account to Mastodon. Check reception of the signed Move,
+  transfer of remote followers, and the #116 notification for local followers.
+- Check the old account's profile notice and continued use, then remove the
+  notice and check the Actor Update with `movedTo: null`.
+
+These checks are still pending and require an instance reachable by remote
+servers. Automated tests cover the local flows and payloads, but do not replace
+this interoperability check.
+
+Account arrival and aliases (#117):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/AccountAliasesTest.php tests/Feature/Federation/RemoteAccountMoveTest.php tests/Unit/Infrastructure/Security/LinkedData/LinkedDataSignatureTest.php
+```
+
+These cover ownership, canonical public aliases, limits/removal, profile Update
+signatures, verified local destinations, unchanged follows and ordinary incoming
+follow approval. The #116 remote destination and profile discovery regressions
+remain covered. No database migration is added by this stage.
+
 Personal time zones:
 
 ```bash

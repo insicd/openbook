@@ -28,6 +28,12 @@
                     {{ __('openbook.profile.suspended_notice') }}
                 </div>
             @else
+            @if ($profileUser->actor?->movedTo !== null)
+                <div class="ob-alert ob-alert--info ob-profile-moved" role="note">
+                    {{ __('openbook.settings.migration_notice') }}
+                    <a href="{{ $profileUser->actor->movedTo->uri }}" rel="nofollow noopener noreferrer">{{ $profileUser->actor->movedTo->uri }}</a>
+                </div>
+            @endif
             @if ($profileUser->actor?->manually_approves_followers)
                 <span class="ob-badge">{{ __('openbook.profile.protected') }}</span>
             @endif

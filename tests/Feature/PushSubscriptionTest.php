@@ -33,14 +33,14 @@ class PushSubscriptionTest extends TestCase
     {
         $user = $this->createFullAccount('alice');
 
-        $first = $this->actingAs($user)->get(route('settings.edit'));
+        $first = $this->actingAs($user)->get(route('settings.edit', ['tab' => 'notifications']));
         $keys = json_decode(SystemSetting::get('push_vapid_keys'), true, flags: JSON_THROW_ON_ERROR);
 
         $first->assertOk()->assertSee($keys['publicKey'], false);
         $this->assertSame(1, DB::table('system_settings')->where('key', 'push_vapid_keys')->count());
         $this->assertStringNotContainsString($keys['privateKey'], DB::table('system_settings')->where('key', 'push_vapid_keys')->value('value'));
 
-        $this->actingAs($user)->get(route('settings.edit'))->assertOk();
+        $this->actingAs($user)->get(route('settings.edit', ['tab' => 'notifications']))->assertOk();
         $this->assertSame($keys, json_decode(SystemSetting::get('push_vapid_keys'), true, flags: JSON_THROW_ON_ERROR));
     }
 
