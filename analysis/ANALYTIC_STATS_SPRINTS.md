@@ -486,58 +486,41 @@ Risultato: tutte le query disponibili sono visualizzate senza cache dei
 risultati. Copertura: Q01–Q19, con Q02B al posto di Q02; Q00 e i hint restano
 diagnostica. Nessuna fase successiva serve per rendere visibili questi grafici.
 
-## Sprint 7 — Prima acquisizione dei post remoti per sorgente e relay
+## Sprint 7 — Delivery dei post per sorgente e relay
 
-**Definizione prima della migration:** contare la prima acquisizione locale
-riuscita dei nuovi post remoti pubblici ammissibili, non il traffico HTTP,
-gli Announce tecnici o gli Update. Usare l'istante locale di acquisizione,
-non `published_at` remoto. Definire e registrare copertura dall'attivazione,
-identità stabile dei relay, rettifiche e durata della deduplicazione.
+**Semantica approvata:** contare le delivery elaborate di post pubblici, anche
+se già noti. Create, Update e Announce riusciti contribuiscono per il post
+principale dell’attività; il fetch dipendente non genera un secondo incremento.
+Le citazioni importate come effetto laterale non sono delivery aggiuntive.
+I recuperi espliciti e le voci RSS elaborate contribuiscono alla propria sorgente.
+Non misurare richieste HTTP, attività respinte o persone/post unici.
 
-**Backend e persistenza:** introdurre i metadati di prima acquisizione minimi
-e i bucket giornalieri necessari al grafico, mantenendo distinta la funzione
-di deduplicazione da quella di conteggio. Scelta iniziale: conservare la chiave
-di deduplicazione delle acquisizioni pubbliche almeno per tutta la retention
-delle relative metriche, anche quando il post è rimosso dalla cache locale.
-Un contenuto reimportato durante quel periodo non deve contare di nuovo.
-I dati precedenti all'attivazione non diventano uno storico ricostruito: quando
-non è dimostrabile una prima acquisizione, segnalarla come non attribuibile,
-senza inventare la sorgente o incrementare il nuovo flusso storico.
+**Persistenza:** solo copertura, sorgenti e bucket giornalieri con PK composta
+(giorno UTC, sorgente). Nessun hash/identificativo dei post, journal, baseline,
+autore/community nei bucket o rettifiche dopo cancellazioni/blocchi/sospensioni.
+Restano i confini di visibilità al conteggio e i controlli core d’importazione.
+L’identità relay è indipendente dalla configurazione; niente FK al relay.
 
-Passare un contesto di provenienza esplicito attraverso inbox, dereference,
-outbox/discovery e feed, riusando gli ingester esistenti. Un fetch causato da
-un Announce relay conserva la causa relay; non diventa automaticamente discovery.
-`relay_id` nullo significa «inbox senza relay identificato» finché non abbiamo
-un dato affidabile per una distinzione ulteriore. L'assenza di contesto diventa
-«sconosciuto», mai «consegna diretta» per deduzione.
+**Isolamento:** registrazione afterCommit del commit più esterno; incremento
+su connessione dedicata con propria transazione. Catch Throwable sia intorno
+alla registrazione sia dentro il callback, senza log, rilancio o retry.
+Un errore metriche non può annullare il post. Rollback post scarta callback.
+È best effort: incrementi persi e duplicazioni da retry interni sono ammessi.
 
-Registrazione e incremento devono essere atomici e idempotenti rispetto
-all'inserimento riuscito. Se l'ingester attuale non ha una transazione adeguata,
-progettare una transazione locale breve, senza fetch HTTP sotto lock. Esplicitare
-il comportamento di retry, importazioni concorrenti e rimozione della
-configurazione relay. Nessuna retention aggiuntiva dei payload inbox.
-Prima di finalizzare lo schema annotare la politica dei contributi rettificabili
-per cambi di visibilità e moderazione, distinguendoli dalla normale retention
-del corpus. Misurare indici di scrittura e query di lettura anche su MySQL.
+**Frontend:** aree impilate settimanali per relay, inbox senza relay identificato,
+recupero/discovery, RSS e sconosciuto. Esplicitare data iniziale e natura best
+effort. Nessun dato antecedente inventato. Esempio dimostrativo separato dai dati
+reali, senza lasciare dati di prova nel database applicativo.
 
-**Frontend nello stesso sprint:** barre impilate settimanali dei nuovi post
-per relay/sorgente, con data iniziale di copertura, legenda per relay e
-«sconosciuto»/«senza relay identificato» ben distinti. Niente dati simulati
-presentati come osservati. Per i relay rimossi conservare una chiave storica e
-un'etichetta neutra, senza esporre URL tecnici o errori di configurazione.
-
-**Verifica e uscita:** stessa attività da più consegne, più Announce sullo
-stesso post, retry del job, rollback, acquisizione concorrente, post privato,
-Update senza nuovo post, contenuto già noto e cleanup dell'inbox. Testare
-anche la reimportazione dopo retention. Verificare dal browser che un nuovo
-post pubblico ricevuto popoli il grafico, senza cache dei dataset.
-
-Risultato: prima statistica relay fondata su nuovi dati durevoli, già visibile.
+**Verifiche:** post già noto, relay diversi, Announce che evita l’upsert,
+rollback esterno, errore DB statistiche dopo commit, contenuti privati e query
+senza join ad autori/post. Migration e indici MySQL/SQLite; PHPUnit alla fase
+finale concordata. Mostrare la revisione senza commit.
 
 ## Sprint 8 — Provenienza degli eventi e consolidamento della raccolta
 
 **Backend:** estendere il contesto e il conteggio agli eventi pubblici remoti,
-coprendo acquisizioni da inbox, relay e discovery. Riusare il servizio e la
+coprendo delivery da inbox, relay e discovery, anche di eventi già noti. Riusare il servizio e la
 struttura dei bucket dello sprint 7, distinguendo il tipo di oggetto e le
 relative finestre di copertura. Verificare la compatibilità di migration e
 vincoli MySQL/MariaDB/SQLite; non supporre che la cancellazione del record
@@ -546,21 +529,23 @@ relay debba azzerare o scollegare l'identità statistica storica.
 **Frontend nello stesso sprint:** selettore post/eventi/insieme sul grafico
 di provenienza, con coperture separate. La somma è valida sugli intervalli
 comuni; il periodo in cui raccoglievamo solo post non diventa zero eventi.
-Non confrontare le nuove acquisizioni con le pubblicazioni dei post come
+Non confrontare le delivery con le pubblicazioni dei post come
 se avessero lo stesso riferimento temporale.
 
-**Verifica e uscita:** eventi duplicati tra relay e discovery, annullamento
-e cambio di visibilità, autore non risolto, cleanup, relay disabilitati/rimossi,
-deduplicazione e rettifiche idempotenti. Verificare consistenza tra contributi
-e bucket, piani delle letture e dei percorsi usati nelle rettifiche. Documentare
+**Verifica e uscita:** delivery ripetute tra relay e discovery contate separatamente,
+rollback e guasti alle metriche senza impatto sugli eventi, visibilità privata,
+cleanup e relay rimossi senza riscrittura dello storico. Nessun journal o
+rettifica retroattiva: stesso modello best effort dello sprint 7. Verificare
+piani delle letture e degli incrementi atomici. Documentare
 la raccolta e la sua retention nelle guide inglesi/italiane. PHPUnit rimandato
 alla verifica finale, come richiesto.
 
 Risultato: nuova metrica di provenienza completa nel perimetro post/eventi,
 con grafico aggiornato; ancora nessuna cache delle risposte statistiche.
 
-Non includere ora lo storico di tutte le sorgenti che hanno consegnato un
-oggetto: richiederebbe una metrica diversa con conteggi non sommabili.
+Non conservare lo storico delle sorgenti per singolo oggetto: i contatori
+aggregati di delivery per sorgente sono sommabili e non richiedono identificativi
+dei contenuti.
 
 ## Sprint 9 — Cache dei dataset e verifica finale
 
@@ -719,3 +704,49 @@ Anteprima reale: 31304 immagini, 1347 video, 27262 post con media;
 12 post con sondaggio su 48.860 ammessi (0,02%). Sintassi PHP/JS, Pint e
 diff --check passano. Verifica browser dei tre grafici e dei relativi riepiloghi.
 PHPUnit non eseguito; sprint 6 pronto per revisione, senza commit.
+
+### Sprint 7 — Revisione delivery richiesta dall’utente
+
+La precedente implementazione di prima acquisizione è sostituita, non affiancata:
+il journal degli hash e le rettifiche sono rimossi. Anche le tabelle locali del
+prototipo non committato sono eliminate e sostituite dalla migration
+`2026_10_22_000000_create_post_delivery_metrics`. Nessuna scansione/baseline post.
+Tre tabelle: stats_collections, stats_delivery_sources, stats_post_delivery_buckets.
+Un solo contatore per giorno/sorgente; nessuna dipendenza da autori o post.
+
+Conteggio inbox centralizzato dopo il successo del processore, così anche gli
+Announce su post già in cache contribuiscono senza doppio conteggio per l’upsert.
+Il source dei poll resta separato per non alterarne le verifiche federate.
+Le statistiche non modificano i controlli di sicurezza/accettazione dell’inbox.
+
+Prove manuali su SQLite file isolato con connessione metriche distinta: upsert
+reale conta solo dopo il commit esterno; seconda consegna dello stesso post
+incrementa; due Announce relay su post noto incrementano due volte; rollback
+scarta callback; cancellazione/sospensione successive non cambiano lo storico.
+Tabella metriche eliminata di proposito: nuovo post salvato e commit concluso,
+nessuna eccezione propagata. File di prova eliminato, nessun post dimostrativo
+nel database applicativo. Test PHPUnit aggiornati ma non eseguiti.
+
+Verifica MySQL: afterCommit eseguito solo al commit esterno, connessione server
+metriche distinta da quella applicativa, due delivery dello stesso post = due
+incrementi. Nessun post/account modificato; metriche di prova eliminate.
+Query sui 24 bucket dimostrativi: 0,73 ms, EXPLAIN ANALYZE 0,199 ms, range
+sulla PRIMARY(day, source_id), lookup sorgente sulla PRIMARY. UPDATE atomico
+sulla stessa PRIMARY, una riga. Nessun join ad Actor/post/community.
+Anteprima reale rigenerata; demo separata generata su SQLite temporaneo poi
+eliminato. Nessun commit prima della revisione dell’utente.
+
+Revisione grafico delivery: aree impilate al posto delle barre, con segmenti
+rettilinei (tension 0), nessun pallino e colori dal tema. Tooltip per settimana
+con valori di tutte le sorgenti e totale. Nessuna modifica a query o dataset.
+Anteprima reale e demo aggiornate; nessun commit.
+Con un solo bucket settimanale si mantiene una singola colonna impilata:
+un’area senza due punti non avrebbe estensione visibile. Da due settimane
+in poi il grafico è ad aree. Anteprima demo verificata nel browser, incluso
+il tooltip con tutte le sorgenti e il totale della settimana (12).
+
+Revisione testi provenienza: titolo «Come arrivano i post» per esplicitare che
+gli eventi sono ancora allo sprint 8. Rimossi nota tecnica sotto la card e
+riepilogo grande «Raccolta dal»; resta il range sotto al grafico. Il consenso
+a duplicazioni/perdita incrementi resta documentato nell’analisi, non nella
+UI. Rimossa la menzione best effort anche dalla metodologia visibile.

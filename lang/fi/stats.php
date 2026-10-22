@@ -9,7 +9,7 @@ return [
     'login' => 'Kirjaudu uudelleen',
     'no_js' => 'Ota JavaScript käyttöön nähdäksesi kaaviot.',
     'method_title' => 'Yksi näkökulma, ei koko fediversumi',
-    'method' => 'Laskemme vain säilytetyt julkiset sisällöt aktiivisilta tekijöiltä, instanssin moderointia noudattaen. Kielet ovat tekijöiden ilmoittamia. Poistot ja säilytysajat voivat muuttaa tuloksia; historian kattavuutta ei taata.',
+    'method' => 'Sisältökaaviot kuvaavat säilytettyä julkista sisältöä moderointia noudattaen. Poistot ja säilytysajat voivat muuttaa tuloksia. Toimituskaaviot kuvaavat ilmoitettuna ajanjaksona vastaanotettuja julkaisuja.',
     'rhythm' => [
         'eyebrow' => 'Rytmi',
         'title' => 'Viisitoista päivää tunti tunnilta',
@@ -82,7 +82,19 @@ return [
         'description' => 'Kyselyn sisältävien julkisten julkaisujen osuus viikoittain.',
         'note' => 'Laskemme avoimet ja suljetut kyselyt analysoimatta ääniä tai osallistujia. Viikoilla ilman julkaisuja ei ole prosenttiosuutta.',
     ],
+    'acquisition' => [
+        'eyebrow' => 'Reitit',
+        'title' => 'Miten julkaisut saapuvat',
+        'description' => 'Mistä julkiset julkaisut saapuvat viikoittain.',
+    ],
     'chart' => [
+        'source_relay' => 'Relay',
+        'source_inbox' => 'Inbox ilman tunnistettua relayta',
+        'source_fetch' => 'Haku ja löytäminen',
+        'source_feed' => 'RSS-syötteet',
+        'source_unknown' => 'Tuntematon lähde',
+        'acquired_posts' => 'julkaisutoimitusta',
+        'empty_acquisition' => 'Tällä ajanjaksolla ei ole vielä julkaisutoimituksia.',
         'images' => 'Kuvat',
         'videos' => 'Videot',
         'attachments_count' => 'Liitteet',

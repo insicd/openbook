@@ -155,6 +155,25 @@ weekly share of eligible public posts containing an open or closed poll,
 without accessing votes or participants. The denominator includes all eligible
 public posts that week; weeks without posts have no percentage and break the line.
 
+Provenance counts processed deliveries of public posts, including known posts,
+starting with migration `2026_10_22_000000_create_post_delivery_metrics`. This is
+neither a unique-post count nor an HTTP request counter: successful Create,
+Update and Announce processing counts once per post delivery. Sources distinguish
+relays, inbox without an identified relay, fetch/discovery, RSS and unknown.
+Already known RSS entries can contribute on each import.
+
+Only collection metadata, source identities and daily UTC buckets by source are
+stored. There is no journal of post URIs/hashes, authors or communities. Later
+deletions, blocks and suspensions do not rewrite history. Private posts and
+private communities are excluded at counting time; core message acceptance
+checks remain unchanged.
+
+Increments run after the outermost post commit, on a dedicated connection and
+in a separate transaction. All errors are swallowed without logging, retrying
+or failing the import. Post rollback discards the callback. Collection is best
+effort: increments may be lost and internal retries may count more than once;
+absolute accuracy is not promised. Events remain for the next phase.
+
 Each chart loads its dataset as you approach it on the page. Failed requests
 can be retried independently. This phase does not cache the results. Statistics
 respect visibility and moderation exclusions, including suspended or deleted

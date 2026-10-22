@@ -1744,3 +1744,46 @@ Binding: `["active",false,"application","published","public","2024-10-22T18:00:0
                 -> Single-row covering index lookup on pol using polls_post_id_unique (post_id = p.id)  (cost=1.01 rows=1) (actual time=285e-6..285e-6 rows=246e-6 loops=48860)
 
 ```
+
+## Sprint 7 — Delivery best effort, versione semplificata
+
+Fixture MySQL in transazione annullata: 24 bucket, sei sorgenti, quattro settimane.
+Query 0.73 ms. Nessun dato di prova conservato.
+
+```sql
+select DATE_SUB(b.day, INTERVAL WEEKDAY(b.day) DAY) AS week, s.id, s.kind, s.label, SUM(b.count) AS count from `stats_post_delivery_buckets` as `b` inner join `stats_delivery_sources` as `s` on `s`.`id` = `b`.`source_id` where `b`.`day` >= ? and `b`.`day` <= ? group by `week`, `s`.`id`, `s`.`kind`, `s`.`label` order by `s`.`kind` asc, `s`.`id` asc, `week` asc
+```
+
+Binding: `["2026-09-28","2026-10-22"]`
+
+```text
+-> Sort: s.kind, s.id, `week`  (actual time=0.197..0.199 rows=24 loops=1)
+    -> Table scan on <temporary>  (actual time=0.153..0.156 rows=24 loops=1)
+        -> Aggregate using temporary table  (actual time=0.152..0.152 rows=24 loops=1)
+            -> Nested loop inner join  (cost=14 rows=25) (actual time=0.0182..0.0888 rows=24 loops=1)
+                -> Filter: ((b.`day` >= DATE'2026-09-28') and (b.`day` <= DATE'2026-10-22'))  (cost=5.27 rows=25) (actual time=0.0114..0.0206 rows=24 loops=1)
+                    -> Index range scan on b using PRIMARY over ('2026-09-28' <= day <= '2026-10-22')  (cost=5.27 rows=25) (actual time=0.0105..0.0174 rows=24 loops=1)
+                -> Single-row index lookup on s using PRIMARY (id = b.source_id)  (cost=0.254 rows=1) (actual time=0.00269..0.00271 rows=1 loops=24)
+
+```
+
+EXPLAIN UPDATE del contatore atomico:
+
+```json
+[
+    {
+        "id": 1,
+        "select_type": "UPDATE",
+        "table": "stats_post_delivery_buckets",
+        "partitions": null,
+        "type": "range",
+        "possible_keys": "PRIMARY",
+        "key": "PRIMARY",
+        "key_len": "259",
+        "ref": "const,const",
+        "rows": 1,
+        "filtered": 100,
+        "Extra": "Using where"
+    }
+]
+```

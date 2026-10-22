@@ -9,7 +9,7 @@ return [
     'login' => 'Accedi di nuovo',
     'no_js' => 'Abilita JavaScript per caricare i grafici.',
     'method_title' => 'Una prospettiva, non tutto il Fediverso',
-    'method' => 'Contiamo solo contenuti pubblici conservati, di autori attivi, rispettando la moderazione dell’istanza. Le lingue sono dichiarate dagli autori. Cancellazioni e retention possono cambiare i risultati; la copertura storica non è garantita.',
+    'method' => 'I grafici dei contenuti descrivono il corpus pubblico conservato, rispettando la moderazione. Cancellazioni e retention possono cambiare i risultati. Le consegne descrivono invece i post ricevuti nel periodo indicato.',
     'rhythm' => [
         'eyebrow' => 'Il ritmo',
         'title' => 'Quindici giorni, ora per ora',
@@ -82,7 +82,19 @@ return [
         'description' => 'La percentuale settimanale di post pubblici che contengono un sondaggio.',
         'note' => 'Contiamo i post con sondaggio, aperto o chiuso, senza analizzare voti o partecipanti. Le settimane senza post non hanno una percentuale.',
     ],
+    'acquisition' => [
+        'eyebrow' => 'I percorsi',
+        'title' => 'Come arrivano i post',
+        'description' => 'Da quali sorgenti arrivano i post pubblici, settimana per settimana.',
+    ],
     'chart' => [
+        'source_relay' => 'Relay',
+        'source_inbox' => 'Inbox senza relay identificato',
+        'source_fetch' => 'Recupero e discovery',
+        'source_feed' => 'Feed RSS',
+        'source_unknown' => 'Sorgente sconosciuta',
+        'acquired_posts' => 'consegne di post',
+        'empty_acquisition' => 'Non ci sono ancora consegne di post nel periodo.',
         'images' => 'Immagini',
         'videos' => 'Video',
         'attachments_count' => 'Allegati',

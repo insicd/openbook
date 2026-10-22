@@ -1286,3 +1286,38 @@ migration, nello sprint che consegna anche il grafico corrispondente.
   [riconoscimento relay](../app/Federation/Inbox/RelayIngressResolver.php).
 - [Modello inbox](../app/Federation/Inbox/InboxItem.php) e
   [pulizia database](../app/Application/Services/DatabaseMaintenanceService.php).
+
+## Implementazione provenienza — sprint 7 (delivery best effort)
+
+Semantica rivista con l’utente: contare delivery elaborate di post pubblici,
+anche già noti. Niente deduplicazione per URI; relay diversi e consegne ripetute
+contribuiscono ciascuno. I retry interni possono introdurre duplicazioni e gli
+errori metriche possono perdere incrementi: il dato è esplicitamente best effort.
+
+Tre tabelle: copertura, identità delle sorgenti e bucket giornalieri con PK
+(day, source_id). Non sono conservati identificativi/hash dei post o dimensioni
+autore/community. Il modello precedente di prima acquisizione è rimosso, incluso
+il journal e ogni callback di ritiro del contributo. Blocchi, sospensioni e
+cancellazioni successive non riscrivono lo storico. I controlli core d’ingresso
+restano invariati, così come il confine pubblico/privato al conteggio.
+
+```sql
+SELECT DATE_SUB(b.day, INTERVAL WEEKDAY(b.day) DAY) AS week,
+       s.id, s.kind, s.label, SUM(b.count) AS count
+FROM stats_post_delivery_buckets b
+JOIN stats_delivery_sources s ON s.id = b.source_id
+WHERE b.day >= :from_day AND b.day <= :today_utc
+GROUP BY week, s.id, s.kind, s.label
+ORDER BY s.kind, s.id, week
+```
+
+Incrementi dopo il commit più esterno del post, su connessione dedicata e con
+transazione propria. Catch Throwable silenzioso protegge sia la registrazione
+sia il callback; nessun retry o errore statistico torna al flusso d’importazione.
+Un rollback scarta il callback. Inbox conteggiato una volta per elaborazione
+riuscita del post principale, inclusi Announce su oggetti già noti; niente
+conteggio aggiuntivo per fetch/citazioni dipendenti. Recuperi espliciti e RSS
+sono sorgenti distinte. Nessun backfill o scansione dei post alla migration.
+
+Prove di isolamento, semantica e failure nel piano sprint 7; SQL e piani nel
+registro EXPLAIN. Gli eventi rimangono alla fase successiva.

@@ -5,6 +5,8 @@ namespace App\Federation\Inbox;
 use App\Application\Services\DirectMessageLinker;
 use App\Application\Services\DomainBlockManager;
 use App\Application\Services\NotificationCreator;
+use App\Application\Services\PostDeliverySource;
+use App\Application\Services\PostDeliveryStats;
 use App\Domain\Comments\Comment;
 use App\Domain\Locations\PostLocation;
 use App\Domain\Notifications\Notification;
@@ -48,6 +50,7 @@ final class RemoteNoteUpserter
         private readonly RemoteActorResolver $remoteActorResolver,
         private readonly RemotePollSynchronizer $polls,
         private readonly DomainBlockManager $domainBlocks,
+        private readonly PostDeliveryStats $deliveryStats,
     ) {}
 
     /**
@@ -63,8 +66,10 @@ final class RemoteNoteUpserter
         bool $resolveQuote = true,
         ?Post $directMessageThreadParent = null,
         ?InboxItem $source = null,
+        ?PostDeliverySource $delivery = null,
+        bool $trackDelivery = true,
     ): ?Post {
-        return DB::transaction(fn (): ?Post => $this->upsertPostWithinTransaction(
+        $post = DB::transaction(fn (): ?Post => $this->upsertPostWithinTransaction(
             $note,
             $noteUri,
             $actor,
@@ -75,6 +80,11 @@ final class RemoteNoteUpserter
             $directMessageThreadParent,
             $source,
         ));
+        if ($trackDelivery && $post !== null) {
+            $this->deliveryStats->record($post, $delivery ?? new PostDeliverySource);
+        }
+
+        return $post;
     }
 
     /**
@@ -346,6 +356,7 @@ final class RemoteNoteUpserter
             $publishedAt,
             notifyMentions: false,
             resolveQuote: false,
+            trackDelivery: false,
         );
     }
 

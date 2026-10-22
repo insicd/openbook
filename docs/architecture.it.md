@@ -160,6 +160,25 @@ aperto o chiuso, senza consultare voti o partecipanti. Il denominatore include
 tutti i post pubblici ammessi della settimana; una settimana senza post non
 ha percentuale e interrompe la linea.
 
+La provenienza conta le delivery elaborate di post pubblici, inclusi i post già
+noti, dalla migration `2026_10_22_000000_create_post_delivery_metrics`. Non è un
+conteggio di post unici né di richieste HTTP: Create, Update e Announce vengono
+contati una volta per elaborazione riuscita del post. Le sorgenti distinguono
+relay, inbox senza relay identificato, recupero/discovery, RSS e sconosciuto.
+Anche le voci RSS già note possono contribuire a ogni importazione.
+
+Restano solo metadati di copertura, identità delle sorgenti e bucket giornalieri
+per giorno UTC e sorgente. Nessun journal di URI/hash dei post, autore o community.
+Cancellazioni, blocchi e sospensioni successive non riscrivono lo storico.
+I confini di visibilità escludono post privati e community private al momento
+del conteggio; i filtri core di accettazione dei messaggi rimangono invariati.
+
+Gli incrementi avvengono dopo il commit più esterno del post, su una connessione
+dedicata con transazione separata. Ogni errore è assorbito senza log, retry o
+fallimento dell’importazione. Il rollback del post scarta il callback. La raccolta
+è best effort: può perdere incrementi o contare retry interni più volte, senza
+promettere esattezza assoluta. Gli eventi restano alla fase successiva.
+
 Ogni grafico carica i dati quando ti avvicini alla sua posizione nella pagina;
 un errore può essere ritentato senza ricaricare gli altri. In questa fase non
 è attiva una cache dei risultati. Le statistiche rispettano le esclusioni

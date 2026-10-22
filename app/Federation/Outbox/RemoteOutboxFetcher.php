@@ -4,6 +4,7 @@ namespace App\Federation\Outbox;
 
 use App\Application\Queries\FeedQuery;
 use App\Application\Services\AnnounceManager;
+use App\Application\Services\PostDeliverySource;
 use App\Domain\Events\Event;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
@@ -565,6 +566,6 @@ final class RemoteOutboxFetcher
             isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
         );
 
-        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false);
+        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false, delivery: new PostDeliverySource('fetch'));
     }
 }

@@ -17,7 +17,7 @@
             <p>{{ __('stats.intro') }}</p>
         </header>
 
-        @foreach (['rhythm', 'languages', 'domains', 'volume', 'authors', 'hashtags', 'geography', 'eventCalendar', 'communityActivity', 'attachments', 'mediaTrend', 'polls'] as $metric)
+        @foreach (['rhythm', 'languages', 'domains', 'volume', 'authors', 'hashtags', 'geography', 'eventCalendar', 'communityActivity', 'attachments', 'mediaTrend', 'polls', 'acquisition'] as $metric)
             @php($dataset = in_array($metric, ['volume', 'authors']) ? 'weekly' : (in_array($metric, ['attachments', 'mediaTrend']) ? 'media' : $metric))
             <section class="ob-card ob-stats-card" data-stats-card="{{ $metric }}"
                      data-metric="{{ $dataset }}"
@@ -25,7 +25,7 @@
                 <header class="ob-stats-card__header">
                     <span class="ob-stats__eyebrow">{{ __('stats.'.$metric.'.eyebrow') }}</span>
                     <h2 id="stats-{{ $metric }}-title">{{ __('stats.'.$metric.'.title') }}</h2>
-                    <p>{{ __('stats.'.$metric.'.description') }}</p>
+                    <p id="stats-{{ $metric }}-intro">{{ __('stats.'.$metric.'.description') }}</p>
                 </header>
 
                 <div class="ob-stats-card__status" role="status" data-stats-status>{{ __('stats.waiting') }}</div>
@@ -38,7 +38,7 @@
                     <div class="ob-stats-summary" data-stats-summary></div>
                     <div class="ob-stats-chart">
                         <canvas data-stats-canvas role="img" aria-label="{{ __('stats.'.$metric.'.title') }}"
-                                aria-describedby="stats-{{ $metric }}-description"></canvas>
+                                aria-describedby="stats-{{ $metric }}-{{ $metric === 'acquisition' ? 'intro' : 'description' }}"></canvas>
                     </div>
                     @if ($metric === 'hashtags')
                         <p class="ob-stats-card__period">{{ __('stats.chart.legend_top') }}</p>
@@ -47,7 +47,9 @@
                     <p class="ob-stats-card__period" data-stats-period></p>
                     <p class="ob-stats-card__updated" data-stats-updated></p>
                 </div>
+                @if ($metric !== 'acquisition')
                 <p class="ob-stats-card__note" id="stats-{{ $metric }}-description">{{ __('stats.'.$metric.'.note') }}</p>
+                @endif
             </section>
         @endforeach
 

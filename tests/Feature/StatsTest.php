@@ -45,6 +45,7 @@ class StatsTest extends TestCase
         $this->getJson('/stats/community')->assertUnauthorized();
         $this->getJson('/stats/allegati')->assertUnauthorized();
         $this->getJson('/stats/sondaggi')->assertUnauthorized();
+        $this->getJson('/stats/provenienza')->assertUnauthorized();
     }
 
     public function test_an_ordinary_user_can_read_stats_without_aggregates_in_the_html_response(): void
@@ -71,6 +72,7 @@ class StatsTest extends TestCase
         $this->getJson('/stats/community')->assertOk()->assertJsonPath('metric', 'communityActivity');
         $this->getJson('/stats/allegati')->assertOk()->assertJsonPath('metric', 'media');
         $this->getJson('/stats/sondaggi')->assertOk()->assertJsonPath('metric', 'polls');
+        $this->getJson('/stats/provenienza')->assertOk()->assertJsonPath('metric', 'acquisition');
     }
 
     public function test_hourly_buckets_are_complete_utc_hours_and_results_are_not_cached(): void

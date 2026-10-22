@@ -2,6 +2,7 @@
 
 namespace App\Federation\Replies;
 
+use App\Application\Services\PostDeliverySource;
 use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
@@ -88,6 +89,7 @@ final class RemoteRepliesFetcher
                 $note, $post->uri, $post->actor, RemotePostObject::body($note),
                 ActivityPubTimestamp::parse(is_string($note['published'] ?? null) ? $note['published'] : null, $post->published_at),
                 notifyMentions: false,
+                delivery: new PostDeliverySource('fetch'),
             );
             if ($updated === null) {
                 return;

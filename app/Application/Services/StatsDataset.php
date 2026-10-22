@@ -168,6 +168,28 @@ final class StatsDataset
         return $this->weeklyDataset('polls', 'posts', ['posts', 'polls']);
     }
 
+    public function acquisition(): array
+    {
+        $to = CarbonImmutable::now('UTC');
+        $started = $this->query->acquisitionCoverage();
+        $coverage = $started !== null ? CarbonImmutable::parse($started, 'UTC') : $to;
+        $from = $coverage->max($to->subYearsNoOverflow(2)->startOfDay());
+        $data = $this->query->acquisition($from, $to);
+        $sources = $data->unique('id')->map(static fn (object $row): array => [
+            'id' => $row->id, 'kind' => $row->kind, 'label' => $row->kind === 'relay' ? $row->label : null,
+        ])->values()->all();
+        $weeks = [];
+        for ($week = $from->startOfWeek(CarbonImmutable::MONDAY); $week->lessThanOrEqualTo($to); $week = $week->addWeek()) {
+            $key = $week->format('Y-m-d');
+            $counts = $data->where('week', $key)->keyBy('id');
+            $weeks[] = ['week' => $key, 'counts' => array_map(static fn (array $source): int => (int) ($counts->get($source['id'])?->count ?? 0), $sources)];
+        }
+        $result = $this->metadata('acquisition', $from, $to, 'week', 'post_deliveries');
+        $result['coverage'] = ['mode' => 'processed_deliveries', 'started_at' => $coverage->toIso8601String(), 'historical_completeness' => 'best_effort'];
+
+        return $result + ['sources' => $sources, 'weeks' => $weeks];
+    }
+
     private function weeklyDataset(string $metric, string $unit, array $fields): array
     {
         $to = CarbonImmutable::now('UTC')->startOfHour();

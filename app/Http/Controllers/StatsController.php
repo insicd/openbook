@@ -62,4 +62,9 @@ final class StatsController extends Controller
     {
         return response()->json($datasets->polls())->header('Cache-Control', 'private, no-store');
     }
+
+    public function acquisition(StatsDataset $datasets): JsonResponse
+    {
+        return response()->json($datasets->acquisition())->header('Cache-Control', 'private, no-store');
+    }
 }

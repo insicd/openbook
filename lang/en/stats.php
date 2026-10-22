@@ -9,7 +9,7 @@ return [
     'login' => 'Sign in again',
     'no_js' => 'Enable JavaScript to load the charts.',
     'method_title' => 'One perspective, not the whole Fediverse',
-    'method' => 'We count retained public content from active authors, respecting instance moderation. Languages are declared by authors. Deletion and retention can change the results; historical coverage is not guaranteed.',
+    'method' => 'Content charts describe retained public content, respecting moderation. Deletion and retention can change the results. Delivery charts describe posts received during the period shown.',
     'rhythm' => [
         'eyebrow' => 'The rhythm',
         'title' => 'Fifteen days, hour by hour',
@@ -82,7 +82,19 @@ return [
         'description' => 'The weekly percentage of public posts containing a poll.',
         'note' => 'We count posts with open or closed polls, without analysing votes or participants. Weeks without posts have no percentage.',
     ],
+    'acquisition' => [
+        'eyebrow' => 'The routes',
+        'title' => 'How posts arrive',
+        'description' => 'Where public posts arrive from, week by week.',
+    ],
     'chart' => [
+        'source_relay' => 'Relay',
+        'source_inbox' => 'Inbox without an identified relay',
+        'source_fetch' => 'Fetch and discovery',
+        'source_feed' => 'RSS feeds',
+        'source_unknown' => 'Unknown source',
+        'acquired_posts' => 'post deliveries',
+        'empty_acquisition' => 'There are no post deliveries for this period yet.',
         'images' => 'Images',
         'videos' => 'Videos',
         'attachments_count' => 'Attachments',

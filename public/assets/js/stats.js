@@ -202,6 +202,31 @@
         } };
     }
 
+    function acquisitionChart(card, options, colors) {
+        var data = card._statsData;
+        var total = data.weeks.reduce(function (sum, week) { return sum + week.counts.reduce(function (a, b) { return a + b; }, 0); }, 0);
+        summary(card, [[total, labels.acquired_posts]]);
+        options.scales.x.stacked = true;
+        options.scales.y.stacked = true;
+        options.plugins.legend.display = true;
+        options.interaction = { intersect: false, mode: 'index', axis: 'x' };
+        options.plugins.tooltip.callbacks = {
+            title: function (items) { return labels.week_of + ' ' + date.format(new Date(data.weeks[items[0].dataIndex].week + 'T00:00:00Z')); },
+            label: function (item) { return item.dataset.label + ': ' + number.format(item.parsed.y); },
+            footer: function (items) { return labels.total + ': ' + number.format(data.weeks[items[0].dataIndex].counts.reduce(function (sum, count) { return sum + count; }, 0)); }
+        };
+        if (!total) options.scales.y.suggestedMax = 1;
+        return { total: total, type: data.weeks.length === 1 ? 'bar' : 'line', data: {
+            labels: data.weeks.map(function (row) { return date.format(new Date(row.week + 'T00:00:00Z')); }),
+            datasets: data.sources.map(function (source, index) {
+                var label = labels['source_' + source.kind] || labels.source_unknown;
+                if (source.kind === 'relay' && source.label) label += ' · ' + source.label;
+                var color = Chart.helpers.color(colors.primary).rotate(index * 137.508).rgbString();
+                return { label: label, data: data.weeks.map(function (week) { return week.counts[index]; }), stack: 'deliveries', borderColor: color, backgroundColor: Chart.helpers.color(color).alpha(0.65).rgbString(), borderWidth: 1.5, fill: index === 0 ? 'origin' : '-1', tension: 0, pointRadius: 0, pointHoverRadius: 0, pointHitRadius: 8, maxBarThickness: 56, borderSkipped: false };
+            })
+        } };
+    }
+
     function focusHashtag(chart, index) {
         if (chart._statsFocus === index) return;
         chart._statsFocus = index;
@@ -316,7 +341,7 @@
             if (!total) options.scales.x.suggestedMax = 1;
             accessibleDetails = rows.map(function (row) { return languageName(row.language) + ': ' + number.format(row.count); }).join('; ');
         } else {
-            var renderer = { domains: domainChart, volume: weeklyChart, authors: weeklyChart, hashtags: hashtagChart, geography: geographyChart, eventCalendar: eventCalendarChart, communityActivity: communityActivityChart, attachments: mediaChart, mediaTrend: mediaChart, polls: pollsChart }[metric];
+            var renderer = { domains: domainChart, volume: weeklyChart, authors: weeklyChart, hashtags: hashtagChart, geography: geographyChart, eventCalendar: eventCalendarChart, communityActivity: communityActivityChart, attachments: mediaChart, mediaTrend: mediaChart, polls: pollsChart, acquisition: acquisitionChart }[metric];
             var result = renderer(card, options, colors);
             chartData = result.data;
             chartType = result.type;
@@ -326,7 +351,7 @@
         var status = card.querySelector('[data-stats-status]');
         status.hidden = total > 0;
         status.style.minHeight = total > 0 ? '' : '0';
-        status.textContent = { hashtags: labels.empty_hashtags, geography: labels.empty_geography, eventCalendar: labels.empty_events, communityActivity: labels.empty_communities, attachments: labels.empty_media, mediaTrend: labels.empty_media, polls: labels.empty_polls }[metric] || labels.empty;
+        status.textContent = { hashtags: labels.empty_hashtags, geography: labels.empty_geography, eventCalendar: labels.empty_events, communityActivity: labels.empty_communities, attachments: labels.empty_media, mediaTrend: labels.empty_media, polls: labels.empty_polls, acquisition: labels.empty_acquisition }[metric] || labels.empty;
         var period = data.period;
         card.querySelector('[data-stats-period]').textContent = metric === 'domains' ? labels.snapshot + ' ' + date.format(new Date(period.to)) : date.format(new Date(period.from)) + ' – ' + (rhythm ? hour.format(new Date(period.to)) : date.format(new Date(period.to))) + ' UTC';
         card.querySelector('[data-stats-updated]').textContent = labels.generated + ' ' + generatedDate.format(new Date(data.generated_at));
@@ -373,7 +398,8 @@
                     if (response.status === 401 || response.status === 419 || response.redirected) throw new Error('auth');
                     if (!response.ok) throw new Error('http');
                     var result = await response.json();
-                    if (result.version !== 1 || result.metric !== (card.dataset.metric || card.dataset.statsCard) || !Array.isArray(result.rows) || !result.period) throw new Error('dataset');
+                    var validRows = result.metric === 'acquisition' ? Array.isArray(result.sources) && Array.isArray(result.weeks) : Array.isArray(result.rows);
+                    if (result.version !== 1 || result.metric !== (card.dataset.metric || card.dataset.statsCard) || !validRows || !result.period) throw new Error('dataset');
                     return result;
                 }()).catch(function (error) { datasets.delete(url); throw error; }));
             }
