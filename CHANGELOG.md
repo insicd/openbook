@@ -311,6 +311,8 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Footer**: il nome dell’istanza in fondo alla pagina rimanda alla home locale,
+  come nel footer sotto il menù.
 - Lo sfondo della home ospite (immagine o alone di default) resta della
   dimensione dello schermo, fisso dietro i contenuti, invece di ingrandirsi
   con il flusso pubblico.

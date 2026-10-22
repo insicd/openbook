@@ -169,7 +169,7 @@
 
     <footer class="ob-footer">
         <p>
-            {{ config('app.name') }} &middot;
+            <a href="{{ route('home') }}">{{ config('app.name') }}</a> &middot;
             <a href="{{ route('instance.rules') }}">{{ __('openbook.footer.rules') }}</a> &middot;
             <a href="{{ route('instance.privacy') }}">{{ __('openbook.footer.privacy') }}</a> &middot;
             @auth
