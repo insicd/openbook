@@ -881,3 +881,115 @@ Binding nell'ordine: `["post", "active", false, true, true, "application", "mast
                     -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application') and (a.domain <> 'mastodon.social') and (a.`uri` <> 'https://mastodon.social') and (not((a.`uri` like 'https://mastodon.social/%'))) and (not((a.`uri` like 'https://mastodon.social:%'))) and (not((a.`uri` like 'https://mastodon.social?%'))) and (not((a.`uri` like 'https://mastodon.social#%'))) and (a.`uri` <> 'http://mastodon.social') and (not((a.`uri` like 'http://mastodon.social/%'))) and (not((a.`uri` like 'http://mastodon.social:%'))) and (not((a.`uri` like 'http://mastodon.social?%'))) and (not((a.`uri` like 'http://mastodon.social#%'))))  (cost=0.28 rows=0.05) (actual time=707e-6..728e-6 rows=0.524 loops=145)
                         -> Single-row index lookup on a using PRIMARY (id = e.actor_id)  (cost=0.28 rows=1) (actual time=382e-6..393e-6 rows=1 loops=145)
 ```
+
+## Revisione delle query dopo il feedback frontend — 22 ottobre 2026
+
+I piani precedenti sono conservati come storico. La versione corrente usa:
+- ritmo: GROUP BY bucket, senza origine;
+- lingue: aggregazione per lingua normalizzata nei due rami post/eventi,
+  UNION ALL e SUM finale per lingua; esclusione SQL di NULL, vuoto e `und`;
+- volume/autori: GROUP BY week con COUNT(*) e COUNT(DISTINCT actor_id),
+  senza dominio o origine. Q14 non è più necessaria per la visualizzazione.
+
+I nuovi EXPLAIN ANALYZE, inclusi entrambi i rami delle lingue, restano da
+eseguire dopo l’OK dell’utente alla fase di verifica. Non si deduce un guadagno
+di tempo dai soli raggruppamenti rimossi.
+
+## Query semplificate approvate — sprint 2
+
+Una esecuzione EXPLAIN ANALYZE per query sul database locale; PHPUnit rinviato.
+
+### rhythm
+
+```sql
+select DATE_FORMAT(p.published_at, '%Y-%m-%dT%H:00:00Z') AS bucket, COUNT(*) AS count from `posts` as `p` inner join `actors` as `a` on `a`.`id` = `p`.`actor_id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and 1 = 1 and `p`.`status` = ? and `p`.`visibility` = ? and `p`.`conversation_id` is null and `p`.`published_at` >= ? and `p`.`published_at` < ? and (`p`.`community_id` is null or exists (select 1 from `communities` as `c` where `c`.`id` = `p`.`community_id` and `c`.`is_private` = ?)) group by `bucket` order by `bucket` asc
+```
+Bindings: `["active",false,true,true,"application","published","public","2026-10-07T16:00:00.000000Z","2026-10-22T16:00:00.000000Z",false]`
+
+```text
+-> Sort: bucket  (actual time=8.12..8.12 rows=68 loops=1)
+    -> Table scan on <temporary>  (actual time=8.1..8.1 rows=68 loops=1)
+        -> Aggregate using temporary table  (actual time=8.1..8.1 rows=68 loops=1)
+            -> Nested loop inner join  (cost=686 rows=7.07) (actual time=0.06..7.7 rows=836 loops=1)
+                -> Filter: ((p.conversation_id is null) and ((p.community_id is null) or exists(select #2)))  (cost=636 rows=141) (actual time=0.0515..3.99 rows=1413 loops=1)
+                    -> Index range scan on p using posts_visibility_status_published_at_index over (visibility = 'public' AND status = 'published' AND '2026-10-07 16:00:00' <= published_at < '2026-10-22 16:00:00'), with index condition: ((p.`status` = 'published') and (p.visibility = 'public') and (p.published_at >= TIMESTAMP'2026-10-07 16:00:00') and (p.published_at < TIMESTAMP'2026-10-22 16:00:00'))  (cost=636 rows=1413) (actual time=0.051..3.9 rows=1413 loops=1)
+                    -> Select #2 (subquery in condition; dependent)
+                        -> Limit: 1 row(s)  (cost=0.35 rows=1) (never executed)
+                            -> Filter: (c.is_private = 0)  (cost=0.35 rows=1) (never executed)
+                                -> Single-row index lookup on c using PRIMARY (id = p.community_id)  (cost=0.35 rows=1) (never executed)
+                -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=0.25 rows=0.05) (actual time=0.00248..0.00253 rows=0.592 loops=1413)
+                    -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.25 rows=1) (actual time=0.00227..0.0023 rows=1 loops=1413)
+
+```
+
+### languages
+
+```sql
+select language, SUM(count) AS count from ((select LOWER(TRIM(p.language)) AS language, COUNT(*) AS count from `posts` as `p` inner join `actors` as `a` on `a`.`id` = `p`.`actor_id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and 1 = 1 and `p`.`status` = ? and `p`.`visibility` = ? and `p`.`conversation_id` is null and `p`.`published_at` >= ? and `p`.`published_at` < ? and (`p`.`community_id` is null or exists (select 1 from `communities` as `c` where `c`.`id` = `p`.`community_id` and `c`.`is_private` = ?)) and `p`.`language` is not null and LOWER(TRIM(p.language)) NOT IN ('', 'und') group by LOWER(TRIM(p.language))) union all (select LOWER(TRIM(e.language)) AS language, COUNT(*) AS count from `events` as `e` inner join `actors` as `a` on `a`.`id` = `e`.`actor_id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and 1 = 1 and `e`.`visibility` = ? and `e`.`deleted_at` is null and `e`.`status` in (?, ?, ?) and `e`.`published_at` >= ? and `e`.`published_at` < ? and `e`.`language` is not null and LOWER(TRIM(e.language)) NOT IN ('', 'und') group by LOWER(TRIM(e.language)))) as `uses` group by `language` order by `count` desc, `language` asc
+```
+Bindings: `["active",false,true,true,"application","published","public","2024-10-22T16:00:00.000000Z","2026-10-22T16:00:00.000000Z",false,"active",false,true,true,"application","public","scheduled","tentative","postponed","2024-10-22T16:00:00.000000Z","2026-10-22T16:00:00.000000Z"]`
+
+```text
+-> Sort: count DESC, uses.`language`  (actual time=83.3..83.3 rows=14 loops=1)
+    -> Table scan on <temporary>  (actual time=83.3..83.3 rows=14 loops=1)
+        -> Aggregate using temporary table  (actual time=83.3..83.3 rows=14 loops=1)
+            -> Table scan on uses  (cost=2.5..2.5 rows=0) (actual time=83.3..83.3 rows=14 loops=1)
+                -> Union all materialize  (cost=0..0 rows=0) (actual time=83.3..83.3 rows=14 loops=1)
+                    -> Table scan on <temporary>  (actual time=83.1..83.1 rows=14 loops=1)
+                        -> Aggregate using temporary table  (actual time=83.1..83.1 rows=14 loops=1)
+                            -> Nested loop inner join  (cost=1193 rows=10.9) (actual time=0.479..82.9 rows=1517 loops=1)
+                                -> Filter: ((p.conversation_id is null) and ((p.community_id is null) or exists(select #3)) and (p.`language` is not null) and (lower(trim(p.`language`)) not in ('','und')))  (cost=1117 rows=219) (actual time=0.345..81.8 rows=2367 loops=1)
+                                    -> Index lookup on p using posts_popular_remote_actor_index (status = 'published', visibility = 'public'), with index condition: ((p.published_at >= TIMESTAMP'2024-10-22 16:00:00') and (p.published_at < TIMESTAMP'2026-10-22 16:00:00'))  (cost=1117 rows=21893) (actual time=0.0388..80.5 rows=48820 loops=1)
+                                    -> Select #3 (subquery in condition; dependent)
+                                        -> Limit: 1 row(s)  (cost=0.35 rows=1) (actual time=0.00629..0.00633 rows=1 loops=1)
+                                            -> Filter: (c.is_private = 0)  (cost=0.35 rows=1) (actual time=0.00617..0.00617 rows=1 loops=1)
+                                                -> Single-row index lookup on c using PRIMARY (id = p.community_id)  (cost=0.35 rows=1) (actual time=0.00604..0.00604 rows=1 loops=1)
+                                -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=0.25 rows=0.05) (actual time=404e-6..431e-6 rows=0.641 loops=2367)
+                                    -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.25 rows=1) (actual time=281e-6..295e-6 rows=1 loops=2367)
+                    -> Table scan on <temporary>  (actual time=0.115..0.115 rows=0 loops=1)
+                        -> Aggregate using temporary table  (actual time=0.115..0.115 rows=0 loops=1)
+                            -> Nested loop inner join  (cost=19.9 rows=0.073) (actual time=0.109..0.109 rows=0 loops=1)
+                                -> Filter: ((e.visibility = 'public') and (e.deleted_at is null) and (e.`status` in ('scheduled','tentative','postponed')) and (e.published_at >= TIMESTAMP'2024-10-22 16:00:00') and (e.published_at < TIMESTAMP'2026-10-22 16:00:00') and (e.`language` is not null) and (lower(trim(e.`language`)) not in ('','und')) and (e.actor_id is not null))  (cost=19.4 rows=1.46) (actual time=0.0127..0.0818 rows=68 loops=1)
+                                    -> Table scan on e  (cost=19.4 rows=149) (actual time=0.00988..0.0519 rows=151 loops=1)
+                                -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=0.253 rows=0.05) (actual time=358e-6..358e-6 rows=0 loops=68)
+                                    -> Single-row index lookup on a using PRIMARY (id = e.actor_id)  (cost=0.253 rows=1) (actual time=264e-6..273e-6 rows=1 loops=68)
+
+```
+
+### domains
+
+```sql
+select a.domain, a.type, a.is_local, COUNT(*) AS count from `actors` as `a` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and 1 = 1 group by `a`.`domain`, `a`.`type`, `a`.`is_local` order by `a`.`domain` asc, `a`.`type` asc, `a`.`is_local` asc
+```
+Bindings: `["active",false,true,true,"application"]`
+
+```text
+-> Sort: a.domain, a.`type`, a.is_local  (actual time=13..13 rows=1213 loops=1)
+    -> Table scan on <temporary>  (actual time=11.1..11.2 rows=1213 loops=1)
+        -> Aggregate using temporary table  (actual time=11.1..11.1 rows=1213 loops=1)
+            -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=3845 rows=1) (actual time=0.0184..8.54 rows=6891 loops=1)
+                -> Table scan on a  (cost=3845 rows=34516) (actual time=0.0116..7.32 rows=33045 loops=1)
+
+```
+
+### weekly
+
+```sql
+select DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY) AS week, COUNT(*) AS count, COUNT(DISTINCT p.actor_id) AS authors from `posts` as `p` inner join `actors` as `a` on `a`.`id` = `p`.`actor_id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and 1 = 1 and `p`.`status` = ? and `p`.`visibility` = ? and `p`.`conversation_id` is null and `p`.`published_at` >= ? and `p`.`published_at` < ? and (`p`.`community_id` is null or exists (select 1 from `communities` as `c` where `c`.`id` = `p`.`community_id` and `c`.`is_private` = ?)) group by `week` order by `week` asc
+```
+Bindings: `["active",false,true,true,"application","published","public","2024-10-22T16:00:00.000000Z","2026-10-22T16:00:00.000000Z",false]`
+
+```text
+-> Group aggregate: count(0), count(distinct p.actor_id)  (cost=3621 rows=33.1) (actual time=91.7..131 rows=66 loops=1)
+    -> Nested loop inner join  (cost=3369 rows=1095) (actual time=91.6..122 rows=20104 loops=1)
+        -> Sort: week  (cost=1119 rows=21893) (actual time=91.6..92.8 rows=48820 loops=1)
+            -> Filter: ((p.conversation_id is null) and ((p.community_id is null) or exists(select #2)))  (cost=1119 rows=21893) (actual time=0.0377..81.2 rows=48820 loops=1)
+                -> Index lookup on p using posts_popular_remote_actor_index (status = 'published', visibility = 'public'), with index condition: ((p.published_at >= TIMESTAMP'2024-10-22 16:00:00') and (p.published_at < TIMESTAMP'2026-10-22 16:00:00'))  (cost=1119 rows=21893) (actual time=0.0374..79.6 rows=48820 loops=1)
+                -> Select #2 (subquery in condition; dependent)
+                    -> Limit: 1 row(s)  (cost=0.35 rows=1) (actual time=0.00858..0.00862 rows=1 loops=1)
+                        -> Filter: (c.is_private = 0)  (cost=0.35 rows=1) (actual time=0.00838..0.00838 rows=1 loops=1)
+                            -> Single-row index lookup on c using PRIMARY (id = p.community_id)  (cost=0.35 rows=1) (actual time=0.00758..0.00758 rows=1 loops=1)
+        -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=0.25 rows=0.05) (actual time=524e-6..541e-6 rows=0.412 loops=48820)
+            -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.25 rows=1) (actual time=417e-6..431e-6 rows=1 loops=48820)
+
+```

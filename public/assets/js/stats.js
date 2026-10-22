@@ -11,6 +11,7 @@
     var names = typeof Intl.DisplayNames === 'function' ? new Intl.DisplayNames([locale], { type: 'language' }) : null;
     var queue = [];
     var active = 0;
+    var datasets = new Map();
 
     function text(tag, value, className) {
         var element = document.createElement(tag);
@@ -30,7 +31,7 @@
             primary: color('--ob-color-primary'), soft: color('--ob-color-primary-soft'),
             surface: color('--ob-color-surface'), border: color('--ob-color-border'),
             text: color('--ob-color-text'), muted: color('--ob-color-text-muted'),
-            font: style.fontFamily
+            secondary: color('--ob-color-success'), third: color('--ob-color-text-muted'), font: style.fontFamily
         };
     }
 
@@ -44,10 +45,77 @@
         });
     }
 
+    function horizontal(options) {
+        options.indexAxis = 'y';
+        options.scales.x.ticks.precision = 0;
+        options.scales.x.grid = { color: theme().border, drawTicks: false };
+        options.scales.y.grid.display = false;
+        options.scales.y.ticks.autoSkip = false;
+        options.scales.y.ticks.callback = function (value) { var label = this.getLabelForValue(value); return label.length > 25 ? label.slice(0, 24) + '…' : label; };
+    }
+
+    function rankedDomains(rows) {
+        var counts = new Map();
+        rows.forEach(function (row) { counts.set(row.domain, (counts.get(row.domain) || 0) + row.count); });
+        return Array.from(counts, function (entry) { return { domain: entry[0], count: entry[1] }; })
+            .sort(function (a, b) { return b.count - a.count || a.domain.localeCompare(b.domain); });
+    }
+
+    function domainChart(card, options, colors) {
+        var rows = card._statsData.rows;
+        var ranked = rankedDomains(rows);
+        var total = rows.reduce(function (sum, row) { return sum + row.count; }, 0);
+        var local = rows.reduce(function (sum, row) { return sum + (row.local ? row.count : 0); }, 0);
+        summary(card, [[total, labels.known_actors], [ranked.length, labels.domains], [local, labels.local_actors]]);
+        var top = ranked.slice(0, 8).map(function (row) { return row.domain; });
+        var buckets = top.map(function (domain) { return { domain: domain, person: 0, group: 0, feed: 0 }; });
+        rows.forEach(function (row) {
+            var index = top.indexOf(row.domain);
+            if (index < 0) return;
+            var bucket = buckets[index];
+            bucket[row.type] = (bucket[row.type] || 0) + row.count;
+        });
+        horizontal(options);
+        options.scales.x.stacked = true;
+        options.scales.y.stacked = true;
+        options.plugins.legend.display = true;
+        options.plugins.tooltip.callbacks = { label: function (item) { return item.dataset.label + ': ' + number.format(item.parsed.x) + ' (' + number.format(total ? item.parsed.x / total * 100 : 0) + '%)'; } };
+        if (!total) options.scales.x.suggestedMax = 1;
+        return { total: total, type: 'bar', data: {
+            labels: buckets.map(function (row) { return row.domain; }),
+            datasets: ['person', 'group', 'feed'].map(function (type, index) { return { label: labels[type], data: buckets.map(function (row) { return row[type]; }), backgroundColor: [colors.primary, colors.secondary, colors.third][index], borderRadius: 6, borderSkipped: false, maxBarThickness: 24 }; })
+        } };
+    }
+
+    function weeklyChart(card, options, colors) {
+        var data = card._statsData;
+        var authors = card.dataset.statsCard === 'authors';
+        var weeks = new Map(data.weeks.map(function (week) { return [week, 0]; }));
+        data.rows.forEach(function (row) { weeks.set(row.week, weeks.get(row.week) + (authors ? row.authors : row.count)); });
+        var totals = Array.from(weeks.values());
+        var peak = Math.max.apply(null, totals.concat([0]));
+        var total = authors ? peak : totals.reduce(function (sum, value) { return sum + value; }, 0);
+        summary(card, authors ? [[peak, labels.peak_authors]] : [[total, labels.public_posts], [peak, labels.peak_week_posts]]);
+        options.plugins.legend.display = false;
+        options.interaction = { intersect: false, mode: 'index' };
+        options.plugins.tooltip.callbacks = {
+            title: function (items) { return labels.week_of + ' ' + date.format(new Date(data.weeks[items[0].dataIndex] + 'T00:00:00Z')); },
+            label: function (item) { return item.dataset.label + ': ' + number.format(item.parsed.y); }
+        };
+        if (!peak) options.scales.y.suggestedMax = 1;
+        return { total: total, type: 'line', data: {
+            labels: data.weeks.map(function (week) { return date.format(new Date(week + 'T00:00:00Z')); }),
+            datasets: [{ label: labels.total, data: totals, borderColor: colors.primary, backgroundColor: colors.primary, borderWidth: 2.5, tension: 0.3, cubicInterpolationMode: 'monotone', pointRadius: 0, pointHoverRadius: 4, pointHitRadius: 10 }]
+        } };
+    }
+
     function render(card) {
         var data = card._statsData;
         var colors = theme();
-        var rhythm = card.dataset.statsCard === 'rhythm';
+        var metric = card.dataset.statsCard;
+        var rhythm = metric === 'rhythm';
+        var chartType = rhythm ? 'line' : 'bar';
+        var accessibleDetails = '';
         var canvas = card.querySelector('canvas');
         var options = {
             responsive: true, maintainAspectRatio: false,
@@ -73,22 +141,15 @@
             options.interaction = { intersect: false, mode: 'index' };
             options.plugins.tooltip.callbacks = { title: function (items) { return hour.format(new Date(data.rows[items[0].dataIndex].at)) + ' UTC'; }, label: function (item) { return labels.posts + ': ' + number.format(item.parsed.y); } };
             if (!peak) options.scales.y.suggestedMax = 1;
-        } else {
-            var grouped = new Map();
-            data.rows.forEach(function (row) {
-                if (!row.language || row.language === 'und') return;
-                if (!grouped.has(row.language)) grouped.set(row.language, { code: row.language, total: 0 });
-                var language = grouped.get(row.language);
-                language.total += row.count;
-                total += row.count;
-            });
-            var rows = Array.from(grouped.values()).sort(function (a, b) { return b.total - a.total || a.code.localeCompare(b.code); });
+        } else if (metric === 'languages') {
+            var rows = data.rows;
+            total = rows.reduce(function (sum, row) { return sum + row.count; }, 0);
             summary(card, [[total, labels.contents], [rows.length, labels.languages]]);
             var displayed = rows.slice(0, 8);
             if (rows.length > 8) {
-                displayed.push(rows.slice(8).reduce(function (rest, row) { rest.total += row.total; return rest; }, { other: true, total: 0 }));
+                displayed.push(rows.slice(8).reduce(function (rest, row) { rest.count += row.count; return rest; }, { other: true, count: 0 }));
             }
-            chartData = { labels: displayed.map(function (row) { return row.other ? labels.other : languageName(row.code); }), datasets: [{ label: labels.total, data: displayed.map(function (row) { return row.total; }), backgroundColor: colors.primary, borderRadius: 6, borderSkipped: false, maxBarThickness: 24 }] };
+            chartData = { labels: displayed.map(function (row) { return row.other ? labels.other : languageName(row.language); }), datasets: [{ label: labels.total, data: displayed.map(function (row) { return row.count; }), backgroundColor: colors.primary, borderRadius: 6, borderSkipped: false, maxBarThickness: 24 }] };
             options.indexAxis = 'y';
             options.scales.x.ticks.precision = 0;
             options.scales.x.grid = { color: colors.border, drawTicks: false };
@@ -97,6 +158,12 @@
             options.scales.y.ticks.callback = function (value) { var label = this.getLabelForValue(value); return label.length > 25 ? label.slice(0, 24) + '…' : label; };
             options.plugins.tooltip.callbacks = { label: function (item) { return item.dataset.label + ': ' + number.format(item.parsed.x); } };
             if (!total) options.scales.x.suggestedMax = 1;
+            accessibleDetails = rows.map(function (row) { return languageName(row.language) + ': ' + number.format(row.count); }).join('; ');
+        } else {
+            var result = metric === 'domains' ? domainChart(card, options, colors) : weeklyChart(card, options, colors);
+            chartData = result.data;
+            chartType = result.type;
+            total = result.total;
         }
         card.querySelector('[data-stats-results]').hidden = false;
         var status = card.querySelector('[data-stats-status]');
@@ -104,11 +171,11 @@
         status.style.minHeight = total > 0 ? '' : '0';
         status.textContent = labels.empty;
         var period = data.period;
-        card.querySelector('[data-stats-period]').textContent = date.format(new Date(period.from)) + ' – ' + (rhythm ? hour.format(new Date(period.to)) : date.format(new Date(period.to))) + ' UTC';
+        card.querySelector('[data-stats-period]').textContent = metric === 'domains' ? labels.snapshot + ' ' + date.format(new Date(period.to)) : date.format(new Date(period.from)) + ' – ' + (rhythm ? hour.format(new Date(period.to)) : date.format(new Date(period.to))) + ' UTC';
         card.querySelector('[data-stats-updated]').textContent = labels.generated + ' ' + hour.format(new Date(data.generated_at)) + ' UTC';
-        canvas.setAttribute('aria-label', (rhythm ? labels.rhythm_title : labels.language_title) + '. ' + labels.total + ': ' + number.format(total) + (rhythm ? '' : '. ' + rows.map(function (row) { return languageName(row.code) + ': ' + number.format(row.total); }).join('; ')));
+        canvas.setAttribute('aria-label', card.querySelector('h2').textContent + '. ' + Array.from(card.querySelector('[data-stats-summary]').children, function (item) { return Array.from(item.children, function (part) { return part.textContent; }).join(' '); }).join('. ') + (accessibleDetails ? '. ' + accessibleDetails : ''));
         if (card._statsChart) card._statsChart.destroy();
-        card._statsChart = new Chart(canvas, { type: rhythm ? 'line' : 'bar', data: chartData, options: options });
+        card._statsChart = new Chart(canvas, { type: chartType, data: chartData, options: options });
     }
 
     function enqueue(card) {
@@ -138,11 +205,18 @@
         var timeout = setTimeout(function () { controller.abort(); }, 20000);
         try {
             if (typeof Chart === 'undefined') throw new Error('chart-library');
-            var response = await fetch(card.dataset.url, { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store', signal: controller.signal });
-            if (response.status === 401 || response.status === 419 || response.redirected) throw new Error('auth');
-            if (!response.ok) throw new Error('http');
-            var data = await response.json();
-            if (data.version !== 1 || data.metric !== card.dataset.statsCard || !Array.isArray(data.rows) || !data.period) throw new Error('dataset');
+            var url = card.dataset.url;
+            if (!datasets.has(url)) {
+                datasets.set(url, (async function () {
+                    var response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store', signal: controller.signal });
+                    if (response.status === 401 || response.status === 419 || response.redirected) throw new Error('auth');
+                    if (!response.ok) throw new Error('http');
+                    var result = await response.json();
+                    if (result.version !== 1 || result.metric !== (card.dataset.metric || card.dataset.statsCard) || !Array.isArray(result.rows) || !result.period) throw new Error('dataset');
+                    return result;
+                }()).catch(function (error) { datasets.delete(url); throw error; }));
+            }
+            var data = await datasets.get(url);
             card._statsData = data;
             render(card);
             card._statsState = 'loaded';
@@ -164,7 +238,7 @@
         entries.forEach(function (entry) { if (entry.isIntersecting) { observer.unobserve(entry.target); enqueue(entry.target); } });
     }, { rootMargin: '200px 0px' }) : null;
     root.querySelectorAll('[data-stats-card]').forEach(function (card) {
-        card.querySelector('[data-stats-retry]').addEventListener('click', function () { enqueue(card); });
+        card.querySelector('[data-stats-retry]').addEventListener('click', function () { datasets.delete(card.dataset.url); enqueue(card); });
         if (observer) observer.observe(card); else enqueue(card);
     });
 }());

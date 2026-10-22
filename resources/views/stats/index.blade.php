@@ -17,9 +17,10 @@
             <p>{{ __('stats.intro') }}</p>
         </header>
 
-        @foreach (['rhythm', 'languages'] as $metric)
+        @foreach (['rhythm', 'languages', 'domains', 'volume', 'authors'] as $metric)
             <section class="ob-card ob-stats-card" data-stats-card="{{ $metric }}"
-                     data-url="{{ route('stats.'.$metric) }}" aria-labelledby="stats-{{ $metric }}-title">
+                     data-metric="{{ in_array($metric, ['volume', 'authors']) ? 'weekly' : $metric }}"
+                     data-url="{{ route('stats.'.(in_array($metric, ['volume', 'authors']) ? 'weekly' : $metric)) }}" aria-labelledby="stats-{{ $metric }}-title">
                 <header class="ob-stats-card__header">
                     <span class="ob-stats__eyebrow">{{ __('stats.'.$metric.'.eyebrow') }}</span>
                     <h2 id="stats-{{ $metric }}-title">{{ __('stats.'.$metric.'.title') }}</h2>

@@ -1,6 +1,6 @@
 # Stats — piano di implementazione
 
-Stato: sprint 1 implementato per revisione; sprint 2–9 non iniziati.
+Stato: sprint 1–2 approvati; sprint 3 autorizzato; sprint 4–9 non iniziati.
 Data: 22 ottobre 2026. Ramo richiesto: `stats`.
 Analisi e SQL: [ANALYTIC_STATS.md](ANALYTIC_STATS.md).
 Misure iniziali: [ANALYTIC_STATS_EXPLAIN.md](ANALYTIC_STATS_EXPLAIN.md).
@@ -121,20 +121,22 @@ se sì, consegnarla qui senza duplicare l'intero layout.
   della frequenza di aggiornamento resta nello sprint 9, come concordato.
 
 **Punto di arresto:** pronto per la revisione del primo grafico da parte
-dell’utente; nessun avvio dello sprint 2 senza il suo OK.
+dell’utente. Revisione approvata e registrata nel commit `f413b8c`;
+sprint 2 autorizzato.
 
 ## Sprint 2 — Domini, volume e autori attivi
 
-**Backend:** Q01 per Actor ammessi per dominio/tipo/origine; Q04, Q14 e Q15
-per volume settimanale, domini autori e autori distinti. Stessi perimetri e
+**Backend:** Q01 per Actor ammessi per dominio/tipo/origine; Q04 e Q15
+per volume settimanale e autori distinti. Q14 non serve più dopo la rimozione
+del filtro per dominio. Stessi perimetri e
 intervalli delle query misurate, salvo correzioni esplicite con nuovo piano.
 Q00 resta una baseline diagnostica, non un conteggio da esporre come equivalente
 di Q01. Non introdurre cache.
 
-**Frontend:** barre dei domini con categoria «altri», totale dei domini e
+**Frontend:** barre dei primi otto domini senza categoria «altri», totale di tutti i domini e
 distinzione tra persone/community/feed; grafici settimanali del volume e degli
-autori attivi, con serie locali/remote e selezione limitata dei domini autori.
-La selezione delle categorie resta stabile durante l'intero periodo.
+autori attivi, ciascuno con una sola serie totale senza filtro per istanza
+né distinzione locale/remoto.
 
 **Verifica e uscita:** Actor non ammissibili e domini bloccati esclusi;
 COUNT DISTINCT corretto per autore presente più volte; «altri» e percentuali
@@ -142,6 +144,44 @@ coerenti con lo stesso totale filtrato. UI leggibile con nomi lunghi e molti
 domini. Q04 diventa anche denominatore riusabile nelle richieste successive.
 
 Risultato: lettura della composizione dell'istanza e della sua attività.
+
+### Implementazione in revisione — 22 ottobre 2026
+
+Aggiunte tre card: account per dominio/tipo, volume settimanale e autori
+attivi settimanali. Le ultime due condividono `/stats/settimane`: una query
+raggruppata solo per settimana produce COUNT(*) e COUNT(DISTINCT actor_id).
+Non si trasmettono più suddivisioni per dominio o origine. Il conteggio
+degli autori è distinto direttamente nell’intera settimana, non una somma
+di conteggi giornalieri. Anche il riepilogo del numero di istanze è rimosso;
+il volume mostra totale e picco settimanale, gli autori il picco settimanale.
+La finestra di due anni e i filtri dei post coincidono con quelli dello sprint 1.
+Le settimane mancanti sono riempite con zero; prima e ultima possono essere parziali.
+
+Volume e autori attivi mostrano ciascuno una sola linea totale, senza filtro
+per istanza né distinzione locale/remoto, su richiesta dell’utente.
+Il grafico domini mostra una fotografia corrente degli Actor ammessi, non
+una serie storica: solo i primi otto, distinti per persona/community/feed.
+La barra «altre istanze» è omessa su richiesta dell’utente per evitare
+una scala dominata dalla coda lunga; totali e percentuali includono tutti i domini.
+Nessuna tabella dati e nessuna cache server dei risultati. Il browser riusa
+il dataset settimanale nella stessa pagina senza una seconda richiesta per
+la card autori; un nuovo caricamento della pagina legge nuovamente i dati.
+
+Anche le query del primo sprint sono allineate alla UI semplificata:
+ritmo raggruppato solo per ora, lingue solo per codice normalizzato con
+somma SQL dei contributi post/eventi tramite UNION ALL. Lingue nulle,
+vuote e `und` escluse già nel database. Il JSON delle lingue contiene
+solo lingua/conteggio, quello del ritmo solo ora/totale. Nessuna divisione
+per tipo o origine viene calcolata per questi grafici. Le varianti regionali
+restano distinte. Aggiornati i test, ancora da eseguire.
+Questa modifica supera il precedente contratto del primo sprint; i piani
+EXPLAIN precedenti non sono misure delle query ora semplificate.
+
+**Esito:** sprint 2 approvato dall’utente. Eseguito un EXPLAIN ANALYZE per
+query corrente: ritmo 8 ms, lingue 83 ms, domini 13 ms, volume/autori 131 ms
+sul campione locale; piani completi nel documento EXPLAIN. Nessun nuovo
+indice giustificato da queste misure. PHPUnit resta rinviato alla verifica
+finale concordata. Autorizzato l’avvio dello sprint 3.
 
 ## Sprint 3 — Hashtag e diffusione degli argomenti
 
@@ -393,4 +433,4 @@ in una sola serie senza selettore e senza legenda per tipo di contenuto.
 Le lingue mancanti (`und`) sono escluse dal grafico e dai riepiloghi;
 il contratto JSON e le query restano invariati. Questa revisione sostituisce
 le precedenti scelte di presentazione descritte nell’esito iniziale.
-Modifiche da revisionare: nessun commit fino all’OK esplicito dell’utente.
+Revisione approvata dall’utente e registrata nel commit `f413b8c`.

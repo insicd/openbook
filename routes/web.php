@@ -73,6 +73,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/stats', [StatsController::class, 'index'])->name('stats.index');
     Route::get('/stats/ritmo', [StatsController::class, 'rhythm'])->middleware('throttle:30,1,stats:')->name('stats.rhythm');
     Route::get('/stats/lingue', [StatsController::class, 'languages'])->middleware('throttle:30,1,stats:')->name('stats.languages');
+    Route::get('/stats/domini', [StatsController::class, 'domains'])->middleware('throttle:30,1,stats:')->name('stats.domains');
+    Route::get('/stats/settimane', [StatsController::class, 'weekly'])->middleware('throttle:30,1,stats:')->name('stats.weekly');
 
     Route::post('/esci', [SessionController::class, 'destroy'])->name('logout');
 

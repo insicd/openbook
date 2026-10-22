@@ -36,6 +36,8 @@ class StatsTest extends TestCase
         $this->get('/stats')->assertRedirect(route('login'));
         $this->getJson('/stats/ritmo')->assertUnauthorized();
         $this->getJson('/stats/lingue')->assertUnauthorized();
+        $this->getJson('/stats/domini')->assertUnauthorized();
+        $this->getJson('/stats/settimane')->assertUnauthorized();
     }
 
     public function test_an_ordinary_user_can_read_stats_without_aggregates_in_the_html_response(): void
@@ -54,6 +56,8 @@ class StatsTest extends TestCase
         $this->assertSame([], $aggregates);
         $this->getJson('/stats/ritmo')->assertOk()->assertJsonPath('metric', 'rhythm');
         $this->getJson('/stats/lingue')->assertOk()->assertJsonPath('metric', 'languages');
+        $this->getJson('/stats/domini')->assertOk()->assertJsonPath('metric', 'domains');
+        $this->getJson('/stats/settimane')->assertOk()->assertJsonPath('metric', 'weekly');
     }
 
     public function test_hourly_buckets_are_complete_utc_hours_and_results_are_not_cached(): void
@@ -115,12 +119,12 @@ class StatsTest extends TestCase
         $this->assertSame(1, array_sum(array_column($data['rows'], 'total')));
     }
 
-    public function test_languages_preserve_regional_variants_and_separate_posts_and_events(): void
+    public function test_languages_combine_posts_and_events_preserve_variants_and_exclude_missing_values(): void
     {
         CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
         $author = $this->createFullAccount('statslanguages');
         $author->actor->forceFill(['discoverable' => true, 'indexable' => true])->save();
-        foreach (['IT', 'it-IT', null] as $language) {
+        foreach (['IT', 'it-IT', null, '', 'und'] as $language) {
             Post::create([
                 'actor_id' => $author->actor->id, 'body' => 'Example', 'status' => 'published',
                 'visibility' => 'public', 'published_at' => '2026-10-22 14:00:00', 'language' => $language,
@@ -129,13 +133,13 @@ class StatsTest extends TestCase
         Event::create([
             'actor_id' => $author->actor->id, 'uri' => 'https://example.test/events/one',
             'name' => 'Example', 'visibility' => 'public', 'status' => 'scheduled',
-            'start_at' => '2026-11-01 15:00:00', 'published_at' => '2026-10-22 14:00:00', 'language' => 'fi',
+            'start_at' => '2026-11-01 15:00:00', 'published_at' => '2026-10-22 14:00:00', 'language' => 'it',
         ]);
         $rows = collect(app(StatsDataset::class)->languages()['rows']);
-        $this->assertEqualsCanonicalizing(['it', 'it-it', 'und'], $rows->where('kind', 'post')->pluck('language')->all());
-        $this->assertSame(['fi'], $rows->where('kind', 'event')->pluck('language')->all());
-        $this->assertSame(['2026-10-19'], $rows->pluck('week')->unique()->values()->all());
-        $this->assertSame(4, $rows->sum('count'));
+        $this->assertEqualsCanonicalizing(['it', 'it-it'], $rows->pluck('language')->all());
+        $this->assertSame(2, $rows->firstWhere('language', 'it')['count']);
+        $this->assertSame(3, $rows->sum('count'));
+        $this->assertSame(['language', 'count'], array_keys($rows->first()));
     }
 
     public function test_blocks_match_the_canonical_uri_host_even_when_the_handle_domain_differs(): void
@@ -186,7 +190,51 @@ class StatsTest extends TestCase
         }
         $this->assertSame(1, array_sum(array_column(app(StatsDataset::class)->rhythm()['rows'], 'total')));
         $rows = collect(app(StatsDataset::class)->languages()['rows']);
-        $this->assertSame(1, $rows->where('kind', 'post')->sum('count'));
-        $this->assertSame(1, $rows->where('kind', 'event')->sum('count'));
+        $this->assertSame(1, $rows->where('language', 'it')->sum('count'));
+        $this->assertSame(1, $rows->where('language', 'fi')->sum('count'));
+    }
+
+    public function test_weekly_counts_deduplicate_authors_across_all_domains_and_origins(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
+        $local = $this->createFullAccount('statsweekly');
+        $local->actor->forceFill(['discoverable' => true, 'indexable' => true])->save();
+        $remote = $this->createRemoteActor('weekly', 'weekly.example', ['discoverable' => true, 'indexable' => true]);
+        foreach ([$local->actor, $remote] as $actor) {
+            foreach (['2026-10-12 10:00:00', '2026-10-12 11:00:00', '2026-10-19 10:00:00'] as $publishedAt) {
+                Post::create([
+                    'actor_id' => $actor->id, 'body' => 'Weekly example', 'status' => 'published',
+                    'visibility' => 'public', 'published_at' => $publishedAt,
+                ]);
+            }
+        }
+        Post::create([
+            'actor_id' => $local->actor->id, 'body' => 'Private', 'status' => 'published',
+            'visibility' => 'followers', 'published_at' => '2026-10-12 12:00:00',
+        ]);
+        $data = app(StatsDataset::class)->weekly();
+        $rows = collect($data['rows']);
+        $this->assertSame(4, $rows->where('week', '2026-10-12')->sum('count'));
+        $this->assertSame(2, $rows->where('week', '2026-10-12')->sum('authors'));
+        $this->assertSame(2, $rows->where('week', '2026-10-19')->sum('authors'));
+        $this->assertCount(2, $rows);
+        $this->assertSame(6, $rows->sum('count'));
+        $this->assertSame(['week', 'count', 'authors'], array_keys($rows->first()));
+        $this->assertContains('2026-10-05', $data['weeks']);
+        $this->assertSame('2026-10-19', end($data['weeks']));
+        $this->actingAs($local)->getJson('/stats/settimane')->assertHeader('Cache-Control', 'no-store, private');
+    }
+
+    public function test_domain_counts_include_eligible_types_and_exclude_opt_outs_and_blocked_hosts(): void
+    {
+        $this->createRemoteActor('person', 'counts.example', ['discoverable' => true, 'indexable' => true]);
+        $this->createRemoteActor('community', 'counts.example', ['type' => 'group', 'discoverable' => true, 'indexable' => true]);
+        $this->createRemoteActor('hidden', 'counts.example', ['discoverable' => true, 'indexable' => false]);
+        $this->createRemoteActor('blocked', 'blocked.example', ['discoverable' => true, 'indexable' => true]);
+        DB::table('domain_blocks')->insert(['id' => (string) Str::uuid(), 'domain' => 'blocked.example', 'created_at' => now(), 'updated_at' => now()]);
+        $rows = collect(app(StatsDataset::class)->domains()['rows']);
+        $this->assertSame(2, $rows->where('domain', 'counts.example')->sum('count'));
+        $this->assertSame(1, $rows->where('domain', 'counts.example')->where('type', 'group')->sum('count'));
+        $this->assertSame(0, $rows->where('domain', 'blocked.example')->sum('count'));
     }
 }

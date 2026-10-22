@@ -22,4 +22,14 @@ final class StatsController extends Controller
     {
         return response()->json($datasets->languages())->header('Cache-Control', 'private, no-store');
     }
+
+    public function domains(StatsDataset $datasets): JsonResponse
+    {
+        return response()->json($datasets->domains())->header('Cache-Control', 'private, no-store');
+    }
+
+    public function weekly(StatsDataset $datasets): JsonResponse
+    {
+        return response()->json($datasets->weekly())->header('Cache-Control', 'private, no-store');
+    }
 }

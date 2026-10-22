@@ -127,6 +127,12 @@ nelle ultime 360 ore complete (UTC) e le lingue di post ed eventi pubblici
 conservati negli ultimi due anni, sommati per lingua. I contenuti senza lingua
 dichiarata sono esclusi dal grafico delle lingue e dai relativi totali.
 
+Sono disponibili anche gli account per istanza (persone, community e feed),
+il volume dei post e gli autori distinti per settimana negli ultimi due anni.
+Volume e autori attivi mostrano ciascuno una sola serie totale settimanale,
+senza filtri per istanza né distinzione tra locali e remoti. I conteggi
+degli autori non sono sommabili tra settimane.
+
 Ogni grafico carica i dati quando ti avvicini alla sua posizione nella pagina;
 un errore può essere ritentato senza ricaricare gli altri. In questa fase non
 è attiva una cache dei risultati. Le statistiche rispettano moderazione e

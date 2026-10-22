@@ -23,30 +23,49 @@ final class StatsQuery
             : "DATE_FORMAT(p.published_at, '%Y-%m-%dT%H:00:00Z')";
 
         return $this->posts($from, $to)
-            ->selectRaw("{$bucket} AS bucket, a.is_local, COUNT(*) AS count")
-            ->groupBy('bucket', 'a.is_local')->orderBy('bucket')->get();
+            ->selectRaw("{$bucket} AS bucket, COUNT(*) AS count")
+            ->groupBy('bucket')->orderBy('bucket')->get();
     }
 
     public function languages(CarbonImmutable $from, CarbonImmutable $to): Collection
     {
-        $posts = $this->languageUses($this->posts($from, $to), 'p', 'post');
-        $events = $this->languageUses($this->events($from, $to), 'e', 'event');
+        $posts = $this->languageUses($this->posts($from, $to), 'p');
+        $events = $this->languageUses($this->events($from, $to), 'e');
 
-        return $posts->unionAll($events)->get();
+        return $this->connection()->query()->fromSub($posts->unionAll($events), 'uses')
+            ->selectRaw('language, SUM(count) AS count')->groupBy('language')->orderByDesc('count')->orderBy('language')->get();
     }
 
-    private function languageUses(Builder $query, string $alias, string $kind): Builder
+    public function domains(): Collection
     {
-        $week = $this->connection()->getDriverName() === 'sqlite'
+        return $this->authors($this->connection()->table('actors as a'))
+            ->selectRaw('a.domain, a.type, a.is_local, COUNT(*) AS count')
+            ->groupBy('a.domain', 'a.type', 'a.is_local')
+            ->orderBy('a.domain')->orderBy('a.type')->orderBy('a.is_local')->get();
+    }
+
+    public function weekly(CarbonImmutable $from, CarbonImmutable $to): Collection
+    {
+        $week = $this->week('p');
+
+        return $this->posts($from, $to)
+            ->selectRaw("{$week} AS week, COUNT(*) AS count, COUNT(DISTINCT p.actor_id) AS authors")
+            ->groupBy('week')->orderBy('week')->get();
+    }
+
+    private function week(string $alias): string
+    {
+        return $this->connection()->getDriverName() === 'sqlite'
             ? "date(openbook_stats_utc({$alias}.published_at), 'weekday 0', '-6 days')"
             : "DATE_SUB(DATE({$alias}.published_at), INTERVAL WEEKDAY({$alias}.published_at) DAY)";
+    }
 
-        $language = "COALESCE(NULLIF(LOWER(TRIM({$alias}.language)), ''), 'und')";
+    private function languageUses(Builder $query, string $alias): Builder
+    {
+        $language = "LOWER(TRIM({$alias}.language))";
 
-        return $query->selectRaw("? AS kind, {$week} AS week, a.is_local,
-                {$language} AS language,
-                COUNT(*) AS count", [$kind])
-            ->groupBy('week', 'a.is_local')->groupByRaw($language);
+        return $query->whereNotNull($alias.'.language')->whereRaw("{$language} NOT IN ('', 'und')")
+            ->selectRaw("{$language} AS language, COUNT(*) AS count")->groupByRaw($language);
     }
 
     private function posts(CarbonImmutable $from, CarbonImmutable $to): Builder

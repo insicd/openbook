@@ -13,20 +13,11 @@ final class StatsDataset
     {
         $to = CarbonImmutable::now('UTC')->startOfHour();
         $from = $to->subHours(360);
-        $counts = $this->query->rhythm($from, $to)->groupBy('bucket');
+        $counts = $this->query->rhythm($from, $to)->keyBy('bucket');
         $rows = [];
         for ($hour = $from; $hour->lessThan($to); $hour = $hour->addHour()) {
             $key = $hour->format('Y-m-d\TH:00:00\Z');
-            $local = 0;
-            $remote = 0;
-            foreach ($counts->get($key, []) as $row) {
-                if ($row->is_local) {
-                    $local += (int) $row->count;
-                } else {
-                    $remote += (int) $row->count;
-                }
-            }
-            $rows[] = ['at' => $key, 'local' => $local, 'remote' => $remote, 'total' => $local + $remote];
+            $rows[] = ['at' => $key, 'total' => (int) ($counts->get($key)?->count ?? 0)];
         }
 
         return $this->metadata('rhythm', $from, $to, 'hour', 'posts') + ['rows' => $rows];
@@ -37,14 +28,41 @@ final class StatsDataset
         $to = CarbonImmutable::now('UTC')->startOfHour();
         $from = $to->subYearsNoOverflow(2);
         $rows = $this->query->languages($from, $to)->map(static fn (object $row): array => [
-            'week' => $row->week,
-            'kind' => $row->kind,
             'language' => $row->language,
+            'count' => (int) $row->count,
+        ])->all();
+
+        return $this->metadata('languages', $from, $to, 'period', 'contents') + ['rows' => $rows];
+    }
+
+    public function domains(): array
+    {
+        $now = CarbonImmutable::now('UTC');
+        $rows = $this->query->domains()->map(static fn (object $row): array => [
+            'domain' => $row->domain,
+            'type' => $row->type,
             'local' => (bool) $row->is_local,
             'count' => (int) $row->count,
         ])->all();
 
-        return $this->metadata('languages', $from, $to, 'week', 'contents') + ['rows' => $rows];
+        return $this->metadata('domains', $now, $now, 'snapshot', 'actors') + ['rows' => $rows];
+    }
+
+    public function weekly(): array
+    {
+        $to = CarbonImmutable::now('UTC')->startOfHour();
+        $from = $to->subYearsNoOverflow(2);
+        $rows = $this->query->weekly($from, $to)->map(static fn (object $row): array => [
+            'week' => $row->week,
+            'count' => (int) $row->count,
+            'authors' => (int) $row->authors,
+        ])->all();
+        $weeks = [];
+        for ($week = $from->startOfWeek(CarbonImmutable::MONDAY); $week->lessThan($to); $week = $week->addWeek()) {
+            $weeks[] = $week->format('Y-m-d');
+        }
+
+        return $this->metadata('weekly', $from, $to, 'week', 'posts_and_authors') + ['rows' => $rows, 'weeks' => $weeks];
     }
 
     private function metadata(string $metric, CarbonImmutable $from, CarbonImmutable $to, string $bucket, string $unit): array
