@@ -1043,3 +1043,23 @@ Bindings: `["active",false,true,true,"application","published","public","2024-11
                                                     -> Single-row index lookup on h using PRIMARY (id = tc.hashtag_id)  (cost=0.251 rows=1) (actual time=0.00108..0.00109 rows=1 loops=18183)
 
 ```
+
+## Account per istanza senza tipi — revisione approvata
+
+Una esecuzione EXPLAIN ANALYZE per query sul database locale; PHPUnit rinviato.
+
+### domains
+
+```sql
+select a.domain, COUNT(*) AS count, SUM(CASE WHEN a.is_local = 1 THEN 1 ELSE 0 END) AS local_count from `actors` as `a` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and 1 = 1 group by `a`.`domain` order by `count` desc, `a`.`domain` asc
+```
+Bindings: `["active",false,true,true,"application"]`
+
+```text
+-> Sort: count DESC, a.domain  (actual time=21.5..21.5 rows=1212 loops=1)
+    -> Table scan on <temporary>  (actual time=18.2..18.3 rows=1212 loops=1)
+        -> Aggregate using temporary table  (actual time=18.2..18.2 rows=1212 loops=1)
+            -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=3845 rows=1) (actual time=0.0121..15 rows=6891 loops=1)
+                -> Table scan on a  (cost=3845 rows=34516) (actual time=0.0112..12.9 rows=33045 loops=1)
+
+```

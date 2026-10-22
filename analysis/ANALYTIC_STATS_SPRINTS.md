@@ -1,6 +1,6 @@
 # Stats — piano di implementazione
 
-Stato: sprint 1–3 approvati; sprint 4 autorizzato; sprint 5–9 non iniziati.
+Stato: sprint 1–3 approvati; grafico sprint 4 scartato; revisioni top 10 approvate; sprint 5 autorizzato; sprint 6–9 non iniziati.
 Data: 22 ottobre 2026. Ramo richiesto: `stats`.
 Analisi e SQL: [ANALYTIC_STATS.md](ANALYTIC_STATS.md).
 Misure iniziali: [ANALYTIC_STATS_EXPLAIN.md](ANALYTIC_STATS_EXPLAIN.md).
@@ -327,6 +327,63 @@ il padre manca. Rivedere i piani con una distribuzione realistica delle risposte
 
 Risultato: grafico degli scambi e quota dei thread che attraversano domini.
 
+### Implementazione in revisione — 22 ottobre 2026
+
+Sprint 3 registrato in `ddb283e`. Una sola card «Le istanze si parlano»,
+con le otto coppie direzionali principali per numero di risposte (senza
+«altri»), totale degli scambi tra istanze e quota dei post con almeno un
+commentatore di un’altra istanza. Tooltip con risposte e post distinti.
+Nessuna serie locali/remoti, filtro di istanza, tabella dati o cache.
+
+JSON autenticato `/stats/conversazioni`, caricato alla visibilità. Q06 viene
+aggregata direttamente su tutto il periodo, senza bucket settimanali o somme
+scorrette di COUNT DISTINCT. Due rami UNION ALL disgiunti: risposta diretta
+al post e risposta annidata al commento padre dello stesso post. Padre non
+pubblicato o autore non ammissibile: nessun arco e nessun fallback alla radice.
+Padri antecedenti al periodo restano ammessi; quelli futuri rispetto al taglio
+sono esclusi. Gli autori di radice, risposte e padri usano la stessa policy,
+inclusi host canonici bloccati. CW/tag/community sono filtrati sulla radice.
+
+Q07 usa EXISTS per contare ogni post una sola volta, confrontando il dominio
+del commentatore con quello dell’autore radice. Un commentatore pubblicato
+resta partecipante anche se il suo padre è stato rimosso: Q07 non afferma
+che abbia risposto direttamente alla radice, mentre Q06 non inventa quel
+collegamento. Tutti i post ammessi del periodo, anche senza commenti, entrano
+nel denominatore. Corpus vuoto: conteggi zero, quota mostrata come trattino.
+
+Coorte: post radice pubblicati negli ultimi due anni, risposte create nello
+stesso intervallo fino all’inizio dell’ora corrente UTC. Non sono «tutte le
+risposte degli ultimi due anni» su radici più antiche. I commenti non hanno
+visibilità persistita autonoma: si applica il modello di consultazione già
+esistente, come esplicitato nell’analisi. Nessun dato individuale viene esposto.
+Le due query condividono una transazione REPEATABLE READ di sola lettura su
+MySQL, la transazione SQLite nei test. I test sono scritti ma PHPUnit resta
+rinviato alla verifica finale concordata.
+
+**Punto di arresto:** mostrare la card e raccogliere feedback prima di committare
+lo sprint 4. EXPLAIN ANALYZE, inclusi entrambi i rami della UNION ALL, da
+registrare nella verifica successiva all’OK.
+
+### Revisione delle card già esistenti durante lo sprint 4
+
+Su richiesta dell’utente «Le connessioni» mostra le dieci istanze principali
+con un solo totale di account, senza distinzione persone/community/feed.
+Anche SQL e JSON sono semplificati: GROUP BY domain con COUNT(*) e il solo
+SUM degli account locali necessario al riepilogo esistente, senza righe per tipo
+od origine. Le lingue mostrano le prime dieci; il resto resta in «Altre».
+Questa decisione supera i precedenti limiti di otto e la suddivisione per tipo.
+Test aggiornati ma non eseguiti; nessun commit prima della revisione.
+
+### Rimozione su richiesta dell’utente
+
+Il grafico delle conversazioni è stato giudicato non utile e rimosso del tutto:
+card, route JSON, controller, query Q06/Q07, dataset, JavaScript, CSS,
+traduzioni e test dedicati. Le specifiche precedenti di questo sprint restano
+come storico di una proposta scartata; Q06/Q07 sono fuori dal perimetro di
+implementazione e caching. Restano le revisioni approvate a dieci istanze e
+lingue, con account aggregati senza tipo. Nessun commit e nessun avvio dello
+sprint successivo senza autorizzazione dell’utente.
+
 ## Sprint 5 — Geografia, eventi e community
 
 **Backend:** Q08–Q11 per paesi e copertura dei geotag; Q17 per eventi per mese
@@ -461,7 +518,6 @@ Valori iniziali da verificare con le misure finali:
 | Volume/domìni/autori attivi (Q04/Q14/Q15) | Settimanale, corpus modificabile | 1 ora |
 | Top e trend hashtag, diffusione e denominatori (Q02B/Q03/Q16/Q04) | Settimanale, contributi retroattivi possibili | 1 ora |
 | Lingue (Q05) | Settimanale, corpus modificabile | 1 ora |
-| Conversazioni (Q06/Q07) | Settimanale e quota sulla stessa coorte | 1 ora |
 | Geografia e copertura (Q08–Q11) | Fotografia sul periodo scelto | 15 minuti |
 | Eventi per mese di inizio (Q17) | Mensile, stato/date modificabili | 1 ora |
 | Community attive (Q18) | Settimanale, corpus modificabile | 1 ora |

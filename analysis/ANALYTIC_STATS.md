@@ -271,6 +271,9 @@ la lingua dichiarata come risultato verificato di un riconoscimento automatico.
 
 ### Conversazioni tra istanze
 
+Aggiornamento: grafico scartato dall’utente durante la revisione dello sprint 4;
+Q06/Q07 conservate come analisi storica, fuori dall’implementazione corrente.
+
 Mostrare quanto i domini dialogano tra loro: per esempio quota di post con
 almeno una risposta da un altro dominio, numero di domini coinvolti e volume
 degli scambi tra coppie di istanze. I dati sono ricavabili da post, commenti e

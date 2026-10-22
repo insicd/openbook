@@ -33,7 +33,7 @@
             primary: color('--ob-color-primary'), soft: color('--ob-color-primary-soft'),
             surface: color('--ob-color-surface'), border: color('--ob-color-border'),
             text: color('--ob-color-text'), muted: color('--ob-color-text-muted'),
-            secondary: color('--ob-color-success'), third: color('--ob-color-text-muted'), danger: color('--ob-color-danger'), dark: color('--ob-color-primary-dark'), font: style.fontFamily
+            font: style.fontFamily
         };
     }
 
@@ -56,36 +56,18 @@
         options.scales.y.ticks.callback = function (value) { var label = this.getLabelForValue(value); return label.length > 25 ? label.slice(0, 24) + '…' : label; };
     }
 
-    function rankedDomains(rows) {
-        var counts = new Map();
-        rows.forEach(function (row) { counts.set(row.domain, (counts.get(row.domain) || 0) + row.count); });
-        return Array.from(counts, function (entry) { return { domain: entry[0], count: entry[1] }; })
-            .sort(function (a, b) { return b.count - a.count || a.domain.localeCompare(b.domain); });
-    }
-
     function domainChart(card, options, colors) {
         var rows = card._statsData.rows;
-        var ranked = rankedDomains(rows);
         var total = rows.reduce(function (sum, row) { return sum + row.count; }, 0);
-        var local = rows.reduce(function (sum, row) { return sum + (row.local ? row.count : 0); }, 0);
-        summary(card, [[total, labels.known_actors], [ranked.length, labels.domains], [local, labels.local_actors]]);
-        var top = ranked.slice(0, 8).map(function (row) { return row.domain; });
-        var buckets = top.map(function (domain) { return { domain: domain, person: 0, group: 0, feed: 0 }; });
-        rows.forEach(function (row) {
-            var index = top.indexOf(row.domain);
-            if (index < 0) return;
-            var bucket = buckets[index];
-            bucket[row.type] = (bucket[row.type] || 0) + row.count;
-        });
+        var local = rows.reduce(function (sum, row) { return sum + row.local_count; }, 0);
+        summary(card, [[total, labels.known_actors], [rows.length, labels.domains], [local, labels.local_actors]]);
+        var displayed = rows.slice(0, 10);
         horizontal(options);
-        options.scales.x.stacked = true;
-        options.scales.y.stacked = true;
-        options.plugins.legend.display = true;
-        options.plugins.tooltip.callbacks = { label: function (item) { return item.dataset.label + ': ' + number.format(item.parsed.x) + ' (' + number.format(total ? item.parsed.x / total * 100 : 0) + '%)'; } };
+        options.plugins.tooltip.callbacks = { label: function (item) { return labels.known_actors + ': ' + number.format(item.parsed.x) + ' (' + number.format(total ? item.parsed.x / total * 100 : 0) + '%)'; } };
         if (!total) options.scales.x.suggestedMax = 1;
         return { total: total, type: 'bar', data: {
-            labels: buckets.map(function (row) { return row.domain; }),
-            datasets: ['person', 'group', 'feed'].map(function (type, index) { return { label: labels[type], data: buckets.map(function (row) { return row[type]; }), backgroundColor: [colors.primary, colors.secondary, colors.third][index], borderRadius: 6, borderSkipped: false, maxBarThickness: 24 }; })
+            labels: displayed.map(function (row) { return row.domain; }),
+            datasets: [{ label: labels.known_actors, data: displayed.map(function (row) { return row.count; }), backgroundColor: colors.primary, borderRadius: 6, borderSkipped: false, maxBarThickness: 24 }]
         } };
     }
 
@@ -210,9 +192,9 @@
             var rows = data.rows;
             total = rows.reduce(function (sum, row) { return sum + row.count; }, 0);
             summary(card, [[total, labels.contents], [rows.length, labels.languages]]);
-            var displayed = rows.slice(0, 8);
-            if (rows.length > 8) {
-                displayed.push(rows.slice(8).reduce(function (rest, row) { rest.count += row.count; return rest; }, { other: true, count: 0 }));
+            var displayed = rows.slice(0, 10);
+            if (rows.length > 10) {
+                displayed.push(rows.slice(10).reduce(function (rest, row) { rest.count += row.count; return rest; }, { other: true, count: 0 }));
             }
             chartData = { labels: displayed.map(function (row) { return row.other ? labels.other : languageName(row.language); }), datasets: [{ label: labels.total, data: displayed.map(function (row) { return row.count; }), backgroundColor: colors.primary, borderRadius: 6, borderSkipped: false, maxBarThickness: 24 }] };
             options.indexAxis = 'y';

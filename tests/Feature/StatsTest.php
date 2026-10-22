@@ -236,7 +236,8 @@ class StatsTest extends TestCase
         DB::table('domain_blocks')->insert(['id' => (string) Str::uuid(), 'domain' => 'blocked.example', 'created_at' => now(), 'updated_at' => now()]);
         $rows = collect(app(StatsDataset::class)->domains()['rows']);
         $this->assertSame(2, $rows->where('domain', 'counts.example')->sum('count'));
-        $this->assertSame(1, $rows->where('domain', 'counts.example')->where('type', 'group')->sum('count'));
+        $this->assertCount(1, $rows->where('domain', 'counts.example'));
+        $this->assertSame(['domain', 'local_count', 'count'], array_keys($rows->first()));
         $this->assertSame(0, $rows->where('domain', 'blocked.example')->sum('count'));
     }
 

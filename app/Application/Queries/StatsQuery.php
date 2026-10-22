@@ -39,9 +39,8 @@ final class StatsQuery
     public function domains(): Collection
     {
         return $this->authors($this->connection()->table('actors as a'))
-            ->selectRaw('a.domain, a.type, a.is_local, COUNT(*) AS count')
-            ->groupBy('a.domain', 'a.type', 'a.is_local')
-            ->orderBy('a.domain')->orderBy('a.type')->orderBy('a.is_local')->get();
+            ->selectRaw('a.domain, COUNT(*) AS count, SUM(CASE WHEN a.is_local = 1 THEN 1 ELSE 0 END) AS local_count')
+            ->groupBy('a.domain')->orderByDesc('count')->orderBy('a.domain')->get();
     }
 
     public function weekly(CarbonImmutable $from, CarbonImmutable $to): Collection

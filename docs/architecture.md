@@ -123,8 +123,10 @@ last 360 complete hours (UTC), and languages of retained public posts and
 events over the last two years, combined by language. Content without a
 declared language is excluded from the language chart and its totals.
 
-The page also shows accounts by instance (people, communities and feeds),
+The page also shows accounts by instance, combined regardless of type,
 weekly post volume and distinct weekly authors over the last two years.
+We show the ten leading instances and languages; remaining languages are
+grouped under Other.
 Volume and active authors each show a single weekly total series, without
 instance filters or a local/remote split. Author counts
 must not be added across weeks.

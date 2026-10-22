@@ -40,8 +40,7 @@ final class StatsDataset
         $now = CarbonImmutable::now('UTC');
         $rows = $this->query->domains()->map(static fn (object $row): array => [
             'domain' => $row->domain,
-            'type' => $row->type,
-            'local' => (bool) $row->is_local,
+            'local_count' => (int) $row->local_count,
             'count' => (int) $row->count,
         ])->all();
 
