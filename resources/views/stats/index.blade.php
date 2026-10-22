@@ -26,17 +26,6 @@
                     <p>{{ __('stats.'.$metric.'.description') }}</p>
                 </header>
 
-                @if ($metric === 'languages')
-                    <label class="ob-stats-filter">
-                        <span>{{ __('stats.languages.filter') }}</span>
-                        <select data-stats-kind>
-                            <option value="all">{{ __('stats.chart.all') }}</option>
-                            <option value="post">{{ __('stats.chart.posts') }}</option>
-                            <option value="event">{{ __('stats.chart.events') }}</option>
-                        </select>
-                    </label>
-                @endif
-
                 <div class="ob-stats-card__status" role="status" data-stats-status>{{ __('stats.waiting') }}</div>
                 <div class="ob-stats-card__actions">
                     <button type="button" class="ob-btn ob-btn--secondary ob-btn--small" data-stats-retry hidden>{{ __('stats.retry') }}</button>
@@ -50,16 +39,6 @@
                                 aria-describedby="stats-{{ $metric }}-description"></canvas>
                     </div>
                     <p class="ob-stats-card__period" data-stats-period></p>
-                    <details class="ob-stats-data">
-                        <summary>{{ __('stats.show_data') }}</summary>
-                        <div class="ob-stats-data__scroll" tabindex="0" role="region" aria-label="{{ __('stats.show_data') }}">
-                            <table data-stats-table>
-                                <caption>{{ __('stats.'.$metric.'.title') }}</caption>
-                                <thead></thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                    </details>
                     <p class="ob-stats-card__updated" data-stats-updated></p>
                 </div>
                 <p class="ob-stats-card__note" id="stats-{{ $metric }}-description">{{ __('stats.'.$metric.'.note') }}</p>

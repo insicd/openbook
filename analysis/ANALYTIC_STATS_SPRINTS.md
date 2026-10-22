@@ -33,14 +33,14 @@ In tutte le fasi:
 
 - pagina e JSON autenticati per utenti ordinari; nessun privilegio staff;
 - dataset comune limitato ai contenuti pubblici ammissibili, non costruito
-  sulla Home personale del visitatore; stessi filtri in grafico e tabella;
+  sulla Home personale del visitatore; filtri coerenti tra dataset e grafico;
 - controller sottili, query in `Application/Queries`, servizio di dataset
   responsabile di unità, periodo, copertura, denominatori e data di generazione;
 - solo periodi e filtri ammessi esplicitamente, serie limitate e throttle
   ragionevole degli endpoint; niente SQL o intervalli arbitrari dal browser;
 - nessuna aggregata Stats durante il rendering HTML; caricamento alla
   visibilità, massimo due richieste simultanee e nessun polling automatico;
-- grafici coerenti col CSS Openbook, tabella accessibile, stato vuoto/errore,
+- grafici coerenti col CSS Openbook, riepiloghi accessibili, stato vuoto/errore,
   retry locale e gestione della sessione scaduta;
 - benchmark MySQL dell'SQL realmente generato e di tutti i rami UNION ALL,
   oltre ai test SQLite; niente indici nuovi basati soltanto sul loro nome;
@@ -64,8 +64,9 @@ nell'analisi. Nessuna cache dei risultati.
 senza nuova voce del menu; layout esistente con entrambe le colonne laterali.
 Chart.js locale con versione fissata e licenza conservata, codice caricato
 solo qui, adattatore dei colori CSS, card, coda fetch, IntersectionObserver e
-stati comuni. Linea/area per il ritmo e barre delle lingue, con «Mostra dati».
-Usare i codici lingua completi normalizzati, mantenendo «non indicata» distinta;
+stati comuni. Linea/area per il ritmo e barre delle lingue senza tabelle o selettore post/eventi.
+Sommare post ed eventi per lingua ed escludere i dati senza lingua dichiarata
+anche dai totali mostrati. Usare i codici lingua completi normalizzati;
 non sommare silenziosamente varianti regionali in una lingua base.
 
 Definire qui il contratto di copertura: gli zeri del corpus attualmente
@@ -81,7 +82,7 @@ nessun fetch lontano dalla viewport e nessun incremento delle query Stats
 nel rendering HTML. Una seconda richiesta JSON dopo una modifica al dato
 deve vedere il cambiamento senza attendere un TTL. Provare mobile e desktop
 1.024–1.280 px, CSS personalizzato, movimento ridotto e sessione scaduta.
-Il confronto grafico/tabella usa lo stesso dataset e conteggi esatti.
+Il grafico e i riepiloghi usano lo stesso dataset e conteggi esatti.
 
 Risultato: prima pagina usabile con due grafici reali, senza cache. Decidere
 su queste prove se serve una variante della stessa shell senza colonna destra;
@@ -384,3 +385,12 @@ commenti, tutte le consegne/sorgenti per oggetto e ricostruzione storica complet
 Gli snapshot storici di Actor e gli aggregati di hashtag indipendenti dalla
 retention si rivalutano dopo questa sequenza: non sono necessari per
 visualizzare correttamente il corpus conservato nel primo giro.
+
+### Revisione frontend richiesta — 22 ottobre 2026
+
+Rimosse le tabelle da entrambi i grafici. Le lingue sommano post ed eventi
+in una sola serie senza selettore e senza legenda per tipo di contenuto.
+Le lingue mancanti (`und`) sono escluse dal grafico e dai riepiloghi;
+il contratto JSON e le query restano invariati. Questa revisione sostituisce
+le precedenti scelte di presentazione descritte nell’esito iniziale.
+Modifiche da revisionare: nessun commit fino all’OK esplicito dell’utente.

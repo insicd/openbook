@@ -21,7 +21,7 @@ la [roadmap](docs/roadmap.md).
 ### Added
 - **Stats (prima prova)**: pagina accessibile dal footer agli utenti autenticati,
   con ritmo dei post nelle ultime 360 ore complete e distribuzione delle lingue
-  di post ed eventi pubblici conservati. Grafici e tabelle caricano i dati solo
+  di post ed eventi pubblici conservati. I grafici caricano i dati solo
   avvicinandosi alla zona visibile, senza cache dei risultati in questa fase.
   Aggiornare la cache delle route.
 - **CSV dei seguiti (#117)**: nella nuova scheda «Importa ed esporta» puoi

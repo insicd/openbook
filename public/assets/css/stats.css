@@ -1,5 +1,4 @@
 .ob-stats {
-  --ob-stats-secondary: var(--ob-color-success);
   display: grid;
   gap: 1.5rem;
 }
@@ -46,15 +45,6 @@
 .ob-stats-chart canvas { display: block; }
 .ob-stats-card__period, .ob-stats-card__updated { color: var(--ob-color-text-muted); font-size: .75rem; margin: .8rem 0 0; }
 .ob-stats-card__note { color: var(--ob-color-text-muted); font-size: .8rem; margin: 1rem 0 0; padding-top: 1rem; border-top: 1px solid var(--ob-color-border); }
-.ob-stats-filter { display: flex; align-items: center; gap: .75rem; margin-top: 1rem; font-size: .8rem; color: var(--ob-color-text-muted); }
-.ob-stats-filter select { padding: .4rem .65rem; border: 1px solid var(--ob-color-border); border-radius: var(--ob-radius); background: var(--ob-color-surface); color: var(--ob-color-text); font: inherit; max-width: 100%; }
-.ob-stats-data { margin-top: 1rem; font-size: .8rem; }
-.ob-stats-data summary { cursor: pointer; color: var(--ob-color-primary); width: fit-content; }
-.ob-stats-data__scroll { max-height: 320px; overflow: auto; margin-top: .75rem; }
-.ob-stats-data table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
-.ob-stats-data th, .ob-stats-data td { padding: .5rem; border-bottom: 1px solid var(--ob-color-border); text-align: end; white-space: nowrap; }
-.ob-stats-data th:first-child, .ob-stats-data td:first-child { text-align: start; }
-.ob-stats-data caption { text-align: start; padding: .5rem; color: var(--ob-color-text-muted); }
 .ob-stats-method { padding: 0 .25rem; color: var(--ob-color-text-muted); font-size: .8rem; }
 .ob-stats-method h2 { font-size: .9rem; color: var(--ob-color-text); }
 .ob-stats-method p { margin: 0; }

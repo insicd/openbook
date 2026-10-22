@@ -124,8 +124,8 @@ quando JavaScript è disabilitato.
 Il link **Stats** nei footer apre una pagina riservata agli utenti autenticati,
 senza requisiti di ruolo. La prima versione mostra i post pubblici conservati
 nelle ultime 360 ore complete (UTC) e le lingue di post ed eventi pubblici
-conservati negli ultimi due anni. Puoi distinguere post ed eventi e aprire
-**Mostra dati** per consultare i valori in tabella.
+conservati negli ultimi due anni, sommati per lingua. I contenuti senza lingua
+dichiarata sono esclusi dal grafico delle lingue e dai relativi totali.
 
 Ogni grafico carica i dati quando ti avvicini alla sua posizione nella pagina;
 un errore può essere ritentato senza ricaricare gli altri. In questa fase non
