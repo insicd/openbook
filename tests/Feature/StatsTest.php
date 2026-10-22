@@ -75,7 +75,7 @@ class StatsTest extends TestCase
         $this->getJson('/stats/provenienza')->assertOk()->assertJsonPath('metric', 'acquisition')->assertJsonPath('unit', 'content_deliveries');
     }
 
-    public function test_hourly_buckets_are_complete_utc_hours_and_results_are_not_cached(): void
+    public function test_hourly_buckets_are_complete_utc_hours_and_raw_datasets_are_fresh(): void
     {
         CarbonImmutable::setTestNow('2026-10-25 12:37:00 UTC');
         $author = $this->createFullAccount('statshours');

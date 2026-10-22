@@ -553,64 +553,81 @@ Introdurre solo ora la cache condivisa dei risultati, tramite backend
 database/file supportati da Openbook. La selezione dei TTL considera sia i
 bucket visualizzati sia la possibilità di arrivi tardivi e rettifiche: un
 bucket settimanale non giustifica sette giorni di risultato congelato.
-Valori iniziali da verificare con le misure finali:
+TTL approvati dall’utente per i grafici effettivamente implementati:
 
-| Dataset | Bucket o natura | TTL iniziale |
+| Grafico | Granularità di aggregazione | TTL |
 | --- | --- | ---: |
-| Ritmo delle ultime 360 ore (Q13) | Orario, finestra mobile | 5 minuti |
-| Actor per dominio (Q01) | Fotografia corrente | 15 minuti |
-| Volume/domìni/autori attivi (Q04/Q14/Q15) | Settimanale, corpus modificabile | 1 ora |
-| Top e trend hashtag, diffusione e denominatori (Q02B/Q03/Q16/Q04) | Settimanale, contributi retroattivi possibili | 1 ora |
-| Lingue (Q05) | Settimanale, corpus modificabile | 1 ora |
-| Geografia e copertura (Q08–Q11) | Fotografia sul periodo scelto | 15 minuti |
-| Eventi per mese di inizio (Q17) | Mensile, stato/date modificabili | 1 ora |
-| Community attive (Q18) | Settimanale, corpus modificabile | 1 ora |
-| Allegati e quota sondaggi (Q12/Q19), con denominatori | Settimanale, corpus modificabile | 1 ora |
-| Provenienza post/eventi | Bucket durevoli giornalieri, vista settimanale | 15 minuti |
+| Quindici giorni, ora per ora | Oraria, ultimi 15 giorni | 5 minuti |
+| Le lingue che si incontrano qui | Per lingua, totale degli ultimi 2 anni | 1 ora |
+| Un mondo di istanze | Per dominio, fotografia attuale degli account | 15 minuti |
+| Due anni di pubblicazioni | Settimanale | 1 ora |
+| Quante voci, ogni settimana | Autori distinti per settimana | 1 ora |
+| Di cosa si parla | Mensile, top 10 hashtag di ciascun mese | 1 ora |
+| Da dove arrivano le storie | Per paese, totale degli ultimi 2 anni | 15 minuti |
+| Il calendario degli eventi | Mensile, per data di inizio dell’evento | 1 ora |
+| I luoghi dove si conversa | Community attive per settimana | 1 ora |
+| Le storie prendono forma | Totali immagini/video degli ultimi 2 anni | 1 ora |
+| Immagini e video, settimana per settimana | Settimanale, per tipo di allegato | 1 ora |
+| La voglia di chiedere | Percentuale di post con sondaggio per settimana | 1 ora |
+| Come arrivano i contenuti | Settimanale per sorgente/relay, da bucket giornalieri condivisi | 15 minuti |
+
+Volume e autori condividono un dataset; totali e trend degli allegati ne
+condividono un altro. Nessun dataset per i grafici rimossi (diffusione e
+conversazioni tra istanze).
 
 **Minimo assoluto di configurazione: 300 secondi** per i risultati riusabili.
-Calcolare scadenza da `generated_at`; non usare «tempo fino a fine bucket»
-se può produrre TTL inferiori al minimo. Una nuova finestra richiesta forma
-una chiave diversa; non è una cache con TTL più breve. Revoche di accesso,
-privacy e moderazione possono invalidare subito: il minimo non obbliga a
-conservare per cinque minuti risultati diventati non ammissibili.
+Calcolare scadenza dall’inserimento effettivo `cached_at`. I risultati si
+aggiornano esclusivamente dopo scadenza del TTL o svuotamento esplicito admin.
+Nessun listener su scritture, modifiche di visibilità, moderazione, cancellazioni,
+blocchi di dominio o impostazioni. Anche il cambio d’ora/giorno non interrompe
+il TTL. Filtri e finestre UTC vengono valutati soltanto durante il ricalcolo.
 
-Chiavi con metrica/versione, periodo UTC, filtri normalizzati e versione della
-policy; niente user ID finché il dataset è realmente comune. HTTP sempre
-autenticato, senza cache pubblica dei JSON. Non memorizzare errori, 401 o
-risposte parziali come dataset riusciti. Denominatori, top tag e serie della
-stessa card sono un solo risultato coerente: non assemblare cache con TTL e
-generazioni indipendenti. Riutilizzare Q04 come logica, non come vecchio
-denominatore preso da un'altra card.
+Chiavi con metrica/versione e una generazione condivisa, modificata soltanto
+dal comando admin. Nessun user ID, timestamp, policy o finestra variabile
+nella chiave. HTTP sempre autenticato, senza cache pubblica dei JSON. Errori,
+401 e risposte parziali non sono dataset riusciti e non vengono memorizzati.
+Numeratori, denominatori, top tag e serie di una card restano un unico risultato.
+Le finestre UTC normalizzate sono nei metadati, non nella chiave di cache.
 
-Normalizzare gli estremi delle finestre mobili: per il ritmo usare l'ora
-completa già definita; per le altre serie temporali adottare inizialmente
-lo stesso estremo superiore orario. Le fotografie senza periodo hanno una
-chiave stabile per filtri e policy. Non includere nella chiave `generated_at`
-o un `now()` al secondo diverso per ogni richiesta: annullerebbe ogni hit
-della cache. Gli estremi normalizzati fanno parte dei metadati del dataset.
+Gestire i ricalcoli concorrenti con lock compatibili con lo store scelto e
+lettura diretta quando lo store è assente o guasto. La modifica dei filtri
+applicati alle query non è parte di questa revisione: eventuali variazioni del
+corpus diventano visibili al successivo ricalcolo per TTL o richiesta admin.
 
-Gestire il ricalcolo concorrente con gli strumenti compatibili col backend
-cache scelto e verificare il comportamento se la cache manca o fallisce:
-lettura diretta con gli stessi controlli. Per privacy/moderazione invalidare o
-versionare i dataset interessati prima di poterli servire di nuovo; nessun
-vecchio dato viene riproposto come fallback se non è più ammissibile.
+**Frontend nello stesso sprint:** sotto ogni grafico una piccola icona «i»
+grigia raccoglie nello stesso hover frequenza di aggiornamento e una sola data:
+«Dati aggiornati il …», usando `cached_at`. Nel flusso attuale calcolo e
+inserimento sono consecutivi, quindi non mostrare due timestamp ridondanti.
+La data resta invariata sulle cache hit. Se non viene usata la cache,
+mostrare `generated_at` come data di aggiornamento, senza dichiarare un
+inserimento mai avvenuto. Spostare qui la precedente riga esterna.
+Date nel fuso dell’utente; gli intervalli del dataset restano in UTC.
 
-**Frontend nello stesso sprint:** mostrare la data effettiva di generazione,
-non l'ora della fetch; mantenere gli stati di caricamento già collaudati.
-Sotto ogni grafico aggiungere una piccola icona «i» grigia informativa:
-passandoci sopra deve comparire la frequenza di aggiornamento del dataset,
-per esempio «I dati vengono aggiornati ogni 15 minuti», così la durata della
-cache è comprensibile. Il testo deve riflettere il TTL effettivo del dataset,
-non un valore fisso duplicato nel frontend. Rendere la stessa informazione
-disponibile anche al focus da tastiera e al tocco, con nome accessibile e
-contrasto leggibile. Questo requisito si implementa nella fase di caching.
+Il TTL mostrato deve riflettere quello effettivo del dataset, non un valore
+fisso duplicato nel frontend. Rendere la stessa informazione disponibile anche
+al focus da tastiera e al tocco, con nome accessibile e contrasto leggibile.
+Mantenere gli stati di caricamento già collaudati.
+
+**Admin nello stesso sprint:** in **Database → Manutenzione**, aggiungere una
+sezione «Cache statistiche» con pulsante «Svuota cache delle statistiche».
+Azione riservata agli amministratori, POST protetta da CSRF, con riscontro
+esplicito dell’esito. Invalida tutti e soli i dataset Stats condivisi: non
+svuota la cache generale dell’applicazione, non cancella bucket, sorgenti o
+metadati storici della raccolta. I dataset vengono rigenerati alle successive
+richieste, senza eseguire tutte le query nel POST amministrativo. Usare una
+generazione/namespace della sola cache Stats, così un ricalcolo già in corso
+non può ripubblicare risultati nella generazione corrente dopo lo svuotamento.
+
 Verificare tempi delle card con hit, miss e richieste concorrenti. Nessun
 polling e nessun pulsante che consenta di aggirare sempre la cache per utente.
 
 **Verifica e uscita:** test di hit/miss, avanzamento del tempo, TTL minimo,
-chiavi per filtri/finestre, invalidazione dopo privacy/moderazione, coerenza
-dei denominatori, concorrenza e fallback. Un nuovo piano MySQL per le query
+stabilità delle chiavi dopo modifiche e cambi di ora/giorno, coerenza
+dei denominatori, concorrenza e fallback. Test del comando admin: autorizzazione,
+invalidazione di tutti i dataset Stats, conservazione delle altre cache e dei
+bucket di delivery, ricalcolo successivo e race con richieste già in corso.
+Controllare nel tooltip TTL e timestamp reali, invariati sulle cache hit.
+Un nuovo piano MySQL per le query
 dei bucket e le aggregate finali, prova browser completa, revisione del diff,
 documentazione inglese/italiana e changelog aggiornati, suite PHPUnit completa
 prima di proporre la PR. Riportare separatamente limiti o fallimenti estranei.
@@ -776,3 +793,80 @@ senza perdita dell’evento. Demo: 70 consegne complessive su quattro settimane.
 MySQL: connessione separata e commit esterno verificati; EXPLAIN ANALYZE della
 query unica su 24 bucket, 0,54 ms; incremento via PRIMARY con una riga attesa.
 Nessun dato applicativo di prova conservato. Migration locale applicata.
+
+### Sprint 9 — Implementazione da rivedere
+
+CachedStatsDataset avvolge i dataset esistenti senza cambiare le query aggregate.
+TTL approvati in config/stats.php, minimo 300 secondi. Chiavi v3 per metrica
+e unica generazione condivisa, cambiata solo dall’admin. Lock con lease 120 secondi e attesa massima 3 secondi,
+poi lettura diretta. Un’invalidazione durante il calcolo provoca un nuovo giro;
+le generazioni obsolete non vengono servite. Gli errori delle query propagano
+senza essere memorizzati, quelli della cache degradano alla lettura diretta.
+I timestamp generated_at/cached_at/expires_at sono nel dataset; la lettura della
+cache non li riscrive. In transazione si legge direttamente senza memorizzare.
+
+Invalidatore automatico e listener SQL rimossi su richiesta dell’utente.
+Modifiche ai post, privacy, sospensioni, cancellazioni, blocchi e impostazioni
+non svuotano la cache Stats. Nessuna invalidazione implicita tramite cambio
+di policy o finestra nella chiave; anche dopo il cambio d’ora resta il TTL.
+I filtri esistenti delle query si applicano al successivo ricalcolo.
+
+UI: «i» grigia accessibile da mouse/tastiera/tocco, chiusura con Escape, data
+spostata nel tooltip e frequenza derivata dal backend. Comando POST admin in
+Database → Manutenzione, separato dalla pulizia dati; riscontro di successo o
+errore. Invalida logicamente le chiavi Stats; le vecchie chiavi scadono col TTL,
+senza flush generale o cancellazione dei bucket.
+
+Suite PHPUnit completa NON eseguita: fermarsi prima, come richiesto dall’utente;
+sarà eseguita prima e dopo la review finale. Sprint senza commit.
+
+Verifica sprint 9: 32 test mirati StatsCacheTest/StatsTest/DeliveryStatsTest
+passati (579 assertion), più 10 test AdminDatabaseMaintenanceTest e
+AdminDomainBlockTest (60 assertion). Nessuna suite completa. La cache di
+configurazione locale è stata ricaricata per includere stats.php. I test usano
+un APP_CONFIG_CACHE separato, mantenendo la protezione SQLite del progetto.
+Il primo tentativo con artisan era stato bloccato dalla protezione (nessuna
+assertion e nessun database applicativo modificato). I test della cache creano
+SQLite in memoria con migrate:fresh; evitato il rollback dell’intero schema,
+che incontra un problema preesistente nell’indice conversation_id.
+
+MySQL con store database e prefisso temporaneo isolato: tutti gli 11 dataset
+con hit senza query al corpus, 0,54–1,80 ms nel campione locale; cold miss fino
+a 1,31 s per gli hashtag. EXPLAIN lettura cache via PK. Quattro processi PHP
+concorrenti: una sola query aggregata e identico dataset/timestamp restituito.
+Chiavi e lock di prova rimossi; nessun contenuto di prova nel DB applicativo.
+SQL e misure nel registro EXPLAIN. Browser: informazioni aperte da pulsante e
+Enter, chiuse con Escape; date EEST corrette, riga esterna rimossa. Anteprima
+admin statica con il solo pulsante Stats disabilitato, azione reale coperta dai
+test HTTP. Screenshot salvati per revisione. Nessun commit dello sprint 9.
+
+Revisione UI: sorgente inbox mostrata come «Consegna diretta», senza cambiare
+la classificazione: nessun relay configurato riconosciuto, non necessariamente
+invio dell’autore originale. Etichette inglese e finlandese allineate.
+
+Revisione tooltip: mostrare solo frequenza e «Dati aggiornati il …» (cached_at,
+oppure generated_at per risposte senza cache). Backend e TTL invariati.
+
+Revisione finale delle invalidazioni: rimossi listener, namespace corpus e
+variazioni implicite della chiave. Rimangono esclusivamente TTL e comando admin.
+Test aggiornati: edit, visibilità, sospensioni, blocco server, impostazioni e
+cambio d’ora mantengono lo stesso risultato fino a scadenza. Dopo scadenza si
+applicano gli attuali filtri; lo svuotamento admin continua a proteggere dai
+ricalcoli già in corso. Verificati 11 test mirati (48 assertion), senza suite
+completa e senza commit.
+
+Revisione footer: ritmo espresso come 15 giorni senza UTC né spiegazione degli
+zeri; istanze senza distinzione tecnica per tipo; calendario senza nota sugli
+annullati; community senza riferimento ad account non ammissibili. Aggiunta
+nota generica ai Percorsi: tutti i contenuti pubblici ricevuti dall’istanza
+attraverso le diverse sorgenti. Traduzioni EN/FI e anteprima allineate.
+
+### Chiusura sprint 9 — prima della review generale
+
+Suite globale eseguita dopo tutte le revisioni: 1.986 test, 14.166 assertion,
+111 skip opzionali, nessun errore o failure. Corretti due problemi di preparazione
+già presenti su main: schema SQLite mancante nel test VisibilityFromAudienceTest
+e soglia excerpt del FeedTest dipendente dal .env locale. Nessuna modifica al
+comportamento applicativo per queste due correzioni. Pint, sintassi JS e diff
+check passati. Si procede con il commit di fine sprint e poi con una review
+separata dell’intero ramo rispetto a main, seguita da nuova suite globale.

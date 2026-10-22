@@ -354,7 +354,9 @@
         status.textContent = { hashtags: labels.empty_hashtags, geography: labels.empty_geography, eventCalendar: labels.empty_events, communityActivity: labels.empty_communities, attachments: labels.empty_media, mediaTrend: labels.empty_media, polls: labels.empty_polls, acquisition: labels.empty_acquisition }[metric] || labels.empty;
         var period = data.period;
         card.querySelector('[data-stats-period]').textContent = metric === 'domains' ? labels.snapshot + ' ' + date.format(new Date(period.to)) : date.format(new Date(period.from)) + ' – ' + (rhythm ? hour.format(new Date(period.to)) : date.format(new Date(period.to))) + ' UTC';
-        card.querySelector('[data-stats-updated]').textContent = labels.generated + ' ' + generatedDate.format(new Date(data.generated_at));
+        var cache = data.cache || {};
+        var frequency = cache.ttl_seconds === 3600 ? labels.refresh_hour : labels.refresh_minutes.replace(':minutes', number.format(cache.ttl_seconds / 60));
+        card.querySelector('[data-stats-updated]').textContent = (cache.cached_at ? frequency : labels.not_cached) + '\n' + labels.updated + ' ' + generatedDate.format(new Date(cache.cached_at || data.generated_at));
         canvas.setAttribute('aria-label', card.querySelector('h2').textContent + '. ' + Array.from(card.querySelector('[data-stats-summary]').children, function (item) { return Array.from(item.children, function (part) { return part.textContent; }).join(' '); }).join('. ') + (accessibleDetails ? '. ' + accessibleDetails : ''));
         if (card._statsChart) card._statsChart.destroy();
         card._statsChart = new Chart(canvas, { type: chartType, data: chartData, options: options });
@@ -425,6 +427,20 @@
         entries.forEach(function (entry) { if (entry.isIntersecting) { observer.unobserve(entry.target); enqueue(entry.target); } });
     }, { rootMargin: '200px 0px' }) : null;
     root.querySelectorAll('[data-stats-card]').forEach(function (card) {
+        var info = card.querySelector('[data-stats-info]');
+        var infoButton = card.querySelector('[data-stats-info-button]');
+        infoButton.addEventListener('click', function () {
+            var open = info.classList.toggle('is-open');
+            infoButton.setAttribute('aria-expanded', String(open));
+        });
+        info.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') { info.classList.remove('is-open'); info.classList.add('is-dismissed'); infoButton.setAttribute('aria-expanded', 'false'); }
+        });
+        info.addEventListener('mouseleave', function () { info.classList.remove('is-dismissed'); });
+        info.addEventListener('focusout', function () { info.classList.remove('is-dismissed'); });
+        document.addEventListener('click', function (event) {
+            if (!info.contains(event.target)) { info.classList.remove('is-open'); infoButton.setAttribute('aria-expanded', 'false'); }
+        });
         card.querySelector('[data-stats-retry]').addEventListener('click', function () { datasets.delete(card.dataset.url); enqueue(card); });
         if (observer) observer.observe(card); else enqueue(card);
     });

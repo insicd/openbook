@@ -38,18 +38,20 @@
                     <div class="ob-stats-summary" data-stats-summary></div>
                     <div class="ob-stats-chart">
                         <canvas data-stats-canvas role="img" aria-label="{{ __('stats.'.$metric.'.title') }}"
-                                aria-describedby="stats-{{ $metric }}-{{ $metric === 'acquisition' ? 'intro' : 'description' }}"></canvas>
+                                aria-describedby="stats-{{ $metric }}-description"></canvas>
                     </div>
                     @if ($metric === 'hashtags')
                         <p class="ob-stats-card__period">{{ __('stats.chart.legend_top') }}</p>
                         <div class="ob-stats-legend" data-stats-legend role="group" aria-label="{{ __('stats.chart.legend_top') }}"></div>
                     @endif
                     <p class="ob-stats-card__period" data-stats-period></p>
-                    <p class="ob-stats-card__updated" data-stats-updated></p>
+                    <div class="ob-stats-info" data-stats-info>
+                        <button type="button" class="ob-stats-info__button" aria-label="{{ __('stats.chart.cache_info') }}"
+                                aria-describedby="stats-{{ $metric }}-cache-info" aria-expanded="false" data-stats-info-button>i</button>
+                        <span class="ob-stats-info__tooltip" id="stats-{{ $metric }}-cache-info" role="tooltip" data-stats-updated></span>
+                    </div>
                 </div>
-                @if ($metric !== 'acquisition')
                 <p class="ob-stats-card__note" id="stats-{{ $metric }}-description">{{ __('stats.'.$metric.'.note') }}</p>
-                @endif
             </section>
         @endforeach
 

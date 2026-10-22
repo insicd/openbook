@@ -1346,3 +1346,24 @@ GROUP BY week, s.id, s.kind, s.label ORDER BY s.kind, s.id, week
 
 Nessuna UNION o query per tipo: `/stats/provenienza` restituisce sempre le
 consegne complessive. Nessun join a contenuti, autori o partecipanti.
+
+### Sprint 9 — Requisiti cache approvati
+
+TTL approvati come da tabella dei 13 grafici nel piano sprint. Sotto ogni
+grafico, la sola «i» grigia mostra nello stesso hover frequenza di aggiornamento,
+data di elaborazione e data effettiva di inserimento in cache, nel fuso
+dell’utente; la riga «Dati elaborati…» viene spostata nel tooltip. I timestamp
+non cambiano quando si legge dalla cache. Accesso anche da tastiera e tocco.
+
+In Admin → Database → Manutenzione, pulsante «Svuota cache delle statistiche»:
+invalida esclusivamente la cache Stats, con rigenerazione alla prossima richiesta.
+Non cancella i bucket delle delivery né le altre cache applicative. POST con
+CSRF e autorizzazione admin; gestione dei ricalcoli concorrenti tramite
+namespace/generazione. Dettagli e verifiche nel piano dello sprint 9.
+
+Implementazione sprint 9 pronta per revisione: wrapper CachedStatsDataset,
+TTL approvati e unico namespace Stats per lo svuotamento esplicito admin.
+Nessuna invalidazione automatica su modifiche o impostazioni. Nessuna modifica alle query aggregate;
+i miss e il rendering restano asincroni per card. Prove mirate, misure MySQL
+e concorrenza registrate nel piano sprint e nel registro EXPLAIN. Suite
+PHPUnit completa rimandata, su richiesta, alla review finale. Nessun commit.

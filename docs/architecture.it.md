@@ -164,7 +164,8 @@ La provenienza conta le delivery elaborate di post pubblici, inclusi i post già
 noti, dalla migration `2026_10_22_000000_create_post_delivery_metrics`. Non è un
 conteggio di post unici né di richieste HTTP: Create, Update e Announce vengono
 contati una volta per elaborazione riuscita del post. Le sorgenti distinguono
-relay, inbox senza relay identificato, recupero/discovery, RSS e sconosciuto.
+relay, inbox senza relay identificato (nel grafico «Consegna diretta»), recupero/discovery, RSS e sconosciuto.
+La dicitura «Consegna diretta» non implica che il mittente sia l’autore originale.
 Anche le voci RSS già note possono contribuire a ogni importazione.
 
 Restano solo metadati di copertura, identità delle sorgenti e bucket giornalieri
@@ -190,11 +191,35 @@ DeliveryStats applica lo stesso isolamento dopo commit a entrambi i tipi.
 Create, Update e Announce ripetuti contano; annullamenti e cancellazioni successivi
 non ritirano i conteggi. Il grafico mostra un solo totale, senza selettore.
 Le query aggregano i bucket comuni senza leggere contenuti, autori o partecipanti.
-Nessuna cache delle risposte in questa fase.
+
+I dataset usano lo store cache Laravel configurato (supportati database/file,
+nessun worker o Redis necessario). TTL in `config/stats.php`, minimo 300 secondi:
+ritmo 5 minuti; account per istanza, geografia e delivery 15 minuti; altri dataset
+un’ora. Volume/autori condividono un risultato, come totali/trend degli allegati.
+Le chiavi includono versione, metrica e una generazione condivisa cambiata
+solo dal comando admin, senza ID utente. Le risposte restano autenticate e HTTP `private, no-store`.
+
+La piccola «i» grigia sotto ogni grafico mostra frequenza effettiva, data di
+aggiornamento, usando la data di inserimento reale in cache nel fuso del visitatore, con hover,
+focus da tastiera o tocco. Le date non cambiano sulle cache hit. Se lo store non
+è disponibile, lettura diretta senza dichiarare un inserimento in cache. Gli
+errori delle query non vengono memorizzati. I miss usano un lock con attesa
+limitata; un calcolo già in corso non può ripopolare la generazione successiva.
+Non si memorizzano snapshot con modifiche non ancora committate.
+
+**Admin → Database → Manutenzione → Svuota cache delle statistiche** cambia
+solo il namespace Stats. Le altre cache e i bucket delle delivery rimangono;
+i dataset vengono rigenerati alle richieste successive. POST con autorizzazione
+admin e CSRF. I risultati si aggiornano solo alla scadenza del TTL o dopo lo
+svuotamento esplicito richiesto dall’admin. Edit, cambi di visibilità,
+sospensioni, cancellazioni, blocchi di dominio e impostazioni non invalidano i
+risultati salvati. Neppure il cambio d’ora/giorno interrompe il TTL. I filtri
+attuali e le finestre UTC si applicano al successivo ricalcolo; questa politica
+di cache non modifica i filtri delle query.
+Aggiornare le cache di configurazione e route al deploy.
 
 Ogni grafico carica i dati quando ti avvicini alla sua posizione nella pagina;
-un errore può essere ritentato senza ricaricare gli altri. In questa fase non
-è attiva una cache dei risultati. Le statistiche rispettano le esclusioni
+un errore può essere ritentato senza ricaricare gli altri. Le statistiche rispettano le esclusioni
 di visibilità e moderazione, inclusi account sospesi o eliminati e domini
 bloccati. Tutte le statistiche aggregate includono anche gli account con
 `discoverable=false` e `indexable=false`. Descrivono il corpus ancora

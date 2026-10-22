@@ -6,6 +6,7 @@ use App\Domain\Accounts\User;
 use App\Domain\Moderation\DomainBlock;
 use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
+use Throwable;
 
 /**
  * Blocchi di dominio federato: impediscono fetch, consegna e inbox.
@@ -41,8 +42,7 @@ final class DomainBlockManager
      */
     public function blockedHosts(): array
     {
-        /** @var list<string> $hosts */
-        $hosts = Cache::remember(self::CACHE_KEY, 60, function () {
+        $load = function (): array {
             return DomainBlock::query()
                 ->orderBy('domain')
                 ->pluck('domain')
@@ -50,9 +50,12 @@ final class DomainBlockManager
                 ->filter()
                 ->values()
                 ->all();
-        });
-
-        return $hosts;
+        };
+        try {
+            return Cache::remember(self::CACHE_KEY, 60, $load);
+        } catch (Throwable) {
+            return $load();
+        }
     }
 
     public function block(User $actor, string $domain, ?string $reason = null): DomainBlock

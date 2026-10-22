@@ -29,10 +29,14 @@ la [roadmap](docs/roadmap.md).
   La raccolta delivery è best effort, include contenuti già noti e aggiorna
   i bucket dopo il commit senza far fallire l’importazione. Nessuno storico retroattivo;
   applicare la nuova migration. I grafici caricano i dati solo
-  avvicinandosi alla zona visibile, senza cache dei risultati in questa fase.
+  avvicinandosi alla zona visibile. Cache condivisa con TTL da 5 minuti a un’ora;
+  la «i» sotto ogni grafico mostra frequenza, elaborazione e inserimento in cache
+  nel fuso dell’utente. In Admin → Database → Manutenzione è disponibile
+  «Svuota cache delle statistiche», senza cancellare i contatori raccolti.
+  Aggiornamento solo alla scadenza del TTL o su richiesta esplicita admin.
   Le statistiche aggregate includono anche gli account che non consentono
   la scoperta o l’indicizzazione, mantenendo i filtri di visibilità e moderazione.
-  Aggiornare la cache delle route.
+  Aggiornare le cache di configurazione e delle route.
 - **CSV dei seguiti (#117)**: nella nuova scheda «Importa ed esporta» puoi
   scaricare i seguiti in formato compatibile con Mastodon e importare un CSV.
   Il caricamento crea subito le richieste di follow, conserva quelle esistenti

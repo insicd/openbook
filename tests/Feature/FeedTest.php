@@ -531,6 +531,7 @@ class FeedTest extends TestCase
 
     public function test_long_post_bodies_are_truncated_in_the_feed_with_a_read_more_control(): void
     {
+        config(['openbook.feed.body_excerpt_length' => 150]);
         $user = $this->createFullAccount('feedexcerpt');
         $prefix = str_repeat('a', 150);
         $suffix = ' PARTE_NASCOSTA_NEL_FEED';

@@ -5,10 +5,13 @@ namespace Tests\Unit\Federation\Inbox;
 use App\Domain\Posts\Post;
 use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Federation\Serialization\NoteSerializer;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class VisibilityFromAudienceTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_it_treats_a_string_public_to_as_public(): void
     {
         $visibility = app(RemoteNoteUpserter::class)->visibilityFromAudience([

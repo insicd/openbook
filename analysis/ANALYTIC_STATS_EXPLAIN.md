@@ -1837,3 +1837,49 @@ EXPLAIN UPDATE contatore contenuti:
 La lettura usa PRIMARY(day, source_id) per il range e la PK delle sorgenti.
 Nessuna UNION: post ed eventi scrivono la stessa riga giornaliera per sorgente.
 Fixture piccola: i tempi non costituiscono una garanzia su volumi di produzione.
+
+## Sprint 9 — Cache database MySQL
+
+Backend database, prefisso temporaneo isolato; nessun contenuto modificato.
+
+| Dataset | Miss ms | Hit ms | Query in hit | TTL s |
+| --- | ---: | ---: | ---: | ---: |
+| rhythm | 78.03 | 0.54 | 5 | 300 |
+| domains | 39.37 | 1.23 | 5 | 900 |
+| geography | 310.32 | 1.8 | 5 | 900 |
+| acquisition | 4.8 | 0.58 | 3 | 900 |
+| languages | 99.79 | 1.18 | 5 | 3600 |
+| weekly | 150.66 | 1.02 | 5 | 3600 |
+| hashtags | 1311.59 | 1.13 | 5 | 3600 |
+| eventCalendar | 3.61 | 0.75 | 5 | 3600 |
+| communityActivity | 50.54 | 1.28 | 5 | 3600 |
+| media | 586.42 | 0.9 | 5 | 3600 |
+| polls | 410.03 | 1.16 | 5 | 3600 |
+
+EXPLAIN della lettura cache (PK):
+
+```json
+[
+    {
+        "id": 1,
+        "select_type": "SIMPLE",
+        "table": "cache",
+        "partitions": null,
+        "type": "const",
+        "possible_keys": "PRIMARY",
+        "key": "PRIMARY",
+        "key_len": "1022",
+        "ref": "const",
+        "rows": 1,
+        "filtered": 100,
+        "Extra": null
+    }
+]
+```
+
+Le query aggregate non cambiano rispetto ai piani degli sprint precedenti; su hit non vengono eseguite.
+Tempi locali su campione corrente: non sono una garanzia di produzione.
+
+Concorrenza (4 processi PHP, store database con prefisso temporaneo isolato):
+una sola query aggregata del ritmo, stesso hash del JSON e cached_at per tutti.
+Chiavi di prova e lock eliminati alla fine; nessuna modifica al corpus.

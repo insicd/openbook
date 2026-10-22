@@ -159,7 +159,8 @@ Provenance counts processed deliveries of public posts, including known posts,
 starting with migration `2026_10_22_000000_create_post_delivery_metrics`. This is
 neither a unique-post count nor an HTTP request counter: successful Create,
 Update and Announce processing counts once per post delivery. Sources distinguish
-relays, inbox without an identified relay, fetch/discovery, RSS and unknown.
+relays, inbox without an identified relay (labelled “Direct delivery”), fetch/discovery, RSS and unknown.
+The direct-delivery label does not imply that the sender is the original author.
 Already known RSS entries can contribute on each import.
 
 Only collection metadata, source identities and daily UTC buckets by source are
@@ -185,10 +186,37 @@ DeliveryStats uses the same post-commit isolation for both types. Repeated
 Create, Update and Announce count; later cancellation or deletion does not
 retract counts. The chart shows one combined total without a selector.
 Queries aggregate the shared buckets without reading content, authors or
-participants. Responses remain uncached at this stage.
+participants.
+
+Dataset results are cached through the configured Laravel store (database/file
+supported, no worker or Redis required). TTLs in `config/stats.php` have a
+300-second minimum: rhythm 5 minutes; instance counts, geography and delivery
+15 minutes; other datasets one hour. Weekly volume/authors share one result,
+as do attachment totals/trends. Keys contain dataset version, metric and a
+shared generation rotated only by the admin command, without user IDs. Responses
+remain authenticated and HTTP `private, no-store`.
+
+A small grey information button below each chart shows the effective refresh
+frequency and a single “Data updated on” date, using cache insertion time in the visitor’s
+timezone, on hover, keyboard focus or touch. Cache hits retain these dates.
+If the store is unavailable, results are computed directly and no cache
+insertion is claimed. Failed queries are never cached. Misses use a bounded
+cache lock; old in-flight computations cannot publish into a new generation.
+No uncommitted snapshot is cached.
+
+**Admin → Database → Maintenance → Clear statistics cache** rotates only the
+Stats namespace. Other application cache entries and collected delivery buckets
+are preserved; datasets rebuild on subsequent requests. The POST requires an
+administrator and CSRF protection. Results refresh only when their TTL expires
+or an administrator explicitly clears the statistics cache. Edits, visibility
+changes, suspensions, deletion, domain blocks and settings changes do not
+invalidate cached results. Crossing an hour/day boundary does not bypass the
+TTL either. Current query filters and UTC windows are evaluated on the next
+recalculation; this cache policy does not change the filters themselves.
+Refresh configuration and route caches when deploying these changes.
 
 Each chart loads its dataset as you approach it on the page. Failed requests
-can be retried independently. This phase does not cache the results. Statistics
+can be retried independently. Statistics
 respect visibility and moderation exclusions, including suspended or deleted
 accounts and blocked domains. All aggregate statistics include accounts with
 `discoverable=false` and `indexable=false`.
