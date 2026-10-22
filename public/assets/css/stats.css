@@ -64,3 +64,5 @@
 .ob-stats-legend button:hover, .ob-stats-legend button:focus-visible { background: var(--ob-color-primary-soft); outline: 2px solid var(--ob-color-primary); outline-offset: 1px; }
 
 .ob-stats-card[data-stats-card="domains"] .ob-stats-chart, .ob-stats-card[data-stats-card="languages"] .ob-stats-chart { height: 360px; }
+
+.ob-stats-card[data-stats-card="geography"] .ob-stats-chart { height: 360px; }

@@ -7,6 +7,8 @@ use Carbon\CarbonImmutable;
 
 final class StatsDataset
 {
+    private const MIN_COUNTRY_CONTENTS = 5;
+
     public function __construct(private readonly StatsQuery $query) {}
 
     public function rhythm(): array
@@ -88,6 +90,72 @@ final class StatsDataset
         }
 
         return $this->metadata('hashtags', $from, $to, 'month', 'posts') + ['rows' => $rows, 'months' => $months];
+    }
+
+    public function geography(): array
+    {
+        $to = CarbonImmutable::now('UTC')->startOfHour();
+        $from = $to->subYearsNoOverflow(2);
+        $data = $this->query->geography($from, $to);
+        $total = 0;
+        $countries = [];
+        foreach ($data as $row) {
+            if ($row->country === null) {
+                $total = (int) $row->count;
+
+                continue;
+            }
+            $country = preg_match('/^[A-Z]{2}$/', $row->country) ? $row->country : 'OTHER';
+            $countries[$country] = ($countries[$country] ?? 0) + (int) $row->count;
+        }
+        $totals = ['contents' => $total, 'located' => array_sum($countries)];
+        $other = $countries['OTHER'] ?? 0;
+        unset($countries['OTHER']);
+        foreach ($countries as $country => $count) {
+            if ($count < self::MIN_COUNTRY_CONTENTS) {
+                $other += $count;
+                unset($countries[$country]);
+            }
+        }
+        $rows = [];
+        foreach ($countries as $country => $count) {
+            $rows[] = ['country' => $country, 'count' => $count];
+        }
+        if ($other > 0) {
+            $rows[] = ['country' => 'OTHER', 'count' => $other];
+        }
+
+        return $this->metadata('geography', $from, $to, 'period', 'contents') + ['rows' => $rows, 'totals' => $totals];
+    }
+
+    public function eventCalendar(): array
+    {
+        $to = CarbonImmutable::now('UTC')->startOfHour();
+        $from = $to->subYearsNoOverflow(2);
+        $rows = $this->query->eventCalendar($from, $to)->map(static fn (object $row): array => [
+            'month' => $row->month,
+            'count' => (int) $row->count,
+        ])->all();
+
+        return $this->metadata('eventCalendar', $from, $to, 'month', 'events') + ['rows' => $rows];
+    }
+
+    public function communityActivity(): array
+    {
+        $to = CarbonImmutable::now('UTC')->startOfHour();
+        $from = $to->subYearsNoOverflow(2);
+        $counts = $this->query->communityActivity($from, $to)->keyBy('week');
+        $rows = [];
+        for ($week = $from->startOfWeek(CarbonImmutable::MONDAY); $week->lessThan($to); $week = $week->addWeek()) {
+            $key = $week->format('Y-m-d');
+            $rows[] = [
+                'week' => $key,
+                'active' => (int) ($counts->get($key)?->active ?? 0),
+                'count' => (int) ($counts->get($key)?->count ?? 0),
+            ];
+        }
+
+        return $this->metadata('communityActivity', $from, $to, 'week', 'communities') + ['rows' => $rows];
     }
 
     private function metadata(string $metric, CarbonImmutable $from, CarbonImmutable $to, string $bucket, string $unit): array

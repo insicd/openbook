@@ -37,4 +37,19 @@ final class StatsController extends Controller
     {
         return response()->json($datasets->hashtags())->header('Cache-Control', 'private, no-store');
     }
+
+    public function geography(StatsDataset $datasets): JsonResponse
+    {
+        return response()->json($datasets->geography())->header('Cache-Control', 'private, no-store');
+    }
+
+    public function eventCalendar(StatsDataset $datasets): JsonResponse
+    {
+        return response()->json($datasets->eventCalendar())->header('Cache-Control', 'private, no-store');
+    }
+
+    public function communityActivity(StatsDataset $datasets): JsonResponse
+    {
+        return response()->json($datasets->communityActivity())->header('Cache-Control', 'private, no-store');
+    }
 }

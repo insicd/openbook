@@ -1,3 +1,4 @@
+<!-- Le misure storiche conservano i filtri effettivamente usati; vedere la revisione corrente. -->
 # Stats — idee e analisi iniziale
 
 Stato: sprint 1 implementato per revisione; sprint successivi in attesa.
@@ -498,10 +499,10 @@ login, notifiche, segnalazioni e preferenze di follow degli hashtag.
 - Per i post richiedere `status = published`, `visibility = public`, esclusione
   delle conversazioni private e controlli di accesso per guest, incluse le
   community private. `visibleTo(null)` da solo ammette anche gli `unlisted`.
-- Applicare le policy di moderazione e di esclusione dalla scoperta pubblica,
-  inclusi domini bloccati e stati degli Actor. Definire esplicitamente come
-  rispettare `discoverable` e `indexable`, senza assumere che pubblico significhi
-  automaticamente idoneo a ogni forma di analisi.
+- Applicare le policy di moderazione, inclusi domini bloccati, sospensioni e
+  cancellazioni degli Actor. Per decisione corrente, `discoverable` e `indexable`
+  non filtrano queste statistiche aggregate; le regole della ricerca e della
+  scoperta dell’applicazione restano separate.
 - Definire il trattamento dei CW e dei tag esclusi secondo le policy pubbliche
   dell'istanza; non aggirarle attraverso un grafico o un export.
 - Pubblicare aggregati, senza payload inbox, destinatari o identificativi
@@ -598,6 +599,15 @@ questi tempi; CPU, I/O, concorrenza e scala del database vanno verificati lì.
   e incluse nel primo giro senza cache; Q18 è eseguibile ma non offre una
   misura rappresentativa.
 
+### Revisione corrente: nessun filtro discoverable o indexable nelle statistiche
+
+Per decisione del 22 ottobre 2026 tutte le statistiche aggregate includono
+anche Actor con `discoverable=false` e `indexable=false`. Restano i filtri di stato,
+sospensione, cancellazione, blocco e visibilità già previsti. Il filtro
+condiviso A e l’implementazione sono aggiornati; le misure storiche qui sotto
+e in ANALYTIC_STATS_EXPLAIN conservano i filtri originali e non vanno confuse
+con la nuova popolazione. I piani aggiornati sono aggiunti al registro EXPLAIN.
+
 ### Prefissi SQL comuni e parametri
 
 Le query sotto sono protoquery SQL MySQL: anteporre i CTE indicati a ciascun
@@ -640,8 +650,8 @@ WITH eligible_actors AS (
   SELECT a.id, a.domain, a.is_local, a.type
   FROM actors a
   WHERE a.status = 'active' AND a.remote_suspended = 0
-    AND a.deleted_at IS NULL AND a.discoverable = 1
-    AND a.indexable = 1 AND a.type <> 'application'
+    AND a.deleted_at IS NULL
+    AND a.type <> 'application'
     AND NOT EXISTS (SELECT 1 FROM domain_blocks b WHERE b.domain = a.domain)
 )
 ```
@@ -1083,24 +1093,55 @@ GROUP BY month_start, status ORDER BY month_start, status
 
 #### Q18 — Community pubbliche attive per settimana
 
-Una community presente ma nessun contributo ammesso. Il ramo post è never executed: il
-piano prevede `posts_community_feed_timeline_index` e lookup autore sulla PK, ma il
-tempo quasi nullo NON dimostra prestazioni con community attive. Non sono state inserite
-fixture nel database.
+La query comprende community locali, post pubblicati da Actor Group e rilanci
+diretti (Announce `is_direct = 1`) dei Group locali e remoti. La settimana segue
+la pubblicazione originale del post, non la ricezione del rilancio. Ogni Group
+conta una volta per settimana e ogni post una volta, anche se rilanciato da più
+community o collegato anche tramite `community_id`. Non si deduce che il Group
+sia autore del contenuto rilanciato.
 
-Lo schema basta, ma il campione locale può essere vuoto: in quel caso il piano non
-valida il comportamento con community numerose.
-
-Prefissi: **A, P**.
+Prefissi: **A, P**. `eligible_groups` deriva da A con `type = 'group'`, escludendo
+anche gli Actor collegati a community locali private.
 
 ```sql
-SELECT DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY) AS week_start,
-       COUNT(DISTINCT p.community_id) AS active_communities, COUNT(*) AS posts_count
-FROM public_posts p JOIN communities c ON c.id = p.community_id
-JOIN eligible_actors ca ON ca.id = c.actor_id
-WHERE c.is_private = 0
+SELECT week_start, COUNT(DISTINCT community_actor_id) AS active_communities,
+       COUNT(DISTINCT post_id) AS posts_count
+FROM (
+  SELECT DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY) AS week_start,
+         p.id AS post_id, g.id AS community_actor_id
+  FROM public_posts p JOIN communities c ON c.id = p.community_id
+  JOIN eligible_groups g ON g.id = c.actor_id WHERE c.is_private = 0
+  UNION ALL
+  SELECT DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY), p.id, g.id
+  FROM public_posts p JOIN eligible_groups g ON g.id = p.actor_id
+  UNION ALL
+  SELECT DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY), p.id, g.id
+  FROM public_posts p JOIN announces an ON an.post_id = p.id
+  JOIN eligible_groups g ON g.id = an.actor_id WHERE an.is_direct = 1
+) activity
 GROUP BY week_start ORDER BY week_start
 ```
+
+Correzione del 22 ottobre 2026: per questo aggregato anonimo `indexable`
+non è un requisito, né per il Group né per l’autore del post. `public_posts`
+e `eligible_groups` in Q18 applicano gli altri filtri A/P ma omettono
+`a.indexable = 1`. Anche `discoverable` è stato successivamente rimosso.
+Restano stato attivo, sospensioni, cancellazioni,
+blocchi e visibilità pubblica, oltre ai filtri CW previsti dalla configurazione.
+La stessa regola è ora applicata a tutte le statistiche aggregate.
+
+Verifica MySQL della query effettiva corretta: richiesta 94,38 ms,
+EXPLAIN ANALYZE 17,6 ms, 20 settimane non vuote, picco 17 Group attivi.
+Ramo locale: una community, PK Actor e `posts_community_feed_timeline_index`,
+una riga. Ramo pubblicazione Group: `actors_type_index` (34 Group, 33 ammessi),
+PK autore e `posts_popular_remote_actor_index`, nessun post diretto nel campione.
+Ramo Announce: `actors_type_index`, `communities_actor_id_unique`,
+`announces_actor_id_post_id_unique` (1.151 rilanci), lookup PK post/autore,
+958 righe ammesse. UNION materializza 959 righe prima della deduplicazione.
+Nessuna scansione completa dei post nel piano osservato; costo compatibile
+con questa fase senza cache sul campione attuale, da rivalutare con la crescita.
+Test positivi preparati per la verifica finale, inclusa ammissione con
+`indexable=false`. Nessuna fixture inserita nel DB applicativo.
 
 #### Q19 — Quota di post con sondaggio per settimana
 
@@ -1175,8 +1216,9 @@ Correzioni e limiti da mantenere durante lo sviluppo:
 
 - Login richiesto a pagina e dataset, senza privilegi di staff. Nessun dato
   privato viene incluso per il solo fatto che il visitatore sia autenticato.
-- La popolazione iniziale usa il filtro conservativo del benchmark: soprattutto
-  `indexable` restringe il campione, e questo va spiegato nei grafici.
+- La popolazione attuale non applica `discoverable` o `indexable`. I benchmark
+  iniziali che li applicavano descrivono un campione più ristretto; le misure
+  aggiornate sono nel registro EXPLAIN.
 - Le 360 ore sono complete e ancorate all'inizio dell'ora UTC; manca una prova
   di copertura completa dei due anni. La prima fase descrive il corpus
   conservato e distingue gli zeri del corpus dall'assenza di osservazioni

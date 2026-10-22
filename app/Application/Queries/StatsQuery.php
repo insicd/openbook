@@ -83,6 +83,60 @@ final class StatsQuery
             : "DATE_SUB(DATE({$alias}.published_at), INTERVAL WEEKDAY({$alias}.published_at) DAY)";
     }
 
+    public function geography(CarbonImmutable $from, CarbonImmutable $to): Collection
+    {
+        $country = "COALESCE(NULLIF(UPPER(TRIM(l.country_code)), ''), 'UNKNOWN')";
+        $posts = $this->posts($from, $to)->join('post_locations as l', 'l.post_id', '=', 'p.id')
+            ->selectRaw("{$country} AS country, COUNT(*) AS count")->groupByRaw($country);
+        $events = $this->events($from, $to)->join('event_locations as l', 'l.event_id', '=', 'e.id')
+            ->selectRaw("{$country} AS country, COUNT(*) AS count")->groupByRaw($country);
+        $postTotal = $this->posts($from, $to)->selectRaw('NULL AS country, COUNT(*) AS count');
+        $eventTotal = $this->events($from, $to)->selectRaw('NULL AS country, COUNT(*) AS count');
+
+        // NULL identifies the combined denominator; all branches share one snapshot.
+        return $this->connection()->query()->fromSub($posts->unionAll($events)->unionAll($postTotal)->unionAll($eventTotal), 'geo')
+            ->selectRaw('country, SUM(count) AS count')->groupBy('country')->get();
+    }
+
+    public function eventCalendar(CarbonImmutable $from, CarbonImmutable $to): Collection
+    {
+        $month = $this->connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', openbook_stats_utc(e.start_at))"
+            : "DATE_FORMAT(e.start_at, '%Y-%m')";
+
+        return $this->events($from, $to)->selectRaw("{$month} AS month, COUNT(*) AS count")
+            ->groupBy('month')->orderBy('month')->get();
+    }
+
+    public function communityActivity(CarbonImmutable $from, CarbonImmutable $to): Collection
+    {
+        $week = $this->week('p');
+        $actors = $this->authors($this->connection()->table('actors as a'))
+            ->where('a.type', 'group')
+            ->whereNotExists(function (Builder $community): void {
+                $community->selectRaw('1')->from('communities as c')
+                    ->whereColumn('c.actor_id', 'a.id')->where('c.is_private', true);
+            })->select('a.id');
+
+        $local = $this->posts($from, $to)
+            ->join('communities as community', 'community.id', '=', 'p.community_id')
+            ->joinSub(clone $actors, 'community_author', 'community_author.id', '=', 'community.actor_id')
+            ->where('community.is_private', false)
+            ->selectRaw("{$week} AS week, p.id AS post_id, community_author.id AS community_actor_id");
+        $published = $this->posts($from, $to)
+            ->joinSub(clone $actors, 'community_author', 'community_author.id', '=', 'p.actor_id')
+            ->selectRaw("{$week} AS week, p.id AS post_id, community_author.id AS community_actor_id");
+        $shared = $this->posts($from, $to)
+            ->join('announces as an', 'an.post_id', '=', 'p.id')->where('an.is_direct', true)
+            ->joinSub($actors, 'community_author', 'community_author.id', '=', 'an.actor_id')
+            ->selectRaw("{$week} AS week, p.id AS post_id, community_author.id AS community_actor_id");
+
+        // A local post may also have a Group Announce; count each post and Group once per week.
+        return $this->connection()->query()->fromSub($local->unionAll($published)->unionAll($shared), 'activity')
+            ->selectRaw('week, COUNT(DISTINCT community_actor_id) AS active, COUNT(DISTINCT post_id) AS count')
+            ->groupBy('week')->orderBy('week')->get();
+    }
+
     private function languageUses(Builder $query, string $alias): Builder
     {
         $language = "LOWER(TRIM({$alias}.language))";
@@ -175,8 +229,8 @@ final class StatsQuery
     private function authors(Builder $query): Builder
     {
         $query->where('a.status', 'active')->where('a.remote_suspended', false)
-            ->whereNull('a.deleted_at')->where('a.discoverable', true)
-            ->where('a.indexable', true)->where('a.type', '<>', 'application');
+            ->whereNull('a.deleted_at')
+            ->where('a.type', '<>', 'application');
 
         $blocked = $this->domainBlocks->blockedHosts();
         $query->whereNotIn('a.domain', $blocked);

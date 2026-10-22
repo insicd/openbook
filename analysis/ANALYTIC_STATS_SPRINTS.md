@@ -1,6 +1,6 @@
 # Stats — piano di implementazione
 
-Stato: sprint 1–3 approvati; grafico sprint 4 scartato; revisioni top 10 approvate; sprint 5 autorizzato; sprint 6–9 non iniziati.
+Stato: sprint 1–3 approvati; grafico sprint 4 scartato; revisioni top 10 approvate; revisioni registrate in `117f4cb`; sprint 5 implementato per revisione; sprint 6–9 non iniziati.
 Data: 22 ottobre 2026. Ramo richiesto: `stats`.
 Analisi e SQL: [ANALYTIC_STATS.md](ANALYTIC_STATS.md).
 Misure iniziali: [ANALYTIC_STATS_EXPLAIN.md](ANALYTIC_STATS_EXPLAIN.md).
@@ -405,6 +405,65 @@ senza contaminare il database applicativo; piani di ciascun ramo UNION ALL.
 
 Risultato: grafici geografia, calendario eventi e attività delle community.
 
+### Implementazione in revisione — 22 ottobre 2026
+
+Tre card e tre endpoint autenticati: `/stats/geografia`, `/stats/eventi`,
+`/stats/community`. Nessuna cache. Rendering e caricamento alla visibilità
+riusano la pagina esistente; dati e cambi di vista geografica non bloccano HTML.
+
+Geografia: una sola SELECT con quattro rami UNION ALL (paesi dei post, paesi
+degli eventi e i rispettivi totali), così numeratori e denominatori hanno lo
+stesso snapshot. Ogni contenuto ha al massimo un luogo grazie alle PK delle
+location. Il conteggio «con un luogo» non presume la presenza di coordinate.
+Codici paese normalizzati in maiuscolo; codici non validi e paesi con meno di
+cinque contenuti nella vista selezionata confluiscono in «Altri paesi» già
+nel dataset, senza inviare il paese dei gruppi piccoli. Soglia applicata per
+ciascuna vista insieme/post/eventi. Sono aggregati geografici di contenuti
+pubblici, non posizioni degli autori né una garanzia contro ogni inferenza
+tra aggregati. Grafico dei primi dieci paesi più eventuale gruppo «altri»;
+quota riferita alla stessa selezione. Il cambio vista usa i dati già ricevuti.
+
+Calendario eventi: una serie totale per mese di inizio, senza suddivisioni
+per stato. Si includono solo eventi pubblici non cancellati/deleted, pubblicati
+nei due anni della coorte, ma l’inizio può essere futuro. Barre per i soli
+mesi con eventi: nessuna sequenza artificiale potenzialmente illimitata tra
+un anno remoto e uno futuro. La nota distingue pubblicazione e inizio.
+
+Community: UNION ALL di appartenenza a community locali pubbliche, pubblicazione
+diretta da Group e Announce diretti dei Group locali/remoti. Actor del Group e
+autore del post devono entrambi essere ammissibili; esclusi Group associati a
+community locali private. COUNT DISTINCT Actor Group e post evita duplicazioni,
+anche se lo stesso post è rilanciato da più community. Bucket sulla settimana
+di pubblicazione originale del post. Nessuna divisione per origine o classifica.
+Serie completa con zeri; riepilogo del massimo settimanale e post distinti totali.
+La query aggiornata è documentata in Q18 con EXPLAIN dei tre rami; il campione
+inizialmente vuoto è ora popolato: per questo aggregato il consenso
+all’indicizzazione non è richiesto, né al Group né all’autore del post. Gli
+altri filtri restano attivi. Verifica MySQL: 20 settimane non vuote, picco 17
+community; query 94,38 ms, EXPLAIN ANALYZE 17,6 ms, indici dei tre rami
+registrati in Q18. Il ramo di pubblicazione diretta Group resta vuoto.
+Test positivi per pubblicazioni, rilanci, esclusioni e deduplicazione preparati
+per la verifica finale; nessuna fixture nel database applicativo.
+
+Anteprima con dati reali: 73 contenuti con luogo su 20.181 ammessi
+(7 post e 66 eventi con luogo), 76 eventi su nove mesi di inizio e zero
+post ammissibili nelle community. Provato cambio insieme/eventi con riepiloghi
+coerenti (73/0,4% e 66/86,8%) e stato vuoto delle community. Nessun dato
+simulato aggiunto al database. Controlli di sintassi PHP/JS e Pint passano.
+
+**Punto di arresto:** mostrare i grafici per la revisione; nessun commit dello
+sprint 5 prima dell’OK. PHPUnit ancora rinviato. EXPLAIN dei quattro rami
+geografici e delle altre query da registrare prima del commit approvato.
+
+### Revisione geografica: solo totale
+
+Su richiesta dell’utente rimosso il selettore post/eventi. Il grafico e il JSON
+espongono solo la somma: le quattro branche SQL sono aggregate per paese,
+compreso il denominatore totale, senza discriminator di tipo. Non si preparano
+più tre viste nel servizio. La soglia per gruppi piccoli è applicata alla sola
+somma. Questa decisione sostituisce la precedente scelta delle viste separate.
+Test aggiornati, PHPUnit non eseguito, nessun commit.
+
 ## Sprint 6 — Allegati e sondaggi; completamento del giro senza cache
 
 **Backend:** Q12 per allegati MIME immagine/video e post distinti, Q19 per
@@ -591,3 +650,38 @@ Le lingue mancanti (`und`) sono escluse dal grafico e dai riepiloghi;
 il contratto JSON e le query restano invariati. Questa revisione sostituisce
 le precedenti scelte di presentazione descritte nell’esito iniziale.
 Revisione approvata dall’utente e registrata nel commit `f413b8c`.
+
+### Revisione comune: statistiche aggregate senza indexable
+
+Rimosso il filtro `indexable` da tutti i dataset, non solo dalle community,
+con un unico filtro condiviso senza eccezioni o parametri speciali. Restano
+scoperta e tutte le esclusioni di visibilità/moderazione. Aggiornati metodologia
+UI EN/IT/FI, documentazione e fixture positive con `indexable=false` per tutti
+i grafici; il test di esclusione distingue ora il consenso alla scoperta.
+PHPUnit rinviato alla verifica finale come concordato. Anteprima rigenerata.
+
+Verifica MySQL dopo l’ampliamento della popolazione: ritmo 36,69 ms, lingue
+132,49 ms, domini 22,77 ms, serie settimanali 138,14 ms, hashtag 637,50 ms,
+geografia 182,76 ms, calendario 0,98 ms, community 56,43 ms. SQL, binding e
+EXPLAIN ANALYZE completi degli otto dataset registrati in ANALYTIC_STATS_EXPLAIN,
+inclusi tutti i rami UNION. I post mantengono accessi indicizzati; la scansione
+degli Actor per i domini e l’aggregazione hashtag restano da coprire con il
+caching nello sprint previsto. Queste misure locali non garantiscono il costo
+su un corpus più grande.
+
+### Revisione comune: nessun filtro discoverable
+
+Anche `discoverable` è rimosso da tutti i dataset aggregati. Restano visibilità,
+stato attivo, assenza di sospensione/cancellazione, esclusione domini bloccati
+(compreso host canonico), Actor tecnici e filtri CW già previsti. Nessuna modifica
+alle regole di scoperta o ricerca dell’applicazione. Fixture positive impostate
+con entrambi i consensi false; regressioni di privacy e sospensione mantenute.
+Metodologia UI e documentazione EN/IT aggiornate; PHPUnit rinviato.
+
+Verifica MySQL senza entrambi i filtri: ritmo 32,60 ms, lingue 171,04 ms,
+domini 31,91 ms, settimane 145,29 ms, hashtag 1.237,41 ms, geografia 207,37 ms,
+calendario 0,60 ms e community 54,26 ms. EXPLAIN ANALYZE completo registrato
+per gli otto dataset, inclusi i rami UNION. Accessi ai post ancora indicizzati;
+aggregazione hashtag più costosa con il corpus ampliato, da considerare nella
+fase caching prevista. Anteprima community: 1.230 post distinti, picco 17
+community attive in una settimana. Misure locali, non garanzia su grandi corpus.

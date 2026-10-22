@@ -11,6 +11,7 @@
     var monthDate = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' });
     var generatedDate = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: root.dataset.timezone, timeZoneName: 'short', hourCycle: 'h23' });
     var names = typeof Intl.DisplayNames === 'function' ? new Intl.DisplayNames([locale], { type: 'language' }) : null;
+    var countryNames = typeof Intl.DisplayNames === 'function' ? new Intl.DisplayNames([locale], { type: 'region' }) : null;
     var queue = [];
     var active = 0;
     var datasets = new Map();
@@ -42,7 +43,7 @@
         container.replaceChildren();
         items.forEach(function (item) {
             var cell = document.createElement('div');
-            cell.append(text('strong', number.format(item[0]), 'ob-stats-summary__value'), text('span', item[1], 'ob-stats-summary__label'));
+            cell.append(text('strong', typeof item[0] === 'string' ? item[0] : number.format(item[0]), 'ob-stats-summary__value'), text('span', item[1], 'ob-stats-summary__label'));
             container.append(cell);
         });
     }
@@ -90,6 +91,60 @@
         return { total: total, type: 'line', data: {
             labels: data.weeks.map(function (week) { return date.format(new Date(week + 'T00:00:00Z')); }),
             datasets: [{ label: labels.total, data: totals, borderColor: colors.primary, backgroundColor: colors.primary, borderWidth: 2.5, tension: 0.3, cubicInterpolationMode: 'monotone', pointRadius: 0, pointHoverRadius: 4, pointHitRadius: 10 }]
+        } };
+    }
+
+    function geographyChart(card, options, colors) {
+        var data = card._statsData;
+        var totals = data.totals;
+        var rows = data.rows;
+        var known = rows.filter(function (row) { return row.country !== 'OTHER'; })
+            .sort(function (a, b) { return b.count - a.count || a.country.localeCompare(b.country); });
+        var other = rows.filter(function (row) { return row.country === 'OTHER'; }).reduce(function (sum, row) { return sum + row.count; }, 0)
+            + known.slice(10).reduce(function (sum, row) { return sum + row.count; }, 0);
+        var displayed = known.slice(0, 10);
+        if (other) displayed.push({ country: 'OTHER', count: other });
+        var percent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 });
+        summary(card, [[totals.located, labels.located_contents], [totals.contents ? percent.format(totals.located / totals.contents) : '—', labels.location_coverage]]);
+        horizontal(options);
+        options.plugins.tooltip.callbacks = { label: function (item) { return labels.contents_count + ': ' + number.format(item.parsed.x); } };
+        if (!totals.located) options.scales.x.suggestedMax = 1;
+        function countryName(code) {
+            if (code === 'OTHER') return labels.other_countries;
+            try { return countryNames ? countryNames.of(code) : code; } catch (error) { return code; }
+        }
+        return { total: totals.located, type: 'bar', data: {
+            labels: displayed.map(function (row) { return countryName(row.country); }),
+            datasets: [{ label: labels.contents_count, data: displayed.map(function (row) { return row.count; }), backgroundColor: colors.primary, borderRadius: 6, borderSkipped: false, maxBarThickness: 24 }]
+        } };
+    }
+
+    function eventCalendarChart(card, options, colors) {
+        var rows = card._statsData.rows;
+        var total = rows.reduce(function (sum, row) { return sum + row.count; }, 0);
+        summary(card, [[total, labels.public_events]]);
+        options.plugins.tooltip.callbacks = { label: function (item) { return labels.events + ': ' + number.format(item.parsed.y); } };
+        if (!total) options.scales.y.suggestedMax = 1;
+        return { total: total, type: 'bar', data: {
+            labels: rows.map(function (row) { return monthDate.format(new Date(row.month + '-01T00:00:00Z')); }),
+            datasets: [{ label: labels.events, data: rows.map(function (row) { return row.count; }), backgroundColor: colors.primary, borderRadius: 6, borderSkipped: false, maxBarThickness: 32 }]
+        } };
+    }
+
+    function communityActivityChart(card, options, colors) {
+        var rows = card._statsData.rows;
+        var peak = Math.max.apply(null, rows.map(function (row) { return row.active; }).concat([0]));
+        summary(card, [[peak, labels.peak_communities], [rows.reduce(function (sum, row) { return sum + row.count; }, 0), labels.community_posts]]);
+        options.interaction = { intersect: false, mode: 'index' };
+        options.plugins.tooltip.callbacks = {
+            title: function (items) { return labels.week_of + ' ' + date.format(new Date(rows[items[0].dataIndex].week + 'T00:00:00Z')); },
+            label: function (item) { return labels.active_communities + ': ' + number.format(item.parsed.y); },
+            afterLabel: function (item) { return labels.posts + ': ' + number.format(rows[item.dataIndex].count); }
+        };
+        if (!peak) options.scales.y.suggestedMax = 1;
+        return { total: peak, type: 'line', data: {
+            labels: rows.map(function (row) { return date.format(new Date(row.week + 'T00:00:00Z')); }),
+            datasets: [{ label: labels.active_communities, data: rows.map(function (row) { return row.active; }), borderColor: colors.primary, backgroundColor: colors.primary, borderWidth: 2.5, tension: 0.3, cubicInterpolationMode: 'monotone', pointRadius: 0, pointHoverRadius: 4, pointHitRadius: 10 }]
         } };
     }
 
@@ -207,7 +262,7 @@
             if (!total) options.scales.x.suggestedMax = 1;
             accessibleDetails = rows.map(function (row) { return languageName(row.language) + ': ' + number.format(row.count); }).join('; ');
         } else {
-            var renderer = { domains: domainChart, volume: weeklyChart, authors: weeklyChart, hashtags: hashtagChart }[metric];
+            var renderer = { domains: domainChart, volume: weeklyChart, authors: weeklyChart, hashtags: hashtagChart, geography: geographyChart, eventCalendar: eventCalendarChart, communityActivity: communityActivityChart }[metric];
             var result = renderer(card, options, colors);
             chartData = result.data;
             chartType = result.type;
@@ -217,7 +272,7 @@
         var status = card.querySelector('[data-stats-status]');
         status.hidden = total > 0;
         status.style.minHeight = total > 0 ? '' : '0';
-        status.textContent = metric === 'hashtags' ? labels.empty_hashtags : labels.empty;
+        status.textContent = { hashtags: labels.empty_hashtags, geography: labels.empty_geography, eventCalendar: labels.empty_events, communityActivity: labels.empty_communities }[metric] || labels.empty;
         var period = data.period;
         card.querySelector('[data-stats-period]').textContent = metric === 'domains' ? labels.snapshot + ' ' + date.format(new Date(period.to)) : date.format(new Date(period.from)) + ' – ' + (rhythm ? hour.format(new Date(period.to)) : date.format(new Date(period.to))) + ' UTC';
         card.querySelector('[data-stats-updated]').textContent = labels.generated + ' ' + generatedDate.format(new Date(data.generated_at));

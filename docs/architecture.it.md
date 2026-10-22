@@ -143,10 +143,21 @@ i dieci più usati nel periodo: passaggio del mouse o focus evidenziano la
 serie; i tooltip identificano anche gli hashtag fuori legenda. I range restano
 in UTC; la data di elaborazione usa il fuso del visitatore.
 
+La geografia mostra i paesi associati ai luoghi dei contenuti, sommando
+post ed eventi senza selettori. Paesi non indicati e gruppi piccoli sono aggregati;
+non vengono mostrate coordinate o posizioni degli autori. Il calendario
+raggruppa per mese di inizio gli eventi pubblicati negli ultimi due anni,
+compresi quelli con inizio futuro. Le community mostrano quante community
+pubbliche ammissibili hanno pubblicato o rilanciato post conservati, inclusi
+i Group remoti. Le settimane seguono la pubblicazione originale del post; ogni
+community e ogni post contano una volta per settimana, anche con più rilanci.
+
 Ogni grafico carica i dati quando ti avvicini alla sua posizione nella pagina;
 un errore può essere ritentato senza ricaricare gli altri. In questa fase non
-è attiva una cache dei risultati. Le statistiche rispettano moderazione e
-preferenze di scoperta/indicizzazione degli autori. Descrivono il corpus ancora
+è attiva una cache dei risultati. Le statistiche rispettano le esclusioni
+di visibilità e moderazione, inclusi account sospesi o eliminati e domini
+bloccati. Tutte le statistiche aggregate includono anche gli account con
+`discoverable=false` e `indexable=false`. Descrivono il corpus ancora
 conservato, non tutto il Fediverso: retention e cancellazioni possono cambiare
 le serie e uno zero non prova l'assenza storica di pubblicazioni.
 

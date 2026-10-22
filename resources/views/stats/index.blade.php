@@ -17,7 +17,7 @@
             <p>{{ __('stats.intro') }}</p>
         </header>
 
-        @foreach (['rhythm', 'languages', 'domains', 'volume', 'authors', 'hashtags'] as $metric)
+        @foreach (['rhythm', 'languages', 'domains', 'volume', 'authors', 'hashtags', 'geography', 'eventCalendar', 'communityActivity'] as $metric)
             @php($dataset = in_array($metric, ['volume', 'authors']) ? 'weekly' : $metric)
             <section class="ob-card ob-stats-card" data-stats-card="{{ $metric }}"
                      data-metric="{{ $dataset }}"

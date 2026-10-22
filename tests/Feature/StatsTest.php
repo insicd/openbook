@@ -7,6 +7,7 @@ use App\Domain\Communities\Community;
 use App\Domain\Events\Event;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
+use App\Domain\Reactions\Announce;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,9 @@ class StatsTest extends TestCase
         $this->getJson('/stats/domini')->assertUnauthorized();
         $this->getJson('/stats/settimane')->assertUnauthorized();
         $this->getJson('/stats/hashtag')->assertUnauthorized();
+        $this->getJson('/stats/geografia')->assertUnauthorized();
+        $this->getJson('/stats/eventi')->assertUnauthorized();
+        $this->getJson('/stats/community')->assertUnauthorized();
     }
 
     public function test_an_ordinary_user_can_read_stats_without_aggregates_in_the_html_response(): void
@@ -60,13 +64,16 @@ class StatsTest extends TestCase
         $this->getJson('/stats/domini')->assertOk()->assertJsonPath('metric', 'domains');
         $this->getJson('/stats/settimane')->assertOk()->assertJsonPath('metric', 'weekly');
         $this->getJson('/stats/hashtag')->assertOk()->assertJsonPath('metric', 'hashtags');
+        $this->getJson('/stats/geografia')->assertOk()->assertJsonPath('metric', 'geography');
+        $this->getJson('/stats/eventi')->assertOk()->assertJsonPath('metric', 'eventCalendar');
+        $this->getJson('/stats/community')->assertOk()->assertJsonPath('metric', 'communityActivity');
     }
 
     public function test_hourly_buckets_are_complete_utc_hours_and_results_are_not_cached(): void
     {
         CarbonImmutable::setTestNow('2026-10-25 12:37:00 UTC');
         $author = $this->createFullAccount('statshours');
-        $author->actor->forceFill(['discoverable' => true, 'indexable' => true])->save();
+        $author->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
         $attributes = [
             'actor_id' => $author->actor->id, 'body' => 'Example', 'status' => 'published',
             'visibility' => 'public', 'published_at' => '2026-10-25 11:30:00',
@@ -89,7 +96,7 @@ class StatsTest extends TestCase
         $this->actingAs($author)->getJson('/stats/ritmo')->assertHeader('Cache-Control', 'no-store, private');
     }
 
-    public function test_non_public_posts_and_authors_who_opted_out_are_excluded(): void
+    public function test_public_aggregates_ignore_discovery_and_indexing_but_exclude_suspended_authors(): void
     {
         CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
         $author = $this->createFullAccount('statsprivacy');
@@ -102,6 +109,10 @@ class StatsTest extends TestCase
         }
         $this->assertSame(1, array_sum(array_column(app(StatsDataset::class)->rhythm()['rows'], 'total')));
         $author->actor->forceFill(['indexable' => false])->save();
+        $this->assertSame(1, array_sum(array_column(app(StatsDataset::class)->rhythm()['rows'], 'total')));
+        $author->actor->forceFill(['discoverable' => false])->save();
+        $this->assertSame(1, array_sum(array_column(app(StatsDataset::class)->rhythm()['rows'], 'total')));
+        $author->actor->forceFill(['remote_suspended' => true])->save();
         $this->assertSame(0, array_sum(array_column(app(StatsDataset::class)->rhythm()['rows'], 'total')));
     }
 
@@ -110,7 +121,7 @@ class StatsTest extends TestCase
         config(['app.timezone' => 'Europe/Helsinki']);
         CarbonImmutable::setTestNow('2026-10-22 15:37:00 UTC');
         $author = $this->createFullAccount('statstimezone');
-        $author->actor->forceFill(['discoverable' => true, 'indexable' => true])->save();
+        $author->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
         Post::create([
             'actor_id' => $author->actor->id, 'body' => 'Example', 'status' => 'published',
             'visibility' => 'public', 'published_at' => '2026-10-22 17:30:00',
@@ -125,7 +136,7 @@ class StatsTest extends TestCase
     {
         CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
         $author = $this->createFullAccount('statslanguages');
-        $author->actor->forceFill(['discoverable' => true, 'indexable' => true])->save();
+        $author->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
         foreach (['IT', 'it-IT', null, '', 'und'] as $language) {
             Post::create([
                 'actor_id' => $author->actor->id, 'body' => 'Example', 'status' => 'published',
@@ -148,7 +159,7 @@ class StatsTest extends TestCase
     {
         CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
         $actor = $this->createRemoteActor('statsremote', 'handle.example', [
-            'uri' => 'https://blocked.example:8443/users/statsremote', 'discoverable' => true, 'indexable' => true,
+            'uri' => 'https://blocked.example:8443/users/statsremote', 'discoverable' => false, 'indexable' => false,
         ]);
         DB::table('domain_blocks')->insert(['id' => (string) Str::uuid(), 'domain' => 'blocked.example']);
         Post::create([
@@ -166,7 +177,7 @@ class StatsTest extends TestCase
             'openbook.moderation.forced_content_warning_hashtags' => ['hidden'],
         ]);
         $author = $this->createFullAccount('statsmoderation');
-        $author->actor->forceFill(['discoverable' => true, 'indexable' => true])->save();
+        $author->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
         $group = $this->createRemoteActor('statsgroup', 'group.example', ['type' => 'group']);
         $community = Community::create([
             'actor_id' => $group->id, 'owner_user_id' => $author->id,
@@ -200,8 +211,8 @@ class StatsTest extends TestCase
     {
         CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
         $local = $this->createFullAccount('statsweekly');
-        $local->actor->forceFill(['discoverable' => true, 'indexable' => true])->save();
-        $remote = $this->createRemoteActor('weekly', 'weekly.example', ['discoverable' => true, 'indexable' => true]);
+        $local->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
+        $remote = $this->createRemoteActor('weekly', 'weekly.example', ['discoverable' => false, 'indexable' => false]);
         foreach ([$local->actor, $remote] as $actor) {
             foreach (['2026-10-12 10:00:00', '2026-10-12 11:00:00', '2026-10-19 10:00:00'] as $publishedAt) {
                 Post::create([
@@ -227,15 +238,16 @@ class StatsTest extends TestCase
         $this->actingAs($local)->getJson('/stats/settimane')->assertHeader('Cache-Control', 'no-store, private');
     }
 
-    public function test_domain_counts_include_eligible_types_and_exclude_opt_outs_and_blocked_hosts(): void
+    public function test_domain_counts_include_opt_outs_and_exclude_suspended_accounts_and_blocked_hosts(): void
     {
-        $this->createRemoteActor('person', 'counts.example', ['discoverable' => true, 'indexable' => true]);
-        $this->createRemoteActor('community', 'counts.example', ['type' => 'group', 'discoverable' => true, 'indexable' => true]);
-        $this->createRemoteActor('hidden', 'counts.example', ['discoverable' => true, 'indexable' => false]);
-        $this->createRemoteActor('blocked', 'blocked.example', ['discoverable' => true, 'indexable' => true]);
+        $this->createRemoteActor('person', 'counts.example', ['discoverable' => false, 'indexable' => false]);
+        $this->createRemoteActor('community', 'counts.example', ['type' => 'group', 'discoverable' => false, 'indexable' => false]);
+        $this->createRemoteActor('hidden', 'counts.example', ['discoverable' => false, 'indexable' => false]);
+        $this->createRemoteActor('suspended', 'counts.example', ['remote_suspended' => true, 'discoverable' => false, 'indexable' => false]);
+        $this->createRemoteActor('blocked', 'blocked.example', ['discoverable' => false, 'indexable' => false]);
         DB::table('domain_blocks')->insert(['id' => (string) Str::uuid(), 'domain' => 'blocked.example', 'created_at' => now(), 'updated_at' => now()]);
         $rows = collect(app(StatsDataset::class)->domains()['rows']);
-        $this->assertSame(2, $rows->where('domain', 'counts.example')->sum('count'));
+        $this->assertSame(3, $rows->where('domain', 'counts.example')->sum('count'));
         $this->assertCount(1, $rows->where('domain', 'counts.example'));
         $this->assertSame(['domain', 'local_count', 'count'], array_keys($rows->first()));
         $this->assertSame(0, $rows->where('domain', 'blocked.example')->sum('count'));
@@ -245,8 +257,8 @@ class StatsTest extends TestCase
     {
         CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
         $local = $this->createFullAccount('statstags');
-        $local->actor->forceFill(['discoverable' => true, 'indexable' => true])->save();
-        $remote = $this->createRemoteActor('tags', 'tags.example', ['discoverable' => true, 'indexable' => true]);
+        $local->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
+        $remote = $this->createRemoteActor('tags', 'tags.example', ['discoverable' => false, 'indexable' => false]);
         $tags = collect(['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa', 'lambda'])
             ->mapWithKeys(fn (string $name): array => [$name => Hashtag::create(['name' => $name])]);
         $fixtures = [
@@ -280,7 +292,7 @@ class StatsTest extends TestCase
     {
         CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
         $author = $this->createFullAccount('statsmonthly');
-        $author->actor->forceFill(['discoverable' => true, 'indexable' => true])->save();
+        $author->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
         $regular = collect(range(1, 10))->map(fn (int $n) => Hashtag::create(['name' => 'regular'.$n]));
         $occasional = Hashtag::create(['name' => 'occasional']);
         foreach (['2025-01-10', '2025-01-11', '2026-09-10', '2026-09-11'] as $day) {
@@ -321,5 +333,86 @@ class StatsTest extends TestCase
         $user->settings()->update(['timezone' => 'America/New_York']);
         $this->actingAs($user)->get('/stats')->assertOk()
             ->assertSee('data-timezone="America/New_York"', false);
+    }
+
+    public function test_geography_counts_both_kinds_once_and_groups_small_countries(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
+        $author = $this->createFullAccount('statsgeo');
+        $author->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
+        foreach (['fi', 'FI', 'FI', 'FI', 'FI', 'DE', 'DE'] as $country) {
+            $post = Post::create(['actor_id' => $author->actor->id, 'body' => 'Place', 'status' => 'published', 'visibility' => 'public', 'published_at' => '2026-10-01 12:00:00']);
+            DB::table('post_locations')->insert(['post_id' => $post->id, 'name' => 'Example place', 'country_code' => $country]);
+        }
+        foreach (['FI', 'FI', 'FI', 'FI', 'FI', 'DE', null] as $i => $country) {
+            $event = Event::create(['actor_id' => $author->actor->id, 'uri' => 'https://example.test/geo/'.$i, 'name' => 'Place', 'visibility' => 'public', 'status' => 'scheduled', 'published_at' => '2026-10-01 12:00:00', 'start_at' => '2027-01-01 12:00:00']);
+            if ($country !== null) {
+                DB::table('event_locations')->insert(['event_id' => $event->id, 'country_code' => $country]);
+            }
+        }
+        $private = Post::create(['actor_id' => $author->actor->id, 'body' => 'Private place', 'status' => 'published', 'visibility' => 'followers', 'published_at' => '2026-10-01 12:00:00']);
+        DB::table('post_locations')->insert(['post_id' => $private->id, 'name' => 'Private place', 'country_code' => 'FI']);
+        $data = app(StatsDataset::class)->geography();
+        $this->assertSame(['contents' => 14, 'located' => 13], $data['totals']);
+        $rows = collect($data['rows']);
+        $this->assertSame(10, $rows->where('country', 'FI')->sum('count'));
+        $this->assertSame(3, $rows->where('country', 'OTHER')->sum('count'));
+        $this->assertFalse($rows->contains('country', 'DE'));
+        $this->actingAs($author)->getJson('/stats/geografia')->assertHeader('Cache-Control', 'no-store, private');
+    }
+
+    public function test_the_event_calendar_uses_start_month_even_for_future_events(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
+        $author = $this->createFullAccount('statscalendar');
+        $author->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
+        foreach (['scheduled', 'tentative', 'cancelled'] as $status) {
+            Event::create(['actor_id' => $author->actor->id, 'uri' => 'https://example.test/calendar/'.$status, 'name' => 'Future event', 'visibility' => 'public', 'status' => $status, 'published_at' => '2026-10-01 12:00:00', 'start_at' => '2027-01-01 12:00:00']);
+        }
+        $this->assertSame([['month' => '2027-01', 'count' => 2]], app(StatsDataset::class)->eventCalendar()['rows']);
+    }
+
+    public function test_community_activity_counts_distinct_public_eligible_communities_per_week(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
+        $author = $this->createFullAccount('statscommunities');
+        $author->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
+        foreach (['public', 'private', 'hidden'] as $kind) {
+            $actor = $this->createRemoteActor('community'.$kind, $kind.'.example', ['type' => 'group', 'discoverable' => false, 'indexable' => false, 'remote_suspended' => $kind === 'hidden']);
+            $community = Community::create(['actor_id' => $actor->id, 'owner_user_id' => $author->id, 'slug' => 'stats-'.$kind, 'is_private' => $kind === 'private']);
+            foreach (['2026-10-12 12:00:00', '2026-10-13 12:00:00', '2026-10-19 12:00:00'] as $publishedAt) {
+                Post::create(['actor_id' => $author->actor->id, 'community_id' => $community->id, 'body' => 'Community example', 'status' => 'published', 'visibility' => 'public', 'published_at' => $publishedAt]);
+            }
+        }
+        $rows = collect(app(StatsDataset::class)->communityActivity()['rows'])->keyBy('week');
+        $this->assertSame(['week' => '2026-10-12', 'active' => 1, 'count' => 2], $rows['2026-10-12']);
+        $this->assertSame(['week' => '2026-10-19', 'active' => 1, 'count' => 1], $rows['2026-10-19']);
+        $this->assertSame(0, $rows['2026-10-05']['active']);
+        $this->assertSame(3, $rows->sum('count'));
+    }
+
+    public function test_community_activity_includes_remote_group_posts_and_shares_without_duplicates(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
+        $author = $this->createFullAccount('statsgroups');
+        $author->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
+        $group = $this->createRemoteActor('publicgroup', 'groups.example', ['type' => 'group', 'discoverable' => false, 'indexable' => false]);
+        $hidden = $this->createRemoteActor('hiddengroup', 'groups.example', ['type' => 'group', 'discoverable' => false, 'indexable' => false, 'remote_suspended' => true]);
+        $community = Community::create(['actor_id' => $group->id, 'owner_user_id' => $author->id, 'slug' => 'stats-group', 'is_private' => false]);
+        $post = Post::create(['actor_id' => $author->actor->id, 'community_id' => $community->id, 'body' => 'Local and shared', 'status' => 'published', 'visibility' => 'public', 'published_at' => '2026-10-12 12:00:00']);
+        Announce::create(['actor_id' => $group->id, 'post_id' => $post->id, 'is_direct' => true]);
+        Post::create(['actor_id' => $group->id, 'body' => 'Group authored', 'status' => 'published', 'visibility' => 'public', 'published_at' => '2026-10-13 12:00:00']);
+        foreach (['public', 'private', 'quote', 'hidden', 'person'] as $kind) {
+            $post = Post::create(['actor_id' => $author->actor->id, 'body' => $kind, 'status' => 'published', 'visibility' => $kind === 'private' ? 'followers' : 'public', 'published_at' => '2026-10-14 12:00:00']);
+            Announce::create(['actor_id' => match ($kind) {
+                'hidden' => $hidden->id,
+                'person' => $author->actor->id,
+                default => $group->id,
+            }, 'post_id' => $post->id, 'is_direct' => $kind !== 'quote']);
+        }
+
+        $rows = collect(app(StatsDataset::class)->communityActivity()['rows'])->keyBy('week');
+        $this->assertSame(['week' => '2026-10-12', 'active' => 1, 'count' => 3], $rows['2026-10-12']);
+        $this->assertSame(3, $rows->sum('count'));
     }
 }

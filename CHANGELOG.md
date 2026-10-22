@@ -22,8 +22,11 @@ la [roadmap](docs/roadmap.md).
 - **Stats (prima prova)**: pagina accessibile dal footer agli utenti autenticati,
   con ritmo dei post nelle ultime 360 ore complete e distribuzione delle lingue
   di post ed eventi pubblici conservati, account totali per istanza, volume
-  settimanale dei post e autori attivi, trend degli hashtag. I grafici caricano i dati solo
+  settimanale dei post e autori attivi, trend degli hashtag, geografia dei
+  contenuti, calendario degli eventi e attività delle community. I grafici caricano i dati solo
   avvicinandosi alla zona visibile, senza cache dei risultati in questa fase.
+  Le statistiche aggregate includono anche gli account che non consentono
+  la scoperta o l’indicizzazione, mantenendo i filtri di visibilità e moderazione.
   Aggiornare la cache delle route.
 - **CSV dei seguiti (#117)**: nella nuova scheda «Importa ed esporta» puoi
   scaricare i seguiti in formato compatibile con Mastodon e importare un CSV.

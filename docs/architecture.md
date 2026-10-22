@@ -139,9 +139,20 @@ over the period: hover or keyboard focus highlights a series; tooltips also
 identify hashtags outside the legend. Ranges stay in UTC; generation times
 use the visitor’s timezone.
 
+Geography shows countries associated with content places, combining posts
+and events without a selector. Unspecified countries and small groups
+are combined; no coordinates or authors’ locations are shown. The calendar
+groups events published over the last two years by starting month, including
+future start dates. Communities show how many eligible public communities
+published or shared retained posts, including remote Group actors. Weeks refer
+to the original post publication date; each community and each post count once
+per week, even if multiple communities shared the same post.
+
 Each chart loads its dataset as you approach it on the page. Failed requests
 can be retried independently. This phase does not cache the results. Statistics
-respect instance moderation and authors' discovery/indexing preferences.
+respect visibility and moderation exclusions, including suspended or deleted
+accounts and blocked domains. All aggregate statistics include accounts with
+`discoverable=false` and `indexable=false`.
 They describe retained content, not the entire Fediverse: deletion and
 retention can change the series, and zero does not prove that nothing was
 published historically.
