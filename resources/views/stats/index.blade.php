@@ -9,7 +9,7 @@
 @endpush
 
 @section('content')
-    <div class="ob-stats" data-stats data-locale="{{ str_replace('_', '-', app()->getLocale()) }}"
+    <div class="ob-stats" data-stats data-timezone="{{ app(\App\Support\UserDate::class)->timezone() }}" data-locale="{{ str_replace('_', '-', app()->getLocale()) }}"
          data-labels="{{ json_encode(__('stats.chart'), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) }}">
         <header class="ob-stats__intro">
             <span class="ob-stats__eyebrow">{{ __('stats.title') }}</span>
@@ -17,10 +17,11 @@
             <p>{{ __('stats.intro') }}</p>
         </header>
 
-        @foreach (['rhythm', 'languages', 'domains', 'volume', 'authors'] as $metric)
+        @foreach (['rhythm', 'languages', 'domains', 'volume', 'authors', 'hashtags'] as $metric)
+            @php($dataset = in_array($metric, ['volume', 'authors']) ? 'weekly' : $metric)
             <section class="ob-card ob-stats-card" data-stats-card="{{ $metric }}"
-                     data-metric="{{ in_array($metric, ['volume', 'authors']) ? 'weekly' : $metric }}"
-                     data-url="{{ route('stats.'.(in_array($metric, ['volume', 'authors']) ? 'weekly' : $metric)) }}" aria-labelledby="stats-{{ $metric }}-title">
+                     data-metric="{{ $dataset }}"
+                     data-url="{{ route('stats.'.$dataset) }}" aria-labelledby="stats-{{ $metric }}-title">
                 <header class="ob-stats-card__header">
                     <span class="ob-stats__eyebrow">{{ __('stats.'.$metric.'.eyebrow') }}</span>
                     <h2 id="stats-{{ $metric }}-title">{{ __('stats.'.$metric.'.title') }}</h2>
@@ -39,6 +40,10 @@
                         <canvas data-stats-canvas role="img" aria-label="{{ __('stats.'.$metric.'.title') }}"
                                 aria-describedby="stats-{{ $metric }}-description"></canvas>
                     </div>
+                    @if ($metric === 'hashtags')
+                        <p class="ob-stats-card__period">{{ __('stats.chart.legend_top') }}</p>
+                        <div class="ob-stats-legend" data-stats-legend role="group" aria-label="{{ __('stats.chart.legend_top') }}"></div>
+                    @endif
                     <p class="ob-stats-card__period" data-stats-period></p>
                     <p class="ob-stats-card__updated" data-stats-updated></p>
                 </div>

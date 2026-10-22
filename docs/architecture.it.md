@@ -133,6 +133,14 @@ Volume e autori attivi mostrano ciascuno una sola serie totale settimanale,
 senza filtri per istanza né distinzione tra locali e remoti. I conteggi
 degli autori non sono sommabili tra settimane.
 
+Il grafico hashtag include i top 10 di ciascuno degli ultimi 24 mesi di
+calendario (mese corrente incluso, parziale) e i top 10 dell’intero periodo.
+Ogni mese mostra al massimo dieci hashtag: fuori dalla top 10 la serie è
+interrotta, mantenendo identità e colore quando un hashtag rientra. La legenda contiene solo
+i dieci più usati nel periodo: passaggio del mouse o focus evidenziano la
+serie; i tooltip identificano anche gli hashtag fuori legenda. I range restano
+in UTC; la data di elaborazione usa il fuso del visitatore.
+
 Ogni grafico carica i dati quando ti avvicini alla sua posizione nella pagina;
 un errore può essere ritentato senza ricaricare gli altri. In questa fase non
 è attiva una cache dei risultati. Le statistiche rispettano moderazione e

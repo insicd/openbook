@@ -8,6 +8,8 @@
     var number = new Intl.NumberFormat(locale);
     var date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
     var hour = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hourCycle: 'h23' });
+    var monthDate = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' });
+    var generatedDate = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: root.dataset.timezone, timeZoneName: 'short', hourCycle: 'h23' });
     var names = typeof Intl.DisplayNames === 'function' ? new Intl.DisplayNames([locale], { type: 'language' }) : null;
     var queue = [];
     var active = 0;
@@ -31,7 +33,7 @@
             primary: color('--ob-color-primary'), soft: color('--ob-color-primary-soft'),
             surface: color('--ob-color-surface'), border: color('--ob-color-border'),
             text: color('--ob-color-text'), muted: color('--ob-color-text-muted'),
-            secondary: color('--ob-color-success'), third: color('--ob-color-text-muted'), font: style.fontFamily
+            secondary: color('--ob-color-success'), third: color('--ob-color-text-muted'), danger: color('--ob-color-danger'), dark: color('--ob-color-primary-dark'), font: style.fontFamily
         };
     }
 
@@ -109,6 +111,69 @@
         } };
     }
 
+    function focusHashtag(chart, index) {
+        if (chart._statsFocus === index) return;
+        chart._statsFocus = index;
+        chart.data.datasets.forEach(function (dataset, i) {
+            dataset.borderColor = index === null || index === i ? dataset.statsColor : Chart.helpers.color(dataset.statsColor).alpha(0.12).rgbString();
+            dataset.backgroundColor = dataset.borderColor;
+            dataset.pointBorderWidth = index === i ? 3 : 1;
+            dataset.borderWidth = index === i ? 4 : (index === null ? 2 : 1);
+            dataset.order = index === i ? -1 : 0;
+        });
+        chart.update('none');
+    }
+
+    function hashtagLegend(card) {
+        var chart = card._statsChart;
+        var legend = card.querySelector('[data-stats-legend]');
+        legend.replaceChildren();
+        card._statsData.rows.forEach(function (tag, index) {
+            if (!tag.legend) return;
+            var button = text('button', '#' + tag.name);
+            button.type = 'button';
+            button.style.setProperty('--ob-stats-series-color', chart.data.datasets[index].statsColor);
+            button.addEventListener('mouseenter', function () { focusHashtag(chart, index); });
+            button.addEventListener('mouseleave', function () { if (document.activeElement !== button) focusHashtag(chart, null); });
+            button.addEventListener('focus', function () { focusHashtag(chart, index); });
+            button.addEventListener('blur', function () { focusHashtag(chart, null); });
+            button.addEventListener('click', function () { focusHashtag(chart, index); });
+            legend.append(button);
+        });
+    }
+
+    function hashtagChart(card, options, colors) {
+        var data = card._statsData;
+        summary(card, [[data.rows.length, labels.compared_hashtags]]);
+        options.plugins.legend.display = false;
+        options.interaction = { intersect: false, mode: 'nearest', axis: 'xy' };
+        options.scales.y.ticks.precision = 0;
+        options.onHover = function (event, elements, chart) { focusHashtag(chart, elements.length ? elements[0].datasetIndex : null); };
+        options.plugins.tooltip.callbacks = {
+            title: function (items) { return monthDate.format(new Date(data.months[items[0].dataIndex].month + '-01T00:00:00Z')); },
+            label: function (item) { return item.dataset.label + ': ' + number.format(item.parsed.y); }
+        };
+        return { total: data.rows.length, type: 'line', data: {
+            labels: data.months.map(function (month) { return monthDate.format(new Date(month.month + '-01T00:00:00Z')); }),
+            datasets: data.rows.map(function (tag, index) {
+                var color = Chart.helpers.color(colors.primary).rotate(index * 137.508).rgbString();
+                return {
+                    label: '#' + tag.name, statsColor: color,
+                    data: data.months.map(function (month) { return month.counts[index]; }),
+                    borderColor: color, backgroundColor: color, borderWidth: 2,
+                    tension: 0.3, cubicInterpolationMode: 'monotone',
+                    spanGaps: false, pointStyle: 'line',
+                    pointRadius: function (context) {
+                        var values = context.dataset.data;
+                        var i = context.dataIndex;
+                        return values[i] !== null && (i === 0 || values[i - 1] === null) && (i === values.length - 1 || values[i + 1] === null) ? 5 : 0;
+                    },
+                    pointHoverRadius: 5, pointHitRadius: 8
+                };
+            })
+        } };
+    }
+
     function render(card) {
         var data = card._statsData;
         var colors = theme();
@@ -160,7 +225,8 @@
             if (!total) options.scales.x.suggestedMax = 1;
             accessibleDetails = rows.map(function (row) { return languageName(row.language) + ': ' + number.format(row.count); }).join('; ');
         } else {
-            var result = metric === 'domains' ? domainChart(card, options, colors) : weeklyChart(card, options, colors);
+            var renderer = { domains: domainChart, volume: weeklyChart, authors: weeklyChart, hashtags: hashtagChart }[metric];
+            var result = renderer(card, options, colors);
             chartData = result.data;
             chartType = result.type;
             total = result.total;
@@ -169,13 +235,17 @@
         var status = card.querySelector('[data-stats-status]');
         status.hidden = total > 0;
         status.style.minHeight = total > 0 ? '' : '0';
-        status.textContent = labels.empty;
+        status.textContent = metric === 'hashtags' ? labels.empty_hashtags : labels.empty;
         var period = data.period;
         card.querySelector('[data-stats-period]').textContent = metric === 'domains' ? labels.snapshot + ' ' + date.format(new Date(period.to)) : date.format(new Date(period.from)) + ' – ' + (rhythm ? hour.format(new Date(period.to)) : date.format(new Date(period.to))) + ' UTC';
-        card.querySelector('[data-stats-updated]').textContent = labels.generated + ' ' + hour.format(new Date(data.generated_at)) + ' UTC';
+        card.querySelector('[data-stats-updated]').textContent = labels.generated + ' ' + generatedDate.format(new Date(data.generated_at));
         canvas.setAttribute('aria-label', card.querySelector('h2').textContent + '. ' + Array.from(card.querySelector('[data-stats-summary]').children, function (item) { return Array.from(item.children, function (part) { return part.textContent; }).join(' '); }).join('. ') + (accessibleDetails ? '. ' + accessibleDetails : ''));
         if (card._statsChart) card._statsChart.destroy();
         card._statsChart = new Chart(canvas, { type: chartType, data: chartData, options: options });
+        if (metric === 'hashtags') {
+            hashtagLegend(card);
+            canvas.onmouseleave = function () { focusHashtag(card._statsChart, null); };
+        }
     }
 
     function enqueue(card) {

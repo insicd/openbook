@@ -993,3 +993,53 @@ Bindings: `["active",false,true,true,"application","published","public","2024-10
             -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.25 rows=1) (actual time=417e-6..431e-6 rows=1 loops=48820)
 
 ```
+
+## Hashtag mensili approvati — sprint 3
+
+Una esecuzione EXPLAIN ANALYZE per query sul database locale; PHPUnit rinviato.
+
+### hashtags
+
+```sql
+select `hashtag_id` as `id`, `name`, `month`, `count`, `total`, `month_rank`, `overall_rank` from (select tc.*, h.name,
+                ROW_NUMBER() OVER (PARTITION BY month ORDER BY count DESC, h.name, h.id) AS month_rank,
+                DENSE_RANK() OVER (ORDER BY total DESC, h.name, h.id) AS overall_rank from (select mc.*, SUM(count) OVER (PARTITION BY hashtag_id) AS total from (select DATE_FORMAT(p.published_at, '%Y-%m') AS month, ph.hashtag_id, COUNT(*) AS count from `posts` as `p` inner join `actors` as `a` on `a`.`id` = `p`.`actor_id` inner join `post_hashtags` as `ph` on `ph`.`post_id` = `p`.`id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and 1 = 1 and `p`.`status` = ? and `p`.`visibility` = ? and `p`.`conversation_id` is null and `p`.`published_at` >= ? and `p`.`published_at` < ? and (`p`.`community_id` is null or exists (select 1 from `communities` as `c` where `c`.`id` = `p`.`community_id` and `c`.`is_private` = ?)) group by `month`, `ph`.`hashtag_id`) as `mc`) as `tc` inner join `hashtags` as `h` on `h`.`id` = `tc`.`hashtag_id` where `h`.`name` <> ?) as `ranked` where (`month_rank` <= ? or `overall_rank` <= ?) order by `overall_rank` asc, `month` asc
+```
+Bindings: `["active",false,true,true,"application","published","public","2024-11-01T00:00:00.000000Z","2026-10-22T17:00:00.000000Z",false,"",10,10]`
+
+```text
+-> Sort: ranked.overall_rank, ranked.`month`  (cost=2.85..2.85 rows=0) (actual time=408..409 rows=186 loops=1)
+    -> Filter: ((ranked.month_rank <= 10) or (ranked.overall_rank <= 10))  (cost=2.5..2.5 rows=0) (actual time=407..408 rows=186 loops=1)
+        -> Table scan on ranked  (cost=2.5..2.5 rows=0) (actual time=407..408 rows=18183 loops=1)
+            -> Materialize  (cost=0..0 rows=0) (actual time=407..407 rows=18183 loops=1)
+                -> Window aggregate: dense_rank() OVER (ORDER BY tc.total desc,h.`name`,h.id )   (actual time=397..404 rows=18183 loops=1)
+                    -> Sort: tc.total DESC, h.`name`, h.id  (actual time=397..398 rows=18183 loops=1)
+                        -> Table scan on <temporary>  (cost=2.5..2.5 rows=0) (actual time=351..352 rows=18183 loops=1)
+                            -> Temporary table  (cost=0..0 rows=0) (actual time=351..351 rows=18183 loops=1)
+                                -> Window aggregate: row_number() OVER (PARTITION BY tc.`month` ORDER BY tc.count desc,h.`name`,h.id )   (actual time=345..349 rows=18183 loops=1)
+                                    -> Sort: tc.`month`, tc.count DESC, h.`name`, h.id  (actual time=345..346 rows=18183 loops=1)
+                                        -> Stream results  (cost=19.8 rows=0) (actual time=247..273 rows=18183 loops=1)
+                                            -> Nested loop inner join  (cost=19.8 rows=0) (actual time=247..271 rows=18183 loops=1)
+                                                -> Table scan on tc  (cost=2.5..2.5 rows=0) (actual time=247..248 rows=18183 loops=1)
+                                                    -> Materialize  (cost=0..0 rows=0) (actual time=247..247 rows=18183 loops=1)
+                                                        -> Window aggregate with buffering: sum(mc.count) OVER (PARTITION BY mc.hashtag_id )   (cost=0 rows=0) (actual time=236..245 rows=18183 loops=1)
+                                                            -> Sort: mc.hashtag_id  (cost=2.85..2.85 rows=0) (actual time=236..236 rows=18183 loops=1)
+                                                                -> Table scan on mc  (cost=2.5..2.5 rows=0) (actual time=216..217 rows=18183 loops=1)
+                                                                    -> Materialize  (cost=0..0 rows=0) (actual time=216..216 rows=18183 loops=1)
+                                                                        -> Table scan on <temporary>  (actual time=214..215 rows=18183 loops=1)
+                                                                            -> Aggregate using temporary table  (actual time=214..214 rows=18183 loops=1)
+                                                                                -> Nested loop inner join  (cost=1218 rows=69.1) (actual time=0.084..178 rows=67838 loops=1)
+                                                                                    -> Nested loop inner join  (cost=1207 rows=12.2) (actual time=0.0701..120 rows=20105 loops=1)
+                                                                                        -> Filter: ((p.conversation_id is null) and ((p.community_id is null) or exists(select #5)))  (cost=1120 rows=243) (actual time=0.06..95.3 rows=48846 loops=1)
+                                                                                            -> Index lookup on p using posts_popular_remote_actor_index (status = 'published', visibility = 'public'), with index condition: ((p.published_at >= TIMESTAMP'2024-11-01 00:00:00') and (p.published_at < TIMESTAMP'2026-10-22 17:00:00'))  (cost=1120 rows=21906) (actual time=0.0596..93.5 rows=48846 loops=1)
+                                                                                            -> Select #5 (subquery in condition; dependent)
+                                                                                                -> Limit: 1 row(s)  (cost=0.35 rows=1) (actual time=0.00604..0.00608 rows=1 loops=1)
+                                                                                                    -> Filter: (c.is_private = 0)  (cost=0.35 rows=1) (actual time=0.00579..0.00579 rows=1 loops=1)
+                                                                                                        -> Single-row index lookup on c using PRIMARY (id = p.community_id)  (cost=0.35 rows=1) (actual time=0.0055..0.0055 rows=1 loops=1)
+                                                                                        -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=0.261 rows=0.05) (actual time=436e-6..455e-6 rows=0.412 loops=48846)
+                                                                                            -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.261 rows=1) (actual time=318e-6..334e-6 rows=1 loops=48846)
+                                                                                    -> Covering index lookup on ph using PRIMARY (post_id = p.id)  (cost=0.375 rows=5.68) (actual time=0.00234..0.00273 rows=3.37 loops=20105)
+                                                -> Filter: (h.`name` <> '')  (cost=0.251 rows=0.5) (actual time=0.00115..0.00119 rows=1 loops=18183)
+                                                    -> Single-row index lookup on h using PRIMARY (id = tc.hashtag_id)  (cost=0.251 rows=1) (actual time=0.00108..0.00109 rows=1 loops=18183)
+
+```

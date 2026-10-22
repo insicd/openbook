@@ -32,4 +32,9 @@ final class StatsController extends Controller
     {
         return response()->json($datasets->weekly())->header('Cache-Control', 'private, no-store');
     }
+
+    public function hashtags(StatsDataset $datasets): JsonResponse
+    {
+        return response()->json($datasets->hashtags())->header('Cache-Control', 'private, no-store');
+    }
 }

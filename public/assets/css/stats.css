@@ -57,3 +57,8 @@
 @media (prefers-reduced-motion: reduce) {
   .ob-stats-card[aria-busy="true"] .ob-stats-card__status::before { animation: none; }
 }
+
+.ob-stats-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem .65rem; margin-top: .5rem; }
+.ob-stats-legend button { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem; border: 0; border-radius: .25rem; background: transparent; color: var(--ob-color-text); font: inherit; font-size: .75rem; cursor: pointer; overflow-wrap: anywhere; max-width: 100%; }
+.ob-stats-legend button::before { content: ''; flex: 0 0 .65rem; width: .65rem; height: .65rem; border-radius: 50%; background: var(--ob-stats-series-color); }
+.ob-stats-legend button:hover, .ob-stats-legend button:focus-visible { background: var(--ob-color-primary-soft); outline: 2px solid var(--ob-color-primary); outline-offset: 1px; }

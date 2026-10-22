@@ -40,7 +40,17 @@ return [
         'description' => 'Distinct authors with at least one retained public post during the week.',
         'note' => 'Each author counts once per week, even when publishing several posts. The same author may appear in different weeks: weekly counts must not be added together. The first and last weeks may be partial.',
     ],
+    'hashtags' => [
+        'eyebrow' => 'The topics',
+        'title' => 'What people talk about',
+        'description' => 'The most used hashtags each month, followed over the last 24 months.',
+        'note' => 'The ten most used hashtags each month. Hover over the legend to highlight a topic or over the chart to see its name. The current month is partial.',
+    ],
     'chart' => [
+        'legend_top' => 'Legend · top 10 over the period',
+        'empty_hashtags' => 'No hashtags in retained public posts for this period.',
+        'compared_hashtags' => 'hashtags compared',
+
         'known_actors' => 'known accounts',
         'domains' => 'represented instances',
         'local_actors' => 'local accounts',

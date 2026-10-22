@@ -53,6 +53,30 @@ final class StatsQuery
             ->groupBy('week')->orderBy('week')->get();
     }
 
+    public function hashtags(CarbonImmutable $from, CarbonImmutable $to): Collection
+    {
+        $connection = $this->connection();
+        $month = $connection->getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', openbook_stats_utc(p.published_at))"
+            : "DATE_FORMAT(p.published_at, '%Y-%m')";
+        $counts = $this->posts($from, $to)->join('post_hashtags as ph', 'ph.post_id', '=', 'p.id')
+            ->selectRaw("{$month} AS month, ph.hashtag_id, COUNT(*) AS count")
+            ->groupBy('month', 'ph.hashtag_id');
+        $totals = $connection->query()->fromSub($counts, 'mc')
+            ->selectRaw('mc.*, SUM(count) OVER (PARTITION BY hashtag_id) AS total');
+        $ranked = $connection->query()->fromSub($totals, 'tc')->join('hashtags as h', 'h.id', '=', 'tc.hashtag_id')
+            ->where('h.name', '<>', '')
+            ->selectRaw('tc.*, h.name,
+                ROW_NUMBER() OVER (PARTITION BY month ORDER BY count DESC, h.name, h.id) AS month_rank,
+                DENSE_RANK() OVER (ORDER BY total DESC, h.name, h.id) AS overall_rank');
+
+        // One statement gives monthly winners and the period legend from the same snapshot.
+        return $connection->query()->fromSub($ranked, 'ranked')
+            ->where(fn (Builder $query) => $query->where('month_rank', '<=', 10)->orWhere('overall_rank', '<=', 10))
+            ->select('hashtag_id as id', 'name', 'month', 'count', 'total', 'month_rank', 'overall_rank')
+            ->orderBy('overall_rank')->orderBy('month')->get();
+    }
+
     private function week(string $alias): string
     {
         return $this->connection()->getDriverName() === 'sqlite'

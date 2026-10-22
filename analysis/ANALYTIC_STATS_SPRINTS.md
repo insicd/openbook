@@ -1,6 +1,6 @@
 # Stats — piano di implementazione
 
-Stato: sprint 1–2 approvati; sprint 3 autorizzato; sprint 4–9 non iniziati.
+Stato: sprint 1–3 approvati; sprint 4 autorizzato; sprint 5–9 non iniziati.
 Data: 22 ottobre 2026. Ramo richiesto: `stats`.
 Analisi e SQL: [ANALYTIC_STATS.md](ANALYTIC_STATS.md).
 Misure iniziali: [ANALYTIC_STATS_EXPLAIN.md](ANALYTIC_STATS_EXPLAIN.md).
@@ -186,13 +186,13 @@ finale concordata. Autorizzato l’avvio dello sprint 3.
 ## Sprint 3 — Hashtag e diffusione degli argomenti
 
 **Backend:** Q02B come prima candidata per il top dei tag, Q03 per le serie,
-Q04 per la normalizzazione e Q16 per autori/domìni distinti. Confermare la
+Q16 per autori/domìni distinti. Nessuna normalizzazione richiesta dalla UI. Confermare la
 riscrittura con EXPLAIN ANALYZE dell'implementazione. Non rendere obbligatori
 i FORCE INDEX delle varianti diagnostiche. Top tag, serie e denominatori della
 stessa risposta devono appartenere allo stesso snapshot logico.
 
 **Frontend:** confronto di pochi tag con linee di colore stabile, conteggi e
-opzione per 1.000 post; barre o riepilogo di diffusione tra autori/domìni.
+senza normalizzazione; barre o riepilogo di diffusione tra autori/domìni.
 Esporre la finestra di due anni come corpus conservato, senza promettere
 copertura storica completa. Evitare che assenza di dati significhi zero attività
 storica o che il top cambi per ogni settimana.
@@ -204,6 +204,107 @@ Ancora nessuna cache: misurare il costo complessivo della card, non soltanto
 la SELECT finale delle serie.
 
 Risultato: grafici hashtag e diffusione utilizzabili con il corpus disponibile.
+
+### Implementazione in revisione — 22 ottobre 2026
+
+Sprint 2 registrato nel commit `93f9e4b`. Sprint 3 aggiunge «Gli argomenti»
+e «La diffusione», entrambi caricati progressivamente dal JSON autenticato
+`/stats/hashtag`, riusato soltanto nella pagina corrente e senza cache server.
+Nessuna divisione per origine o tipo di contenuto e nessuna tabella dati.
+
+Top dieci hashtag fissi sull’intero periodo di due anni, ordinati per conteggio,
+nome e ID per risolvere le parità. Q02B conta prima la pivot e poi unisce i nomi;
+nessun FORCE INDEX. Seguono Q03 e Q16 senza origine. Dopo la rimozione
+della normalizzazione Q04 non viene più eseguita per gli hashtag, né
+si trasmettono denominatori inutilizzati. Le tre query condividono
+una transazione di sola lettura REPEATABLE READ sulla connessione MySQL UTC;
+SQLite usa il proprio snapshot transazionale. Stesse policy dei post già usate.
+
+Serie settimanali complete con zero nel corpus conservato e soli conteggi
+assoluti, senza controllo per 1.000 post. Colori e ordine dei tag stabili; nessuna nuova scelta
+per singola settimana. Il grafico di diffusione (utilità da rivedere con l’utente) mostra autori/istanze distinti
+nell’intero periodo per ciascun tag, con numero di post nei tooltip. I picchi
+di autori e istanze nei riepiloghi sono massimi per singolo tag, non totali
+sommati tra tag che potrebbero sovrapporsi.
+
+**Punto di arresto:** mostrare il risultato, raccogliere le correzioni e attendere
+l’OK prima del commit e della verifica completa dei nuovi piani. PHPUnit
+preparato ma rinviato alla verifica finale concordata.
+
+### Revisione successiva: rimozione diffusione e selezione dei topic da definire
+
+Su richiesta dell’utente rimossa «La diffusione» da pagina, JavaScript e JSON,
+insieme alla query Q16 e alle relative COUNT DISTINCT per hashtag. Le query
+rimaste sono ranking e serie, nello stesso snapshot. Le descrizioni precedenti
+della diffusione sono storiche e superate da questa decisione.
+
+Il criterio top 10 cumulati in due anni resta provvisorio: può nascondere topic
+occasionali. Occorre un solo grafico lungo due anni in cui emergano anche picchi
+limitati a un mese, senza tendina dei mesi. Selezione dei candidati e resa grafica
+sono da discutere prima di modificare ulteriormente l’implementazione.
+Nessun commit e nessuna nuova verifica PHPUnit.
+
+### Selezione mensile e legenda breve — decisione successiva
+
+Approvato il concetto: unico grafico con unione dei top 10 mensili e legenda
+limitata ai top 10 dell’intero periodo, evidenziazione su hover/focus e tooltip
+sulla singola serie. I top 10 complessivi sono inclusi anche se non fossero
+mai entrati nei top mensili. Quindi il limite teorico è 240 candidati mensili
+più, al massimo, 10 campioni del periodo non già selezionati.
+
+La finestra comprende 24 mesi di calendario, dal primo giorno del mese di
+23 mesi fa all’inizio dell’ora corrente UTC: mese corrente parziale. Ranking
+mensile tramite ROW_NUMBER; conteggi sull’intero periodo tramite SUM OVER
+e DENSE_RANK, con parità risolte per nome/ID. Prima aggregazione della pivot,
+poi join dei nomi. Le funzioni finestra sono disponibili su MySQL 8+, MariaDB
+10.2+ e SQLite 3.25+; restano da verificare i piani effettivi prima del commit.
+
+Selezionati i candidati, la seconda query ricostruisce tutti i conteggi settimanali
+nel periodo: uscire dalla top mensile non azzera né interrompe artificialmente
+la serie. La query e la serie condividono lo snapshot di sola lettura.
+La legenda HTML mostra solo i dieci campioni complessivi e supporta hover,
+focus da tastiera e tap. Evidenziando una linea le altre diventano attenuate;
+nel grafico il tooltip usa la serie più vicina e mostra il nome completo.
+Nessuna cache, selezione di mesi, normalizzazione o grafico di diffusione.
+Questa decisione supera il precedente criterio provvisorio dei top cumulati.
+Anteprima locale con dati reali: 124 serie, 10 voci di legenda e 104 bucket
+settimanali. Provati evidenziazione dalla legenda e tooltip della singola serie.
+Preparato un test per un topic mensile fuori dalla top 10 complessiva,
+con conteggi conservati anche nei mesi fuori classifica; PHPUnit non eseguito.
+
+### Correzione definitiva del perimetro mensile e del fuso di visualizzazione
+
+L’utente chiarisce che un hashtag deve essere disegnato SOLO nei mesi in cui
+rientra nella top 10. Superata l’interpretazione precedente dei conteggi
+completi fuori classifica. Si usa ora un bucket mensile con al massimo dieci
+valori presenti per mese; gli altri sono null, non zero. I null interrompono
+le linee (spanGaps false); brevi tratti orizzontali permettono di vedere anche un trend
+presente in un solo mese. Lo stesso ID hashtag identifica una sola serie,
+quindi ricomparse in anni diversi mantengono identità e colore.
+
+Ranking, totali per la legenda e conteggi mensili provengono da una sola
+SELECT con funzioni finestra: eliminata la seconda query di serie settimanali
+e la transazione esplicita, non più necessaria per la coerenza dello snapshot.
+La legenda resta limitata ai dieci campioni complessivi; un eventuale tag
+in legenda ma mai nella top mensile non viene forzato nel grafico.
+
+Gli intervalli e i bucket restano UTC. Solo la data «Dati elaborati il» viene
+formattata in JavaScript usando il fuso scelto tramite UserDate (preferenza
+account, browser o fallback applicativo), con indicazione locale del fuso.
+Aggiornati i test per massimo dieci valori al mese, ricomparsa dello stesso
+tag, assenza fuori classifica e preferenza di fuso. PHPUnit ancora non eseguito.
+
+Ritocco grafico successivo: nessun pallino fisso sui valori. I mesi isolati
+restano visibili come brevi tratti, usando pointStyle line solo quando non
+ci sono valori adiacenti. Nota di lettura abbreviata nella UI; le regole
+dettagliate restano in questa analisi. Nessun commit.
+
+**Esito sprint 3:** approvato dall’utente. EXPLAIN ANALYZE del SQL definitivo
+registrato: circa 409 ms sul campione locale, con indice
+`posts_popular_remote_actor_index`, PK della pivot e lookup dei nomi sulla PK.
+Il costo include aggregazione mensile e ordinamenti delle funzioni finestra;
+nessun nuovo indice giustificato. Cache ancora rinviata allo sprint 9.
+PHPUnit non eseguito, come concordato. Autorizzato lo sprint 4.
 
 ## Sprint 4 — Conversazioni tra istanze
 

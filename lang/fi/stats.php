@@ -40,7 +40,17 @@ return [
         'description' => 'Eri tekijät, joilta on säilytetty vähintään yksi julkinen julkaisu viikon aikana.',
         'note' => 'Jokainen tekijä lasketaan kerran viikossa julkaisumäärästä riippumatta. Sama tekijä voi esiintyä usealla viikolla: viikkomääriä ei saa laskea yhteen. Ensimmäinen ja viimeinen viikko voivat olla osittaisia.',
     ],
+    'hashtags' => [
+        'eyebrow' => 'Aiheet',
+        'title' => 'Mistä puhutaan',
+        'description' => 'Kunkin kuukauden käytetyimmät aihetunnisteet viimeisten 24 kuukauden ajalta.',
+        'note' => 'Kunkin kuukauden kymmenen käytetyintä aihetunnistetta. Vie osoitin selitteen päälle korostaaksesi aihetta tai kaavion päälle nähdäksesi sen nimen. Kuluva kuukausi on osittainen.',
+    ],
     'chart' => [
+        'legend_top' => 'Selite · koko ajanjakson 10 käytetyintä',
+        'empty_hashtags' => 'Tämän ajanjakson säilytetyissä julkisissa julkaisuissa ei ole aihetunnisteita.',
+        'compared_hashtags' => 'vertailtavaa aihetunnistetta',
+
         'known_actors' => 'tunnettua tiliä',
         'domains' => 'edustettua instanssia',
         'local_actors' => 'paikallista tiliä',

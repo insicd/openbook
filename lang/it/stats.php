@@ -40,7 +40,17 @@ return [
         'description' => 'Autori distinti con almeno un post pubblico conservato nella settimana.',
         'note' => 'Ogni autore conta una sola volta per settimana, anche se pubblica più post. Lo stesso autore può comparire in settimane diverse: i conteggi settimanali non vanno sommati. Prima e ultima settimana possono essere parziali.',
     ],
+    'hashtags' => [
+        'eyebrow' => 'Gli argomenti',
+        'title' => 'Di cosa si parla',
+        'description' => 'Gli hashtag più usati mese per mese, seguiti lungo gli ultimi 24 mesi.',
+        'note' => 'I dieci hashtag più usati in ciascun mese. Passa sulla legenda per evidenziare un argomento o sul grafico per scoprirne il nome. Il mese corrente è parziale.',
+    ],
     'chart' => [
+        'legend_top' => 'Legenda · i 10 più usati nel periodo',
+        'empty_hashtags' => 'Nessun hashtag nei post pubblici conservati in questo periodo.',
+        'compared_hashtags' => 'hashtag a confronto',
+
         'known_actors' => 'account conosciuti',
         'domains' => 'istanze rappresentate',
         'local_actors' => 'account locali',

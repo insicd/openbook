@@ -65,6 +65,32 @@ final class StatsDataset
         return $this->metadata('weekly', $from, $to, 'week', 'posts_and_authors') + ['rows' => $rows, 'weeks' => $weeks];
     }
 
+    public function hashtags(): array
+    {
+        $to = CarbonImmutable::now('UTC')->startOfHour();
+        $from = $to->startOfMonth()->subMonthsNoOverflow(23);
+        $data = $this->query->hashtags($from, $to);
+        $rows = $data->unique('id')->map(static fn (object $tag): array => [
+            'id' => $tag->id,
+            'name' => $tag->name,
+            'count' => (int) $tag->total,
+            'legend' => (int) $tag->overall_rank <= 10,
+        ])->values()->all();
+        $winners = $data->filter(static fn (object $tag): bool => (int) $tag->month_rank <= 10)->groupBy('month');
+        $months = [];
+        for ($month = $from; $month->lessThan($to); $month = $month->addMonth()) {
+            $key = $month->format('Y-m');
+            $counts = $winners->get($key, collect())->keyBy('id');
+            $months[] = [
+                'month' => $key,
+                // Outside the monthly top ten means absent, not a zero count.
+                'counts' => array_map(static fn (array $tag): ?int => $counts->has($tag['id']) ? (int) $counts->get($tag['id'])->count : null, $rows),
+            ];
+        }
+
+        return $this->metadata('hashtags', $from, $to, 'month', 'posts') + ['rows' => $rows, 'months' => $months];
+    }
+
     private function metadata(string $metric, CarbonImmutable $from, CarbonImmutable $to, string $bucket, string $unit): array
     {
         return [

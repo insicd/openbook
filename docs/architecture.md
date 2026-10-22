@@ -129,6 +129,14 @@ Volume and active authors each show a single weekly total series, without
 instance filters or a local/remote split. Author counts
 must not be added across weeks.
 
+The hashtag chart includes each of the last 24 calendar months’ top 10
+(including the partial current month), plus the top 10 over the entire period.
+Each month shows at most ten hashtags: outside the top 10 a series has a
+gap, keeping its identity and colour when a hashtag returns. The legend contains only the ten most used
+over the period: hover or keyboard focus highlights a series; tooltips also
+identify hashtags outside the legend. Ranges stay in UTC; generation times
+use the visitor’s timezone.
+
 Each chart loads its dataset as you approach it on the page. Failed requests
 can be retried independently. This phase does not cache the results. Statistics
 respect instance moderation and authors' discovery/indexing preferences.

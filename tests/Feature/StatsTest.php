@@ -38,6 +38,7 @@ class StatsTest extends TestCase
         $this->getJson('/stats/lingue')->assertUnauthorized();
         $this->getJson('/stats/domini')->assertUnauthorized();
         $this->getJson('/stats/settimane')->assertUnauthorized();
+        $this->getJson('/stats/hashtag')->assertUnauthorized();
     }
 
     public function test_an_ordinary_user_can_read_stats_without_aggregates_in_the_html_response(): void
@@ -58,6 +59,7 @@ class StatsTest extends TestCase
         $this->getJson('/stats/lingue')->assertOk()->assertJsonPath('metric', 'languages');
         $this->getJson('/stats/domini')->assertOk()->assertJsonPath('metric', 'domains');
         $this->getJson('/stats/settimane')->assertOk()->assertJsonPath('metric', 'weekly');
+        $this->getJson('/stats/hashtag')->assertOk()->assertJsonPath('metric', 'hashtags');
     }
 
     public function test_hourly_buckets_are_complete_utc_hours_and_results_are_not_cached(): void
@@ -236,5 +238,87 @@ class StatsTest extends TestCase
         $this->assertSame(2, $rows->where('domain', 'counts.example')->sum('count'));
         $this->assertSame(1, $rows->where('domain', 'counts.example')->where('type', 'group')->sum('count'));
         $this->assertSame(0, $rows->where('domain', 'blocked.example')->sum('count'));
+    }
+
+    public function test_hashtags_show_only_the_top_ten_counts_of_each_month(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
+        $local = $this->createFullAccount('statstags');
+        $local->actor->forceFill(['discoverable' => true, 'indexable' => true])->save();
+        $remote = $this->createRemoteActor('tags', 'tags.example', ['discoverable' => true, 'indexable' => true]);
+        $tags = collect(['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa', 'lambda'])
+            ->mapWithKeys(fn (string $name): array => [$name => Hashtag::create(['name' => $name])]);
+        $fixtures = [
+            [$local->actor->id, '2026-10-12 10:00:00', ['alpha', 'beta']],
+            [$local->actor->id, '2026-10-13 10:00:00', ['alpha']],
+            [$local->actor->id, '2026-10-19 10:00:00', $tags->keys()->all()],
+            [$remote->id, '2026-10-20 10:00:00', ['alpha', 'beta']],
+        ];
+        foreach ($fixtures as [$actorId, $publishedAt, $names]) {
+            $post = Post::create([
+                'actor_id' => $actorId, 'body' => 'Tagged example', 'status' => 'published',
+                'visibility' => 'public', 'published_at' => $publishedAt,
+            ]);
+            $post->hashtags()->attach(array_map(fn (string $name): string => $tags[$name]->id, $names));
+        }
+        $private = Post::create([
+            'actor_id' => $local->actor->id, 'body' => 'Private tagged example', 'status' => 'published',
+            'visibility' => 'followers', 'published_at' => '2026-10-20 11:00:00',
+        ]);
+        $private->hashtags()->attach($tags['alpha']->id);
+        $data = app(StatsDataset::class)->hashtags();
+        $this->assertSame(['alpha', 'beta', 'delta', 'epsilon', 'eta', 'gamma', 'iota', 'kappa', 'lambda', 'theta'], array_column($data['rows'], 'name'));
+        $this->assertSame(4, $data['rows'][0]['count']);
+        $months = collect($data['months'])->keyBy('month');
+        $this->assertSame(4, $months['2026-10']['counts'][0]);
+        $this->assertSame(array_fill(0, 10, null), $months['2026-09']['counts']);
+        $this->actingAs($local)->getJson('/stats/hashtag')->assertHeader('Cache-Control', 'no-store, private');
+    }
+
+    public function test_a_short_lived_monthly_topic_is_included_outside_the_overall_top_ten(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
+        $author = $this->createFullAccount('statsmonthly');
+        $author->actor->forceFill(['discoverable' => true, 'indexable' => true])->save();
+        $regular = collect(range(1, 10))->map(fn (int $n) => Hashtag::create(['name' => 'regular'.$n]));
+        $occasional = Hashtag::create(['name' => 'occasional']);
+        foreach (['2025-01-10', '2025-01-11', '2026-09-10', '2026-09-11'] as $day) {
+            $post = Post::create([
+                'actor_id' => $author->actor->id, 'body' => 'Regular topics', 'status' => 'published',
+                'visibility' => 'public', 'published_at' => $day.' 10:00:00',
+            ]);
+            $post->hashtags()->attach($regular->pluck('id')->all());
+        }
+        foreach (['2025-01-12', '2025-08-10', '2026-08-10'] as $day) {
+            $post = Post::create([
+                'actor_id' => $author->actor->id, 'body' => 'Occasional topic', 'status' => 'published',
+                'visibility' => 'public', 'published_at' => $day.' 10:00:00',
+            ]);
+            $post->hashtags()->attach($occasional->id);
+        }
+        $data = app(StatsDataset::class)->hashtags();
+        $this->assertSame('2024-11-01T00:00:00+00:00', $data['period']['from']);
+        $this->assertCount(11, $data['rows']);
+        $this->assertCount(10, array_filter($data['rows'], fn (array $tag): bool => $tag['legend']));
+        $index = array_search('occasional', array_column($data['rows'], 'name'), true);
+        $this->assertNotFalse($index);
+        $this->assertFalse($data['rows'][$index]['legend']);
+        $this->assertSame(3, $data['rows'][$index]['count']);
+        $months = collect($data['months'])->keyBy('month');
+        $this->assertNull($months['2025-01']['counts'][$index]);
+        $this->assertSame(1, $months['2025-08']['counts'][$index]);
+        $this->assertSame(1, $months['2026-08']['counts'][$index]);
+        $this->assertCount(24, $data['months']);
+        foreach ($data['months'] as $month) {
+            $this->assertLessThanOrEqual(10, count(array_filter($month['counts'], fn ($value): bool => $value !== null)));
+        }
+    }
+
+    public function test_the_stats_page_supplies_the_viewers_preferred_timezone(): void
+    {
+        $user = $this->createFullAccount('statstimezone');
+        $user->settings()->update(['timezone' => 'America/New_York']);
+        $this->actingAs($user)->get('/stats')->assertOk()
+            ->assertSee('data-timezone="America/New_York"', false);
     }
 }
