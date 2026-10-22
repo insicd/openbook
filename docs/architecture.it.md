@@ -119,6 +119,21 @@ pubblici o non elencati. La Home e Mondo richiedono JavaScript per caricare i fe
 Profili, community e pagine degli hashtag offrono anche link di paginazione
 quando JavaScript è disabilitato.
 
+## Stats
+
+Il link **Stats** nei footer apre una pagina riservata agli utenti autenticati,
+senza requisiti di ruolo. La prima versione mostra i post pubblici conservati
+nelle ultime 360 ore complete (UTC) e le lingue di post ed eventi pubblici
+conservati negli ultimi due anni. Puoi distinguere post ed eventi e aprire
+**Mostra dati** per consultare i valori in tabella.
+
+Ogni grafico carica i dati quando ti avvicini alla sua posizione nella pagina;
+un errore può essere ritentato senza ricaricare gli altri. In questa fase non
+è attiva una cache dei risultati. Le statistiche rispettano moderazione e
+preferenze di scoperta/indicizzazione degli autori. Descrivono il corpus ancora
+conservato, non tutto il Fediverso: retention e cancellazioni possono cambiare
+le serie e uno zero non prova l'assenza storica di pubblicazioni.
+
 ## Profilo e impostazioni
 
 Apri **Impostazioni** dal menu utente o **Modifica profilo** sul tuo profilo.

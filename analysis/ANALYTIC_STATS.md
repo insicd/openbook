@@ -1,6 +1,6 @@
 # Stats — idee e analisi iniziale
 
-Stato: analisi revisionata e piano di implementazione, senza codice applicativo.
+Stato: sprint 1 implementato per revisione; sprint successivi in attesa.
 Verifica dello schema, dei flussi e delle protoquery con EXPLAIN ANALYZE e
 revisione critica: 22 ottobre 2026. Piano in [ANALYTIC_STATS_SPRINTS.md](ANALYTIC_STATS_SPRINTS.md).
 

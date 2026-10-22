@@ -115,6 +115,21 @@ Trending shows hashtags recently used in local public or unlisted content.
 Home and World require JavaScript to load their feeds. Profiles, communities
 and hashtag pages also provide pagination links with JavaScript disabled.
 
+## Stats
+
+The **Stats** link in the footers opens a page for signed-in users, with no
+staff role required. The first version shows retained public posts over the
+last 360 complete hours (UTC), and languages of retained public posts and
+events over the last two years. You can switch between posts and events and
+open **Show data** to read the values in a table.
+
+Each chart loads its dataset as you approach it on the page. Failed requests
+can be retried independently. This phase does not cache the results. Statistics
+respect instance moderation and authors' discovery/indexing preferences.
+They describe retained content, not the entire Fediverse: deletion and
+retention can change the series, and zero does not prove that nothing was
+published historically.
+
 ## Profile and settings
 
 Open **Settings** from the user menu or **Edit profile** on your profile. You

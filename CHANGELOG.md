@@ -19,6 +19,11 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Stats (prima prova)**: pagina accessibile dal footer agli utenti autenticati,
+  con ritmo dei post nelle ultime 360 ore complete e distribuzione delle lingue
+  di post ed eventi pubblici conservati. Grafici e tabelle caricano i dati solo
+  avvicinandosi alla zona visibile, senza cache dei risultati in questa fase.
+  Aggiornare la cache delle route.
 - **CSV dei seguiti (#117)**: nella nuova scheda «Importa ed esporta» puoi
   scaricare i seguiti in formato compatibile con Mastodon e importare un CSV.
   Il caricamento crea subito le richieste di follow, conserva quelle esistenti

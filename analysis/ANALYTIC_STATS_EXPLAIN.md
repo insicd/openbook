@@ -718,3 +718,166 @@ I dieci ID di Q02 usati in Q03, Q16 e nelle rispettive varianti:
 ```text
 '019fc806-7d4e-715b-8dd2-85520afba1e9', '019fc832-28cb-736b-959a-869dc994435a', '019fc806-7d50-72ce-9acf-d39093bc7ed8', '019fd6cd-3552-70ba-8784-d43ef9f45de6', '019ff7b5-9000-7299-97c8-89786db1f3cd', '019fd0e4-ac6c-7228-a881-d196daa2002a', '019fda3c-1c16-72c4-88f4-63649c606bb1', '019fd0e4-ac49-712f-9eb4-42367b63a376', '019ff81b-825d-712d-aad9-708c115668d7', '019fd1c5-9092-7342-8945-ce11382f7f39'
 ```
+
+## Sprint 1 — SQL implementato e verifica del 22 ottobre 2026
+
+Misure separate dal benchmark iniziale. Le query sono generate da `StatsQuery`;
+nessuna cache dei risultati. Tre esecuzioni ANALYZE per query; sotto sono
+conservati SQL, binding e piano finale. Policy aggiuntive impostate solo nel
+processo di verifica e con cache policy in memoria, senza cambiare l'istanza.
+PHPUnit non eseguito su richiesta dell'utente.
+
+L'istanza usa `APP_TIMEZONE=Europe/Helsinki` e connessione principale SYSTEM.
+Stats legge i TIMESTAMP MySQL su una connessione allo stesso database con
+sessione `+00:00`, senza cambiare la sessione principale (SYSTEM prima/dopo).
+SQLite converte gli orologi applicativi in UTC tramite una funzione locale
+registrata dalla query; i filtri temporali rispettano l'orologio persistito.
+Non sono richieste tabelle MySQL dei fusi orari né servizi esterni.
+
+### Policy corrente (CW disattivati, nessun blocco)
+
+#### Ritmo
+
+Tempi radice ms: `[4.74, 4.39, 4.4]`.
+
+```sql
+select DATE_FORMAT(p.published_at, '%Y-%m-%dT%H:00:00Z') AS bucket, a.is_local, COUNT(*) AS count from `posts` as `p` inner join `actors` as `a` on `a`.`id` = `p`.`actor_id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and 1 = 1 and `p`.`status` = ? and `p`.`visibility` = ? and `p`.`conversation_id` is null and `p`.`published_at` >= ? and `p`.`published_at` < ? and (`p`.`community_id` is null or exists (select 1 from `communities` as `c` where `c`.`id` = `p`.`community_id` and `c`.`is_private` = ?)) group by `bucket`, `a`.`is_local` order by `bucket` asc
+```
+
+Binding nell'ordine: `["active", false, true, true, "application", "published", "public", "2026-10-07T16:00:00.000000Z", "2026-10-22T16:00:00.000000Z", false]`.
+
+```text
+-> Sort: bucket, a.is_local  (actual time=4.4..4.4 rows=55 loops=1)
+    -> Table scan on <temporary>  (actual time=4.38..4.39 rows=55 loops=1)
+        -> Aggregate using temporary table  (actual time=4.38..4.38 rows=55 loops=1)
+            -> Nested loop inner join  (cost=661 rows=6.78) (actual time=0.0298..4.13 rows=819 loops=1)
+                -> Filter: ((p.conversation_id is null) and ((p.community_id is null) or exists(select #2)))  (cost=610 rows=136) (actual time=0.0269..2.15 rows=1356 loops=1)
+                    -> Index range scan on p using posts_visibility_status_published_at_index over (visibility = 'public' AND status = 'published' AND '2026-10-07 16:00:00' <= published_at < '2026-10-22 16:00:00'), with index condition: ((p.`status` = 'published') and (p.visibility = 'public') and (p.published_at >= TIMESTAMP'2026-10-07 16:00:00') and (p.published_at < TIMESTAMP'2026-10-22 16:00:00'))  (cost=610 rows=1356) (actual time=0.0268..2.1 rows=1356 loops=1)
+                    -> Select #2 (subquery in condition; dependent)
+                        -> Limit: 1 row(s)  (cost=0.35 rows=1) (never executed)
+                            -> Filter: (c.is_private = 0)  (cost=0.35 rows=1) (never executed)
+                                -> Single-row index lookup on c using PRIMARY (id = p.community_id)  (cost=0.35 rows=1) (never executed)
+                -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=0.275 rows=0.05) (actual time=0.00138..0.0014 rows=0.604 loops=1356)
+                    -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.275 rows=1) (actual time=0.00126..0.00127 rows=1 loops=1356)
+```
+
+#### Lingue, UNION ALL post/eventi
+
+Tempi radice ms: `[117.0, 116.0, 110.0]`.
+
+```sql
+(select ? AS kind, DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY) AS week, a.is_local,
+                COALESCE(NULLIF(LOWER(TRIM(p.language)), ''), 'und') AS language,
+                COUNT(*) AS count from `posts` as `p` inner join `actors` as `a` on `a`.`id` = `p`.`actor_id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and 1 = 1 and `p`.`status` = ? and `p`.`visibility` = ? and `p`.`conversation_id` is null and `p`.`published_at` >= ? and `p`.`published_at` < ? and (`p`.`community_id` is null or exists (select 1 from `communities` as `c` where `c`.`id` = `p`.`community_id` and `c`.`is_private` = ?)) group by `week`, `a`.`is_local`, COALESCE(NULLIF(LOWER(TRIM(p.language)), ''), 'und')) union all (select ? AS kind, DATE_SUB(DATE(e.published_at), INTERVAL WEEKDAY(e.published_at) DAY) AS week, a.is_local,
+                COALESCE(NULLIF(LOWER(TRIM(e.language)), ''), 'und') AS language,
+                COUNT(*) AS count from `events` as `e` inner join `actors` as `a` on `a`.`id` = `e`.`actor_id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and 1 = 1 and `e`.`visibility` = ? and `e`.`deleted_at` is null and `e`.`status` in (?, ?, ?) and `e`.`published_at` >= ? and `e`.`published_at` < ? group by `week`, `a`.`is_local`, COALESCE(NULLIF(LOWER(TRIM(e.language)), ''), 'und'))
+```
+
+Binding nell'ordine: `["post", "active", false, true, true, "application", "published", "public", "2024-10-22T16:00:00.000000Z", "2026-10-22T16:00:00.000000Z", false, "event", "active", false, true, true, "application", "public", "scheduled", "tentative", "postponed", "2024-10-22T16:00:00.000000Z", "2026-10-22T16:00:00.000000Z"]`.
+
+```text
+-> Append  (actual time=109..110 rows=114 loops=1)
+    -> Stream results  (actual time=109..109 rows=100 loops=1)
+        -> Table scan on <temporary>  (actual time=109..109 rows=100 loops=1)
+            -> Aggregate using temporary table  (actual time=109..109 rows=100 loops=1)
+                -> Nested loop inner join  (cost=1208 rows=12.1) (actual time=0.05..104 rows=20084 loops=1)
+                    -> Filter: ((p.conversation_id is null) and ((p.community_id is null) or exists(select #2)))  (cost=1117 rows=243) (actual time=0.0435..80.7 rows=48751 loops=1)
+                        -> Index lookup on p using posts_popular_remote_actor_index (status = 'published', visibility = 'public'), with index condition: ((p.published_at >= TIMESTAMP'2024-10-22 16:00:00') and (p.published_at < TIMESTAMP'2026-10-22 16:00:00'))  (cost=1117 rows=21855) (actual time=0.0433..79.1 rows=48751 loops=1)
+                        -> Select #2 (subquery in condition; dependent)
+                            -> Limit: 1 row(s)  (cost=0.35 rows=1) (actual time=0.00442..0.00442 rows=1 loops=1)
+                                -> Filter: (c.is_private = 0)  (cost=0.35 rows=1) (actual time=0.00425..0.00425 rows=1 loops=1)
+                                    -> Single-row index lookup on c using PRIMARY (id = p.community_id)  (cost=0.35 rows=1) (actual time=0.00408..0.00408 rows=1 loops=1)
+                    -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=0.275 rows=0.05) (actual time=409e-6..426e-6 rows=0.412 loops=48751)
+                        -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.275 rows=1) (actual time=300e-6..314e-6 rows=1 loops=48751)
+    -> Stream results  (actual time=0.19..0.192 rows=14 loops=1)
+        -> Table scan on <temporary>  (actual time=0.189..0.189 rows=14 loops=1)
+            -> Aggregate using temporary table  (actual time=0.189..0.189 rows=14 loops=1)
+                -> Nested loop inner join  (cost=20 rows=0.0811) (actual time=0.0172..0.159 rows=76 loops=1)
+                    -> Filter: ((e.visibility = 'public') and (e.deleted_at is null) and (e.`status` in ('scheduled','tentative','postponed')) and (e.published_at >= TIMESTAMP'2024-10-22 16:00:00') and (e.published_at < TIMESTAMP'2026-10-22 16:00:00') and (e.actor_id is not null))  (cost=19.4 rows=1.62) (actual time=0.011..0.0784 rows=145 loops=1)
+                        -> Table scan on e  (cost=19.4 rows=149) (actual time=0.00896..0.0519 rows=151 loops=1)
+                    -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=0.278 rows=0.05) (actual time=480e-6..501e-6 rows=0.524 loops=145)
+                        -> Single-row index lookup on a using PRIMARY (id = e.actor_id)  (cost=0.278 rows=1) (actual time=363e-6..380e-6 rows=1 loops=145)
+```
+
+### Policy di verifica (CW attivi, tag nsfw escluso, mastodon.social bloccato)
+
+#### Ritmo
+
+Tempi radice ms: `[5.6, 5.33, 5.59]`.
+
+```sql
+select DATE_FORMAT(p.published_at, '%Y-%m-%dT%H:00:00Z') AS bucket, a.is_local, COUNT(*) AS count from `posts` as `p` inner join `actors` as `a` on `a`.`id` = `p`.`actor_id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and `a`.`domain` not in (?) and `a`.`uri` <> ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` <> ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `p`.`status` = ? and `p`.`visibility` = ? and `p`.`conversation_id` is null and `p`.`published_at` >= ? and `p`.`published_at` < ? and (`p`.`community_id` is null or exists (select 1 from `communities` as `c` where `c`.`id` = `p`.`community_id` and `c`.`is_private` = ?)) and (`p`.`content_warning` is null or `p`.`content_warning` = ?) and not exists (select 1 from `post_hashtags` as `ph` inner join `hashtags` as `h` on `h`.`id` = `ph`.`hashtag_id` where `ph`.`post_id` = `p`.`id` and `h`.`name` in (?)) group by `bucket`, `a`.`is_local` order by `bucket` asc
+```
+
+Binding nell'ordine: `["active", false, true, true, "application", "mastodon.social", "https://mastodon.social", "https://mastodon.social/%", "https://mastodon.social:%", "https://mastodon.social?%", "https://mastodon.social#%", "http://mastodon.social", "http://mastodon.social/%", "http://mastodon.social:%", "http://mastodon.social?%", "http://mastodon.social#%", "published", "public", "2026-10-07T16:00:00.000000Z", "2026-10-22T16:00:00.000000Z", false, "", "nsfw"]`.
+
+```text
+-> Sort: bucket, a.is_local  (actual time=5.59..5.59 rows=53 loops=1)
+    -> Table scan on <temporary>  (actual time=5.58..5.58 rows=53 loops=1)
+        -> Aggregate using temporary table  (actual time=5.58..5.58 rows=53 loops=1)
+            -> Nested loop inner join  (cost=640 rows=7.75) (actual time=0.114..5.33 rows=754 loops=1)
+                -> Nested loop antijoin  (cost=618 rows=155) (actual time=0.11..2.86 rows=1350 loops=1)
+                    -> Filter: ((p.conversation_id is null) and ((p.community_id is null) or exists(select #2)) and ((p.content_warning is null) or (p.content_warning = '')))  (cost=599 rows=25.8) (actual time=0.03..2.32 rows=1350 loops=1)
+                        -> Index range scan on p using posts_visibility_status_published_at_index over (visibility = 'public' AND status = 'published' AND '2026-10-07 16:00:00' <= published_at < '2026-10-22 16:00:00'), with index condition: ((p.`status` = 'published') and (p.visibility = 'public') and (p.published_at >= TIMESTAMP'2026-10-07 16:00:00') and (p.published_at < TIMESTAMP'2026-10-22 16:00:00'))  (cost=599 rows=1356) (actual time=0.0298..2.26 rows=1356 loops=1)
+                        -> Select #2 (subquery in condition; dependent)
+                            -> Limit: 1 row(s)  (cost=0.35 rows=1) (never executed)
+                                -> Filter: (c.is_private = 0)  (cost=0.35 rows=1) (never executed)
+                                    -> Single-row index lookup on c using PRIMARY (id = p.community_id)  (cost=0.35 rows=1) (never executed)
+                    -> Single-row index lookup on <subquery3> using <auto_distinct_key> (post_id = p.id)  (cost=5.65..5.65 rows=1) (actual time=349e-6..349e-6 rows=0 loops=1350)
+                        -> Materialize with deduplication  (cost=3.57..3.57 rows=6.01) (actual time=0.0789..0.0789 rows=162 loops=1)
+                            -> Filter: (ph.post_id is not null)  (cost=2.18 rows=6.01) (actual time=0.00625..0.0473 rows=162 loops=1)
+                                -> Nested loop inner join  (cost=2.18 rows=6.01) (actual time=0.00608..0.0426 rows=162 loops=1)
+                                    -> Single-row covering index lookup on h using hashtags_name_unique (name = 'nsfw')  (cost=1.1 rows=1) (actual time=0.002..0.00204 rows=1 loops=1)
+                                    -> Covering index lookup on ph using post_hashtags_hashtag_id_index (hashtag_id = h.id)  (cost=1.08 rows=6.01) (actual time=0.00404..0.0353 rows=162 loops=1)
+                -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application') and (a.domain <> 'mastodon.social') and (a.`uri` <> 'https://mastodon.social') and (not((a.`uri` like 'https://mastodon.social/%'))) and (not((a.`uri` like 'https://mastodon.social:%'))) and (not((a.`uri` like 'https://mastodon.social?%'))) and (not((a.`uri` like 'https://mastodon.social#%'))) and (a.`uri` <> 'http://mastodon.social') and (not((a.`uri` like 'http://mastodon.social/%'))) and (not((a.`uri` like 'http://mastodon.social:%'))) and (not((a.`uri` like 'http://mastodon.social?%'))) and (not((a.`uri` like 'http://mastodon.social#%'))))  (cost=0.275 rows=0.05) (actual time=0.00175..0.00177 rows=0.559 loops=1350)
+                    -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.275 rows=1) (actual time=0.00139..0.0014 rows=1 loops=1350)
+```
+
+#### Lingue, UNION ALL post/eventi
+
+Tempi radice ms: `[138.0, 135.0, 147.0]`.
+
+```sql
+(select ? AS kind, DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY) AS week, a.is_local,
+                COALESCE(NULLIF(LOWER(TRIM(p.language)), ''), 'und') AS language,
+                COUNT(*) AS count from `posts` as `p` inner join `actors` as `a` on `a`.`id` = `p`.`actor_id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and `a`.`domain` not in (?) and `a`.`uri` <> ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` <> ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `p`.`status` = ? and `p`.`visibility` = ? and `p`.`conversation_id` is null and `p`.`published_at` >= ? and `p`.`published_at` < ? and (`p`.`community_id` is null or exists (select 1 from `communities` as `c` where `c`.`id` = `p`.`community_id` and `c`.`is_private` = ?)) and (`p`.`content_warning` is null or `p`.`content_warning` = ?) and not exists (select 1 from `post_hashtags` as `ph` inner join `hashtags` as `h` on `h`.`id` = `ph`.`hashtag_id` where `ph`.`post_id` = `p`.`id` and `h`.`name` in (?)) group by `week`, `a`.`is_local`, COALESCE(NULLIF(LOWER(TRIM(p.language)), ''), 'und')) union all (select ? AS kind, DATE_SUB(DATE(e.published_at), INTERVAL WEEKDAY(e.published_at) DAY) AS week, a.is_local,
+                COALESCE(NULLIF(LOWER(TRIM(e.language)), ''), 'und') AS language,
+                COUNT(*) AS count from `events` as `e` inner join `actors` as `a` on `a`.`id` = `e`.`actor_id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`discoverable` = ? and `a`.`indexable` = ? and `a`.`type` <> ? and `a`.`domain` not in (?) and `a`.`uri` <> ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` <> ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `a`.`uri` not like ? and `e`.`visibility` = ? and `e`.`deleted_at` is null and `e`.`status` in (?, ?, ?) and `e`.`published_at` >= ? and `e`.`published_at` < ? and `e`.`sensitive` = ? and not exists (select 1 from `event_hashtags` as `ph` inner join `hashtags` as `h` on `h`.`id` = `ph`.`hashtag_id` where `ph`.`event_id` = `e`.`id` and `h`.`name` in (?)) group by `week`, `a`.`is_local`, COALESCE(NULLIF(LOWER(TRIM(e.language)), ''), 'und'))
+```
+
+Binding nell'ordine: `["post", "active", false, true, true, "application", "mastodon.social", "https://mastodon.social", "https://mastodon.social/%", "https://mastodon.social:%", "https://mastodon.social?%", "https://mastodon.social#%", "http://mastodon.social", "http://mastodon.social/%", "http://mastodon.social:%", "http://mastodon.social?%", "http://mastodon.social#%", "published", "public", "2024-10-22T16:00:00.000000Z", "2026-10-22T16:00:00.000000Z", false, "", "nsfw", "event", "active", false, true, true, "application", "mastodon.social", "https://mastodon.social", "https://mastodon.social/%", "https://mastodon.social:%", "https://mastodon.social?%", "https://mastodon.social#%", "http://mastodon.social", "http://mastodon.social/%", "http://mastodon.social:%", "http://mastodon.social?%", "http://mastodon.social#%", "public", "scheduled", "tentative", "postponed", "2024-10-22T16:00:00.000000Z", "2026-10-22T16:00:00.000000Z", false, "nsfw"]`.
+
+```text
+-> Append  (actual time=146..147 rows=105 loops=1)
+    -> Stream results  (actual time=146..146 rows=91 loops=1)
+        -> Table scan on <temporary>  (actual time=146..146 rows=91 loops=1)
+            -> Aggregate using temporary table  (actual time=146..146 rows=91 loops=1)
+                -> Nested loop inner join  (cost=1170 rows=13.9) (actual time=0.121..141 rows=16597 loops=1)
+                    -> Nested loop antijoin  (cost=1130 rows=277) (actual time=0.113..110 rows=48478 loops=1)
+                        -> Filter: ((p.conversation_id is null) and ((p.community_id is null) or exists(select #2)) and ((p.content_warning is null) or (p.content_warning = '')))  (cost=1097 rows=46.1) (actual time=0.0379..93.2 rows=48484 loops=1)
+                            -> Index lookup on p using posts_popular_remote_actor_index (status = 'published', visibility = 'public'), with index condition: ((p.published_at >= TIMESTAMP'2024-10-22 16:00:00') and (p.published_at < TIMESTAMP'2026-10-22 16:00:00'))  (cost=1097 rows=21855) (actual time=0.0377..91 rows=48751 loops=1)
+                            -> Select #2 (subquery in condition; dependent)
+                                -> Limit: 1 row(s)  (cost=0.35 rows=1) (actual time=0.00675..0.00679 rows=1 loops=1)
+                                    -> Filter: (c.is_private = 0)  (cost=0.35 rows=1) (actual time=0.00654..0.00654 rows=1 loops=1)
+                                        -> Single-row index lookup on c using PRIMARY (id = p.community_id)  (cost=0.35 rows=1) (actual time=0.00633..0.00633 rows=1 loops=1)
+                        -> Single-row index lookup on <subquery3> using <auto_distinct_key> (post_id = p.id)  (cost=5.61..5.61 rows=1) (actual time=301e-6..301e-6 rows=124e-6 loops=48484)
+                            -> Materialize with deduplication  (cost=3.57..3.57 rows=6.01) (actual time=0.0742..0.0742 rows=162 loops=1)
+                                -> Filter: (ph.post_id is not null)  (cost=2.18 rows=6.01) (actual time=0.00779..0.0448 rows=162 loops=1)
+                                    -> Nested loop inner join  (cost=2.18 rows=6.01) (actual time=0.00771..0.0404 rows=162 loops=1)
+                                        -> Single-row covering index lookup on h using hashtags_name_unique (name = 'nsfw')  (cost=1.1 rows=1) (actual time=0.00154..0.00154 rows=1 loops=1)
+                                        -> Covering index lookup on ph using post_hashtags_hashtag_id_index (hashtag_id = h.id)  (cost=1.08 rows=6.01) (actual time=0.00608..0.0344 rows=162 loops=1)
+                    -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application') and (a.domain <> 'mastodon.social') and (a.`uri` <> 'https://mastodon.social') and (not((a.`uri` like 'https://mastodon.social/%'))) and (not((a.`uri` like 'https://mastodon.social:%'))) and (not((a.`uri` like 'https://mastodon.social?%'))) and (not((a.`uri` like 'https://mastodon.social#%'))) and (a.`uri` <> 'http://mastodon.social') and (not((a.`uri` like 'http://mastodon.social/%'))) and (not((a.`uri` like 'http://mastodon.social:%'))) and (not((a.`uri` like 'http://mastodon.social?%'))) and (not((a.`uri` like 'http://mastodon.social#%'))))  (cost=0.275 rows=0.05) (actual time=571e-6..586e-6 rows=0.342 loops=48478)
+                        -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.275 rows=1) (actual time=310e-6..325e-6 rows=1 loops=48478)
+    -> Stream results  (actual time=0.452..0.454 rows=14 loops=1)
+        -> Table scan on <temporary>  (actual time=0.448..0.449 rows=14 loops=1)
+            -> Aggregate using temporary table  (actual time=0.448..0.448 rows=14 loops=1)
+                -> Nested loop inner join  (cost=20.9 rows=0.05) (actual time=0.043..0.397 rows=76 loops=1)
+                    -> Nested loop antijoin  (cost=20.5 rows=1) (actual time=0.0352..0.283 rows=145 loops=1)
+                        -> Filter: ((e.`sensitive` = 0) and (e.visibility = 'public') and (e.deleted_at is null) and (e.`status` in ('scheduled','tentative','postponed')) and (e.published_at >= TIMESTAMP'2024-10-22 16:00:00') and (e.published_at < TIMESTAMP'2026-10-22 16:00:00') and (e.actor_id is not null))  (cost=19.4 rows=1) (actual time=0.0256..0.101 rows=145 loops=1)
+                            -> Table scan on e  (cost=19.4 rows=149) (actual time=0.0231..0.0708 rows=151 loops=1)
+                        -> Nested loop inner join  (cost=1.45 rows=1) (actual time=0.0012..0.0012 rows=0 loops=145)
+                            -> Single-row covering index lookup on h using hashtags_name_unique (name = 'nsfw')  (cost=1.1 rows=1) (actual time=66.4e-6..81.6e-6 rows=1 loops=145)
+                            -> Single-row covering index lookup on ph using PRIMARY (event_id = e.id, hashtag_id = h.id)  (cost=0.35 rows=1) (actual time=0.00102..0.00102 rows=0 loops=145)
+                    -> Filter: ((a.indexable = 1) and (a.discoverable = 1) and (a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application') and (a.domain <> 'mastodon.social') and (a.`uri` <> 'https://mastodon.social') and (not((a.`uri` like 'https://mastodon.social/%'))) and (not((a.`uri` like 'https://mastodon.social:%'))) and (not((a.`uri` like 'https://mastodon.social?%'))) and (not((a.`uri` like 'https://mastodon.social#%'))) and (a.`uri` <> 'http://mastodon.social') and (not((a.`uri` like 'http://mastodon.social/%'))) and (not((a.`uri` like 'http://mastodon.social:%'))) and (not((a.`uri` like 'http://mastodon.social?%'))) and (not((a.`uri` like 'http://mastodon.social#%'))))  (cost=0.28 rows=0.05) (actual time=707e-6..728e-6 rows=0.524 loops=145)
+                        -> Single-row index lookup on a using PRIMARY (id = e.actor_id)  (cost=0.28 rows=1) (actual time=382e-6..393e-6 rows=1 loops=145)
+```

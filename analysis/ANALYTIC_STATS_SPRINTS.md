@@ -1,6 +1,6 @@
 # Stats — piano di implementazione
 
-Stato: piano approvato nella sequenza, sprint non ancora iniziati.
+Stato: sprint 1 implementato per revisione; sprint 2–9 non iniziati.
 Data: 22 ottobre 2026. Ramo richiesto: `stats`.
 Analisi e SQL: [ANALYTIC_STATS.md](ANALYTIC_STATS.md).
 Misure iniziali: [ANALYTIC_STATS_EXPLAIN.md](ANALYTIC_STATS_EXPLAIN.md).
@@ -15,9 +15,11 @@ Misure iniziali: [ANALYTIC_STATS_EXPLAIN.md](ANALYTIC_STATS_EXPLAIN.md).
 3. **Sprint 9:** cache dei dataset, con tempi coerenti con la granularità e
    la modificabilità delle metriche, mai inferiori a cinque minuti.
 
-Non si iniziano gli sprint successivi finché i test pertinenti del precedente
-non sono verdi, oppure gli eventuali impedimenti esterni non sono stati
-identificati e riportati. Ogni sprint lascia qualcosa di consultabile: non
+Aggiornamento richiesto dall’utente: eseguire PHPUnit soltanto nella verifica
+finale, mantenendo intanto i test mirati scritti e i controlli di sintassi,
+query e browser per ogni sprint. Eventuali problemi osservati vanno risolti
+o riportati. Dopo lo sprint 1 attendere l’OK esplicito dell’utente prima di
+iniziare lo sprint 2. Ogni sprint lascia qualcosa di consultabile: non
 sono previsti sprint di solo backend seguiti da una fase frontend separata.
 
 I primi sprint implementano davvero gli aggregati senza `Cache::remember`,
@@ -84,6 +86,41 @@ Il confronto grafico/tabella usa lo stesso dataset e conteggi esatti.
 Risultato: prima pagina usabile con due grafici reali, senza cache. Decidere
 su queste prove se serve una variante della stessa shell senza colonna destra;
 se sì, consegnarla qui senza duplicare l'intero layout.
+
+### Esito della prima implementazione — 22 ottobre 2026
+
+- Pagina `/stats` e JSON `/stats/ritmo`, `/stats/lingue`, solo autenticati;
+  utenti ordinari ammessi, nessun privilegio staff.
+- Chart.js 4.5.1 locale, CSS della pagina separato con variabili del tema,
+  linea oraria, barre lingue, filtro post/eventi e tabelle accessibili.
+- Caricamento alla visibilità, massimo due richieste, timeout e retry locali;
+  header JSON `private, no-store`, nessuna cache dei risultati.
+- Verificato il fuso: connessione MySQL dedicata UTC sullo stesso database,
+  senza modificare la sessione principale; conversione dell’orologio
+  applicativo SQLite prevista e coperta dai test da eseguire alla fine.
+- 360 bucket orari UTC verificati; nel campione 819 post e 20.160 utilizzi
+  lingua tra post ed eventi. Tabella oraria in browser: 360 righe e totale 819.
+- Verifica del kernel HTTP: guest 302 verso accesso sulla pagina e 401 sui
+  JSON; utente ordinario 200 su pagina e entrambi i JSON. Rendering HTML
+  verificato senza aggregazioni Stats; query autonome dai dati della Home.
+- EXPLAIN ANALYZE sul SQL effettivo, con entrambi i rami lingue: circa 4–5 ms
+  per ritmo, 110–117 ms per lingue nelle ripetizioni. Anche policy CW/tag attiva
+  e lista blocchi non vuota verificate in memoria, senza cambiare l’istanza:
+  circa 5–6 ms e 135–147 ms. SQL e piani in fondo al documento EXPLAIN.
+- Sintassi PHP/JS, Pint e compilazione Blade passano. Preparati i test
+  `tests/Feature/StatsTest.php`, **non eseguiti**, come richiesto; neppure
+  l’intera suite PHPUnit è stata avviata.
+- Browser: markup renderizzato con utente ordinario e dataset reali, servito
+  da una preview locale separata senza creare credenziali. Provati desktop
+  1.024/1.280 px, mobile 390 px, tema personalizzato, filtro eventi e tabella;
+  nessun overflow orizzontale. A viewport mobile alta 500 px il secondo grafico
+  resta non caricato finché lontano dalla viewport. La preview non sostituisce
+  le verifiche HTTP autenticate della pagina reale.
+- Conservato il layout originale con colonna destra. L’icona informativa
+  della frequenza di aggiornamento resta nello sprint 9, come concordato.
+
+**Punto di arresto:** pronto per la revisione del primo grafico da parte
+dell’utente; nessun avvio dello sprint 2 senza il suo OK.
 
 ## Sprint 2 — Domini, volume e autori attivi
 
@@ -184,7 +221,8 @@ categorie sovrapposte, evitando torte che sommino impropriamente al 100%.
 **Verifica e uscita:** più allegati nello stesso post, post misti immagine/video,
 MIME diversi, post senza allegati e sondaggi su contenuti riservati. Revisione
 integrata dei grafici già consegnati, ripetizione dei piani sullo SQL finale
-e suite PHPUnit completa, riportando eventuali errori estranei.
+e controlli di sintassi/browser, riportando eventuali errori estranei.
+La suite PHPUnit resta rinviata alla verifica finale richiesta dall’utente.
 
 Risultato: tutte le query disponibili sono visualizzate senza cache dei
 risultati. Copertura: Q01–Q19, con Q02B al posto di Q02; Q00 e i hint restano
@@ -257,7 +295,8 @@ se avessero lo stesso riferimento temporale.
 e cambio di visibilità, autore non risolto, cleanup, relay disabilitati/rimossi,
 deduplicazione e rettifiche idempotenti. Verificare consistenza tra contributi
 e bucket, piani delle letture e dei percorsi usati nelle rettifiche. Documentare
-la raccolta e la sua retention nelle guide inglesi/italiane. Suite completa.
+la raccolta e la sua retention nelle guide inglesi/italiane. PHPUnit rimandato
+alla verifica finale, come richiesto.
 
 Risultato: nuova metrica di provenienza completa nel perimetro post/eventi,
 con grafico aggiornato; ancora nessuna cache delle risposte statistiche.
@@ -317,6 +356,13 @@ vecchio dato viene riproposto come fallback se non è più ammissibile.
 
 **Frontend nello stesso sprint:** mostrare la data effettiva di generazione,
 non l'ora della fetch; mantenere gli stati di caricamento già collaudati.
+Sotto ogni grafico aggiungere una piccola icona «i» grigia informativa:
+passandoci sopra deve comparire la frequenza di aggiornamento del dataset,
+per esempio «I dati vengono aggiornati ogni 15 minuti», così la durata della
+cache è comprensibile. Il testo deve riflettere il TTL effettivo del dataset,
+non un valore fisso duplicato nel frontend. Rendere la stessa informazione
+disponibile anche al focus da tastiera e al tocco, con nome accessibile e
+contrasto leggibile. Questo requisito si implementa nella fase di caching.
 Verificare tempi delle card con hit, miss e richieste concorrenti. Nessun
 polling e nessun pulsante che consenta di aggirare sempre la cache per utente.
 
