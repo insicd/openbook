@@ -177,7 +177,20 @@ Gli incrementi avvengono dopo il commit più esterno del post, su una connession
 dedicata con transazione separata. Ogni errore è assorbito senza log, retry o
 fallimento dell’importazione. Il rollback del post scarta il callback. La raccolta
 è best effort: può perdere incrementi o contare retry interni più volte, senza
-promettere esattezza assoluta. Gli eventi restano alla fase successiva.
+promettere esattezza assoluta.
+
+La raccolta include anche le delivery degli eventi pubblici, da inbox/relay,
+outbox, risoluzione URL e refresh. La migration
+`2026_10_22_000001_unify_content_delivery_metrics` rinomina i bucket dei post in
+`stats_content_delivery_buckets`, conservando conteggi e data iniziale
+(`content_delivery`). Post ed eventi incrementano lo stesso bucket giornaliero
+per sorgente, senza dimensione per tipo di contenuto. Gli eventi contribuiscono
+dall’attivazione della loro raccolta; nessuna delivery precedente viene ricostruita.
+DeliveryStats applica lo stesso isolamento dopo commit a entrambi i tipi.
+Create, Update e Announce ripetuti contano; annullamenti e cancellazioni successivi
+non ritirano i conteggi. Il grafico mostra un solo totale, senza selettore.
+Le query aggregano i bucket comuni senza leggere contenuti, autori o partecipanti.
+Nessuna cache delle risposte in questa fase.
 
 Ogni grafico carica i dati quando ti avvicini alla sua posizione nella pagina;
 un errore può essere ritentato senza ricaricare gli altri. In questa fase non

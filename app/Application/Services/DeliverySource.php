@@ -4,7 +4,7 @@ namespace App\Application\Services;
 
 use App\Federation\Inbox\InboxItem;
 
-final readonly class PostDeliverySource
+final readonly class DeliverySource
 {
     public function __construct(public string $kind = 'unknown', public ?string $relayKey = null, public ?string $label = null) {}
 

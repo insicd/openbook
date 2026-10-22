@@ -1321,3 +1321,28 @@ sono sorgenti distinte. Nessun backfill o scansione dei post alla migration.
 
 Prove di isolamento, semantica e failure nel piano sprint 7; SQL e piani nel
 registro EXPLAIN. Gli eventi rimangono alla fase successiva.
+
+### Sprint 8 — Consegne di contenuti
+
+Post ed eventi incrementano la stessa tabella `stats_content_delivery_buckets`,
+con PK (day, source_id), senza dimensione per tipo di contenuto. La migrazione
+rinomina la tabella dello sprint 7 conservandone i conteggi e la data iniziale
+(`content_delivery`). Gli eventi contribuiscono dall’attivazione dello sprint 8:
+non si ricostruiscono consegne pregresse. Un solo totale e nessun selettore.
+
+DeliveryStats condivide scrittura afterCommit e sorgenti. Inbox conteggia
+l’oggetto principale dopo il successo anche quando l’Announce evita l’ingester.
+I percorsi di recupero dichiarano fetch. Nessuna deduplicazione o rettifica
+successiva; transazione separata e fallimenti silenziosi come nello sprint 7.
+
+```sql
+SELECT DATE_SUB(b.day, INTERVAL WEEKDAY(b.day) DAY) AS week,
+       s.id, s.kind, s.label, SUM(b.count) AS count
+FROM stats_content_delivery_buckets b
+JOIN stats_delivery_sources s ON s.id = b.source_id
+WHERE b.day >= :from_day AND b.day <= :to_day
+GROUP BY week, s.id, s.kind, s.label ORDER BY s.kind, s.id, week
+```
+
+Nessuna UNION o query per tipo: `/stats/provenienza` restituisce sempre le
+consegne complessive. Nessun join a contenuti, autori o partecipanti.

@@ -2,6 +2,8 @@
 
 namespace App\Federation\Inbox;
 
+use App\Application\Services\DeliverySource;
+use App\Application\Services\DeliveryStats;
 use App\Application\Services\NearestCityFinder;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventAnnounce;
@@ -26,7 +28,7 @@ final class RemoteEventIngester
     /**
      * @param  array<string, mixed>  $document
      */
-    public function ingest(array $document, Actor $activityActor, string $activityType, ?Actor $inboxTarget = null): ?Event
+    public function ingest(array $document, Actor $activityActor, string $activityType, ?Actor $inboxTarget = null, ?DeliverySource $delivery = null, bool $trackDelivery = true): ?Event
     {
         $uri = RemoteEventObject::uri($document);
         $name = RemoteEventObject::name($document);
@@ -84,7 +86,7 @@ final class RemoteEventIngester
             return null;
         }
 
-        return DB::transaction(function () use (
+        $event = DB::transaction(function () use (
             $document,
             $activityType,
             $uri,
@@ -161,6 +163,11 @@ final class RemoteEventIngester
 
             return $event;
         });
+        if ($trackDelivery) {
+            app(DeliveryStats::class)->recordEvent($event, $delivery ?? new DeliverySource);
+        }
+
+        return $event;
     }
 
     /** @param array<string, mixed> $activity */

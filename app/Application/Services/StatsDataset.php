@@ -184,7 +184,7 @@ final class StatsDataset
             $counts = $data->where('week', $key)->keyBy('id');
             $weeks[] = ['week' => $key, 'counts' => array_map(static fn (array $source): int => (int) ($counts->get($source['id'])?->count ?? 0), $sources)];
         }
-        $result = $this->metadata('acquisition', $from, $to, 'week', 'post_deliveries');
+        $result = $this->metadata('acquisition', $from, $to, 'week', 'content_deliveries');
         $result['coverage'] = ['mode' => 'processed_deliveries', 'started_at' => $coverage->toIso8601String(), 'historical_completeness' => 'best_effort'];
 
         return $result + ['sources' => $sources, 'weeks' => $weeks];

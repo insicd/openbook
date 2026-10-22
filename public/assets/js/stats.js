@@ -205,7 +205,7 @@
     function acquisitionChart(card, options, colors) {
         var data = card._statsData;
         var total = data.weeks.reduce(function (sum, week) { return sum + week.counts.reduce(function (a, b) { return a + b; }, 0); }, 0);
-        summary(card, [[total, labels.acquired_posts]]);
+        summary(card, [[total, labels.acquired_contents]]);
         options.scales.x.stacked = true;
         options.scales.y.stacked = true;
         options.plugins.legend.display = true;
@@ -221,7 +221,7 @@
             datasets: data.sources.map(function (source, index) {
                 var label = labels['source_' + source.kind] || labels.source_unknown;
                 if (source.kind === 'relay' && source.label) label += ' · ' + source.label;
-                var color = Chart.helpers.color(colors.primary).rotate(index * 137.508).rgbString();
+                var color = Chart.helpers.color(colors.primary).rotate(parseInt(source.id.slice(0, 6), 16) % 360).rgbString();
                 return { label: label, data: data.weeks.map(function (week) { return week.counts[index]; }), stack: 'deliveries', borderColor: color, backgroundColor: Chart.helpers.color(color).alpha(0.65).rgbString(), borderWidth: 1.5, fill: index === 0 ? 'origin' : '-1', tension: 0, pointRadius: 0, pointHoverRadius: 0, pointHitRadius: 8, maxBarThickness: 56, borderSkipped: false };
             })
         } };

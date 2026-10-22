@@ -1787,3 +1787,53 @@ EXPLAIN UPDATE del contatore atomico:
     }
 ]
 ```
+
+## Sprint 8 — Consegne di contenuti, bucket unificati
+
+Fixture MySQL in transazione annullata: 24 bucket comuni, sei sorgenti, quattro settimane.
+
+### contenuti
+
+Richiesta 0.54 ms.
+
+```sql
+select DATE_SUB(b.day, INTERVAL WEEKDAY(b.day) DAY) AS week, s.id, s.kind, s.label, SUM(b.count) AS count from `stats_content_delivery_buckets` as `b` inner join `stats_delivery_sources` as `s` on `s`.`id` = `b`.`source_id` where `b`.`day` >= ? and `b`.`day` <= ? group by `week`, `s`.`id`, `s`.`kind`, `s`.`label` order by `s`.`kind` asc, `s`.`id` asc, `week` asc
+```
+
+Binding: `["2026-09-28","2026-10-22"]`
+
+```text
+-> Sort: s.kind, s.id, `week`  (actual time=0.465..0.469 rows=25 loops=1)
+    -> Table scan on <temporary>  (actual time=0.348..0.355 rows=25 loops=1)
+        -> Aggregate using temporary table  (actual time=0.347..0.347 rows=25 loops=1)
+            -> Nested loop inner join  (cost=14.6 rows=26) (actual time=0.0241..0.202 rows=25 loops=1)
+                -> Filter: ((b.`day` >= DATE'2026-09-28') and (b.`day` <= DATE'2026-10-22'))  (cost=5.47 rows=26) (actual time=0.015..0.0358 rows=25 loops=1)
+                    -> Index range scan on b using PRIMARY over ('2026-09-28' <= day <= '2026-10-22')  (cost=5.47 rows=26) (actual time=0.0139..0.029 rows=25 loops=1)
+                -> Single-row index lookup on s using PRIMARY (id = b.source_id)  (cost=0.254 rows=1) (actual time=0.00624..0.0063 rows=1 loops=25)
+
+```
+
+EXPLAIN UPDATE contatore contenuti:
+
+```json
+[
+    {
+        "id": 1,
+        "select_type": "UPDATE",
+        "table": "stats_content_delivery_buckets",
+        "partitions": null,
+        "type": "range",
+        "possible_keys": "PRIMARY",
+        "key": "PRIMARY",
+        "key_len": "259",
+        "ref": "const,const",
+        "rows": 1,
+        "filtered": 100,
+        "Extra": "Using where"
+    }
+]
+```
+
+La lettura usa PRIMARY(day, source_id) per il range e la PK delle sorgenti.
+Nessuna UNION: post ed eventi scrivono la stessa riga giornaliera per sorgente.
+Fixture piccola: i tempi non costituiscono una garanzia su volumi di produzione.

@@ -72,7 +72,7 @@ class StatsTest extends TestCase
         $this->getJson('/stats/community')->assertOk()->assertJsonPath('metric', 'communityActivity');
         $this->getJson('/stats/allegati')->assertOk()->assertJsonPath('metric', 'media');
         $this->getJson('/stats/sondaggi')->assertOk()->assertJsonPath('metric', 'polls');
-        $this->getJson('/stats/provenienza')->assertOk()->assertJsonPath('metric', 'acquisition');
+        $this->getJson('/stats/provenienza')->assertOk()->assertJsonPath('metric', 'acquisition')->assertJsonPath('unit', 'content_deliveries');
     }
 
     public function test_hourly_buckets_are_complete_utc_hours_and_results_are_not_cached(): void

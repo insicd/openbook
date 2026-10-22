@@ -172,7 +172,20 @@ Increments run after the outermost post commit, on a dedicated connection and
 in a separate transaction. All errors are swallowed without logging, retrying
 or failing the import. Post rollback discards the callback. Collection is best
 effort: increments may be lost and internal retries may count more than once;
-absolute accuracy is not promised. Events remain for the next phase.
+absolute accuracy is not promised.
+
+Collection also includes public-event deliveries from inbox/relays, outboxes,
+URL resolution and refresh. Migration
+`2026_10_22_000001_unify_content_delivery_metrics` renames the existing post
+buckets to `stats_content_delivery_buckets`, preserving counts and collection
+start time (`content_delivery`). Posts and events increment the same daily
+source bucket, without a content-type dimension. Events contribute from the
+activation of event tracking; earlier deliveries are not reconstructed.
+DeliveryStats uses the same post-commit isolation for both types. Repeated
+Create, Update and Announce count; later cancellation or deletion does not
+retract counts. The chart shows one combined total without a selector.
+Queries aggregate the shared buckets without reading content, authors or
+participants. Responses remain uncached at this stage.
 
 Each chart loads its dataset as you approach it on the page. Failed requests
 can be retried independently. This phase does not cache the results. Statistics

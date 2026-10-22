@@ -4,11 +4,11 @@ namespace App\Federation\Inbox;
 
 use App\Application\Services\AnnounceManager;
 use App\Application\Services\CommentSoftDeleter;
+use App\Application\Services\DeliveryStats;
 use App\Application\Services\DomainBlockManager;
 use App\Application\Services\EventParticipationManager;
 use App\Application\Services\FollowManager;
 use App\Application\Services\LocalCommunityIngester;
-use App\Application\Services\PostDeliveryStats;
 use App\Application\Services\ReactionManager;
 use App\Application\Services\RelayHandshakeManager;
 use App\Domain\Comments\Comment;
@@ -124,7 +124,7 @@ final class InboxActivityProcessor
             default => InboxItem::STATUS_IGNORED,
         };
         if ($status === InboxItem::STATUS_PROCESSED && in_array($item->activity_type, ['Create', 'Update', 'Announce'], true)) {
-            app(PostDeliveryStats::class)->recordInbox($activity, $item);
+            app(DeliveryStats::class)->recordInbox($activity, $item);
         }
 
         return $status;
@@ -623,7 +623,7 @@ final class InboxActivityProcessor
                 return InboxItem::STATUS_IGNORED;
             }
 
-            $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget);
+            $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget, trackDelivery: false);
 
             if ($event === null) {
                 return InboxItem::STATUS_IGNORED;
@@ -654,7 +654,7 @@ final class InboxActivityProcessor
                     $eventDocument = $this->mergeActivityAudience($activity, $eventDocument);
 
                     if (! $fromRelay || RemoteEventObject::visibility($eventDocument) === Event::VISIBILITY_PUBLIC) {
-                        $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget);
+                        $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget, trackDelivery: false);
                     }
                 } elseif ($document !== null) {
                     $fetchedAnnouncedNote = RemotePostObject::unwrap($document);
@@ -959,7 +959,7 @@ final class InboxActivityProcessor
                 return InboxItem::STATUS_IGNORED;
             }
 
-            return $this->eventIngester->ingest($document, $signer, 'Update', $inboxTarget) !== null
+            return $this->eventIngester->ingest($document, $signer, 'Update', $inboxTarget, trackDelivery: false) !== null
                 ? InboxItem::STATUS_PROCESSED
                 : InboxItem::STATUS_IGNORED;
         }
@@ -1016,7 +1016,7 @@ final class InboxActivityProcessor
                 return InboxItem::STATUS_IGNORED;
             }
 
-            return $this->eventIngester->ingest($eventDocument, $actor, 'Create', $inboxTarget) !== null
+            return $this->eventIngester->ingest($eventDocument, $actor, 'Create', $inboxTarget, trackDelivery: false) !== null
                 ? InboxItem::STATUS_PROCESSED
                 : InboxItem::STATUS_IGNORED;
         }

@@ -2,6 +2,7 @@
 
 namespace App\Federation\Events;
 
+use App\Application\Services\DeliverySource;
 use App\Domain\Events\Event;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
@@ -62,6 +63,6 @@ final class RemoteEventUrlResolver
             return null;
         }
 
-        return $this->events->ingest($event, $actor, 'Create', $viewer);
+        return $this->events->ingest($event, $actor, 'Create', $viewer, delivery: new DeliverySource('fetch'));
     }
 }

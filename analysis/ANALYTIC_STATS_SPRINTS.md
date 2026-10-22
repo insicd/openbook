@@ -521,16 +521,16 @@ finale concordata. Mostrare la revisione senza commit.
 
 **Backend:** estendere il contesto e il conteggio agli eventi pubblici remoti,
 coprendo delivery da inbox, relay e discovery, anche di eventi già noti. Riusare il servizio e la
-struttura dei bucket dello sprint 7, distinguendo il tipo di oggetto e le
-relative finestre di copertura. Verificare la compatibilità di migration e
+struttura dei bucket dello sprint 7: post ed eventi sono contenuti e incrementano
+lo stesso bucket giornaliero per sorgente, senza dimensione per tipo. Verificare la compatibilità di migration e
 vincoli MySQL/MariaDB/SQLite; non supporre che la cancellazione del record
 relay debba azzerare o scollegare l'identità statistica storica.
 
-**Frontend nello stesso sprint:** selettore post/eventi/insieme sul grafico
-di provenienza, con coperture separate. La somma è valida sugli intervalli
-comuni; il periodo in cui raccoglievamo solo post non diventa zero eventi.
-Non confrontare le delivery con le pubblicazioni dei post come
-se avessero lo stesso riferimento temporale.
+**Frontend nello stesso sprint:** un solo grafico delle consegne di contenuti,
+senza selettore né serie per post/eventi. Gli eventi contribuiscono dal momento
+dell’attivazione; i conteggi dei post già raccolti vengono conservati.
+Non confrontare le delivery con le pubblicazioni come se avessero lo stesso
+riferimento temporale.
 
 **Verifica e uscita:** delivery ripetute tra relay e discovery contate separatamente,
 rollback e guasti alle metriche senza impatto sugli eventi, visibilità privata,
@@ -750,3 +750,29 @@ gli eventi sono ancora allo sprint 8. Rimossi nota tecnica sotto la card e
 riepilogo grande «Raccolta dal»; resta il range sotto al grafico. Il consenso
 a duplicazioni/perdita incrementi resta documentato nell’analisi, non nella
 UI. Rimossa la menzione best effort anche dalla metodologia visibile.
+
+### Sprint 8 — Implementazione approvata
+
+Un’unica tabella `stats_content_delivery_buckets` con PK (day, source_id),
+nessuna dimensione per tipo e nessuna tendina. Post ed eventi incrementano
+lo stesso contatore per giorno e sorgente. La migrazione rinomina la tabella
+post conservando storico e data iniziale. Gli eventi contribuiscono solo
+dall’attivazione della loro raccolta, senza ricostruzioni retroattive.
+
+DeliveryStats/DeliverySource condividono afterCommit esterno, connessione
+separata, transazione autonoma e catch silenzioso. Inbox conteggiato una sola
+volta dopo esito positivo, compresi Announce su eventi noti. Gli ingester
+non duplicano il conteggio inbox; outbox, risoluzione URL e refresh usano fetch.
+Endpoint e query unici senza parametro type e senza UNION; aggregazione
+settimanale del totale dei contenuti. Grafico ad aree impilate per sorgente.
+
+Test mirati aggiornati per verificare che post ed eventi della stessa sorgente
+finiscano nella stessa riga; PHPUnit rimandato alla verifica finale concordata.
+Sprint 8 approvato dall’utente; pronto per il commit.
+
+Verifiche manuali aggiornate: SQLite con ingester reale, Announce ripetuti,
+post ed eventi nello stesso bucket, rollback, privacy e guasto della tabella
+senza perdita dell’evento. Demo: 70 consegne complessive su quattro settimane.
+MySQL: connessione separata e commit esterno verificati; EXPLAIN ANALYZE della
+query unica su 24 bucket, 0,54 ms; incremento via PRIMARY con una riga attesa.
+Nessun dato applicativo di prova conservato. Migration locale applicata.

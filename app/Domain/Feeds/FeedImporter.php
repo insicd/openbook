@@ -2,8 +2,8 @@
 
 namespace App\Domain\Feeds;
 
-use App\Application\Services\PostDeliverySource;
-use App\Application\Services\PostDeliveryStats;
+use App\Application\Services\DeliverySource;
+use App\Application\Services\DeliveryStats;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Support\Carbon;
@@ -132,7 +132,7 @@ final class FeedImporter
             ->first();
 
         if ($existing !== null) {
-            app(PostDeliveryStats::class)->record($existing, new PostDeliverySource('feed'));
+            app(DeliveryStats::class)->record($existing, new DeliverySource('feed'));
 
             return false;
         }
@@ -151,7 +151,7 @@ final class FeedImporter
             'status' => Post::STATUS_PUBLISHED,
             'published_at' => $publishedAt,
         ]);
-        app(PostDeliveryStats::class)->record($post, new PostDeliverySource('feed'));
+        app(DeliveryStats::class)->record($post, new DeliverySource('feed'));
 
         return true;
     }

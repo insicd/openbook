@@ -24,9 +24,10 @@ la [roadmap](docs/roadmap.md).
   di post ed eventi pubblici conservati, account totali per istanza, volume
   settimanale dei post e autori attivi, trend degli hashtag, geografia dei
   contenuti, calendario degli eventi, attività delle community, immagini e video
-  allegati, quota di post con sondaggio e delivery dei post per sorgente/relay.
-  La raccolta delivery è best effort, include post già noti e aggiorna i bucket
-  dopo il commit senza far fallire l’importazione. Nessuno storico retroattivo;
+  allegati, quota di post con sondaggio e delivery di post ed eventi per sorgente/relay,
+  sommati negli stessi bucket giornalieri senza distinzione per tipo.
+  La raccolta delivery è best effort, include contenuti già noti e aggiorna
+  i bucket dopo il commit senza far fallire l’importazione. Nessuno storico retroattivo;
   applicare la nuova migration. I grafici caricano i dati solo
   avvicinandosi alla zona visibile, senza cache dei risultati in questa fase.
   Le statistiche aggregate includono anche gli account che non consentono

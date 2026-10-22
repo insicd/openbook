@@ -167,7 +167,7 @@ final class StatsQuery
 
     public function acquisitionCoverage(): ?string
     {
-        return $this->connection()->table('stats_collections')->where('metric', 'post_delivery')->value('started_at');
+        return $this->connection()->table('stats_collections')->where('metric', 'content_delivery')->value('started_at');
     }
 
     public function acquisition(CarbonImmutable $from, CarbonImmutable $to): Collection
@@ -176,7 +176,7 @@ final class StatsQuery
             ? "date(b.day, 'weekday 0', '-6 days')"
             : 'DATE_SUB(b.day, INTERVAL WEEKDAY(b.day) DAY)';
 
-        return $this->connection()->table('stats_post_delivery_buckets as b')
+        return $this->connection()->table('stats_content_delivery_buckets as b')
             ->join('stats_delivery_sources as s', 's.id', '=', 'b.source_id')
             ->where('b.day', '>=', $from->format('Y-m-d'))->where('b.day', '<=', $to->format('Y-m-d'))
             ->selectRaw("{$week} AS week, s.id, s.kind, s.label, SUM(b.count) AS count")
