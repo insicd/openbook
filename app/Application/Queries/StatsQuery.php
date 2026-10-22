@@ -72,7 +72,7 @@ final class StatsQuery
         // One statement gives monthly winners and the period legend from the same snapshot.
         return $connection->query()->fromSub($ranked, 'ranked')
             ->where(fn (Builder $query) => $query->where('month_rank', '<=', 10)->orWhere('overall_rank', '<=', 10))
-            ->select('hashtag_id as id', 'name', 'month', 'count', 'total', 'month_rank', 'overall_rank')
+            ->select('hashtag_id as id', 'name', 'month', 'count', 'month_rank', 'overall_rank')
             ->orderBy('overall_rank')->orderBy('month')->get();
     }
 

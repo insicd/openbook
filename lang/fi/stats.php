@@ -155,7 +155,5 @@ return [
         'languages' => 'ilmoitettua kieltä',
         'other' => 'Muut',
         'updated' => 'Tiedot päivitetty',
-        'rhythm_title' => 'Julkiset julkaisut tunneittain',
-        'language_title' => 'Sisällöt kielittäin',
     ],
 ];

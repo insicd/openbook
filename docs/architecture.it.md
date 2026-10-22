@@ -122,7 +122,7 @@ quando JavaScript è disabilitato.
 ## Stats
 
 Il link **Stats** nei footer apre una pagina riservata agli utenti autenticati,
-senza requisiti di ruolo. La prima versione mostra i post pubblici conservati
+senza requisiti di ruolo. La pagina mostra i post pubblici conservati
 nelle ultime 360 ore complete (UTC) e le lingue di post ed eventi pubblici
 conservati negli ultimi due anni, sommati per lingua. I contenuti senza lingua
 dichiarata sono esclusi dal grafico delle lingue e dai relativi totali.

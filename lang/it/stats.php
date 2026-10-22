@@ -155,7 +155,5 @@ return [
         'languages' => 'lingue dichiarate',
         'other' => 'Altre',
         'updated' => 'Dati aggiornati il',
-        'rhythm_title' => 'Post pubblici per ora',
-        'language_title' => 'Contenuti per lingua',
     ],
 ];

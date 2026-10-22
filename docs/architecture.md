@@ -118,7 +118,7 @@ and hashtag pages also provide pagination links with JavaScript disabled.
 ## Stats
 
 The **Stats** link in the footers opens a page for signed-in users, with no
-staff role required. The first version shows retained public posts over the
+staff role required. The page shows retained public posts over the
 last 360 complete hours (UTC), and languages of retained public posts and
 events over the last two years, combined by language. Content without a
 declared language is excluded from the language chart and its totals.

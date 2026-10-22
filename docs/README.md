@@ -7,8 +7,8 @@ Guides for using Openbook and administering an instance, grouped by topic.
 | Topic | File |
 |---|---|
 | Install, requirements, web server, updates | [`install.md`](install.md) |
-| Configuration, post locations, cron, database maintenance | [`configuration.md`](configuration.md) |
-| Usage, profiles, polls, World | [`architecture.md`](architecture.md) |
+| Configuration, post locations, cron, database maintenance and Stats cache | [`configuration.md`](configuration.md) |
+| Usage, profiles, polls, World and Stats | [`architecture.md`](architecture.md) |
 | Federation, communities, events | [`federation.md`](federation.md) |
 | Security and privacy | [`security.md`](security.md) |
 | Roadmap and known limitations | [`roadmap.md`](roadmap.md) |

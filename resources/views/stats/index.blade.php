@@ -25,7 +25,7 @@
                 <header class="ob-stats-card__header">
                     <span class="ob-stats__eyebrow">{{ __('stats.'.$metric.'.eyebrow') }}</span>
                     <h2 id="stats-{{ $metric }}-title">{{ __('stats.'.$metric.'.title') }}</h2>
-                    <p id="stats-{{ $metric }}-intro">{{ __('stats.'.$metric.'.description') }}</p>
+                    <p>{{ __('stats.'.$metric.'.description') }}</p>
                 </header>
 
                 <div class="ob-stats-card__status" role="status" data-stats-status>{{ __('stats.waiting') }}</div>

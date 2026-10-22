@@ -6,7 +6,10 @@ use App\Application\Services\DeliverySource;
 use App\Application\Services\DeliveryStats;
 use App\Application\Services\StatsDataset;
 use App\Domain\Events\Event;
+use App\Domain\Federation\Relay;
 use App\Domain\Posts\Post;
+use App\Federation\Inbox\InboxActivityProcessor;
+use App\Federation\Inbox\InboxItem;
 use App\Federation\Inbox\RemoteEventIngester;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -97,6 +100,25 @@ class DeliveryStatsTest extends TestCase
         $event->update(['status' => 'cancelled']);
         $this->assertSame(3, (int) DB::table('stats_content_delivery_buckets')->sum('count'));
         $this->assertSame('content_deliveries', app(StatsDataset::class)->acquisition()['unit']);
+    }
+
+    public function test_repeated_relay_announces_of_known_posts_and_events_count_once_per_delivery(): void
+    {
+        $actor = $this->createRemoteActor('relaydeliveries');
+        $post = Post::create(['actor_id' => $actor->id, 'uri' => $actor->uri.'/post', 'body' => 'Known post', 'status' => 'published', 'visibility' => 'public', 'published_at' => now()]);
+        $event = Event::create(['actor_id' => $actor->id, 'uri' => $actor->uri.'/event', 'name' => 'Known event', 'visibility' => 'public', 'status' => 'scheduled', 'published_at' => now(), 'start_at' => now()->addMonth()]);
+        $relay = new Relay(['state' => 'accepted', 'receive_enabled' => true, 'inbox_url' => 'https://relay.example/inbox']);
+        foreach ([$post->uri, $event->uri] as $uri) {
+            $item = new InboxItem(['actor_uri' => $actor->uri, 'activity_type' => 'Announce', 'payload' => json_encode(['id' => $uri.'/announce', 'type' => 'Announce', 'actor' => $actor->uri, 'object' => $uri])]);
+            $item->setRelation('relay', $relay);
+            $item->setRelation('targetActor', null);
+            for ($delivery = 0; $delivery < 2; $delivery++) {
+                $this->assertSame(InboxItem::STATUS_PROCESSED, app(InboxActivityProcessor::class)->process($item));
+            }
+        }
+        $this->assertSame(1, DB::table('stats_content_delivery_buckets')->count());
+        $this->assertSame(4, (int) DB::table('stats_content_delivery_buckets')->sum('count'));
+        $this->assertDatabaseHas('stats_delivery_sources', ['kind' => 'relay', 'label' => 'relay.example']);
     }
 
     public function test_private_event_rollback_and_metric_failure_do_not_affect_event_import(): void

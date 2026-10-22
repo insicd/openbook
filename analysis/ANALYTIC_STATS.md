@@ -1,7 +1,15 @@
 <!-- Le misure storiche conservano i filtri effettivamente usati; vedere la revisione corrente. -->
-# Stats — idee e analisi iniziale
+# Stats — analisi e decisioni
 
-Stato: sprint 1 implementato per revisione; sprint successivi in attesa.
+Stato finale: sprint 1–9 completati e review generale rispetto a main conclusa.
+Sono implementati 13 grafici, con 11 dataset, cache per TTL/reset admin e bucket
+giornalieri condivisi per delivery di post ed eventi. Diffusione e conversazioni
+tra istanze sono state scartate. Riferimento operativo aggiornato:
+[configurazione e cache](../docs/configuration.it.md#statistiche-dellistanza-e-cache).
+
+Le sezioni esplorative e le misure iniziali seguenti conservano la storia delle
+ipotesi, anche quando successivamente scartate o modificate; non sono una lista
+di endpoint disponibili. Le decisioni finali sono nel piano sprint e nelle guide.
 Verifica dello schema, dei flussi e delle protoquery con EXPLAIN ANALYZE e
 revisione critica: 22 ottobre 2026. Piano in [ANALYTIC_STATS_SPRINTS.md](ANALYTIC_STATS_SPRINTS.md).
 

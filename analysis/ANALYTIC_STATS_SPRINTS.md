@@ -1,6 +1,9 @@
 # Stats — piano di implementazione
 
-Stato: sprint 1–3 approvati; grafico sprint 4 scartato; revisioni top 10 approvate; revisioni registrate in `117f4cb`; sprint 5 implementato per revisione; sprint 6–9 non iniziati.
+Stato finale: sprint 1–9 completati; commit di fine sprint 9 `90e99b4`.
+Review generale rispetto a `main` conclusa; 13 grafici e 11 dataset effettivi.
+Le sezioni dei singoli sprint conservano decisioni e revisioni in ordine
+cronologico; lo stato finale e la review in fondo prevalgono sulle ipotesi iniziali.
 Data: 22 ottobre 2026. Ramo richiesto: `stats`.
 Analisi e SQL: [ANALYTIC_STATS.md](ANALYTIC_STATS.md).
 Misure iniziali: [ANALYTIC_STATS_EXPLAIN.md](ANALYTIC_STATS_EXPLAIN.md).
@@ -870,3 +873,55 @@ e soglia excerpt del FeedTest dipendente dal .env locale. Nessuna modifica al
 comportamento applicativo per queste due correzioni. Pint, sintassi JS e diff
 check passati. Si procede con il commit di fine sprint e poi con una review
 separata dell’intero ramo rispetto a main, seguita da nuova suite globale.
+
+## Review generale finale del ramo stats
+
+Base confrontata: main `aaa241412dc37d5f39ef4c5eb5d5a8fcd4fce953`.
+Review manuale di query, dataset/cache, callback e percorsi di importazione,
+controller/route/autorizzazione, migrazioni, JavaScript/CSS, Blade, traduzioni,
+test e documentazione. Nessun endpoint, renderer, filtro per tipo o tabella
+journal rimasto per diffusione/conversazioni/prime acquisizioni. Conservate
+le due migration già applicabili in sequenza, senza riscrivere lo storico.
+
+Pulizie e correzioni:
+- Rimossi titoli di traduzione inutilizzati e ID HTML di introduzioni non più
+  referenziati, oltre ai totali hashtag non usati dalla UI nel payload finale.
+  Il totale SQL intermedio resta necessario al ranking dell’intero periodo.
+- Riutilizzato l’helper degli assi orizzontali per le lingue; sostituiti i
+  listener document click per card con un unico listener. Assi numerici allineati
+  alla locale della pagina. Nessun cambiamento ai grafici approvati.
+- Forzati UTC e PDO non persistente anche nel gruppo write della connessione
+  metriche. Verifica MySQL reale con configurazione split/persistente: writer
+  distinto dalla sessione primaria e non persistente, senza scritture nel corpus.
+- Aggiunti test su Announce relay ripetuti di post/eventi noti (un incremento
+  per delivery, stesso bucket) e query fallite non memorizzate con recupero.
+- Nessuna invalidazione automatica reintrodotta; query e criteri statistici
+  mantenuti. Snapshot del corpus e storico delle delivery restano distinti.
+
+Verifiche:
+1. Prima suite globale: errore di fixture SQLite e test excerpt dipendente dal
+   .env, entrambi già presenti in file/logica invariati rispetto a main.
+2. Dopo le correzioni di preparazione: 1.986 test, 14.166 assertion, zero errori
+   e failure, 111 skip; quindi commit di fine sprint `90e99b4`.
+3. Dopo la review: 1.988 test, 14.175 assertion, zero errori e failure, 111 skip.
+   Gli skip sono esclusivamente integrazioni MySQL opt-in (installer, CSV,
+   sondaggi e timezone), non attivate nella suite ordinaria.
+4. EXPLAIN ANALYZE delle query realmente generate, sulla rispettiva sessione
+   UTC, inclusi i rami UNION; risultati aggiunti al registro. Nessun nuovo
+   indice giustificato dal campione: accessi per date/PK già usati, scansioni
+   estese per fotografie di tutto il corpus supportate dalla cache.
+5. Cache database finale: hit senza query al corpus, circa 0,23–0,76 ms sul
+   campione locale; miss hashtag circa 1,51 s. Quattro processi concorrenti:
+   una sola query aggregata, JSON e cached_at identici. Store di prova con
+   prefisso isolato, chiavi/lock rimossi. I tempi non sono SLA di produzione.
+
+Aggiornate guide amministrative EN/IT, architettura prodotto e sviluppo,
+istruzioni dei test, indici, README, roadmap e changelog. Il dettaglio dei TTL,
+del reset, del deploy e della conservazione dei bucket è nella configurazione.
+Nessun obbligo di Redis, worker o nuovi cron. Nessun push, merge o PR richiesto.
+
+Verifica visiva finale: helper riusato delle lingue funzionante, assi numerici
+localizzati, una sola data nel tooltip; aprendo la «i» di un’altra card si chiude
+la precedente, Escape la richiude. Snapshot dell’interfaccia salvato. Le anomalie
+delle sidebar nella copia HTML statica non riguardano gli endpoint autenticati
+della pagina reale e non sono state modificate durante la review.

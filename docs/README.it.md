@@ -7,8 +7,8 @@ Guide per usare Openbook e amministrare un’istanza, divise per argomento.
 | Argomento | File |
 |---|---|
 | Installazione, requisiti, server web, aggiornamenti | [`install.it.md`](install.it.md) |
-| Configurazione, posizioni nei post, cron, manutenzione database | [`configuration.it.md`](configuration.it.md) |
-| Uso, profili, sondaggi, Mondo | [`architecture.it.md`](architecture.it.md) |
+| Configurazione, posizioni nei post, cron, manutenzione database e cache Stats | [`configuration.it.md`](configuration.it.md) |
+| Uso, profili, sondaggi, Mondo e Stats | [`architecture.it.md`](architecture.it.md) |
 | Federazione, community, eventi | [`federation.it.md`](federation.it.md) |
 | Sicurezza e privacy | [`security.it.md`](security.it.md) |
 | Roadmap e limitazioni note | [`roadmap.it.md`](roadmap.it.md) |

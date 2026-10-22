@@ -104,6 +104,10 @@ final class DeliveryStats
         $config['name'] = 'stats_delivery_writer';
         $config['timezone'] = '+00:00';
         $config['options'][PDO::ATTR_PERSISTENT] = false;
+        if (isset($config['write'])) {
+            $config['write']['timezone'] = '+00:00';
+            $config['write']['options'] = array_replace($config['options'], $config['write']['options'] ?? [], [PDO::ATTR_PERSISTENT => false]);
+        }
 
         return $this->writer = DB::build($config);
     }

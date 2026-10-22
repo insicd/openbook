@@ -2,6 +2,22 @@
 
 ## Tests
 
+Instance statistics:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/StatsTest.php tests/Feature/StatsCacheTest.php tests/Feature/DeliveryStatsTest.php
+```
+
+Tests cover authorization, statistics filters, UTC buckets, monthly top hashtags,
+shared cache/expiry, admin reset, no automatic invalidation, reset races,
+fallback, uncached errors and repeated post/event deliveries. Delivery tests use
+file-backed SQLite for a real second connection; others use in-memory SQLite,
+without modifying the instance database. MySQL query/increment checks are
+recorded in [ANALYTIC_STATS_EXPLAIN](../analysis/ANALYTIC_STATS_EXPLAIN.md), including
+UNION branches, cache miss/hit and four concurrent processes. Local timings are
+not guarantees for other installations. Run the full suite before a PR.
+
+
 Following CSV (#117):
 
 ```bash

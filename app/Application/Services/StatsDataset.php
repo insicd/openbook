@@ -74,7 +74,6 @@ final class StatsDataset
         $rows = $data->unique('id')->map(static fn (object $tag): array => [
             'id' => $tag->id,
             'name' => $tag->name,
-            'count' => (int) $tag->total,
             'legend' => (int) $tag->overall_rank <= 10,
         ])->values()->all();
         $winners = $data->filter(static fn (object $tag): bool => (int) $tag->month_rank <= 10)->groupBy('month');

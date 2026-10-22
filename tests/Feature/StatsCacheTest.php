@@ -7,10 +7,12 @@ use App\Application\Services\DomainBlockManager;
 use App\Domain\Posts\Post;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
@@ -173,6 +175,30 @@ class StatsCacheTest extends TestCase
         } finally {
             (new Filesystem)->deleteDirectory($path);
         }
+    }
+
+    public function test_query_errors_are_not_cached_and_a_later_request_can_recover(): void
+    {
+        $cache = app(CachedStatsDataset::class);
+        Schema::rename('posts', 'posts_unavailable');
+        $failures = 0;
+        try {
+            for ($attempt = 0; $attempt < 2; $attempt++) {
+                try {
+                    $cache->get('rhythm');
+                    $this->fail('The failed query must not become a cached response.');
+                } catch (QueryException) {
+                    $failures++;
+                }
+            }
+        } finally {
+            Schema::rename('posts_unavailable', 'posts');
+        }
+        $this->assertSame(2, $failures);
+        $data = $cache->get('rhythm');
+        $this->assertCount(360, $data['rows']);
+        $this->assertNotNull($data['cache']['cached_at']);
+        $this->assertSame($data, $cache->get('rhythm'));
     }
 
     private function time(string $at): void

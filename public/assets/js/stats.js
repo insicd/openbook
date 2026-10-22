@@ -299,7 +299,7 @@
         var accessibleDetails = '';
         var canvas = card.querySelector('canvas');
         var options = {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false, locale: locale,
             animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 450, easing: 'easeOutQuart' },
             color: colors.muted, font: { family: colors.font },
             plugins: { legend: { display: false, position: 'bottom', labels: { color: colors.text, usePointStyle: true, padding: 18 }, onClick: function () {} },
@@ -331,12 +331,7 @@
                 displayed.push(rows.slice(10).reduce(function (rest, row) { rest.count += row.count; return rest; }, { other: true, count: 0 }));
             }
             chartData = { labels: displayed.map(function (row) { return row.other ? labels.other : languageName(row.language); }), datasets: [{ label: labels.total, data: displayed.map(function (row) { return row.count; }), backgroundColor: colors.primary, borderRadius: 6, borderSkipped: false, maxBarThickness: 24 }] };
-            options.indexAxis = 'y';
-            options.scales.x.ticks.precision = 0;
-            options.scales.x.grid = { color: colors.border, drawTicks: false };
-            options.scales.y.grid.display = false;
-            options.scales.y.ticks.autoSkip = false;
-            options.scales.y.ticks.callback = function (value) { var label = this.getLabelForValue(value); return label.length > 25 ? label.slice(0, 24) + '…' : label; };
+            horizontal(options);
             options.plugins.tooltip.callbacks = { label: function (item) { return item.dataset.label + ': ' + number.format(item.parsed.x); } };
             if (!total) options.scales.x.suggestedMax = 1;
             accessibleDetails = rows.map(function (row) { return languageName(row.language) + ': ' + number.format(row.count); }).join('; ');
@@ -426,6 +421,14 @@
     var observer = 'IntersectionObserver' in window ? new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) { if (entry.isIntersecting) { observer.unobserve(entry.target); enqueue(entry.target); } });
     }, { rootMargin: '200px 0px' }) : null;
+    document.addEventListener('click', function (event) {
+        root.querySelectorAll('[data-stats-info].is-open').forEach(function (info) {
+            if (!info.contains(event.target)) {
+                info.classList.remove('is-open');
+                info.querySelector('[data-stats-info-button]').setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
     root.querySelectorAll('[data-stats-card]').forEach(function (card) {
         var info = card.querySelector('[data-stats-info]');
         var infoButton = card.querySelector('[data-stats-info-button]');
@@ -438,9 +441,6 @@
         });
         info.addEventListener('mouseleave', function () { info.classList.remove('is-dismissed'); });
         info.addEventListener('focusout', function () { info.classList.remove('is-dismissed'); });
-        document.addEventListener('click', function (event) {
-            if (!info.contains(event.target)) { info.classList.remove('is-open'); infoButton.setAttribute('aria-expanded', 'false'); }
-        });
         card.querySelector('[data-stats-retry]').addEventListener('click', function () { datasets.delete(card.dataset.url); enqueue(card); });
         if (observer) observer.observe(card); else enqueue(card);
     });

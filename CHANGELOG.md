@@ -19,7 +19,7 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Stats (prima prova)**: pagina accessibile dal footer agli utenti autenticati,
+- **Stats**: pagina accessibile dal footer agli utenti autenticati,
   con ritmo dei post nelle ultime 360 ore complete e distribuzione delle lingue
   di post ed eventi pubblici conservati, account totali per istanza, volume
   settimanale dei post e autori attivi, trend degli hashtag, geografia dei
@@ -30,7 +30,7 @@ la [roadmap](docs/roadmap.md).
   i bucket dopo il commit senza far fallire l’importazione. Nessuno storico retroattivo;
   applicare la nuova migration. I grafici caricano i dati solo
   avvicinandosi alla zona visibile. Cache condivisa con TTL da 5 minuti a un’ora;
-  la «i» sotto ogni grafico mostra frequenza, elaborazione e inserimento in cache
+  la «i» sotto ogni grafico mostra frequenza e una sola data di aggiornamento
   nel fuso dell’utente. In Admin → Database → Manutenzione è disponibile
   «Svuota cache delle statistiche», senza cancellare i contatori raccolti.
   Aggiornamento solo alla scadenza del TTL o su richiesta esplicita admin.

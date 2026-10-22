@@ -211,6 +211,77 @@ database, including data and indexes. **Maintenance** contains operational-table
 statistics and cleanup; **Database sanity** handles references left after a
 deletion, as described below.
 
+### Instance statistics and cache
+
+The **Stats** page opens from the footer and only requires a signed-in account.
+Its thirteen charts describe this instance’s data. No additional cron,
+permanent worker, Redis, CDN or asset build is required.
+
+Results are shared across users through the Laravel store selected by
+`CACHE_STORE`; `database` and `file` are supported. `array` and `null` do not
+provide a persistent shared cache. Configure TTLs in seconds in
+`config/stats.php`; the effective minimum is 300 seconds:
+
+| Chart | Aggregation | Default TTL |
+| --- | --- | ---: |
+| Fifteen days, hour by hour | Hourly, last 15 days | 5 minutes |
+| The languages that meet here | By language, last 2 years | 1 hour |
+| A world of instances | Accounts by domain, current snapshot | 15 minutes |
+| Two years of publishing | Weekly | 1 hour |
+| How many voices each week | Distinct authors per week | 1 hour |
+| What people talk about | Monthly top 10 hashtags, last 24 months | 1 hour |
+| Where stories come from | By country, last 2 years | 15 minutes |
+| The events calendar | Event start month | 1 hour |
+| Places for conversation | Active communities per week | 1 hour |
+| Stories take shape | Image/video totals over the last 2 years | 1 hour |
+| Images and videos, week by week | Weekly | 1 hour |
+| An invitation to answer | Weekly share of posts with a poll | 1 hour |
+| How content arrives | Weekly by source, from daily buckets | 15 minutes |
+
+Volume/authors share `weekly`; attachment totals/trends share `media`. TTLs are
+not bucket sizes. The grey information button below each chart shows refresh
+frequency and one **Data updated on…** date in the visitor’s timezone. Periods
+remain in UTC.
+
+In **Administration → Database → Maintenance**, **Clear statistics cache** is
+restricted to administrators. It invalidates all Stats datasets while preserving
+other cache entries and delivery tables. Charts recalculate on subsequent
+requests; the command does not run all queries at once. Invalidation is logical:
+old entries are not reused and follow the store’s ordinary storage management.
+
+**No automatic invalidation:** edits, deletion, visibility, suspension, domain
+blocks and settings changes do not shorten the TTL. Use the button for an
+immediate refresh. Current filters apply on recalculation, so retention,
+deletion and moderation may change counts for past periods as well. These
+charts describe currently retained eligible content, not immutable history.
+Private content, suspended/deleted accounts and blocked domains remain excluded;
+`discoverable` and `indexable` are not statistics filters. Global settings that
+hide content warnings or sensitive hashtags from World also apply to the queries.
+
+**Delivery statistics have different semantics:** they count processed deliveries
+of public posts and events, including repeats and known objects, in the same
+`stats_content_delivery_buckets` rows by UTC day/source. No content hashes or
+author/content-type dimensions are stored. Increments run after commit on a
+separate connection and transaction; errors are silently ignored without failing
+the import. Later deletion, domain blocks, relay removal or cancellation do not
+rewrite these counters. “Direct delivery” means inbox without a recognized
+configured relay, not necessarily a delivery from the original author.
+
+There is no historical delivery backfill: collection starts when the feature
+is activated; events contribute from activation of their tracking. The chart
+shows at most two years. Older buckets are not automatically pruned; include
+buckets, sources and collection metadata in ordinary backups. **Clear cache**
+does not reset collected history.
+
+Deploy using the [ordinary update procedure](install.md): apply pending
+migrations, including `2026_10_22_000000_create_post_delivery_metrics` and
+`2026_10_22_000001_unify_content_delivery_metrics`, then rebuild configuration,
+route and view caches if used. The second migration preserves any counters
+already collected by the first. After changing TTLs, rebuild configuration
+cache and clear Stats cache to apply them immediately. JSON responses remain
+authenticated and `private, no-store`; if cache storage is unavailable, the
+page attempts a direct read without claiming cache insertion.
+
 ### Database sanity
 
 Database sanity removes **orphaned likes, mentions and notifications**: references

@@ -287,7 +287,6 @@ class StatsTest extends TestCase
         $private->hashtags()->attach($tags['alpha']->id);
         $data = app(StatsDataset::class)->hashtags();
         $this->assertSame(['alpha', 'beta', 'delta', 'epsilon', 'eta', 'gamma', 'iota', 'kappa', 'lambda', 'theta'], array_column($data['rows'], 'name'));
-        $this->assertSame(4, $data['rows'][0]['count']);
         $months = collect($data['months'])->keyBy('month');
         $this->assertSame(4, $months['2026-10']['counts'][0]);
         $this->assertSame(array_fill(0, 10, null), $months['2026-09']['counts']);
@@ -322,7 +321,6 @@ class StatsTest extends TestCase
         $index = array_search('occasional', array_column($data['rows'], 'name'), true);
         $this->assertNotFalse($index);
         $this->assertFalse($data['rows'][$index]['legend']);
-        $this->assertSame(3, $data['rows'][$index]['count']);
         $months = collect($data['months'])->keyBy('month');
         $this->assertNull($months['2025-01']['counts'][$index]);
         $this->assertSame(1, $months['2025-08']['counts'][$index]);

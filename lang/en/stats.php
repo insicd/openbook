@@ -155,7 +155,5 @@ return [
         'languages' => 'declared languages',
         'other' => 'Other',
         'updated' => 'Data updated on',
-        'rhythm_title' => 'Public posts per hour',
-        'language_title' => 'Content by language',
     ],
 ];
