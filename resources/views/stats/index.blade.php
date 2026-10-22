@@ -17,8 +17,8 @@
             <p>{{ __('stats.intro') }}</p>
         </header>
 
-        @foreach (['rhythm', 'languages', 'domains', 'volume', 'authors', 'hashtags', 'geography', 'eventCalendar', 'communityActivity'] as $metric)
-            @php($dataset = in_array($metric, ['volume', 'authors']) ? 'weekly' : $metric)
+        @foreach (['rhythm', 'languages', 'domains', 'volume', 'authors', 'hashtags', 'geography', 'eventCalendar', 'communityActivity', 'attachments', 'mediaTrend', 'polls'] as $metric)
+            @php($dataset = in_array($metric, ['volume', 'authors']) ? 'weekly' : (in_array($metric, ['attachments', 'mediaTrend']) ? 'media' : $metric))
             <section class="ob-card ob-stats-card" data-stats-card="{{ $metric }}"
                      data-metric="{{ $dataset }}"
                      data-url="{{ route('stats.'.$dataset) }}" aria-labelledby="stats-{{ $metric }}-title">

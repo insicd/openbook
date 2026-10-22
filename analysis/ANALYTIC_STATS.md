@@ -1000,16 +1000,32 @@ numero di post. Nessun indice MIME usato o necessario per questo accesso dalla p
 
 Prefissi: **A, P**.
 
+Implementazione sprint 6: conteggi condizionali in una sola riga per settimana,
+senza divisioni locali/remoti. I post con entrambi i tipi contribuiscono alle due
+categorie; `posts` conta invece ogni post una sola volta.
+
 ```sql
-SELECT DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY) AS week_start, p.is_local,
-       CASE WHEN m.mime_type LIKE 'image/%' THEN 'image' ELSE 'video' END AS kind,
-       COUNT(*) AS attachments_count, COUNT(DISTINCT p.id) AS posts_count
+SELECT DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY) AS week,
+       SUM(CASE WHEN LOWER(m.mime_type) LIKE 'image/%' THEN 1 ELSE 0 END) AS images,
+       SUM(CASE WHEN LOWER(m.mime_type) LIKE 'video/%' THEN 1 ELSE 0 END) AS videos,
+       COUNT(DISTINCT CASE WHEN LOWER(m.mime_type) LIKE 'image/%' THEN p.id END) AS image_posts,
+       COUNT(DISTINCT CASE WHEN LOWER(m.mime_type) LIKE 'video/%' THEN p.id END) AS video_posts,
+       COUNT(DISTINCT p.id) AS posts
 FROM public_posts p
 JOIN post_attachments att ON att.post_id = p.id
 JOIN media m ON m.id = att.media_id
-WHERE m.mime_type LIKE 'image/%' OR m.mime_type LIKE 'video/%'
-GROUP BY week_start, p.is_local, kind ORDER BY week_start, p.is_local, kind
+WHERE LOWER(m.mime_type) LIKE 'image/%' OR LOWER(m.mime_type) LIKE 'video/%'
+GROUP BY week ORDER BY week
 ```
+
+Query effettiva senza discoverable/indexable: 520,16 ms; EXPLAIN ANALYZE 620 ms.
+Post tramite `posts_popular_remote_actor_index` (48.861 candidati), Actor via PK,
+pivot tramite `post_attachments_post_id_media_id_unique`, media via PK per 32.832
+associazioni, 32.651 file immagine/video ammessi su 77 settimane popolate. Il piano
+ordina i post per settimana prima dei join; nessun nuovo indice MIME è giustificato
+per questo percorso. Costo da coprire nella fase caching già prevista, senza
+introdurre ora tabelle metriche. Piano completo nel registro EXPLAIN.
+
 
 #### Q13 — Ritmo degli ultimi 15 giorni: 360 bucket orari
 
@@ -1152,11 +1168,19 @@ tutti i post senza sondaggio.
 Prefissi: **A, P**.
 
 ```sql
-SELECT DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY) AS week_start, p.is_local,
-       COUNT(*) AS total_posts, COUNT(pol.id) AS posts_with_poll
+SELECT DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY) AS week,
+       COUNT(*) AS posts, COUNT(pol.id) AS polls
 FROM public_posts p LEFT JOIN polls pol ON pol.post_id = p.id
-GROUP BY week_start, p.is_local ORDER BY week_start, p.is_local
+GROUP BY week ORDER BY week
 ```
+
+Implementazione sprint 6 senza filtri discoverable/indexable: 133,93 ms;
+EXPLAIN ANALYZE 124 ms. `posts_popular_remote_actor_index`, Actor via PK e
+`polls_post_id_unique` (lookup covering univoco), 48.860 post e 12 sondaggi.
+Denominatore e numeratore nello stesso snapshot; quota totale 12/48.860,
+non media delle quote settimanali. Nessun dato sui voti è letto. I bucket vuoti
+sono trasmessi con conteggi zero ma visualizzati come percentuale assente.
+
 
 #### Varianti e controllo degli indici
 

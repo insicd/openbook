@@ -148,6 +148,13 @@ published or shared retained posts, including remote Group actors. Weeks refer
 to the original post publication date; each community and each post count once
 per week, even if multiple communities shared the same post.
 
+Attachments show images and videos in posts: file totals and weekly trends,
+with one dataset shared by both charts. A post may have multiple files or
+both types; audio, documents and external embeds are excluded. Polls show the
+weekly share of eligible public posts containing an open or closed poll,
+without accessing votes or participants. The denominator includes all eligible
+public posts that week; weeks without posts have no percentage and break the line.
+
 Each chart loads its dataset as you approach it on the page. Failed requests
 can be retried independently. This phase does not cache the results. Statistics
 respect visibility and moderation exclusions, including suspended or deleted

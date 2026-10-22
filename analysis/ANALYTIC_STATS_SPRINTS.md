@@ -685,3 +685,37 @@ per gli otto dataset, inclusi i rami UNION. Accessi ai post ancora indicizzati;
 aggregazione hashtag più costosa con il corpus ampliato, da considerare nella
 fase caching prevista. Anteprima community: 1.230 post distinti, picco 17
 community attive in una settimana. Misure locali, non garanzia su grandi corpus.
+
+### Sprint 6 — Prima implementazione da rivedere
+
+Due dataset autenticati senza cache: `/stats/allegati` e `/stats/sondaggi`.
+Il primo alimenta due grafici con una richiesta condivisa nella pagina: barre
+dei totali immagine/video e linee settimanali dei file allegati. Query unica con
+COUNT DISTINCT dei post e conteggi condizionali per MIME; un post misto conta
+in entrambe le categorie, una volta sola nel totale dei post con media.
+Nessuna divisione locale/remoto. Esclusi audio, documenti ed embed esterni.
+
+Il secondo aggrega post totali e post con sondaggio nella stessa query tramite
+LEFT JOIN alla relazione univoca polls.post_id. Nessun accesso a voti/opzioni.
+Percentuale globale calcolata sui totali, senza mediare percentuali settimanali.
+Il grafico mostra la quota settimanale; nessuna percentuale nelle settimane
+senza post (null e interruzione della linea), zero quando i post esistono ma
+nessuno contiene un sondaggio. Inclusi sondaggi aperti e chiusi.
+
+I bucket seguono la pubblicazione originale UTC, due anni fino all’ultima ora
+completa. Filtri condivisi senza discoverable/indexable; privacy e moderazione
+invariate. Test preparati per MIME multipli/misti, conteggio distinto, contenuti
+privati, file non pertinenti e denominatore sondaggi; PHPUnit non eseguito.
+Nessun commit dello sprint 6 prima della revisione dell’utente.
+
+Verifica MySQL sprint 6: query media 520,16 ms (EXPLAIN ANALYZE 620 ms),
+polls 133,93 ms (EXPLAIN ANALYZE 124 ms). Piani completi e SQL finale in Q12/Q19
+e nel registro EXPLAIN. Media: post tramite posts_popular_remote_actor_index,
+att tramite indice univoco post/media, media e Actor via PK; polls: stesso
+accesso post, polls_post_id_unique covering. Non sono giustificati nuovi indici
+MIME per l’accesso dalla pivot. Entrambe restano candidate al caching previsto.
+
+Anteprima reale: 31304 immagini, 1347 video, 27262 post con media;
+12 post con sondaggio su 48.860 ammessi (0,02%). Sintassi PHP/JS, Pint e
+diff --check passano. Verifica browser dei tre grafici e dei relativi riepiloghi.
+PHPUnit non eseguito; sprint 6 pronto per revisione, senza commit.

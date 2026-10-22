@@ -52,4 +52,14 @@ final class StatsController extends Controller
     {
         return response()->json($datasets->communityActivity())->header('Cache-Control', 'private, no-store');
     }
+
+    public function media(StatsDataset $datasets): JsonResponse
+    {
+        return response()->json($datasets->media())->header('Cache-Control', 'private, no-store');
+    }
+
+    public function polls(StatsDataset $datasets): JsonResponse
+    {
+        return response()->json($datasets->polls())->header('Cache-Control', 'private, no-store');
+    }
 }

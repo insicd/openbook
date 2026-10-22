@@ -137,6 +137,34 @@ final class StatsQuery
             ->groupBy('week')->orderBy('week')->get();
     }
 
+    public function media(CarbonImmutable $from, CarbonImmutable $to): Collection
+    {
+        $week = $this->week('p');
+        $image = "LOWER(m.mime_type) LIKE 'image/%'";
+        $video = "LOWER(m.mime_type) LIKE 'video/%'";
+
+        return $this->posts($from, $to)
+            ->join('post_attachments as att', 'att.post_id', '=', 'p.id')
+            ->join('media as m', 'm.id', '=', 'att.media_id')
+            ->where(fn (Builder $query) => $query->whereRaw($image)->orWhereRaw($video))
+            ->selectRaw("{$week} AS week,
+                SUM(CASE WHEN {$image} THEN 1 ELSE 0 END) AS images,
+                SUM(CASE WHEN {$video} THEN 1 ELSE 0 END) AS videos,
+                COUNT(DISTINCT CASE WHEN {$image} THEN p.id END) AS image_posts,
+                COUNT(DISTINCT CASE WHEN {$video} THEN p.id END) AS video_posts,
+                COUNT(DISTINCT p.id) AS posts")
+            ->groupBy('week')->orderBy('week')->get();
+    }
+
+    public function polls(CarbonImmutable $from, CarbonImmutable $to): Collection
+    {
+        $week = $this->week('p');
+
+        return $this->posts($from, $to)->leftJoin('polls as pol', 'pol.post_id', '=', 'p.id')
+            ->selectRaw("{$week} AS week, COUNT(*) AS posts, COUNT(pol.id) AS polls")
+            ->groupBy('week')->orderBy('week')->get();
+    }
+
     private function languageUses(Builder $query, string $alias): Builder
     {
         $language = "LOWER(TRIM({$alias}.language))";

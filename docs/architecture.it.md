@@ -152,6 +152,14 @@ pubbliche ammissibili hanno pubblicato o rilanciato post conservati, inclusi
 i Group remoti. Le settimane seguono la pubblicazione originale del post; ogni
 community e ogni post contano una volta per settimana, anche con più rilanci.
 
+Gli allegati mostrano immagini e video dei post: totali dei file e andamento
+settimanale, con un unico dataset condiviso dai due grafici. Un post può avere
+più file o entrambi i tipi; audio, documenti ed embed esterni sono esclusi.
+I sondaggi mostrano la quota settimanale dei post pubblici con sondaggio,
+aperto o chiuso, senza consultare voti o partecipanti. Il denominatore include
+tutti i post pubblici ammessi della settimana; una settimana senza post non
+ha percentuale e interrompe la linea.
+
 Ogni grafico carica i dati quando ti avvicini alla sua posizione nella pagina;
 un errore può essere ritentato senza ricaricare gli altri. In questa fase non
 è attiva una cache dei risultati. Le statistiche rispettano le esclusioni

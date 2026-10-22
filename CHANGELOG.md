@@ -23,7 +23,8 @@ la [roadmap](docs/roadmap.md).
   con ritmo dei post nelle ultime 360 ore complete e distribuzione delle lingue
   di post ed eventi pubblici conservati, account totali per istanza, volume
   settimanale dei post e autori attivi, trend degli hashtag, geografia dei
-  contenuti, calendario degli eventi e attività delle community. I grafici caricano i dati solo
+  contenuti, calendario degli eventi, attività delle community, immagini e video
+  allegati e quota di post con sondaggio. I grafici caricano i dati solo
   avvicinandosi alla zona visibile, senza cache dei risultati in questa fase.
   Le statistiche aggregate includono anche gli account che non consentono
   la scoperta o l’indicizzazione, mantenendo i filtri di visibilità e moderazione.

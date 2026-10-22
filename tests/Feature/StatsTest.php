@@ -43,6 +43,8 @@ class StatsTest extends TestCase
         $this->getJson('/stats/geografia')->assertUnauthorized();
         $this->getJson('/stats/eventi')->assertUnauthorized();
         $this->getJson('/stats/community')->assertUnauthorized();
+        $this->getJson('/stats/allegati')->assertUnauthorized();
+        $this->getJson('/stats/sondaggi')->assertUnauthorized();
     }
 
     public function test_an_ordinary_user_can_read_stats_without_aggregates_in_the_html_response(): void
@@ -67,6 +69,8 @@ class StatsTest extends TestCase
         $this->getJson('/stats/geografia')->assertOk()->assertJsonPath('metric', 'geography');
         $this->getJson('/stats/eventi')->assertOk()->assertJsonPath('metric', 'eventCalendar');
         $this->getJson('/stats/community')->assertOk()->assertJsonPath('metric', 'communityActivity');
+        $this->getJson('/stats/allegati')->assertOk()->assertJsonPath('metric', 'media');
+        $this->getJson('/stats/sondaggi')->assertOk()->assertJsonPath('metric', 'polls');
     }
 
     public function test_hourly_buckets_are_complete_utc_hours_and_results_are_not_cached(): void
@@ -414,5 +418,44 @@ class StatsTest extends TestCase
         $rows = collect(app(StatsDataset::class)->communityActivity()['rows'])->keyBy('week');
         $this->assertSame(['week' => '2026-10-12', 'active' => 1, 'count' => 3], $rows['2026-10-12']);
         $this->assertSame(3, $rows->sum('count'));
+    }
+
+    public function test_media_counts_files_and_distinct_posts_without_including_private_posts_or_other_mime_types(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
+        $author = $this->createFullAccount('statsmedia');
+        $author->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
+        foreach (['public', 'followers'] as $visibility) {
+            $post = Post::create(['actor_id' => $author->actor->id, 'body' => 'Mixed attachments', 'status' => 'published', 'visibility' => $visibility, 'published_at' => '2026-10-13 12:00:00']);
+            foreach (['image/jpeg', 'image/png', 'video/mp4', 'audio/ogg', 'application/pdf'] as $mime) {
+                $media = (string) Str::uuid();
+                DB::table('media')->insert(['id' => $media, 'actor_id' => $author->actor->id, 'path' => $media, 'mime_type' => $mime, 'byte_size' => 100]);
+                DB::table('post_attachments')->insert(['id' => (string) Str::uuid(), 'post_id' => $post->id, 'media_id' => $media]);
+            }
+        }
+        Post::create(['actor_id' => $author->actor->id, 'body' => 'No file https://example.test/video', 'status' => 'published', 'visibility' => 'public', 'published_at' => '2026-10-13 12:00:00']);
+        $rows = collect(app(StatsDataset::class)->media()['rows'])->keyBy('week');
+        $this->assertSame(['week' => '2026-10-12', 'images' => 2, 'videos' => 1, 'image_posts' => 1, 'video_posts' => 1, 'posts' => 1], $rows['2026-10-12']);
+        $this->assertSame(2, $rows->sum('images'));
+        $this->assertSame(0, $rows['2026-10-05']['posts']);
+        $this->actingAs($author)->getJson('/stats/allegati')->assertHeader('Cache-Control', 'no-store, private');
+    }
+
+    public function test_poll_statistics_use_all_public_posts_as_denominator_and_include_closed_polls(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
+        $author = $this->createFullAccount('statspolls');
+        $author->actor->forceFill(['discoverable' => false, 'indexable' => false])->save();
+        foreach (['open', 'closed', 'none', 'private'] as $kind) {
+            $post = Post::create(['actor_id' => $author->actor->id, 'body' => 'Question', 'status' => 'published', 'visibility' => $kind === 'private' ? 'followers' : 'public', 'published_at' => '2026-10-13 12:00:00']);
+            if ($kind !== 'none') {
+                DB::table('polls')->insert(['id' => (string) Str::uuid(), 'post_id' => $post->id, 'multiple' => false, 'closed' => $kind === 'closed']);
+            }
+        }
+        $rows = collect(app(StatsDataset::class)->polls()['rows'])->keyBy('week');
+        $this->assertSame(['week' => '2026-10-12', 'posts' => 3, 'polls' => 2], $rows['2026-10-12']);
+        $this->assertSame(['week' => '2026-10-05', 'posts' => 0, 'polls' => 0], $rows['2026-10-05']);
+        $this->assertSame(2, $rows->sum('polls'));
+        $this->actingAs($author)->getJson('/stats/sondaggi')->assertHeader('Cache-Control', 'no-store, private');
     }
 }

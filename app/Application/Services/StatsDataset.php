@@ -158,6 +158,34 @@ final class StatsDataset
         return $this->metadata('communityActivity', $from, $to, 'week', 'communities') + ['rows' => $rows];
     }
 
+    public function media(): array
+    {
+        return $this->weeklyDataset('media', 'attachments', ['images', 'videos', 'image_posts', 'video_posts', 'posts']);
+    }
+
+    public function polls(): array
+    {
+        return $this->weeklyDataset('polls', 'posts', ['posts', 'polls']);
+    }
+
+    private function weeklyDataset(string $metric, string $unit, array $fields): array
+    {
+        $to = CarbonImmutable::now('UTC')->startOfHour();
+        $from = $to->subYearsNoOverflow(2);
+        $counts = $this->query->{$metric}($from, $to)->keyBy('week');
+        $rows = [];
+        for ($week = $from->startOfWeek(CarbonImmutable::MONDAY); $week->lessThan($to); $week = $week->addWeek()) {
+            $key = $week->format('Y-m-d');
+            $row = ['week' => $key];
+            foreach ($fields as $field) {
+                $row[$field] = (int) ($counts->get($key)?->{$field} ?? 0);
+            }
+            $rows[] = $row;
+        }
+
+        return $this->metadata($metric, $from, $to, 'week', $unit) + ['rows' => $rows];
+    }
+
     private function metadata(string $metric, CarbonImmutable $from, CarbonImmutable $to, string $bucket, string $unit): array
     {
         return [

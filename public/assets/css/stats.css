@@ -66,3 +66,5 @@
 .ob-stats-card[data-stats-card="domains"] .ob-stats-chart, .ob-stats-card[data-stats-card="languages"] .ob-stats-chart { height: 360px; }
 
 .ob-stats-card[data-stats-card="geography"] .ob-stats-chart { height: 360px; }
+
+.ob-stats-card[data-stats-card="attachments"] .ob-stats-chart { height: 200px; }

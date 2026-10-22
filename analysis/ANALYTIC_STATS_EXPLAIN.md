@@ -1677,3 +1677,70 @@ Binding: `["active",false,"application","group",true,"active",false,"application
                         -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.348 rows=1) (actual time=942e-6..957e-6 rows=1 loops=1230)
 
 ```
+
+## Sprint 6 — Allegati e sondaggi — 22 ottobre 2026
+
+Query effettive, database locale, sola lettura. I tempi e le popolazioni precedenti restano storici.
+
+### media
+
+Richiesta: 520.16 ms.
+
+```sql
+select DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY) AS week,
+                SUM(CASE WHEN LOWER(m.mime_type) LIKE 'image/%' THEN 1 ELSE 0 END) AS images,
+                SUM(CASE WHEN LOWER(m.mime_type) LIKE 'video/%' THEN 1 ELSE 0 END) AS videos,
+                COUNT(DISTINCT CASE WHEN LOWER(m.mime_type) LIKE 'image/%' THEN p.id END) AS image_posts,
+                COUNT(DISTINCT CASE WHEN LOWER(m.mime_type) LIKE 'video/%' THEN p.id END) AS video_posts,
+                COUNT(DISTINCT p.id) AS posts from `posts` as `p` inner join `actors` as `a` on `a`.`id` = `p`.`actor_id` inner join `post_attachments` as `att` on `att`.`post_id` = `p`.`id` inner join `media` as `m` on `m`.`id` = `att`.`media_id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`type` <> ? and 1 = 1 and `p`.`status` = ? and `p`.`visibility` = ? and `p`.`conversation_id` is null and `p`.`published_at` >= ? and `p`.`published_at` < ? and (`p`.`community_id` is null or exists (select 1 from `communities` as `c` where `c`.`id` = `p`.`community_id` and `c`.`is_private` = ?)) and (LOWER(m.mime_type) LIKE 'image/%' or LOWER(m.mime_type) LIKE 'video/%') group by `week` order by `week` asc
+```
+
+Binding: `["active",false,"application","published","public","2024-10-22T18:00:00.000000Z","2026-10-22T18:00:00.000000Z",false]`
+
+```text
+-> Group aggregate: sum((case when (lower(m.mime_type) like 'image/%') then 1 else 0 end)), sum((case when (lower(m.mime_type) like 'video/%') then 1 else 0 end)), count(distinct (case when (lower(m.mime_type) like 'image/%') then p.id end)), count(distinct (case when (lower(m.mime_type) like 'video/%') then p.id end)), count(distinct p.id)  (cost=3900 rows=34.7) (actual time=418..620 rows=77 loops=1)
+    -> Nested loop inner join  (cost=3623 rows=1204) (actual time=418..581 rows=32651 loops=1)
+        -> Nested loop inner join  (cost=3496 rows=1204) (actual time=418..521 rows=32832 loops=1)
+            -> Nested loop inner join  (cost=3372 rows=1096) (actual time=418..453 rows=48860 loops=1)
+                -> Sort: week  (cost=1120 rows=21913) (actual time=418..419 rows=48861 loops=1)
+                    -> Filter: ((p.conversation_id is null) and ((p.community_id is null) or exists(select #2)))  (cost=1120 rows=21913) (actual time=0.592..405 rows=48861 loops=1)
+                        -> Index lookup on p using posts_popular_remote_actor_index (status = 'published', visibility = 'public'), with index condition: ((p.published_at >= TIMESTAMP'2024-10-22 18:00:00') and (p.published_at < TIMESTAMP'2026-10-22 18:00:00'))  (cost=1120 rows=21913) (actual time=0.591..404 rows=48861 loops=1)
+                        -> Select #2 (subquery in condition; dependent)
+                            -> Limit: 1 row(s)  (cost=0.35 rows=1) (actual time=0.00871..0.00871 rows=1 loops=1)
+                                -> Filter: (c.is_private = 0)  (cost=0.35 rows=1) (actual time=0.00862..0.00862 rows=1 loops=1)
+                                    -> Single-row index lookup on c using PRIMARY (id = p.community_id)  (cost=0.35 rows=1) (actual time=0.00762..0.00762 rows=1 loops=1)
+                -> Filter: ((a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=0.25 rows=0.05) (actual time=578e-6..619e-6 rows=1 loops=48861)
+                    -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.25 rows=1) (actual time=464e-6..479e-6 rows=1 loops=48861)
+            -> Covering index lookup on att using post_attachments_post_id_media_id_unique (post_id = p.id)  (cost=0.26 rows=1.1) (actual time=0.00124..0.00134 rows=0.672 loops=48860)
+        -> Filter: ((lower(m.mime_type) like 'image/%') or (lower(m.mime_type) like 'video/%'))  (cost=0.495 rows=1) (actual time=0.0017..0.00174 rows=0.994 loops=32832)
+            -> Single-row index lookup on m using PRIMARY (id = att.media_id)  (cost=0.495 rows=1) (actual time=0.0016..0.00161 rows=1 loops=32832)
+
+```
+
+### polls
+
+Richiesta: 133.93 ms.
+
+```sql
+select DATE_SUB(DATE(p.published_at), INTERVAL WEEKDAY(p.published_at) DAY) AS week, COUNT(*) AS posts, COUNT(pol.id) AS polls from `posts` as `p` inner join `actors` as `a` on `a`.`id` = `p`.`actor_id` left join `polls` as `pol` on `pol`.`post_id` = `p`.`id` where `a`.`status` = ? and `a`.`remote_suspended` = ? and `a`.`deleted_at` is null and `a`.`type` <> ? and 1 = 1 and `p`.`status` = ? and `p`.`visibility` = ? and `p`.`conversation_id` is null and `p`.`published_at` >= ? and `p`.`published_at` < ? and (`p`.`community_id` is null or exists (select 1 from `communities` as `c` where `c`.`id` = `p`.`community_id` and `c`.`is_private` = ?)) group by `week` order by `week` asc
+```
+
+Binding: `["active",false,"application","published","public","2024-10-22T18:00:00.000000Z","2026-10-22T18:00:00.000000Z",false]`
+
+```text
+-> Sort: `week`  (actual time=124..124 rows=89 loops=1)
+    -> Table scan on <temporary>  (actual time=124..124 rows=89 loops=1)
+        -> Aggregate using temporary table  (actual time=124..124 rows=89 loops=1)
+            -> Nested loop left join  (cost=1219 rows=12.2) (actual time=0.0384..118 rows=48860 loops=1)
+                -> Nested loop inner join  (cost=1205 rows=12.2) (actual time=0.0371..102 rows=48860 loops=1)
+                    -> Filter: ((p.conversation_id is null) and ((p.community_id is null) or exists(select #2)))  (cost=1120 rows=243) (actual time=0.0328..76.8 rows=48861 loops=1)
+                        -> Index lookup on p using posts_popular_remote_actor_index (status = 'published', visibility = 'public'), with index condition: ((p.published_at >= TIMESTAMP'2024-10-22 18:00:00') and (p.published_at < TIMESTAMP'2026-10-22 18:00:00'))  (cost=1120 rows=21913) (actual time=0.0326..75.1 rows=48861 loops=1)
+                        -> Select #2 (subquery in condition; dependent)
+                            -> Limit: 1 row(s)  (cost=0.35 rows=1) (actual time=0.00321..0.00325 rows=1 loops=1)
+                                -> Filter: (c.is_private = 0)  (cost=0.35 rows=1) (actual time=0.00317..0.00317 rows=1 loops=1)
+                                    -> Single-row index lookup on c using PRIMARY (id = p.community_id)  (cost=0.35 rows=1) (actual time=0.003..0.003 rows=1 loops=1)
+                    -> Filter: ((a.remote_suspended = 0) and (a.`status` = 'active') and (a.deleted_at is null) and (a.`type` <> 'application'))  (cost=0.25 rows=0.05) (actual time=399e-6..440e-6 rows=1 loops=48861)
+                        -> Single-row index lookup on a using PRIMARY (id = p.actor_id)  (cost=0.25 rows=1) (actual time=295e-6..309e-6 rows=1 loops=48861)
+                -> Single-row covering index lookup on pol using polls_post_id_unique (post_id = p.id)  (cost=1.01 rows=1) (actual time=285e-6..285e-6 rows=246e-6 loops=48860)
+
+```
