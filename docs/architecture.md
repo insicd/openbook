@@ -115,6 +115,115 @@ Trending shows hashtags recently used in local public or unlisted content.
 Home and World require JavaScript to load their feeds. Profiles, communities
 and hashtag pages also provide pagination links with JavaScript disabled.
 
+## Stats
+
+The **Stats** link in the footers opens a page for signed-in users, with no
+staff role required. The page shows retained public posts over the
+last 360 complete hours (UTC), and languages of retained public posts and
+events over the last two years, combined by language. Content without a
+declared language is excluded from the language chart and its totals.
+
+The page also shows accounts by instance, combined regardless of type,
+weekly post volume and distinct weekly authors over the last two years.
+We show the ten leading instances and languages; remaining languages are
+grouped under Other.
+Volume and active authors each show a single weekly total series, without
+instance filters or a local/remote split. Author counts
+must not be added across weeks.
+
+The hashtag chart includes each of the last 24 calendar months’ top 10
+(including the partial current month), plus the top 10 over the entire period.
+Each month shows at most ten hashtags: outside the top 10 a series has a
+gap, keeping its identity and colour when a hashtag returns. The legend contains only the ten most used
+over the period: hover or keyboard focus highlights a series; tooltips also
+identify hashtags outside the legend. Ranges stay in UTC; generation times
+use the visitor’s timezone.
+
+Geography shows countries associated with content places, combining posts
+and events without a selector. Unspecified countries and small groups
+are combined; no coordinates or authors’ locations are shown. The calendar
+groups events published over the last two years by starting month, including
+future start dates. Communities show how many eligible public communities
+published or shared retained posts, including remote Group actors. Weeks refer
+to the original post publication date; each community and each post count once
+per week, even if multiple communities shared the same post.
+
+Attachments show images and videos in posts: file totals and weekly trends,
+with one dataset shared by both charts. A post may have multiple files or
+both types; audio, documents and external embeds are excluded. Polls show the
+weekly share of eligible public posts containing an open or closed poll,
+without accessing votes or participants. The denominator includes all eligible
+public posts that week; weeks without posts have no percentage and break the line.
+
+Provenance counts processed deliveries of public posts, including known posts,
+starting with migration `2026_10_22_000000_create_post_delivery_metrics`. This is
+neither a unique-post count nor an HTTP request counter: successful Create,
+Update and Announce processing counts once per post delivery. Sources distinguish
+relays, inbox without an identified relay (labelled “Direct delivery”), fetch/discovery, RSS and unknown.
+The direct-delivery label does not imply that the sender is the original author.
+Already known RSS entries can contribute on each import.
+
+Only collection metadata, source identities and daily UTC buckets by source are
+stored. There is no journal of post URIs/hashes, authors or communities. Later
+deletions, blocks and suspensions do not rewrite history. Private posts and
+private communities are excluded at counting time; core message acceptance
+checks remain unchanged.
+
+Increments run after the outermost post commit, on a dedicated connection and
+in a separate transaction. All errors are swallowed without logging, retrying
+or failing the import. Post rollback discards the callback. Collection is best
+effort: increments may be lost and internal retries may count more than once;
+absolute accuracy is not promised.
+
+Collection also includes public-event deliveries from inbox/relays, outboxes,
+URL resolution and refresh. Migration
+`2026_10_22_000001_unify_content_delivery_metrics` renames the existing post
+buckets to `stats_content_delivery_buckets`, preserving counts and collection
+start time (`content_delivery`). Posts and events increment the same daily
+source bucket, without a content-type dimension. Events contribute from the
+activation of event tracking; earlier deliveries are not reconstructed.
+DeliveryStats uses the same post-commit isolation for both types. Repeated
+Create, Update and Announce count; later cancellation or deletion does not
+retract counts. The chart shows one combined total without a selector.
+Queries aggregate the shared buckets without reading content, authors or
+participants.
+
+Dataset results are cached through the configured Laravel store (database/file
+supported, no worker or Redis required). TTLs in `config/stats.php` have a
+300-second minimum: rhythm 5 minutes; instance counts, geography and delivery
+15 minutes; other datasets one hour. Weekly volume/authors share one result,
+as do attachment totals/trends. Keys contain dataset version, metric and a
+shared generation rotated only by the admin command, without user IDs. Responses
+remain authenticated and HTTP `private, no-store`.
+
+A small grey information button below each chart shows the effective refresh
+frequency and a single “Data updated on” date, using cache insertion time in the visitor’s
+timezone, on hover, keyboard focus or touch. Cache hits retain these dates.
+If the store is unavailable, results are computed directly and no cache
+insertion is claimed. Failed queries are never cached. Misses use a bounded
+cache lock; old in-flight computations cannot publish into a new generation.
+No uncommitted snapshot is cached.
+
+**Admin → Database → Maintenance → Clear statistics cache** rotates only the
+Stats namespace. Other application cache entries and collected delivery buckets
+are preserved; datasets rebuild on subsequent requests. The POST requires an
+administrator and CSRF protection. Results refresh only when their TTL expires
+or an administrator explicitly clears the statistics cache. Edits, visibility
+changes, suspensions, deletion, domain blocks and settings changes do not
+invalidate cached results. Crossing an hour/day boundary does not bypass the
+TTL either. Current query filters and UTC windows are evaluated on the next
+recalculation; this cache policy does not change the filters themselves.
+Refresh configuration and route caches when deploying these changes.
+
+Each chart loads its dataset as you approach it on the page. Failed requests
+can be retried independently. Statistics
+respect visibility and moderation exclusions, including suspended or deleted
+accounts and blocked domains. All aggregate statistics include accounts with
+`discoverable=false` and `indexable=false`.
+They describe retained content, not the entire Fediverse: deletion and
+retention can change the series, and zero does not prove that nothing was
+published historically.
+
 ## Profile and settings
 
 Open **Settings** from the user menu or **Edit profile** on your profile. You

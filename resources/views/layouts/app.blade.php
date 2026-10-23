@@ -169,9 +169,12 @@
 
     <footer class="ob-footer">
         <p>
-            {{ config('app.name') }} &middot;
+            <a href="{{ route('home') }}">{{ config('app.name') }}</a> &middot;
             <a href="{{ route('instance.rules') }}">{{ __('openbook.footer.rules') }}</a> &middot;
             <a href="{{ route('instance.privacy') }}">{{ __('openbook.footer.privacy') }}</a> &middot;
+            @auth
+                <a href="{{ route('stats.index') }}">{{ __('stats.title') }}</a> &middot;
+            @endauth
             <a href="{{ config('openbook.homepage') }}" target="_blank">Openbook</a> v{{ config('openbook.release_label') }} &middot;
             {{ __('openbook.footer.license') }}
         </p>

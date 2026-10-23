@@ -441,3 +441,24 @@ in interfaccia, non un dettaglio implementativo nascosto.
   cache. Un Actor senza nessuno dei due segnali (mai seguito localmente, mai un post
   pubblico in cache) non viene proposto, e chi e' gia' seguito dal visitatore viene
   escluso.
+
+### Statistiche dell’istanza
+
+Stats è riservato agli utenti autenticati, senza privilegi di staff. StatsQuery
+compone le aggregate sul corpus; StatsDataset definisce finestre UTC e payload;
+CachedStatsDataset fornisce cache condivisa, TTL minimo 300 secondi, lock e reset
+admin per namespace. Volume/autori e totali/trend allegati condividono i dataset.
+Nessun observer o listener invalida la cache: soltanto scadenza o reset admin.
+I tredici grafici caricano asincronamente gli undici dataset avvicinandosi alla
+viewport, con massimo due card in caricamento e stato di errore indipendente.
+
+DeliveryStats riceve post/eventi pubblici e riusa un solo incremento agnostico
+in bucket giornalieri per sorgente. La registrazione afterCommit è protetta da
+catch silenzioso; il writer usa connessione separata, UTC e PDO non persistente,
+anche con configurazioni read/write. I percorsi inbox disattivano il conteggio
+nell’ingester e lo eseguono una volta al completamento dell’attività, compresi
+Announce di contenuti già noti. Quote annidate non generano una seconda delivery.
+Le metriche non devono far fallire il salvataggio. Le query di lettura non
+riutilizzano la logica delle timeline: mantengono soltanto i filtri statistici
+approvati. Definizioni e gestione operativa: [Stats](../docs/architecture.it.md#stats)
+e [cache](../docs/configuration.it.md#statistiche-dellistanza-e-cache).

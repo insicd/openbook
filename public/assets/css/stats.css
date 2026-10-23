@@ -1,0 +1,77 @@
+.ob-stats {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.ob-stats__intro { padding: .25rem .25rem 0; }
+.ob-stats__eyebrow {
+  display: block;
+  margin-bottom: .5rem;
+  color: var(--ob-color-primary);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.ob-stats__intro h1 { font-size: clamp(1.65rem, 3vw, 2.25rem); letter-spacing: -.035em; }
+.ob-stats__intro p, .ob-stats-card__header p { color: var(--ob-color-text-muted); margin: .6rem 0 0; }
+.ob-stats-card { overflow: hidden; }
+.ob-stats-card__header h2 { font-size: 1.25rem; letter-spacing: -.02em; }
+.ob-stats-card__header p { font-size: .875rem; }
+.ob-stats-card__status {
+  display: grid;
+  place-content: center;
+  min-height: 480px;
+  color: var(--ob-color-text-muted);
+  font-size: .875rem;
+}
+.ob-stats-card[aria-busy="true"] .ob-stats-card__status::before {
+  content: '';
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  margin: 0 auto .75rem;
+  border: 3px solid var(--ob-color-border);
+  border-top-color: var(--ob-color-primary);
+  border-radius: 50%;
+  animation: ob-stats-spin 1s linear infinite;
+}
+.ob-stats-card__status[hidden], .ob-stats [hidden] { display: none; }
+.ob-stats-card__actions { display: flex; gap: .5rem; }
+.ob-stats-summary { display: flex; flex-wrap: wrap; gap: 1.25rem 2rem; margin: 1.5rem 0 1rem; }
+.ob-stats-summary__value { display: block; font-size: 2rem; font-weight: 750; line-height: 1.15; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.ob-stats-summary__label { color: var(--ob-color-text-muted); font-size: .8rem; }
+.ob-stats-chart { position: relative; width: 100%; height: 300px; }
+.ob-stats-chart canvas { display: block; }
+.ob-stats-card__period { color: var(--ob-color-text-muted); font-size: .75rem; margin: .8rem 0 0; }
+.ob-stats-card__note { color: var(--ob-color-text-muted); font-size: .8rem; margin: 1rem 0 0; padding-top: 1rem; border-top: 1px solid var(--ob-color-border); }
+.ob-stats-method { padding: 0 .25rem; color: var(--ob-color-text-muted); font-size: .8rem; }
+.ob-stats-method h2 { font-size: .9rem; color: var(--ob-color-text); }
+.ob-stats-method p { margin: 0; }
+@keyframes ob-stats-spin { to { transform: rotate(360deg); } }
+@media (max-width: 480px) {
+  .ob-stats-card { padding: 1rem; }
+  .ob-stats-chart { height: 260px; }
+  .ob-stats-summary__value { font-size: 1.7rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob-stats-card[aria-busy="true"] .ob-stats-card__status::before { animation: none; }
+}
+
+.ob-stats-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem .65rem; margin-top: .5rem; }
+.ob-stats-legend button { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem; border: 0; border-radius: .25rem; background: transparent; color: var(--ob-color-text); font: inherit; font-size: .75rem; cursor: pointer; overflow-wrap: anywhere; max-width: 100%; }
+.ob-stats-legend button::before { content: ''; flex: 0 0 .65rem; width: .65rem; height: .65rem; border-radius: 50%; background: var(--ob-stats-series-color); }
+.ob-stats-legend button:hover, .ob-stats-legend button:focus-visible { background: var(--ob-color-primary-soft); outline: 2px solid var(--ob-color-primary); outline-offset: 1px; }
+
+.ob-stats-card[data-stats-card="domains"] .ob-stats-chart, .ob-stats-card[data-stats-card="languages"] .ob-stats-chart { height: 360px; }
+
+.ob-stats-card[data-stats-card="geography"] .ob-stats-chart { height: 360px; }
+
+.ob-stats-card[data-stats-card="attachments"] .ob-stats-chart { height: 200px; }
+
+.ob-stats-info { position: relative; width: fit-content; margin-top: .65rem; }
+.ob-stats-info__button { display: grid; place-content: center; width: 1.15rem; height: 1.15rem; padding: 0; border: 1px solid currentColor; border-radius: 50%; background: transparent; color: var(--ob-color-text-muted); font: italic 700 .75rem Georgia, serif; cursor: help; }
+.ob-stats-info__button:focus-visible { outline: 2px solid var(--ob-color-primary); outline-offset: 3px; }
+.ob-stats-info__tooltip { position: absolute; bottom: calc(100% + .5rem); left: 0; z-index: 5; width: max-content; max-width: min(320px, calc(100vw - 6rem)); padding: .7rem .85rem; border: 1px solid var(--ob-color-border); border-radius: .65rem; background: var(--ob-color-surface); color: var(--ob-color-text); box-shadow: 0 4px 16px rgba(0,0,0,.12); font-size: .75rem; line-height: 1.6; white-space: pre-line; visibility: hidden; opacity: 0; }
+.ob-stats-info:hover .ob-stats-info__tooltip, .ob-stats-info:focus-within .ob-stats-info__tooltip, .ob-stats-info.is-open .ob-stats-info__tooltip { visibility: visible; opacity: 1; }
+.ob-stats-info.is-dismissed .ob-stats-info__tooltip { visibility: hidden; opacity: 0; }

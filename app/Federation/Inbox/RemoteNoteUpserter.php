@@ -2,9 +2,12 @@
 
 namespace App\Federation\Inbox;
 
+use App\Application\Services\DeliverySource;
+use App\Application\Services\DeliveryStats;
 use App\Application\Services\DirectMessageLinker;
 use App\Application\Services\DomainBlockManager;
 use App\Application\Services\NotificationCreator;
+use App\Application\Services\RemoteLocationEnricher;
 use App\Domain\Comments\Comment;
 use App\Domain\Locations\PostLocation;
 use App\Domain\Notifications\Notification;
@@ -48,6 +51,8 @@ final class RemoteNoteUpserter
         private readonly RemoteActorResolver $remoteActorResolver,
         private readonly RemotePollSynchronizer $polls,
         private readonly DomainBlockManager $domainBlocks,
+        private readonly DeliveryStats $deliveryStats,
+        private readonly RemoteLocationEnricher $locations,
     ) {}
 
     /**
@@ -63,8 +68,10 @@ final class RemoteNoteUpserter
         bool $resolveQuote = true,
         ?Post $directMessageThreadParent = null,
         ?InboxItem $source = null,
+        ?DeliverySource $delivery = null,
+        bool $trackDelivery = true,
     ): ?Post {
-        return DB::transaction(fn (): ?Post => $this->upsertPostWithinTransaction(
+        $post = DB::transaction(fn (): ?Post => $this->upsertPostWithinTransaction(
             $note,
             $noteUri,
             $actor,
@@ -75,6 +82,11 @@ final class RemoteNoteUpserter
             $directMessageThreadParent,
             $source,
         ));
+        if ($trackDelivery && $post !== null) {
+            $this->deliveryStats->record($post, $delivery ?? new DeliverySource);
+        }
+
+        return $post;
     }
 
     /**
@@ -253,12 +265,19 @@ final class RemoteNoteUpserter
             return;
         }
 
+        $enriched = $this->locations->enrich([
+            ...$location,
+            'region' => $location['admin1_name'],
+        ]);
         PostLocation::query()->updateOrCreate(
             ['post_id' => $post->id],
-            array_merge($location, [
-                'geo_city_id' => null,
+            [...$location,
+                'geo_city_id' => $enriched['geo_city_id'],
+                'admin1_name' => $enriched['region'],
+                'country_code' => $enriched['country_code'],
+                'country_name' => $enriched['country_name'],
                 'source' => 'remote',
-            ]),
+            ],
         );
     }
 
@@ -346,6 +365,7 @@ final class RemoteNoteUpserter
             $publishedAt,
             notifyMentions: false,
             resolveQuote: false,
+            trackDelivery: false,
         );
     }
 

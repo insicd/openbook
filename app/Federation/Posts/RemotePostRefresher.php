@@ -2,6 +2,7 @@
 
 namespace App\Federation\Posts;
 
+use App\Application\Services\DeliverySource;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
@@ -83,6 +84,7 @@ final class RemotePostRefresher
             RemotePostObject::body($note),
             $publishedAt,
             notifyMentions: false,
+            delivery: new DeliverySource('fetch'),
         );
     }
 

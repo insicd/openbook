@@ -18,6 +18,7 @@ The footer shows the installed version.
 - Viewing and voting on remote polls; creation, voting, scheduled closure and
   answer details for local polls.
 - Moderation, domain blocks, queue management and database maintenance.
+- Instance statistics for signed-in users, asynchronous charts and an admin-managed cache.
 - Images and audio; optional local video processing configured by the administrator.
 
 Interoperability is refined over time: each remote service can offer a different

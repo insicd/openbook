@@ -50,6 +50,7 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SearchSuggestController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SiteManifestController;
+use App\Http\Controllers\StatsController;
 use App\Http\Controllers\WorldController;
 use Illuminate\Support\Facades\Route;
 
@@ -69,6 +70,19 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
+    Route::get('/stats', [StatsController::class, 'index'])->name('stats.index');
+    Route::get('/stats/ritmo', [StatsController::class, 'rhythm'])->middleware('throttle:30,1,stats:')->name('stats.rhythm');
+    Route::get('/stats/lingue', [StatsController::class, 'languages'])->middleware('throttle:30,1,stats:')->name('stats.languages');
+    Route::get('/stats/domini', [StatsController::class, 'domains'])->middleware('throttle:30,1,stats:')->name('stats.domains');
+    Route::get('/stats/settimane', [StatsController::class, 'weekly'])->middleware('throttle:30,1,stats:')->name('stats.weekly');
+    Route::get('/stats/hashtag', [StatsController::class, 'hashtags'])->middleware('throttle:30,1,stats:')->name('stats.hashtags');
+    Route::get('/stats/geografia', [StatsController::class, 'geography'])->middleware('throttle:30,1,stats:')->name('stats.geography');
+    Route::get('/stats/eventi', [StatsController::class, 'eventCalendar'])->middleware('throttle:30,1,stats:')->name('stats.eventCalendar');
+    Route::get('/stats/community', [StatsController::class, 'communityActivity'])->middleware('throttle:30,1,stats:')->name('stats.communityActivity');
+    Route::get('/stats/allegati', [StatsController::class, 'media'])->middleware('throttle:30,1,stats:')->name('stats.media');
+    Route::get('/stats/sondaggi', [StatsController::class, 'polls'])->middleware('throttle:30,1,stats:')->name('stats.polls');
+    Route::get('/stats/provenienza', [StatsController::class, 'acquisition'])->middleware('throttle:30,1,stats:')->name('stats.acquisition');
+
     Route::post('/esci', [SessionController::class, 'destroy'])->name('logout');
 
     Route::get('/home', [FeedController::class, 'index'])->name('feed.index');
@@ -297,6 +311,7 @@ Route::middleware('auth')->group(function () {
 
             Route::get('/database', [AdminDatabaseMaintenanceController::class, 'index'])->name('database.index');
             Route::put('/database/retention', [AdminDatabaseMaintenanceController::class, 'updateRetention'])->name('database.retention.update');
+            Route::post('/database/statistiche/cache', [AdminDatabaseMaintenanceController::class, 'clearStatsCache'])->name('database.stats-cache.clear');
             Route::post('/database/pulisci', [AdminDatabaseMaintenanceController::class, 'purge'])->name('database.purge');
             Route::post('/database/sanity', [AdminDatabaseMaintenanceController::class, 'runSanity'])->name('database.sanity.run');
         });

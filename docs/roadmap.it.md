@@ -18,6 +18,7 @@ relativa stabile. Il footer mostra la versione installata.
 - Visualizzazione e voto di sondaggi remoti; creazione, voto, chiusura programmata
   e dettaglio delle risposte per i sondaggi locali.
 - Moderazione, blocchi di dominio, gestione delle code e manutenzione database.
+- Statistiche dell’istanza per utenti autenticati, grafici asincroni e cache gestibile dall’admin.
 - Immagini e audio; video locali opzionali con elaborazione configurata dall’amministratore.
 
 L’interoperabilità viene affinata nel tempo: ogni servizio remoto può offrire

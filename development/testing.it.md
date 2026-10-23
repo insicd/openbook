@@ -2,6 +2,23 @@
 
 ## Test
 
+Statistiche dell’istanza:
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/StatsTest.php tests/Feature/StatsCacheTest.php tests/Feature/DeliveryStatsTest.php
+```
+
+I test coprono autorizzazione, filtri statistici, bucket UTC, top hashtag mensili,
+condivisione/scadenza della cache, reset admin, assenza di invalidazioni automatiche,
+concorrenza con reset, fallback, errori non memorizzati e delivery ripetute di
+post/eventi. Le prove delivery usano SQLite su file per una seconda connessione
+reale; le altre usano SQLite in memoria, senza toccare il database dell’istanza.
+Le verifiche MySQL delle query e degli incrementi sono registrate in
+[ANALYTIC_STATS_EXPLAIN](../analysis/ANALYTIC_STATS_EXPLAIN.md), inclusi rami UNION,
+cache miss/hit e quattro processi concorrenti. I tempi locali non sono garanzie
+per altre installazioni. Eseguire comunque la suite completa prima di una PR.
+
+
 CSV dei seguiti (#117):
 
 ```bash

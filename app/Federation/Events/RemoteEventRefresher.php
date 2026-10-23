@@ -2,6 +2,7 @@
 
 namespace App\Federation\Events;
 
+use App\Application\Services\DeliverySource;
 use App\Domain\Events\Event;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\RemoteEventIngester;
@@ -38,7 +39,7 @@ final class RemoteEventRefresher
             return false;
         }
 
-        $updated = $this->events->ingest($eventDocument, $event->actor, 'Update', $viewer);
+        $updated = $this->events->ingest($eventDocument, $event->actor, 'Update', $viewer, delivery: new DeliverySource('fetch'));
         $updated?->forceFill(['remote_counts_fetched_at' => now()])->save();
 
         return $updated !== null;

@@ -424,3 +424,23 @@ implementation detail.
   in cache. An Actor with neither signal (never followed locally, never a
   public post in cache) is not proposed, and anyone already followed by the
   visitor is excluded.
+
+### Instance statistics
+
+Stats requires a signed-in user without a staff role. StatsQuery composes corpus
+aggregates; StatsDataset defines UTC windows/payloads; CachedStatsDataset adds
+shared caching, a 300-second minimum TTL, locking and an admin namespace reset.
+Volume/authors and attachment totals/trends share datasets. No observer/listener
+invalidates results: only expiry or the admin command refreshes them. Thirteen
+charts asynchronously load eleven datasets as they approach the viewport, with
+at most two cards loading and independent error states.
+
+DeliveryStats accepts public posts/events and uses one type-agnostic increment
+into daily source buckets. Callback registration and afterCommit writes swallow
+errors; a separate writer uses UTC/nonpersistent PDO even with read/write config.
+Inbox paths suppress ingestion-level counting and record once after successful
+activity processing, including Announce of known objects. Nested quotes do not
+generate another delivery. Metrics must not fail content persistence. Read
+queries do not reuse timeline logic; they retain only the approved statistics
+filters. Definitions and operations: [Stats](../docs/architecture.md#stats)
+and [cache](../docs/configuration.md#instance-statistics-and-cache).

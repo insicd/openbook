@@ -119,6 +119,113 @@ pubblici o non elencati. La Home e Mondo richiedono JavaScript per caricare i fe
 Profili, community e pagine degli hashtag offrono anche link di paginazione
 quando JavaScript è disabilitato.
 
+## Stats
+
+Il link **Stats** nei footer apre una pagina riservata agli utenti autenticati,
+senza requisiti di ruolo. La pagina mostra i post pubblici conservati
+nelle ultime 360 ore complete (UTC) e le lingue di post ed eventi pubblici
+conservati negli ultimi due anni, sommati per lingua. I contenuti senza lingua
+dichiarata sono esclusi dal grafico delle lingue e dai relativi totali.
+
+Sono disponibili anche gli account per istanza, sommati senza distinzione di tipo,
+il volume dei post e gli autori distinti per settimana negli ultimi due anni.
+Mostriamo le dieci istanze e le dieci lingue principali; le lingue restanti
+sono raggruppate in «Altre».
+Volume e autori attivi mostrano ciascuno una sola serie totale settimanale,
+senza filtri per istanza né distinzione tra locali e remoti. I conteggi
+degli autori non sono sommabili tra settimane.
+
+Il grafico hashtag include i top 10 di ciascuno degli ultimi 24 mesi di
+calendario (mese corrente incluso, parziale) e i top 10 dell’intero periodo.
+Ogni mese mostra al massimo dieci hashtag: fuori dalla top 10 la serie è
+interrotta, mantenendo identità e colore quando un hashtag rientra. La legenda contiene solo
+i dieci più usati nel periodo: passaggio del mouse o focus evidenziano la
+serie; i tooltip identificano anche gli hashtag fuori legenda. I range restano
+in UTC; la data di elaborazione usa il fuso del visitatore.
+
+La geografia mostra i paesi associati ai luoghi dei contenuti, sommando
+post ed eventi senza selettori. Paesi non indicati e gruppi piccoli sono aggregati;
+non vengono mostrate coordinate o posizioni degli autori. Il calendario
+raggruppa per mese di inizio gli eventi pubblicati negli ultimi due anni,
+compresi quelli con inizio futuro. Le community mostrano quante community
+pubbliche ammissibili hanno pubblicato o rilanciato post conservati, inclusi
+i Group remoti. Le settimane seguono la pubblicazione originale del post; ogni
+community e ogni post contano una volta per settimana, anche con più rilanci.
+
+Gli allegati mostrano immagini e video dei post: totali dei file e andamento
+settimanale, con un unico dataset condiviso dai due grafici. Un post può avere
+più file o entrambi i tipi; audio, documenti ed embed esterni sono esclusi.
+I sondaggi mostrano la quota settimanale dei post pubblici con sondaggio,
+aperto o chiuso, senza consultare voti o partecipanti. Il denominatore include
+tutti i post pubblici ammessi della settimana; una settimana senza post non
+ha percentuale e interrompe la linea.
+
+La provenienza conta le delivery elaborate di post pubblici, inclusi i post già
+noti, dalla migration `2026_10_22_000000_create_post_delivery_metrics`. Non è un
+conteggio di post unici né di richieste HTTP: Create, Update e Announce vengono
+contati una volta per elaborazione riuscita del post. Le sorgenti distinguono
+relay, inbox senza relay identificato (nel grafico «Consegna diretta»), recupero/discovery, RSS e sconosciuto.
+La dicitura «Consegna diretta» non implica che il mittente sia l’autore originale.
+Anche le voci RSS già note possono contribuire a ogni importazione.
+
+Restano solo metadati di copertura, identità delle sorgenti e bucket giornalieri
+per giorno UTC e sorgente. Nessun journal di URI/hash dei post, autore o community.
+Cancellazioni, blocchi e sospensioni successive non riscrivono lo storico.
+I confini di visibilità escludono post privati e community private al momento
+del conteggio; i filtri core di accettazione dei messaggi rimangono invariati.
+
+Gli incrementi avvengono dopo il commit più esterno del post, su una connessione
+dedicata con transazione separata. Ogni errore è assorbito senza log, retry o
+fallimento dell’importazione. Il rollback del post scarta il callback. La raccolta
+è best effort: può perdere incrementi o contare retry interni più volte, senza
+promettere esattezza assoluta.
+
+La raccolta include anche le delivery degli eventi pubblici, da inbox/relay,
+outbox, risoluzione URL e refresh. La migration
+`2026_10_22_000001_unify_content_delivery_metrics` rinomina i bucket dei post in
+`stats_content_delivery_buckets`, conservando conteggi e data iniziale
+(`content_delivery`). Post ed eventi incrementano lo stesso bucket giornaliero
+per sorgente, senza dimensione per tipo di contenuto. Gli eventi contribuiscono
+dall’attivazione della loro raccolta; nessuna delivery precedente viene ricostruita.
+DeliveryStats applica lo stesso isolamento dopo commit a entrambi i tipi.
+Create, Update e Announce ripetuti contano; annullamenti e cancellazioni successivi
+non ritirano i conteggi. Il grafico mostra un solo totale, senza selettore.
+Le query aggregano i bucket comuni senza leggere contenuti, autori o partecipanti.
+
+I dataset usano lo store cache Laravel configurato (supportati database/file,
+nessun worker o Redis necessario). TTL in `config/stats.php`, minimo 300 secondi:
+ritmo 5 minuti; account per istanza, geografia e delivery 15 minuti; altri dataset
+un’ora. Volume/autori condividono un risultato, come totali/trend degli allegati.
+Le chiavi includono versione, metrica e una generazione condivisa cambiata
+solo dal comando admin, senza ID utente. Le risposte restano autenticate e HTTP `private, no-store`.
+
+La piccola «i» grigia sotto ogni grafico mostra frequenza effettiva, data di
+aggiornamento, usando la data di inserimento reale in cache nel fuso del visitatore, con hover,
+focus da tastiera o tocco. Le date non cambiano sulle cache hit. Se lo store non
+è disponibile, lettura diretta senza dichiarare un inserimento in cache. Gli
+errori delle query non vengono memorizzati. I miss usano un lock con attesa
+limitata; un calcolo già in corso non può ripopolare la generazione successiva.
+Non si memorizzano snapshot con modifiche non ancora committate.
+
+**Admin → Database → Manutenzione → Svuota cache delle statistiche** cambia
+solo il namespace Stats. Le altre cache e i bucket delle delivery rimangono;
+i dataset vengono rigenerati alle richieste successive. POST con autorizzazione
+admin e CSRF. I risultati si aggiornano solo alla scadenza del TTL o dopo lo
+svuotamento esplicito richiesto dall’admin. Edit, cambi di visibilità,
+sospensioni, cancellazioni, blocchi di dominio e impostazioni non invalidano i
+risultati salvati. Neppure il cambio d’ora/giorno interrompe il TTL. I filtri
+attuali e le finestre UTC si applicano al successivo ricalcolo; questa politica
+di cache non modifica i filtri delle query.
+Aggiornare le cache di configurazione e route al deploy.
+
+Ogni grafico carica i dati quando ti avvicini alla sua posizione nella pagina;
+un errore può essere ritentato senza ricaricare gli altri. Le statistiche rispettano le esclusioni
+di visibilità e moderazione, inclusi account sospesi o eliminati e domini
+bloccati. Tutte le statistiche aggregate includono anche gli account con
+`discoverable=false` e `indexable=false`. Descrivono il corpus ancora
+conservato, non tutto il Fediverso: retention e cancellazioni possono cambiare
+le serie e uno zero non prova l'assenza storica di pubblicazioni.
+
 ## Profilo e impostazioni
 
 Apri **Impostazioni** dal menu utente o **Modifica profilo** sul tuo profilo.

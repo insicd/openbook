@@ -210,6 +210,81 @@ dell'intero database, dati e indici inclusi. Il tab **Maintenance** contiene
 statistiche e pulizia delle tabelle operative; **Database sanity** gestisce
 invece i riferimenti rimasti dopo una cancellazione, come descritto sotto.
 
+### Statistiche dell’istanza e cache
+
+La pagina **Stats** si apre dal footer e richiede soltanto un account autenticato.
+I tredici grafici descrivono i dati di questa istanza. Non richiedono nuovi cron,
+worker permanenti, Redis, CDN o una compilazione degli asset.
+
+I risultati sono condivisi tra gli utenti e usano lo store Laravel configurato
+con `CACHE_STORE`; sono supportati `database` e `file`. Non usare `array` o `null`
+per ottenere una cache condivisa persistente. I TTL si configurano in
+`config/stats.php`, in secondi, con minimo effettivo di 300 secondi:
+
+| Grafico | Aggregazione | TTL predefinito |
+| --- | --- | ---: |
+| Quindici giorni, ora per ora | Oraria, ultimi 15 giorni | 5 minuti |
+| Le lingue che si incontrano qui | Per lingua, ultimi 2 anni | 1 ora |
+| Un mondo di istanze | Account per dominio, situazione attuale | 15 minuti |
+| Due anni di pubblicazioni | Settimanale | 1 ora |
+| Quante voci, ogni settimana | Autori distinti per settimana | 1 ora |
+| Di cosa si parla | Top 10 hashtag di ogni mese, ultimi 24 mesi | 1 ora |
+| Da dove arrivano le storie | Per paese, ultimi 2 anni | 15 minuti |
+| Il calendario degli eventi | Mese di inizio dell’evento | 1 ora |
+| I luoghi dove si conversa | Community attive per settimana | 1 ora |
+| Le storie prendono forma | Totali immagini/video degli ultimi 2 anni | 1 ora |
+| Immagini e video, settimana per settimana | Settimanale | 1 ora |
+| La voglia di chiedere | Quota settimanale di post con sondaggio | 1 ora |
+| Come arrivano i contenuti | Settimanale per sorgente, da bucket giornalieri | 15 minuti |
+
+Volume/autori condividono il dataset `weekly`; totali/trend degli allegati
+condividono `media`. I TTL non indicano la dimensione dei bucket. La «i» grigia
+sotto ciascun grafico mostra frequenza e una sola data, **Dati aggiornati il…**,
+nel fuso dell’utente; le date dei periodi rimangono in UTC.
+
+In **Amministrazione → Database → Maintenance**, il pulsante **Svuota cache delle
+statistiche** è riservato agli amministratori. Invalida tutti i dataset Stats,
+lasciando intatte le altre cache e le tabelle delle delivery. I grafici vengono
+ricalcolati alle richieste successive; il comando non lancia tutte le query.
+Lo svuotamento è logico: le vecchie voci non sono riutilizzate e seguono la
+gestione ordinaria dello store cache.
+
+**Nessuna invalidazione automatica:** modifiche ai post, cancellazioni,
+visibilità, sospensioni, blocchi e impostazioni non anticipano il TTL. Per vedere
+subito i nuovi risultati, usare il pulsante. I filtri correnti si applicano al
+successivo ricalcolo; di conseguenza retention, cancellazioni e moderazione
+possono modificare anche i conteggi dei periodi passati. Questi grafici descrivono
+il contenuto attualmente conservato e ammesso, non uno storico immutabile.
+Restano esclusi contenuti privati, account sospesi/eliminati e domini bloccati;
+`discoverable` e `indexable` non sono filtri statistici. Le impostazioni globali
+che nascondono CW/hashtag sensibili da Mondo sono applicate anche alle query.
+
+**Le delivery hanno una semantica diversa:** contano le consegne elaborate di
+post ed eventi pubblici, anche ripetute e già note, negli stessi bucket
+`stats_content_delivery_buckets` per giorno UTC e sorgente. Non vengono salvati
+hash dei contenuti o dimensioni per autore/tipo. Gli incrementi avvengono dopo
+il commit, su connessione e transazione separate; gli errori vengono ignorati
+senza far fallire l’importazione. Cancellazioni, blocchi, rimozione di relay o
+annullamenti successivi non riscrivono questi contatori. «Consegna diretta»
+indica l’inbox senza relay configurato riconosciuto, non necessariamente
+l’invio dell’autore originale.
+
+Non esiste un recupero retroattivo delle delivery: la raccolta parte
+all’attivazione della funzione; gli eventi contribuiscono dall’attivazione del
+loro tracciamento. Il grafico legge al massimo due anni. Non è prevista una
+pulizia automatica dei bucket più vecchi; includere bucket, sorgenti e metadati
+di raccolta nei normali backup. **Svuota cache** non azzera lo storico.
+
+Per il deploy, seguire la [procedura ordinaria](install.it.md): applicare le
+migration pendenti, comprese `2026_10_22_000000_create_post_delivery_metrics` e
+`2026_10_22_000001_unify_content_delivery_metrics`, e ricostruire le cache di
+configurazione, route e view se utilizzate. La seconda migration conserva i
+conteggi eventualmente già raccolti dalla prima. Dopo modifiche ai TTL,
+ricostruire la cache di configurazione e svuotare la cache Stats per applicarli
+subito. Le risposte JSON restano autenticate e `private, no-store`; se lo store
+cache non funziona, la pagina tenta la lettura diretta senza dichiarare dati
+inseriti in cache.
+
 ### Database sanity
 
 La Database sanity elimina **like, menzioni e notifiche orfani**, cioè riferiti

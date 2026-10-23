@@ -4,6 +4,7 @@ namespace App\Federation\Inbox;
 
 use App\Application\Services\AnnounceManager;
 use App\Application\Services\CommentSoftDeleter;
+use App\Application\Services\DeliveryStats;
 use App\Application\Services\DomainBlockManager;
 use App\Application\Services\EventParticipationManager;
 use App\Application\Services\FollowManager;
@@ -106,7 +107,7 @@ final class InboxActivityProcessor
         $inboxTarget = $item->targetActor;
         $fromRelay = $item->relay?->acceptsIncomingActivities() === true;
 
-        return match ($item->activity_type) {
+        $status = match ($item->activity_type) {
             'Move' => $this->accountMoves->handle($activity, $signer),
             'Follow' => $this->handleFollow($activity, $signer),
             'Accept' => $this->handleAccept($activity, $signer),
@@ -122,6 +123,11 @@ final class InboxActivityProcessor
             'Announce' => $this->handleAnnounce($activity, $signer, $inboxTarget, $fromRelay, $item),
             default => InboxItem::STATUS_IGNORED,
         };
+        if ($status === InboxItem::STATUS_PROCESSED && in_array($item->activity_type, ['Create', 'Update', 'Announce'], true)) {
+            app(DeliveryStats::class)->recordInbox($activity, $item);
+        }
+
+        return $status;
     }
 
     /** @param array<string, mixed> $activity */
@@ -617,7 +623,7 @@ final class InboxActivityProcessor
                 return InboxItem::STATUS_IGNORED;
             }
 
-            $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget);
+            $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget, trackDelivery: false);
 
             if ($event === null) {
                 return InboxItem::STATUS_IGNORED;
@@ -648,7 +654,7 @@ final class InboxActivityProcessor
                     $eventDocument = $this->mergeActivityAudience($activity, $eventDocument);
 
                     if (! $fromRelay || RemoteEventObject::visibility($eventDocument) === Event::VISIBILITY_PUBLIC) {
-                        $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget);
+                        $event = $this->eventIngester->ingest($eventDocument, $actor, 'Announce', $inboxTarget, trackDelivery: false);
                     }
                 } elseif ($document !== null) {
                     $fetchedAnnouncedNote = RemotePostObject::unwrap($document);
@@ -843,7 +849,7 @@ final class InboxActivityProcessor
             isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
         );
 
-        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false, source: $source);
+        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false, source: $source, trackDelivery: false);
     }
 
     private function hasLocalFollower(Actor $actor): bool
@@ -953,7 +959,7 @@ final class InboxActivityProcessor
                 return InboxItem::STATUS_IGNORED;
             }
 
-            return $this->eventIngester->ingest($document, $signer, 'Update', $inboxTarget) !== null
+            return $this->eventIngester->ingest($document, $signer, 'Update', $inboxTarget, trackDelivery: false) !== null
                 ? InboxItem::STATUS_PROCESSED
                 : InboxItem::STATUS_IGNORED;
         }
@@ -1010,7 +1016,7 @@ final class InboxActivityProcessor
                 return InboxItem::STATUS_IGNORED;
             }
 
-            return $this->eventIngester->ingest($eventDocument, $actor, 'Create', $inboxTarget) !== null
+            return $this->eventIngester->ingest($eventDocument, $actor, 'Create', $inboxTarget, trackDelivery: false) !== null
                 ? InboxItem::STATUS_PROCESSED
                 : InboxItem::STATUS_IGNORED;
         }
@@ -1156,6 +1162,7 @@ final class InboxActivityProcessor
                     $publishedAt,
                     directMessageThreadParent: $conversationThreadParent,
                     source: $source,
+                    trackDelivery: false,
                 );
 
                 return $post !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
@@ -1179,6 +1186,7 @@ final class InboxActivityProcessor
                 $body,
                 $publishedAt,
                 source: $source,
+                trackDelivery: false,
             );
 
             return $post !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;

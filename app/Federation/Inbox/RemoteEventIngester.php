@@ -2,11 +2,12 @@
 
 namespace App\Federation\Inbox;
 
-use App\Application\Services\NearestCityFinder;
+use App\Application\Services\DeliverySource;
+use App\Application\Services\DeliveryStats;
+use App\Application\Services\RemoteLocationEnricher;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventAnnounce;
 use App\Domain\Events\EventLink;
-use App\Domain\Locations\GeoCity;
 use App\Domain\Posts\Hashtag;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -20,13 +21,13 @@ final class RemoteEventIngester
     public function __construct(
         private readonly ObjectResolver $objects,
         private readonly RemoteAttachmentIngester $attachments,
-        private readonly NearestCityFinder $nearestCities,
+        private readonly RemoteLocationEnricher $locations,
     ) {}
 
     /**
      * @param  array<string, mixed>  $document
      */
-    public function ingest(array $document, Actor $activityActor, string $activityType, ?Actor $inboxTarget = null): ?Event
+    public function ingest(array $document, Actor $activityActor, string $activityType, ?Actor $inboxTarget = null, ?DeliverySource $delivery = null, bool $trackDelivery = true): ?Event
     {
         $uri = RemoteEventObject::uri($document);
         $name = RemoteEventObject::name($document);
@@ -84,7 +85,7 @@ final class RemoteEventIngester
             return null;
         }
 
-        return DB::transaction(function () use (
+        $event = DB::transaction(function () use (
             $document,
             $activityType,
             $uri,
@@ -161,6 +162,11 @@ final class RemoteEventIngester
 
             return $event;
         });
+        if ($trackDelivery) {
+            app(DeliveryStats::class)->recordEvent($event, $delivery ?? new DeliverySource);
+        }
+
+        return $event;
     }
 
     /** @param array<string, mixed> $activity */
@@ -305,120 +311,7 @@ final class RemoteEventIngester
             return;
         }
 
-        $needsEnrichment = $location['locality'] === null
-            || $location['country_code'] === null
-            || $location['country_name'] === null;
-
-        if (config('openbook.locations.catalog_ready', false) && $needsEnrichment) {
-            if ($location['latitude'] !== null && $location['longitude'] !== null) {
-                $location = $this->enrichLocationFromCoordinates($location);
-            } else {
-                $location = $this->enrichLocationFromAddress($location);
-            }
-        }
-
-        $event->location()->updateOrCreate([], $location);
-    }
-
-    /**
-     * Completa soltanto i dati geografici omessi dal server remoto,
-     * mantenendo sempre prioritari quelli dichiarati nell'Event originale.
-     *
-     * @param  array<string, mixed>  $location
-     * @return array<string, mixed>
-     */
-    private function enrichLocationFromCoordinates(array $location): array
-    {
-        if ($location['latitude'] === null
-            || $location['longitude'] === null) {
-            return $location;
-        }
-
-        $city = $this->nearestCities->find($location['latitude'], $location['longitude']);
-
-        if ($city === null) {
-            return $location;
-        }
-
-        $location['geo_city_id'] = $city->geoname_id;
-        $location['locality'] ??= $city->name;
-        $location['region'] ??= $city->admin1_name;
-        $location['country_code'] ??= $city->country_code;
-        $location['country_name'] ??= $city->country_name;
-
-        return $location;
-    }
-
-    /**
-     * Usa soltanto nomi di citta' esatti nelle componenti finali di un
-     * indirizzo strutturato, senza trasformare il centroide in coordinate
-     * del luogo.
-     *
-     * @param  array<string, mixed>  $location
-     * @return array<string, mixed>
-     */
-    private function enrichLocationFromAddress(array $location): array
-    {
-        $address = $location['address'] ?? null;
-
-        if ($location['geo_city_id'] !== null
-            || $location['latitude'] !== null
-            || $location['longitude'] !== null
-            || ! is_string($address)
-            || ! str_contains($address, ',')) {
-            return $location;
-        }
-
-        $components = array_slice(array_reverse(preg_split('/\s*,\s*/u', $address) ?: []), 0, 5);
-        $componentNames = array_map(fn (string $component): string => mb_strtolower(trim($component)), $components);
-        $candidates = [];
-
-        foreach ($components as $component) {
-            $words = array_slice(preg_split('/\s+/u', trim($component, " \t\n\r\0\x0B.;")) ?: [], -6);
-
-            for ($index = 0; $index < count($words); $index++) {
-                $candidate = implode(' ', array_slice($words, $index));
-
-                if (preg_match('/\pL/u', $candidate) === 1) {
-                    $normalized = mb_strtolower($candidate);
-                    $candidates[$normalized] ??= $candidate;
-                }
-            }
-        }
-
-        if ($candidates === []) {
-            return $location;
-        }
-
-        $city = null;
-
-        foreach ($candidates as $candidate) {
-            $matches = GeoCity::query()
-                ->where(fn ($query) => $query->where('name', $candidate)->orWhere('ascii_name', $candidate))
-                ->orderByDesc('population')
-                ->get();
-            $city = $matches->first(fn (GeoCity $match): bool => in_array(
-                mb_strtolower($match->country_name ?? $match->country_code),
-                $componentNames,
-                true,
-            )) ?? $matches->first();
-
-            if ($city !== null) {
-                break;
-            }
-        }
-
-        if ($city === null) {
-            return $location;
-        }
-
-        $location['geo_city_id'] = $city->geoname_id;
-        $location['locality'] ??= $city->name;
-        $location['region'] ??= $city->admin1_name;
-        $location['country_code'] ??= $city->country_code;
-        $location['country_name'] ??= $city->country_name;
-
-        return $location;
+        $event->location()->updateOrCreate([], $this->locations->enrich($location));
     }
 
     /** @param array<string, mixed> $document */

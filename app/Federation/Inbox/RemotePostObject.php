@@ -242,7 +242,7 @@ final class RemotePostObject
             $longitude = null;
         }
 
-        $countryCode = self::shortScalarString($place['countryCode'] ?? null, 2);
+        $countryCode = self::shortScalarString($place['countryCode'] ?? null, 200);
 
         return [
             'name' => $name,

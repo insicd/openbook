@@ -2,6 +2,8 @@
 
 namespace App\Domain\Feeds;
 
+use App\Application\Services\DeliverySource;
+use App\Application\Services\DeliveryStats;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Support\Carbon;
@@ -130,6 +132,8 @@ final class FeedImporter
             ->first();
 
         if ($existing !== null) {
+            app(DeliveryStats::class)->record($existing, new DeliverySource('feed'));
+
             return false;
         }
 
@@ -137,7 +141,7 @@ final class FeedImporter
             ? Carbon::instance(\DateTimeImmutable::createFromInterface($entry->publishedAt))
             : now();
 
-        Post::query()->create([
+        $post = Post::query()->create([
             'actor_id' => $actor->id,
             'uri' => null,
             'source_uri' => $sourceUri,
@@ -147,6 +151,7 @@ final class FeedImporter
             'status' => Post::STATUS_PUBLISHED,
             'published_at' => $publishedAt,
         ]);
+        app(DeliveryStats::class)->record($post, new DeliverySource('feed'));
 
         return true;
     }

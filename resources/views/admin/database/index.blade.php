@@ -94,6 +94,14 @@
     @elseif ($activeTab === 'sanity')
         @include('admin.database.sanity')
     @else
+        <section class="ob-card" style="margin-bottom:1.5rem" aria-labelledby="stats-cache-title">
+            <h2 id="stats-cache-title">{{ __('stats.admin.title') }}</h2>
+            <p class="ob-field__help">{{ __('stats.admin.description') }}</p>
+            <form method="POST" action="{{ route('admin.database.stats-cache.clear') }}">
+                @csrf
+                <button type="submit" class="ob-btn ob-btn--secondary">{{ __('stats.admin.clear') }}</button>
+            </form>
+        </section>
         <h2>{{ __('openbook.admin.database.tab_maintenance') }}</h2>
         <p class="ob-field__help">{{ __('openbook.admin.database.intro') }}</p>
         <div class="ob-admin-stats" style="margin-top:1rem">

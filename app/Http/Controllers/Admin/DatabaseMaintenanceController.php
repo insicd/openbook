@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Application\Queries\DatabaseSanityQuery;
 use App\Application\Queries\RemotePostRetentionQuery;
+use App\Application\Services\CachedStatsDataset;
 use App\Application\Services\DatabaseMaintenanceService;
 use App\Application\Services\DatabaseSanity;
 use App\Application\Services\InstanceSettings;
@@ -45,6 +46,15 @@ final class DatabaseMaintenanceController extends Controller
             'nonPertinentDays' => $settings->remotePostNonPertinentRetentionDays(),
             'pertinentDays' => $settings->remotePostPertinentRetentionDays(),
         ]);
+    }
+
+    public function clearStatsCache(CachedStatsDataset $cache): RedirectResponse
+    {
+        $cleared = $cache->clear();
+
+        $redirect = redirect()->route('admin.database.index', ['tab' => 'maintenance']);
+
+        return $cleared ? $redirect->with('status', __('stats.admin.cleared')) : $redirect->withErrors(__('stats.admin.failed'));
     }
 
     public function runSanity(Request $request, DatabaseSanity $sanity): RedirectResponse

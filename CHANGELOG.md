@@ -19,6 +19,24 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Stats**: pagina accessibile dal footer agli utenti autenticati,
+  con ritmo dei post nelle ultime 360 ore complete e distribuzione delle lingue
+  di post ed eventi pubblici conservati, account totali per istanza, volume
+  settimanale dei post e autori attivi, trend degli hashtag, geografia dei
+  contenuti, calendario degli eventi, attività delle community, immagini e video
+  allegati, quota di post con sondaggio e delivery di post ed eventi per sorgente/relay,
+  sommati negli stessi bucket giornalieri senza distinzione per tipo.
+  La raccolta delivery è best effort, include contenuti già noti e aggiorna
+  i bucket dopo il commit senza far fallire l’importazione. Nessuno storico retroattivo;
+  applicare la nuova migration. I grafici caricano i dati solo
+  avvicinandosi alla zona visibile. Cache condivisa con TTL da 5 minuti a un’ora;
+  la «i» sotto ogni grafico mostra frequenza e una sola data di aggiornamento
+  nel fuso dell’utente. In Admin → Database → Manutenzione è disponibile
+  «Svuota cache delle statistiche», senza cancellare i contatori raccolti.
+  Aggiornamento solo alla scadenza del TTL o su richiesta esplicita admin.
+  Le statistiche aggregate includono anche gli account che non consentono
+  la scoperta o l’indicizzazione, mantenendo i filtri di visibilità e moderazione.
+  Aggiornare le cache di configurazione e delle route.
 - **CSV dei seguiti (#117)**: nella nuova scheda «Importa ed esporta» puoi
   scaricare i seguiti in formato compatibile con Mastodon e importare un CSV.
   Il caricamento crea subito le richieste di follow, conserva quelle esistenti
@@ -293,6 +311,8 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Footer**: il nome dell’istanza in fondo alla pagina rimanda alla home locale,
+  come nel footer sotto il menù.
 - Lo sfondo della home ospite (immagine o alone di default) resta della
   dimensione dello schermo, fisso dietro i contenuti, invece di ingrandirsi
   con il flusso pubblico.
