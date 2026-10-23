@@ -21,7 +21,23 @@ Apply the sprint 1 migrations and `2026_10_23_000001_widen_report_details`:
 the motivation field becomes LONGTEXT to accommodate inbox-accepted text without
 imposing the local form's limit. On MySQL/MariaDB, reverting to TEXT requires
 motivations to fit its capacity; strict mode prevents silent truncation.
-The complete federated UI and automatic cleanup remain in sprints 3 and 5.
+
+### Moderation panel (sprint 3)
+
+`ReportModerationQuery` shares listing and previews across local and federated
+cases. Ordering is stable by `created_at DESC, id DESC`; migration
+`2026_10_23_000002_add_report_listing_indexes` adds the time index for all states
+and extends the status index with the ID. Check MySQL plans with fixture
+statistics refreshed after bulk loading.
+
+Previews contain only the subject's text and references, without loading
+conversations, quotes, media or voters. Post/event eager loads use `visibleTo`;
+comment loads check their parent post/event visibility. Existing but unreadable
+references remain distinct from missing ones. Automatic closure is presented
+as already handled positively, without attributing review to a moderator.
+Review and dismissal use the existing routes and audit; dismissal remains
+available after review. Actions on federated references and automatic cleanup
+remain in sprints 4 and 5.
 
 ### Federation (Phase 3)
 

@@ -21,8 +21,25 @@ Applicare le migration dello sprint 1 e
 `2026_10_23_000001_widen_report_details`: il campo motivazione diventa LONGTEXT
 per accogliere i testi ammessi dall'inbox senza imporre il limite del form locale.
 Su MySQL/MariaDB il rollback a TEXT richiede motivazioni entro la sua capacità;
-la modalità strict impedisce il troncamento silenzioso. La UI federata completa
-e la pulizia automatica rimangono agli sprint 3 e 5.
+la modalità strict impedisce il troncamento silenzioso.
+
+### Pannello di moderazione (sprint 3)
+
+`ReportModerationQuery` condivide elenco e anteprime per i casi locali e
+federati. L'ordinamento è stabile per `created_at DESC, id DESC`; la migration
+`2026_10_23_000002_add_report_listing_indexes` aggiunge l'indice temporale per
+tutti gli stati ed estende quello per stato con l'ID. Verificare i piani MySQL
+con statistiche della fixture aggiornate dopo il caricamento massivo.
+
+Le anteprime sono testi e riferimenti circoscritti al soggetto, senza caricare
+conversazioni, citazioni, media o votanti. Gli eager load di post ed eventi
+usano `visibleTo`; quelli dei commenti verificano la visibilità del relativo
+post/evento. Un riferimento esistente ma non leggibile resta distinto da uno
+mancante. La chiusura automatica è presentata come già gestita positivamente,
+senza attribuire la revisione a un moderatore. Revisione e archiviazione usano
+le route e l'audit esistenti; l'archiviazione rimane disponibile dopo la revisione.
+I provvedimenti sui riferimenti federati e la pulizia automatica rimangono
+agli sprint 4 e 5.
 
 ### Federazione (Fase 3)
 

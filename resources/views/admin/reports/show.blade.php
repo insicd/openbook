@@ -8,61 +8,48 @@
     @include('admin.partials.timezone-note')
 
     <div class="ob-card" style="margin-top:1rem">
-        <p>
-            <span class="ob-badge">{{ __('openbook.admin.reports.status.'.$report->status) }}</span>
-            <span class="ob-badge">{{ __('openbook.reports.reasons.'.$report->reason) }}</span>
-            <span class="ob-badge">{{ $report->isCommentReport() ? __('openbook.admin.reports.type_comment') : __('openbook.admin.reports.type_post') }}</span>
-        </p>
-        <p>{{ __('openbook.admin.reports.by', ['name' => $report->reporter?->username ?? '—']) }}
-            &middot; @userdate($report->created_at, 'Y-m-d H:i')</p>
+        <p>@include('admin.reports._badges', ['report' => $report])</p>
+        @if ($report->isFederated())
+            <p class="ob-report-uri"><strong>{{ __('openbook.admin.reports.sender') }}:</strong> <bdi>{{ $report->reporter_uri }}</bdi></p>
+            <p class="ob-report-uri"><strong>{{ __('openbook.admin.reports.instance') }}:</strong> {{ $report->reporter_domain }}</p>
+            <p class="ob-field__help">{{ __('openbook.admin.reports.original_reporter_unknown') }}</p>
+        @else
+            <p>{{ __('openbook.admin.reports.by', ['name' => $report->reporter?->username ?? '—']) }}</p>
+        @endif
+        <p class="ob-field__help">@userdate($report->created_at, 'Y-m-d H:i')</p>
         @if ($report->details)
-            <p><strong>{{ __('openbook.reports.details_label') }}:</strong> {{ $report->details }}</p>
+            <p><strong>{{ __('openbook.reports.details_label') }}:</strong></p>
+            <div class="ob-report-text">{{ $report->details }}</div>
+        @endif
+        @if ($report->closure_reason === \App\Domain\Moderation\Report::CLOSURE_UNAVAILABLE)
+            <p class="ob-field__help">{{ __('openbook.admin.reports.automatically_handled') }}</p>
+        @endif
+        @if ($report->closed_at)
+            <p class="ob-field__help">{{ __('openbook.admin.reports.closed_on', ['date' => app(\App\Support\UserDate::class)->format($report->closed_at, 'Y-m-d H:i')]) }}</p>
         @endif
         @if ($report->reviewer)
             <p class="ob-field__help">{{ __('openbook.admin.reports.reviewed_by', ['name' => $report->reviewer->username, 'date' => app(\App\Support\UserDate::class)->format($report->reviewed_at, 'Y-m-d H:i')]) }}</p>
         @endif
     </div>
 
-    @if ($report->post)
-        <div class="ob-report-preview" style="margin-top:1rem">
-            @include('posts._card', [
-                'post' => $report->post,
-                'embed' => true,
-                'embedDepth' => 1,
-                'linkToPost' => true,
-            ])
-        </div>
-        @unless ($report->post->isRemote())
-            <p class="ob-field__help"><a href="{{ route('posts.show', $report->post) }}">{{ __('openbook.admin.reports.open_post') }}</a></p>
-        @else
-            <p class="ob-field__help"><a href="{{ $report->post->uri }}" target="_blank" rel="noopener noreferrer">{{ __('openbook.admin.reports.open_remote') }}</a></p>
-        @endunless
-    @elseif ($report->comment)
-        <div class="ob-card" style="margin-top:1rem;padding:1rem">
-            <p class="ob-field__help">{!! $report->comment->actor?->displayNameHtml() !!}</p>
-            @if ($report->comment->status === \App\Domain\Comments\Comment::STATUS_DELETED)
-                <p class="ob-post__deleted">{{ __('openbook.comments.deleted') }}</p>
-            @else
-                <div>{{ \App\Domain\Posts\PostBodyRenderer::render($report->comment->body, $report->comment->custom_emojis) }}</div>
-            @endif
-        </div>
-        @if ($report->comment->post)
-            <p class="ob-field__help"><a href="{{ route('posts.show', $report->comment->post) }}#commento-{{ $report->comment->id }}">{{ __('openbook.admin.reports.open_comment') }}</a></p>
-        @endif
-    @else
-        <p class="ob-field__help">{{ __('openbook.admin.reports.target_missing') }}</p>
-    @endif
+    <h2 style="margin-top:1.5rem">{{ __('openbook.admin.reports.subjects') }}</h2>
+    @foreach ($previews as $preview)
+        @include('admin.reports._target', ['preview' => $preview])
+    @endforeach
 
     <div class="ob-admin-actions" style="margin-top:1.25rem">
-        @if ($report->status === \App\Domain\Moderation\Report::STATUS_OPEN)
+        @if (in_array($report->status, [\App\Domain\Moderation\Report::STATUS_OPEN, \App\Domain\Moderation\Report::STATUS_REVIEWED], true))
+            @if ($report->isOpen())
             <form method="POST" action="{{ route('admin.reports.review', $report) }}">
                 @csrf
                 <button type="submit" class="ob-btn ob-btn--ghost">{{ __('openbook.admin.reports.mark_reviewed') }}</button>
             </form>
+            @endif
             <form method="POST" action="{{ route('admin.reports.dismiss', $report) }}">
                 @csrf
                 <button type="submit" class="ob-btn ob-btn--ghost">{{ __('openbook.admin.reports.dismiss') }}</button>
             </form>
+            @unless ($report->isFederated())
             <form method="POST" action="{{ route('admin.reports.action', $report) }}">
                 @csrf
                 @if ($report->post && ! $report->post->isRemote() && $report->post->isPublished())
@@ -79,6 +66,7 @@
                 @endif
                 <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.admin.reports.mark_actioned') }}</button>
             </form>
+            @endunless
         @endif
     </div>
 @endsection

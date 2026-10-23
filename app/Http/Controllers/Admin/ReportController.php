@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Application\Queries\ReportModerationQuery;
 use App\Application\Services\CommentSoftDeleter;
 use App\Application\Services\ReportManager;
 use App\Domain\Comments\Comment;
@@ -21,6 +22,7 @@ class ReportController extends Controller
         private readonly ReportManager $reportManager,
         private readonly ActivityDelivery $delivery,
         private readonly CommentSoftDeleter $commentSoftDeleter,
+        private readonly ReportModerationQuery $reports,
     ) {}
 
     public function index(Request $request): View
@@ -38,47 +40,19 @@ class ReportController extends Controller
             $status = Report::STATUS_OPEN;
         }
 
-        $query = Report::query()
-            ->with([
-                'reporter.profile',
-                'post.actor.user.profile',
-                'comment.actor.user.profile',
-                'comment.post',
-                'reviewer',
-            ])
-            ->orderByDesc('created_at');
-
-        if ($status !== 'all') {
-            $query->where('status', $status);
-        }
-
         return view('admin.reports.index', [
-            'reports' => $query->paginate(20)->withQueryString(),
+            'reports' => $this->reports->listing($status)->paginate(20)->withQueryString(),
             'status' => $status,
         ]);
     }
 
     public function show(Report $report): View
     {
-        $report->load([
-            'reporter.profile',
-            'reviewer',
-            'post.actor.user.profile',
-            'post.media.thumbnail',
-            'post.hashtags',
-            'post.quotedPost.actor.user.profile',
-            'post.quotedPost.media.thumbnail',
-            'post.quotedPost.hashtags',
-            'comment.actor.user.profile',
-            'comment.post.actor.user.profile',
-        ]);
-
-        if ($report->post) {
-            Post::annotateViewerState([$report->post], auth()->user()->actor);
-        }
+        $report->load(['reporter.profile', 'reviewer']);
 
         return view('admin.reports.show', [
             'report' => $report,
+            'previews' => $this->reports->previews($report, auth()->user()->actor),
         ]);
     }
 

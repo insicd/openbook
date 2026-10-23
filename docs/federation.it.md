@@ -18,9 +18,14 @@ Un Flag genera un caso riservato alla moderazione; una riconsegna non lo duplica
 I contenuti locali non più disponibili vengono registrati come già gestiti
 positivamente. La ricezione non notifica il segnalato, non applica sanzioni e
 non cambia la visibilità dei contenuti. L'invio di segnalazioni ad altri server
-e la sincronizzazione degli esiti sono esclusi. Lo sprint 2 implementa la
-ricezione e la registrazione; il dettaglio completo nel pannello di moderazione
-sarà disponibile con lo sprint 3.
+e la sincronizzazione degli esiti sono esclusi.
+
+In **Admin → Segnalazioni**, i casi locali e federati hanno un'etichetta
+distinta. Il dettaglio mostra Actor e istanza mittente, motivazione e ogni
+riferimento, indicando quelli non più disponibili o ad accesso limitato.
+Le anteprime seguono i normali permessi di lettura anche per lo staff;
+una segnalazione non apre l'accesso a conversazioni private. Admin e moderatori
+possono revisionare e archiviare il caso, anche dopo averlo segnato come revisionato.
 
 ## Trovare e seguire un account remoto
 

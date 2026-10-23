@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Moderation;
 
+use App\Application\Queries\ReportModerationQuery;
 use App\Domain\Moderation\Report;
 use App\Federation\Resolution\ObjectResolver;
 use Illuminate\Database\Events\QueryExecuted;
@@ -181,5 +182,60 @@ class FederatedReportMysqlPersistenceTest extends TestCase
         $migration->up();
         $this->assertSame('longtext', collect(Schema::getColumns('reports'))->firstWhere('name', 'details')['type_name']);
         $this->assertSame('Short reason', $report->fresh()->details);
+    }
+
+    public function test_moderation_listing_pagination_and_previews_use_indexed_queries(): void
+    {
+        [$sender, $targets] = $this->reportFixture();
+        $report = $this->storeReport($sender, $targets);
+        $rows = $references = [];
+        for ($i = 0; $i < 1000; $i++) {
+            $id = (string) Str::uuid();
+            $rows[] = ['id' => $id, 'origin' => 'federated', 'reason' => 'other',
+                'reporter_uri' => $sender->uri, 'reporter_domain' => 'remote.example',
+                'remote_activity_uri' => 'https://remote.example/reports/seed-'.$i,
+                'details' => str_repeat('Evidence for moderation. ', 40),
+                'status' => $i < 9 ? ['open', 'reviewed', 'actioned'][$i % 3] : 'dismissed',
+                'created_at' => now()->subMinutes($i), 'updated_at' => now()];
+            $references[] = ['id' => (string) Str::uuid(), 'report_id' => $id, 'type' => 'post',
+                'uri' => $targets[1]['uri'], 'uri_hash' => hash('sha256', $targets[1]['uri']),
+                'unavailable' => false, 'post_id' => $targets[1]['subject']->id];
+        }
+        foreach (['reports' => $rows, 'report_targets' => $references] as $table => $values) {
+            foreach (array_chunk($values, 100) as $chunk) {
+                DB::table($table)->insert($chunk);
+            }
+        }
+        $migration = require database_path('migrations/2026_10_23_000002_add_report_listing_indexes.php');
+        $migration->down();
+        $this->assertFalse(Schema::hasIndex('reports', 'reports_created_id_index'));
+        $migration->up();
+        $this->assertDatabaseCount('reports', 1001);
+        DB::statement('ANALYZE TABLE reports, report_targets');
+        $queries = app(ReportModerationQuery::class);
+        foreach (['open', 'reviewed', 'dismissed', 'actioned', 'all'] as $status) {
+            foreach ([0, 20] as $offset) {
+                $query = $queries->listing($status)->offset($offset)->limit(20);
+                $plan = DB::select('EXPLAIN FORMAT=TRADITIONAL '.$query->toSql(), $query->getBindings());
+                $this->assertNotNull($plan[0]->key, $query->toSql().' '.json_encode($plan));
+                $this->assertNotSame('ALL', $plan[0]->type, $query->toSql());
+                $this->assertStringNotContainsString('filesort', strtolower($plan[0]->Extra ?? ''), $query->toSql());
+            }
+        }
+
+        DB::enableQueryLog();
+        $queries->previews($report, $targets[0]['subject']);
+        $queries->listing('all')->paginate(20);
+        $sqlQueries = DB::getQueryLog();
+        DB::disableQueryLog();
+        foreach ($sqlQueries as $query) {
+            if (! str_starts_with($query['query'], 'select')) {
+                continue;
+            }
+            $plan = DB::select('EXPLAIN FORMAT=TRADITIONAL '.$query['query'], $query['bindings']);
+            foreach ($plan as $step) {
+                $this->assertFalse($step->type === 'ALL' && ($step->rows ?? 0) > 10, $query['query']);
+            }
+        }
     }
 }

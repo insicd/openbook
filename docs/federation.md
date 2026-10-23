@@ -18,8 +18,14 @@ A Flag creates a case restricted to moderation; redelivery does not duplicate
 it. Unavailable local content is recorded as already handled positively.
 Reception neither notifies the reported person nor applies sanctions or changes
 content visibility. Sending reports to other servers and synchronising outcomes
-are excluded. Sprint 2 implements reception and persistence; the complete
-moderation-panel detail will be available with sprint 3.
+are excluded.
+
+In **Admin → Reports**, local and federated cases have distinct labels.
+The detail shows the sending Actor and instance, motivation and each reference,
+identifying unavailable or access-restricted content. Previews follow ordinary
+reading permissions even for staff; a report does not grant access to private
+conversations. Administrators and moderators can review and dismiss the case,
+including after marking it as reviewed.
 
 ## Finding and following a remote account
 

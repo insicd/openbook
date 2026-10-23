@@ -3974,6 +3974,21 @@ a.ob-post__menu-item {
   flex-wrap: wrap;
 }
 
+.ob-report-uri,
+.ob-report-text {
+  overflow-wrap: anywhere;
+}
+
+.ob-report-text {
+  white-space: pre-wrap;
+}
+
+.ob-report-target {
+  margin-top: 1rem;
+  padding: 1rem;
+  min-width: 0;
+}
+
 @media (max-width: 900px) {
   .ob-admin-shell {
     grid-template-columns: 1fr;

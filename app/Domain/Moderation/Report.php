@@ -131,6 +131,19 @@ class Report extends Model
         return $this->status === self::STATUS_OPEN;
     }
 
+    public function isFederated(): bool
+    {
+        return $this->origin === self::ORIGIN_FEDERATED;
+    }
+
+    /** @return list<string> */
+    public function targetTypes(): array
+    {
+        return $this->isFederated()
+            ? $this->targets->pluck('type')->unique()->values()->all()
+            : [$this->isCommentReport() ? ReportTarget::TYPE_COMMENT : ReportTarget::TYPE_POST];
+    }
+
     public function isCommentReport(): bool
     {
         return $this->comment_id !== null;

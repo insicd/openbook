@@ -2,6 +2,22 @@
 
 ## Test
 
+Pannello delle segnalazioni federate (#119, sprint 3):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Admin/AdminFederatedReportTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php tests/Feature/Admin/AdminAccessTest.php tests/Unit/Support/FinnishTranslationsTest.php
+node tests/Browser/reports.cjs
+```
+
+La suite verifica provenienza, cinque tipi, permessi staff, anteprime private,
+casi già gestiti e mancanti, escaping, revisione/archiviazione, dashboard e
+paginazione. La fixture browser usa SQLite in memoria e le viste Blade/CSS
+reali su desktop e mobile; `OPENBOOK_REPORT_SCREENSHOTS` salva le schermate.
+Come gli altri test browser richiede Playwright; `BROWSER_EXECUTABLE_PATH`
+permette di usare un browser locale compatibile già installato. Il test MySQL
+delle segnalazioni verifica anche i piani di tutte le code e delle anteprime,
+con ANALYZE sulle sole tabelle temporanee dopo il caricamento massivo.
+
 Ricezione delle segnalazioni federate (#119, sprint 2):
 
 ```bash

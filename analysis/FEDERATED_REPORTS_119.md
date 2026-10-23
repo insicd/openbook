@@ -4,7 +4,8 @@
 **Data:** 23 ottobre 2026. **Ramo:** `issue_119`.
 **Base esaminata:** `main`, commit `d86d70b`.
 **Stato:** kickoff `c51b1ea`; sprint 1 revisionato e committato (`2e41184`).
-Sprint 2 implementato e verificato su SQLite e MySQL. Sprint 3–5 da avviare.
+Sprint 2 revisionato e committato (`2ba899a`). Sprint 3 revisionato e verificato
+su SQLite, MySQL e interfaccia locale; pronto per il commit. Sprint 4–5 da avviare.
 
 ## 1. Obiettivo e perimetro
 
@@ -457,3 +458,72 @@ Il pannello federato completo rimane allo sprint 3,
 i provvedimenti allo sprint 4 e la pulizia automatica allo sprint 5.
 Nessuna verifica su un server MariaDB separato o tra istanze online; i test HTTP
 usano firme reali e risposte remote simulate, non attestano interoperabilità live.
+
+## 11. Esito dello sprint 3 — Pannello di moderazione
+
+### Implementazione
+
+- Elenco e dettaglio esistenti ora distinguono origine locale/federata e i
+  cinque tipi di soggetto, senza classificare automaticamente i casi come post.
+  Mittente e istanza derivano dagli snapshot autenticati e restano visibili
+  anche dopo la cancellazione dell'Actor remoto. Il dettaglio chiarisce che
+  l'identità personale del segnalante originale non è nota.
+- `ReportModerationQuery` prepara elenco e anteprime condivisi anche dai casi
+  locali. I riferimenti locali precedenti sono adattati soltanto in memoria,
+  senza migrare i dati o creare casi paralleli. I controller restano sottili.
+- Le anteprime testuali caricano soltanto i soggetti leggibili tramite gli
+  scope `visibleTo` esistenti; i commenti dipendono dall'accesso al loro
+  post/evento. Nessun caricamento di conversazioni, citazioni, media o votanti.
+  Il link al contenuto completo usa le normali route interne. I riferimenti
+  mancanti e quelli esistenti ma non leggibili hanno messaggi distinti.
+- Le chiusure automatiche mostrano «già gestita positivamente», causale e data
+  senza inventare un revisore. Le date usano il fuso del visitatore previsto
+  dal pannello. Motivazione, URI, titoli e testo delle anteprime sono escapati.
+- Revisione e archiviazione riusano route, autorizzazioni e audit esistenti;
+  l'archiviazione rimane disponibile dopo la revisione. Nessun provvedimento
+  sui riferimenti federati introdotto prima dello sprint 4. Le azioni locali
+  già disponibili restano nel pannello.
+- Ordinamento stabile `created_at DESC, id DESC`. La migration incrementale
+  `2026_10_23_000002_add_report_listing_indexes` aggiunge `(created_at, id)`
+  per tutte le segnalazioni e sostituisce `(status, created_at)` con
+  `(status, created_at, id)` per le code filtrate. Rollback verificato.
+- Traduzioni IT/EN/FI, CSS responsive, documentazione IT/EN e changelog aggiornati.
+  I test condividono la stessa costruzione delle fixture di persistenza.
+
+### Verifiche eseguite
+
+- 22 test mirati del pannello e delle traduzioni, 5.206 asserzioni: superati.
+  Inclusi admin e moderatore, diniego ad anonimi/utenti ordinari, cinque tipi,
+  chiusure positive, mittenti cancellati, input ostile, privacy di post/eventi
+  e community private, revisione seguita da archiviazione, dashboard e paginazione.
+- Suite completa: **1.925 test superati, 125 saltati, 14.642 asserzioni**
+  (154,30 secondi). Ricontrollati i test mirati dopo l'ultimo ritocco ai pulsanti.
+- Intera suite MySQL delle segnalazioni: **14 test superati, 202 asserzioni**
+  (59,41 secondi), su schemi temporanei isolati. Comprende anche le verifiche
+  dei due sprint precedenti, concorrenza e migration.
+- EXPLAIN sulle query realmente usate dal pannello con 1.001 casi e 1.005
+  riferimenti: cinque filtri di stato, prima pagina e pagina successiva usano
+  indici senza `ALL` o `filesort`. Controllate anche le query dei conteggi,
+  degli eager load e delle anteprime, senza scansioni complete dei dataset
+  significativi. Nella fixture bulk MySQL inizialmente stimava una sola riga;
+  ANALYZE sulle sole tabelle temporanee ha aggiornato le statistiche prima della
+  verifica dei piani. Nessun hint o percorso SQL speciale nell'applicazione.
+- `tests/Browser/reports.cjs`: viste Blade e CSS di produzione, dati SQLite in
+  memoria; elenco misto, dettaglio federato, locale e già gestito verificati a
+  1.280 e 375 pixel. Nessun errore JS, chiave traduzione irrisolta o overflow
+  orizzontale. Schermate ispezionate, salvate in `/tmp/openbook-report-review`.
+  Usato Chromium headless già presente nella cache locale.
+- Pint, controllo whitespace e review dell'intero diff superati; nessuna
+  anomalia bloccante rimasta.
+
+### Limiti e lavoro successivo
+
+Prova manuale sul MySQL locale completata: inbox Flag elaborata dal comando
+`openbook:process-inbox`, job consumato senza errori, un solo caso aperto con
+riferimento al profilo locale e ricevuta anti-replay. L’utente ha confermato
+il corretto risultato nel pannello web. La prova parte da un inbox item simulato
+già accettato, quindi non costituisce una verifica HTTP tra istanze.
+
+Review finale dell’intero diff confermata senza anomalie bloccanti. Lo sprint 4
+completerà i provvedimenti sui soggetti federati; lo sprint 5 la conservazione
+automatica. MariaDB separato e interoperabilità online restano non verificati.

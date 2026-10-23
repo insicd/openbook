@@ -2,6 +2,22 @@
 
 ## Tests
 
+Federated report panel (#119, sprint 3):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Admin/AdminFederatedReportTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php tests/Feature/Admin/AdminAccessTest.php tests/Unit/Support/FinnishTranslationsTest.php
+node tests/Browser/reports.cjs
+```
+
+The suite covers provenance, five types, staff permissions, private previews,
+handled and missing cases, escaping, review/dismissal, dashboard and pagination.
+The browser fixture uses in-memory SQLite and production Blade/CSS at desktop
+and mobile sizes; `OPENBOOK_REPORT_SCREENSHOTS` saves screenshots. Like other
+browser checks it requires Playwright; `BROWSER_EXECUTABLE_PATH` selects an
+already installed compatible local browser. The report MySQL test also checks
+all queue and preview query plans, running ANALYZE only on temporary tables
+after bulk loading.
+
 Incoming federated reports (#119, sprint 2):
 
 ```bash

@@ -19,13 +19,16 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Ricezione segnalazioni federate (#119, sprint 2)**: le attività `Flag`
+- **Segnalazioni federate (#119, sprint 2–3)**: le attività `Flag`
   vengono elaborate dall'inbox ActivityPub ordinaria e registrate come casi di
   moderazione su persone e contenuti locali, con riferimenti multipli e
   protezione dalle riconsegne. I contenuti non più disponibili risultano già
   gestiti positivamente; nessuna notifica al segnalato o sanzione automatica.
-  Il dettaglio federato nel pannello sarà completato nello sprint 3.
-  Applicare le nuove migration, inclusa l'estensione del campo motivazione.
+  Il pannello distingue casi locali e federati, mostra mittente, istanza,
+  motivazione e riferimenti e consente revisione e archiviazione anche dopo
+  l'esame. Le anteprime rispettano gli ordinari permessi di lettura, senza
+  mostrare contenuti privati inaccessibili allo staff. Applicare le nuove
+  migration, incluse estensione della motivazione e indici delle code.
 - **Retention nei grafici Stats**: linee verticali con legenda indicano le
   durate configurate per post remoti pertinenti e non pertinenti nei grafici
   temporali. Le fasce disabilitate o fuori periodo sono nascoste; durate uguali
