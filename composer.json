@@ -7,7 +7,7 @@
     "homepage": "https://github.com/openbook-social/openbook",
     "license": "AGPL-3.0-or-later",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4.1",
         "ext-curl": "*",
         "ext-fileinfo": "*",
         "ext-gd": "*",
@@ -72,6 +72,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "platform": {
+            "php": "8.4.1"
         }
     },
     "minimum-stability": "stable",

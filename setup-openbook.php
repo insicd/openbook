@@ -16,7 +16,7 @@
 declare(strict_types=1);
 
 const OB_SETUP_MANIFEST_URL = 'https://about.openb.app/releases/latest.json';
-const OB_SETUP_MIN_PHP = '8.2.0';
+const OB_SETUP_MIN_PHP = '8.4.1';
 const OB_SETUP_TIMEOUT = 180;
 
 @set_time_limit(0);

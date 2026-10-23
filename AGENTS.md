@@ -6,7 +6,7 @@ unrelated refactors.
 
 ## Development
 
-- Openbook is a PHP 8.2+ / Laravel application with ActivityPub federation.
+- Openbook is a PHP 8.4.1+ / Laravel application with ActivityPub federation.
   Preserve its ability to run on ordinary shared hosting: do not introduce a
   mandatory long-running worker, Redis, or external service for a core feature.
 - Keep controllers thin. Put domain and federation behavior in the appropriate

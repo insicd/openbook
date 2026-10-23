@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "version": "26.34",
-  "min_php": "8.2.0",
+  "min_php": "8.4.1",
   "released_at": "2026-08-21T00:00:00Z",
   "download_url": "https://about.openb.app/releases/openbook-26.34.zip",
   "sha256": "REPLACE_WITH_SHA256_OF_ZIP",

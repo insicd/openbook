@@ -5,7 +5,7 @@
 Openbook e' progettato per funzionare anche su un normale **shared hosting**, senza
 accesso SSH continuo, senza Docker e senza processi permanenti:
 
-- PHP **8.2** o superiore, con estensioni: `curl`, `openssl`, `json`, `pdo`,
+- PHP **8.4.1** o superiore, con estensioni: `curl`, `openssl`, `json`, `pdo`,
   `pdo_mysql`, `mbstring`, `fileinfo`;
 - estensione `gd` **consigliata** per miniature e rimozione dei metadati dalle
   immagini compatibili. Senza GD il caricamento resta disponibile, ma queste
@@ -22,6 +22,10 @@ Non sono richiesti: Redis, RabbitMQ, code o worker permanenti, WebSocket, Node.j
 produzione, Docker, Elasticsearch, object storage o servizi cloud esterni. Questi
 componenti potranno essere supportati in futuro come opzioni avanzate, ma la modalita'
 base usa esclusivamente MySQL, cron PHP e filesystem locale.
+
+PHP **8.4.1 o superiore** deve essere attivo sia per il sito web sia per i comandi
+CLI e il cron. Prima di aggiornare un’istanza esistente, verificare la versione
+selezionata nel pannello hosting e quella restituita da `php -v`.
 
 ## Installazione guidata (consigliata su shared hosting)
 
@@ -215,7 +219,7 @@ server {
     }
 
     location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
