@@ -709,3 +709,40 @@ non è predisposta un’istanza remota di prova per questo ambiente locale. La
 prova manuale confermata dall’utente riguarda inbox simulata e UI; le prove HTTP
 usano firme reali con risposte remote simulate. La verifica di interoperabilità
 live resta pendente e non viene dichiarata superata.
+
+
+## 14. Review complessiva prima della PR
+
+Riletta l’issue originale e verificato l’intero intervento rispetto alla base
+`d86d70b`: flusso ActivityPub comune, cinque tipi di soggetto, persistenza,
+privacy e permessi, UI, provvedimenti, riconsegne, conservazione e rollback.
+Nessun percorso alternativo di autenticazione o consegna aggiunto. Nessuna
+modifica o pulizia dei dati applicativi locali durante questa review.
+
+Corrette due anomalie emerse dal controllo trasversale:
+
+- Il resolver condiviso confrontava l’host del profilo con il dominio completo,
+  inclusa un’eventuale porta di sviluppo: il Flag sul solo profilo poteva essere
+  ignorato. Ora estrae l’host come il resolver dei contenuti; test firmato e
+  verifica dell’alias ordinario coprono il caso.
+- La transazione dei provvedimenti poteva ripristinare le righe dopo un errore
+  di audit, quando i file di eventi o commenti evento erano già rimossi. La
+  pulizia fisica usa ora `DB::afterCommit` nei servizi condivisi. Due test con
+  errore DB simulato verificano rollback di caso, contenuto e media, file
+  preservato e nessuna consegna; le rimozioni riuscite continuano a pulire i file.
+
+Entrambi i problemi sono stati riprodotti con test prima delle correzioni e
+risultano risolti nei test mirati. Verifiche finali:
+
+- Suite completa: **1.957 test superati, 130 saltati, 15.122 asserzioni**
+  (148,85 secondi).
+- MySQL: **19 test superati, 272 asserzioni** (69,01 secondi), su schemi
+  temporanei isolati, compresi migration, concorrenza e piani delle query.
+- Regressioni mirate delle firme e del processor: 88 test, 424 asserzioni;
+  provvedimenti ed eventi: 84 test, 627 asserzioni. Tutti superati.
+- Pint e controllo whitespace superati. UI già verificata su desktop/mobile e
+  confermata dall’utente; questa review non modifica viste o JavaScript.
+
+Review complessiva conclusa senza anomalie bloccanti residue. L’intervento è
+pronto per la PR; restano i limiti di verifica online e MariaDB indicati sopra.
+Changelog, guide IT/EN e analisi aggiornati per le correzioni finali.

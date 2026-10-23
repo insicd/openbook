@@ -131,9 +131,9 @@ final class ObjectResolver
     private function localActorUsernameFromUri(string $uri): ?string
     {
         $host = parse_url($uri, PHP_URL_HOST);
-        $domain = (string) config('openbook.domain');
+        $domain = parse_url('//'.config('openbook.domain'), PHP_URL_HOST);
 
-        if (! is_string($host) || strcasecmp($host, $domain) !== 0) {
+        if (! is_string($host) || ! is_string($domain) || strcasecmp($host, $domain) !== 0) {
             return null;
         }
 

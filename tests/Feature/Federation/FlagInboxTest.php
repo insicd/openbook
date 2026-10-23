@@ -11,6 +11,7 @@ use App\Domain\Moderation\Report;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxItem;
+use App\Federation\Resolution\ObjectResolver;
 use App\Infrastructure\Security\HttpSignatureSigner;
 use App\Infrastructure\Security\KeyPair;
 use App\Infrastructure\Security\LinkedData\LinkedDataSignature;
@@ -128,6 +129,21 @@ class FlagInboxTest extends TestCase
         $this->assertCount(1, $report->targets);
         $this->assertSame('reported', $report->targets->sole()->actor->preferred_username);
         $this->assertNotSame('Untrusted name', $report->targets->sole()->actor->name);
+    }
+
+    public function test_profile_flags_resolve_when_the_local_domain_includes_a_development_port(): void
+    {
+        $activity = $this->activity();
+        config(['openbook.domain' => 'openbook.test:8443']);
+        $activity['object'] = 'https://openbook.test:8443/users/reported';
+        $this->send($activity)->assertStatus(202);
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process($activity['id'])->status);
+        $target = Report::sole()->targets()->sole();
+        $this->assertSame('reported', $target->actor->preferred_username);
+        // The ordinary profile-alias resolver follows the same host comparison.
+        $alias = app(ObjectResolver::class)->resolveActor('https://openbook.test:8443/@reported');
+        $this->assertTrue($target->actor->is($alias));
+        Http::assertNothingSent();
     }
 
     public function test_redelivery_across_inboxes_jobs_and_inbox_cleanup_preserves_a_closed_case(): void

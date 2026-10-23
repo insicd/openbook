@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Application\Services\ReportActionManager;
 use App\Application\Services\ReportManager;
 use App\Domain\Accounts\User;
 use App\Domain\Events\EventComment;
@@ -10,6 +11,7 @@ use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Infrastructure\Media\Media;
 use App\Jobs\Federation\DeliverActivityJob;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -98,6 +100,40 @@ class AdminFederatedReportActionTest extends TestCase
         $this->assertSame($count, Queue::pushed(DeliverActivityJob::class)->count());
         $this->assertDatabaseCount('audit_logs', $audits);
         $this->assertDatabaseCount('notifications', 0);
+    }
+
+    public static function eventMediaCases(): array
+    {
+        return ['event cover' => [3], 'event comment attachment' => [4]];
+    }
+
+    #[DataProvider('eventMediaCases')]
+    public function test_a_rolled_back_action_preserves_the_content_and_its_media_file(int $index): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        [$sender, $targets] = $this->reportFixture();
+        $report = $this->storeReport($sender, $targets);
+        $subject = $targets[$index]['subject'];
+        $media = Media::query()->create(['actor_id' => $targets[0]['subject']->id, 'disk' => 'public',
+            'path' => 'test/rollback.jpg', 'mime_type' => 'image/jpeg', 'byte_size' => 4]);
+        Storage::disk('public')->put($media->path, 'test');
+        $subject->attachments()->create(['media_id' => $media->id, 'position' => 0]);
+        $selection = $report->targets()->where('type', $targets[$index]['type'])->sole();
+        // Simulate a database failure after the deletion, while writing the audit.
+        DB::unprepared("CREATE TRIGGER reject_report_audit BEFORE INSERT ON audit_logs BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END");
+        try {
+            app(ReportActionManager::class)->action($report, $this->moderator(), [$selection->id]);
+            $this->fail('Expected audit failure to roll back the action.');
+        } catch (QueryException) {
+            $this->assertNotSame('deleted', $subject->fresh()->status);
+            $this->assertSame('open', $report->fresh()->status);
+            $this->assertDatabaseHas('media', ['id' => $media->id]);
+            Storage::disk('public')->assertExists($media->path);
+            Queue::assertNothingPushed();
+        } finally {
+            DB::unprepared('DROP TRIGGER reject_report_audit');
+        }
     }
 
     public function test_foreign_targets_and_profiles_cannot_be_submitted_for_deletion(): void

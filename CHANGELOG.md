@@ -43,7 +43,10 @@ la [roadmap](docs/roadmap.md).
   ordinaria e nel pannello Database. I casi aperti, soltanto esaminati o privi
   di data di chiusura restano conservati; dopo la scadenza rimane la ricevuta
   tecnica minima per impedire duplicati. Applicare anche la migration dell’indice
-  di conservazione.
+  di conservazione. La risoluzione dei profili locali gestisce anche i domini
+  di sviluppo con porta, in modo coerente con quella dei contenuti. I file
+  degli allegati rimossi vengono eliminati dopo il commit, così restano
+  disponibili se un provvedimento viene annullato dalla transazione.
 - **Retention nei grafici Stats**: linee verticali con legenda indicano le
   durate configurate per post remoti pertinenti e non pertinenti nei grafici
   temporali. Le fasce disabilitate o fuori periodo sono nascoste; durate uguali

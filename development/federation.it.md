@@ -54,6 +54,10 @@ Ogni contenuto rimosso produce audit `report.target_deleted` e il caso usa il
 normale `report.actioned`. Le riconferme di un caso chiuso non ripetono l’azione.
 La cancellazione di eventi mantiene il normale cascade su commenti e allegati;
 la UI ne informa l’operatore. Nessun dato del reclamo entra nei Delete.
+La rimozione fisica dei file locali di eventi e commenti evento avviene dopo
+il commit: un rollback del provvedimento conserva righe e file. La risoluzione
+condivisa dei profili confronta l’host anche quando il dominio di sviluppo
+include una porta, come già accade per i contenuti.
 
 Il dettaglio usa un layout responsive con comandi separati dalle evidenze.
 `report-moderation.js` aggiorna label, numero di selezioni e colore del comando

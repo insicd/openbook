@@ -52,6 +52,10 @@ comment Delete permissions include staff. Every removed item generates a
 Resubmitting a closed case does not repeat the action. Event deletion preserves
 the ordinary cascade to comments and attachments; the UI informs the operator.
 No report data enters Delete activities.
+Physical removal of local event and event-comment files happens after commit:
+a rolled-back action preserves both rows and files. The shared profile resolver
+compares the host even when the development domain includes a port, as it
+already does for content.
 
 The detail uses a responsive layout separating commands from evidence.
 `report-moderation.js` updates the final command label, selection count and

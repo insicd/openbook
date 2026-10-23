@@ -357,9 +357,12 @@ final class EventComposer
         $media->delete();
 
         if (! $media->isRemote()) {
-            foreach ($paths as [$disk, $path]) {
-                Storage::disk($disk)->delete($path);
-            }
+            // Keep files intact if an outer moderation transaction rolls back.
+            DB::afterCommit(function () use ($paths): void {
+                foreach ($paths as [$disk, $path]) {
+                    Storage::disk($disk)->delete($path);
+                }
+            });
         }
     }
 }
