@@ -235,7 +235,7 @@ provide a persistent shared cache. Configure TTLs in seconds in
 | Places for conversation | Active communities per week | 1 hour |
 | Stories take shape | Image/video totals over the last 2 years | 1 hour |
 | Images and videos, week by week | Weekly | 1 hour |
-| An invitation to answer | Weekly share of posts with a poll | 1 hour |
+| An invitation to answer | Weekly poll count | 1 hour |
 | How content arrives | Weekly by source, from daily buckets | 15 minutes |
 
 Volume/authors share `weekly`; attachment totals/trends share `media`. TTLs are

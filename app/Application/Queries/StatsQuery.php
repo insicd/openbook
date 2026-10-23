@@ -5,6 +5,7 @@ namespace App\Application\Queries;
 use App\Application\Services\DomainBlockManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Connection;
+use Illuminate\Database\MySqlConnection;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -46,8 +47,14 @@ final class StatsQuery
     public function weekly(CarbonImmutable $from, CarbonImmutable $to): Collection
     {
         $week = $this->week('p');
+        $query = $this->posts($from, $to);
+        $connection = $query->getConnection();
+        // Global history is faster through the date range than per-actor lookups.
+        if ($connection instanceof MySqlConnection && ! $connection->isMaria()) {
+            $query->forceIndex('posts_visibility_status_published_at_index');
+        }
 
-        return $this->posts($from, $to)
+        return $query
             ->selectRaw("{$week} AS week, COUNT(*) AS count, COUNT(DISTINCT p.actor_id) AS authors")
             ->groupBy('week')->orderBy('week')->get();
     }
@@ -90,11 +97,8 @@ final class StatsQuery
             ->selectRaw("{$country} AS country, COUNT(*) AS count")->groupByRaw($country);
         $events = $this->events($from, $to)->join('event_locations as l', 'l.event_id', '=', 'e.id')
             ->selectRaw("{$country} AS country, COUNT(*) AS count")->groupByRaw($country);
-        $postTotal = $this->posts($from, $to)->selectRaw('NULL AS country, COUNT(*) AS count');
-        $eventTotal = $this->events($from, $to)->selectRaw('NULL AS country, COUNT(*) AS count');
 
-        // NULL identifies the combined denominator; all branches share one snapshot.
-        return $this->connection()->query()->fromSub($posts->unionAll($events)->unionAll($postTotal)->unionAll($eventTotal), 'geo')
+        return $this->connection()->query()->fromSub($posts->unionAll($events), 'geo')
             ->selectRaw('country, SUM(count) AS count')->groupBy('country')->get();
     }
 
@@ -142,12 +146,17 @@ final class StatsQuery
         $week = $this->week('p');
         $image = "LOWER(m.mime_type) LIKE 'image/%'";
         $video = "LOWER(m.mime_type) LIKE 'video/%'";
+        $connection = $this->connection();
+        // Avoid filtering the entire post corpus before looking up attachments.
+        $hint = $connection instanceof MySqlConnection && ! $connection->isMaria()
+            ? '/*+ JOIN_PREFIX(att) */ '
+            : '';
 
         return $this->posts($from, $to)
             ->join('post_attachments as att', 'att.post_id', '=', 'p.id')
             ->join('media as m', 'm.id', '=', 'att.media_id')
             ->where(fn (Builder $query) => $query->whereRaw($image)->orWhereRaw($video))
-            ->selectRaw("{$week} AS week,
+            ->selectRaw("{$hint}{$week} AS week,
                 SUM(CASE WHEN {$image} THEN 1 ELSE 0 END) AS images,
                 SUM(CASE WHEN {$video} THEN 1 ELSE 0 END) AS videos,
                 COUNT(DISTINCT CASE WHEN {$image} THEN p.id END) AS image_posts,
@@ -160,8 +169,8 @@ final class StatsQuery
     {
         $week = $this->week('p');
 
-        return $this->posts($from, $to)->leftJoin('polls as pol', 'pol.post_id', '=', 'p.id')
-            ->selectRaw("{$week} AS week, COUNT(*) AS posts, COUNT(pol.id) AS polls")
+        return $this->posts($from, $to)->join('polls as pol', 'pol.post_id', '=', 'p.id')
+            ->selectRaw("{$week} AS week, COUNT(*) AS polls")
             ->groupBy('week')->orderBy('week')->get();
     }
 

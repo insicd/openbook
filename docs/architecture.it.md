@@ -133,7 +133,9 @@ Mostriamo le dieci istanze e le dieci lingue principali; le lingue restanti
 sono raggruppate in «Altre».
 Volume e autori attivi mostrano ciascuno una sola serie totale settimanale,
 senza filtri per istanza né distinzione tra locali e remoti. I conteggi
-degli autori non sono sommabili tra settimane.
+degli autori non sono sommabili tra settimane. Su MySQL la query condivisa
+privilegia l’indice esistente su visibilità, stato e data di pubblicazione;
+SQLite e MariaDB mantengono il piano senza hint.
 
 Il grafico hashtag include i top 10 di ciascuno degli ultimi 24 mesi di
 calendario (mese corrente incluso, parziale) e i top 10 dell’intero periodo.
@@ -144,7 +146,9 @@ serie; i tooltip identificano anche gli hashtag fuori legenda. I range restano
 in UTC; la data di elaborazione usa il fuso del visitatore.
 
 La geografia mostra i paesi associati ai luoghi dei contenuti, sommando
-post ed eventi senza selettori. Paesi non indicati e gruppi piccoli sono aggregati;
+post ed eventi senza selettori. Conta solo i contenuti con un luogo, senza
+calcolare il totale del corpus o la percentuale di contenuti geotaggati.
+Paesi non indicati e gruppi piccoli sono aggregati;
 non vengono mostrate coordinate o posizioni degli autori. Il calendario
 raggruppa per mese di inizio gli eventi pubblicati negli ultimi due anni,
 compresi quelli con inizio futuro. Le community mostrano quante community
@@ -155,10 +159,12 @@ community e ogni post contano una volta per settimana, anche con più rilanci.
 Gli allegati mostrano immagini e video dei post: totali dei file e andamento
 settimanale, con un unico dataset condiviso dai due grafici. Un post può avere
 più file o entrambi i tipi; audio, documenti ed embed esterni sono esclusi.
-I sondaggi mostrano la quota settimanale dei post pubblici con sondaggio,
-aperto o chiuso, senza consultare voti o partecipanti. Il denominatore include
-tutti i post pubblici ammessi della settimana; una settimana senza post non
-ha percentuale e interrompe la linea.
+Su MySQL il suggerimento `JOIN_PREFIX(att)` privilegia la partenza dagli
+allegati; SQLite e MariaDB mantengono la query senza suggerimenti al planner.
+I sondaggi mostrano il numero settimanale di sondaggi nei post pubblici,
+aperti o chiusi, senza consultare voti o partecipanti. Il join include solo
+i post con sondaggio; non viene calcolato un denominatore sull'intero corpus.
+Le settimane senza sondaggi hanno valore zero.
 
 La provenienza conta le delivery elaborate di post pubblici, inclusi i post già
 noti, dalla migration `2026_10_22_000000_create_post_delivery_metrics`. Non è un

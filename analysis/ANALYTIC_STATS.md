@@ -7,6 +7,23 @@ giornalieri condivisi per delivery di post ed eventi. Diffusione e conversazioni
 tra istanze sono state scartate. Riferimento operativo aggiornato:
 [configurazione e cache](../docs/configuration.it.md#statistiche-dellistanza-e-cache).
 
+Revisione produzione del 23 ottobre 2026: rimossa dalla geografia la percentuale
+di contenuti con luogo, insieme ai due conteggi complessivi di post ed eventi.
+Il grafico mantiene il totale geotaggato e i paesi, con due soli rami UNION ALL.
+Sul piano di Punk.Kitchen il denominatore dei post costava 40,415 secondi dei
+40,768 complessivi; i due rami geografici richiedevano circa 287 e 39 ms.
+La query modificata è stata misurata dall'amministratore in produzione: 324 ms.
+
+Nella stessa revisione il grafico sondaggi passa dalla quota percentuale al
+numero assoluto per settimana. L'EXPLAIN di produzione della vecchia query
+richiedeva 42,467 secondi, di cui circa 40,773 nel join fra attori e post.
+La nuova query usa un INNER JOIN ai soli sondaggi, senza denominatore; le
+settimane senza sondaggi valgono zero. Sul MySQL locale il piano parte
+dall'indice `polls_post_id_unique` e raggiunge post e autori per chiave primaria
+(1,58 ms su un campione di 12 sondaggi). La nuova query è stata misurata
+dall'amministratore in produzione: 34 ms. Audit degli altri dataset in
+[ANALYTIC_STATS_QUERY_REVIEW.md](ANALYTIC_STATS_QUERY_REVIEW.md).
+
 Le sezioni esplorative e le misure iniziali seguenti conservano la storia delle
 ipotesi, anche quando successivamente scartate o modificate; non sono una lista
 di endpoint disponibili. Le decisioni finali sono nel piano sprint e nelle guide.

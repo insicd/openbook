@@ -311,6 +311,16 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Statistiche di pubblicazioni e autori**: su MySQL la query condivisa usa
+  l'indice temporale esistente, riducendo il costo della scansione dello storico.
+- **Statistiche degli allegati**: su MySQL la query privilegia gli allegati
+  come punto di partenza del join, evitando di filtrare prima l'intero corpus.
+- **Statistiche dei sondaggi**: «La voglia di chiedere» mostra il numero di
+  sondaggi per settimana al posto della percentuale sui post. La query considera
+  solo i contenuti con sondaggio, evitando il conteggio dell'intero corpus.
+- **Statistiche geografiche**: rimossa la percentuale di contenuti con luogo
+  e i relativi conteggi sull'intero corpus, che rallentavano il grafico sulle
+  istanze più popolate. Restano il totale dei contenuti geotaggati e i paesi.
 - **Footer**: il nome dell’istanza in fondo alla pagina rimanda alla home locale,
   come nel footer sotto il menù.
 - Lo sfondo della home ospite (immagine o alone di default) resta della

@@ -234,7 +234,7 @@ per ottenere una cache condivisa persistente. I TTL si configurano in
 | I luoghi dove si conversa | Community attive per settimana | 1 ora |
 | Le storie prendono forma | Totali immagini/video degli ultimi 2 anni | 1 ora |
 | Immagini e video, settimana per settimana | Settimanale | 1 ora |
-| La voglia di chiedere | Quota settimanale di post con sondaggio | 1 ora |
+| La voglia di chiedere | Numero settimanale di sondaggi | 1 ora |
 | Come arrivano i contenuti | Settimanale per sorgente, da bucket giornalieri | 15 minuti |
 
 Volume/autori condividono il dataset `weekly`; totali/trend degli allegati

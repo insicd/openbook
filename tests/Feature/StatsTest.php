@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Application\Queries\StatsQuery;
 use App\Application\Services\StatsDataset;
 use App\Domain\Communities\Community;
 use App\Domain\Events\Event;
@@ -357,12 +358,26 @@ class StatsTest extends TestCase
         $private = Post::create(['actor_id' => $author->actor->id, 'body' => 'Private place', 'status' => 'published', 'visibility' => 'followers', 'published_at' => '2026-10-01 12:00:00']);
         DB::table('post_locations')->insert(['post_id' => $private->id, 'name' => 'Private place', 'country_code' => 'FI']);
         $data = app(StatsDataset::class)->geography();
-        $this->assertSame(['contents' => 14, 'located' => 13], $data['totals']);
+        $this->assertSame(['located' => 13], $data['totals']);
         $rows = collect($data['rows']);
         $this->assertSame(10, $rows->where('country', 'FI')->sum('count'));
         $this->assertSame(3, $rows->where('country', 'OTHER')->sum('count'));
         $this->assertFalse($rows->contains('country', 'DE'));
         $this->actingAs($author)->getJson('/stats/geografia')->assertHeader('Cache-Control', 'no-store, private');
+    }
+
+    public function test_geography_returns_no_counts_for_content_without_locations(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
+        $author = $this->createFullAccount('statsunlocated');
+        Post::create(['actor_id' => $author->actor->id, 'body' => 'No place', 'status' => 'published', 'visibility' => 'public', 'published_at' => '2026-10-01 12:00:00']);
+        Event::create(['actor_id' => $author->actor->id, 'uri' => 'https://example.test/unlocated', 'name' => 'No place', 'visibility' => 'public', 'status' => 'scheduled', 'published_at' => '2026-10-01 12:00:00', 'start_at' => '2027-01-01 12:00:00']);
+
+        $to = CarbonImmutable::now('UTC')->startOfHour();
+        $this->assertEmpty(app(StatsQuery::class)->geography($to->subYearsNoOverflow(2), $to));
+        $data = app(StatsDataset::class)->geography();
+        $this->assertSame(['located' => 0], $data['totals']);
+        $this->assertSame([], $data['rows']);
     }
 
     public function test_the_event_calendar_uses_start_month_even_for_future_events(): void
@@ -441,7 +456,7 @@ class StatsTest extends TestCase
         $this->actingAs($author)->getJson('/stats/allegati')->assertHeader('Cache-Control', 'no-store, private');
     }
 
-    public function test_poll_statistics_use_all_public_posts_as_denominator_and_include_closed_polls(): void
+    public function test_poll_statistics_count_open_and_closed_polls_without_a_post_denominator(): void
     {
         CarbonImmutable::setTestNow('2026-10-22 15:30:00 UTC');
         $author = $this->createFullAccount('statspolls');
@@ -452,10 +467,15 @@ class StatsTest extends TestCase
                 DB::table('polls')->insert(['id' => (string) Str::uuid(), 'post_id' => $post->id, 'multiple' => false, 'closed' => $kind === 'closed']);
             }
         }
-        $rows = collect(app(StatsDataset::class)->polls()['rows'])->keyBy('week');
-        $this->assertSame(['week' => '2026-10-12', 'posts' => 3, 'polls' => 2], $rows['2026-10-12']);
-        $this->assertSame(['week' => '2026-10-05', 'posts' => 0, 'polls' => 0], $rows['2026-10-05']);
+        Post::create(['actor_id' => $author->actor->id, 'body' => 'No poll', 'status' => 'published', 'visibility' => 'public', 'published_at' => '2026-10-06 12:00:00']);
+        $data = app(StatsDataset::class)->polls();
+        $this->assertSame('polls', $data['unit']);
+        $rows = collect($data['rows'])->keyBy('week');
+        $this->assertSame(['week' => '2026-10-12', 'polls' => 2], $rows['2026-10-12']);
+        $this->assertSame(['week' => '2026-10-05', 'polls' => 0], $rows['2026-10-05']);
         $this->assertSame(2, $rows->sum('polls'));
+        $to = CarbonImmutable::now('UTC')->startOfHour();
+        $this->assertSame(1, app(StatsQuery::class)->polls($to->subYearsNoOverflow(2), $to)->count());
         $this->actingAs($author)->getJson('/stats/sondaggi')->assertHeader('Cache-Control', 'no-store, private');
     }
 }

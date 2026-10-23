@@ -129,7 +129,9 @@ We show the ten leading instances and languages; remaining languages are
 grouped under Other.
 Volume and active authors each show a single weekly total series, without
 instance filters or a local/remote split. Author counts
-must not be added across weeks.
+must not be added across weeks. On MySQL, the shared query favours the existing
+index on visibility, status and publication date; SQLite and MariaDB keep
+the query without an index hint.
 
 The hashtag chart includes each of the last 24 calendar months’ top 10
 (including the partial current month), plus the top 10 over the entire period.
@@ -140,7 +142,9 @@ identify hashtags outside the legend. Ranges stay in UTC; generation times
 use the visitor’s timezone.
 
 Geography shows countries associated with content places, combining posts
-and events without a selector. Unspecified countries and small groups
+and events without a selector. It counts only content with a place, without
+computing a corpus-wide total or the percentage of geotagged content.
+Unspecified countries and small groups
 are combined; no coordinates or authors’ locations are shown. The calendar
 groups events published over the last two years by starting month, including
 future start dates. Communities show how many eligible public communities
@@ -150,10 +154,12 @@ per week, even if multiple communities shared the same post.
 
 Attachments show images and videos in posts: file totals and weekly trends,
 with one dataset shared by both charts. A post may have multiple files or
-both types; audio, documents and external embeds are excluded. Polls show the
-weekly share of eligible public posts containing an open or closed poll,
-without accessing votes or participants. The denominator includes all eligible
-public posts that week; weeks without posts have no percentage and break the line.
+both types; audio, documents and external embeds are excluded. On MySQL,
+`JOIN_PREFIX(att)` favours starting from attachments; SQLite and MariaDB keep
+the query without optimizer hints. Polls show the
+weekly number of open or closed polls in eligible public posts, without
+accessing votes or participants. The join includes only posts with a poll;
+no corpus-wide denominator is computed. Weeks without polls have value zero.
 
 Provenance counts processed deliveries of public posts, including known posts,
 starting with migration `2026_10_22_000000_create_post_delivery_metrics`. This is
