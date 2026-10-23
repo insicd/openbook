@@ -166,11 +166,24 @@ const server = http.createServer((request, response) => {
         await openPost();
         await page.click('#anchor');
         await page.waitForURL(/#commenti$/);
+        // The URL changes before the queued hashchange handler updates history state.
+        await page.waitForFunction(() => history.state?.obPostBack?.depth === 2);
         assert.equal(await depth(), 2, 'anchor adds a step');
         await page.goBack();
+        await page.waitForFunction(() => history.state?.obPostBack?.depth === 1
+            && JSON.parse(sessionStorage.getItem('ob.postBack'))?.depth === 1);
         assert.equal(await depth(), 1, 'native back across an anchor');
+        await page.goForward();
+        await page.waitForFunction(() => history.state?.obPostBack?.depth === 2
+            && JSON.parse(sessionStorage.getItem('ob.postBack'))?.depth === 2);
+        await page.reload();
+        assert.equal(await depth(), 2, 'refresh preserves anchor depth');
+        await backToList();
+
+        await openPost();
         await page.click('#anchor');
         await page.waitForURL(/#commenti$/);
+        await page.waitForFunction(() => history.state?.obPostBack?.depth === 2);
         await backToList();
 
         const external = await context.newPage();
@@ -203,6 +216,7 @@ const server = http.createServer((request, response) => {
         console.log('PASS: header background, author/time/menu links, keyboard, comments, validation, refresh, native back, anchors, reset, mobile/desktop visibility, direct/external access, new tab and denied storage');
     } finally {
         if (browser) await browser.close();
+        server.closeAllConnections();
         await new Promise(resolve => server.close(resolve));
     }
 })().catch(error => { console.error(error); process.exitCode = 1; });

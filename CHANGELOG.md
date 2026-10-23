@@ -350,6 +350,13 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Esportazione CSV dei seguiti**: lettura dei soli campi necessari e nuovo
+  indice per proprietario, stato e destinazione, per evitare scansioni complete
+  e ordinamenti aggiuntivi durante l’esportazione paginata. Applicare la
+  migration `2026_10_24_000000_add_follow_export_index`.
+- **Ritorno dal dettaglio post**: lo stato salvato in sessione viene riallineato
+  passando avanti o indietro tra le ancore, mantenendo coerente il ritorno alla
+  lista anche dopo un aggiornamento della pagina.
 - **Statistiche di pubblicazioni e autori**: su MySQL la query condivisa usa
   l'indice temporale esistente, riducendo il costo della scansione dello storico.
 - **Statistiche degli allegati**: su MySQL la query privilegia gli allegati
