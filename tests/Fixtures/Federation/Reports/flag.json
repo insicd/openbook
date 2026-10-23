@@ -1,0 +1,14 @@
+{
+    "@context": "https://www.w3.org/ns/activitystreams",
+    "id": "https://remote.example/reports/one",
+    "type": "Flag",
+    "actor": "https://remote.example/users/instance",
+    "object": [
+        "https://openbook.test/users/reported",
+        "https://openbook.test/posts/019a0000-0000-7000-8000-000000000001",
+        "https://openbook.test/comments/019a0000-0000-7000-8000-000000000002",
+        "https://openbook.test/eventi/019a0000-0000-7000-8000-000000000003",
+        "https://openbook.test/event-comments/019a0000-0000-7000-8000-000000000004"
+    ],
+    "content": "Reason"
+}

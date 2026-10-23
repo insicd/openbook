@@ -2,6 +2,93 @@
 
 # Federazione
 
+## Ricezione Flag (#119, sprint 2)
+
+`InboxActivityProcessor` gestisce `Flag` nel dispatch esistente, delegando la
+persistenza a `ReportManager::recordFederated()`. Inbox, firme HTTP/Linked Data,
+refetch, inoltri, relay, blocchi e job mantengono il comportamento ordinario.
+`ObjectResolver::resolveLocalReference()` usa i resolver e i percorsi locali
+comuni, conservando il tipo dei contenuti mancanti. Include Actor locali non
+attivi per consentire segnalazioni su persone sospese; community e contenuti
+remoti in cache non diventano soggetti locali.
+
+Oggetto singolo, lista e oggetto incorporato con `id` sono accettati. Il testo
+di `content` passa nel normale `RemoteContentSanitizer`; i dati incorporati dei
+soggetti non aggiornano i contenuti locali. Non vengono inviate nuove attività
+di riscontro o applicati provvedimenti automatici. Il 202 conferma la ricezione.
+
+Applicare le migration dello sprint 1 e
+`2026_10_23_000001_widen_report_details`: il campo motivazione diventa LONGTEXT
+per accogliere i testi ammessi dall'inbox senza imporre il limite del form locale.
+Su MySQL/MariaDB il rollback a TEXT richiede motivazioni entro la sua capacità;
+la modalità strict impedisce il troncamento silenzioso.
+
+### Pannello di moderazione (sprint 3)
+
+`ReportModerationQuery` condivide elenco e anteprime per i casi locali e
+federati. L'ordinamento è stabile per `created_at DESC, id DESC`; la migration
+`2026_10_23_000002_add_report_listing_indexes` aggiunge l'indice temporale per
+tutti gli stati ed estende quello per stato con l'ID. Verificare i piani MySQL
+con statistiche della fixture aggiornate dopo il caricamento massivo.
+
+Le anteprime sono testi e riferimenti circoscritti al soggetto, senza caricare
+conversazioni, citazioni, media o votanti. Gli eager load di post ed eventi
+usano `visibleTo`; quelli dei commenti verificano la visibilità del relativo
+post/evento. Un riferimento esistente ma non leggibile resta distinto da uno
+mancante. La chiusura automatica è presentata come già gestita positivamente,
+senza attribuire la revisione a un moderatore. Revisione e archiviazione usano
+le route e l'audit esistenti; l'archiviazione rimane disponibile dopo la revisione.
+La conservazione automatica è descritta nello sprint 5 seguente.
+
+### Provvedimenti manuali (sprint 4)
+
+`ReportActionManager` ricontrolla ruolo, stato del caso, appartenenza dei target
+selezionati e pertinenza locale al momento del comando. Blocca caso e contenuti
+in transazione, senza fidarsi degli URI ricevuti o degli ID di altri casi. I
+profili rimandano alla gestione utenti; non vengono eliminati dal comando.
+`LocalContentDeleter` condivide cancellazione, contatori e consegna ordinaria
+tra controller e moderazione. Per gli eventi usa `EventComposer` con l’Actor
+del moderatore effettivo, senza impersonare l’autore; l’editing resta riservato
+al proprietario. I permessi Delete di eventi e commenti evento includono lo staff.
+Ogni contenuto rimosso produce audit `report.target_deleted` e il caso usa il
+normale `report.actioned`. Le riconferme di un caso chiuso non ripetono l’azione.
+La cancellazione di eventi mantiene il normale cascade su commenti e allegati;
+la UI ne informa l’operatore. Nessun dato del reclamo entra nei Delete.
+La rimozione fisica dei file locali di eventi e commenti evento avviene dopo
+il commit: un rollback del provvedimento conserva righe e file. La risoluzione
+condivisa dei profili confronta l’host anche quando il dominio di sviluppo
+include una porta, come già accade per i contenuti.
+
+Il dettaglio usa un layout responsive con comandi separati dalle evidenze.
+`report-moderation.js` aggiorna label, numero di selezioni e colore del comando
+finale, senza cambiare stato del caso: il backend resta l’unica autorità.
+I form funzionano senza JavaScript con label di fallback esplicite. Le spiegazioni
+dei comandi sono visibili e associate con `aria-describedby`; gli URI originali
+sono espandibili tramite `details` nativi.
+
+### Conservazione e riconsegna (sprint 5)
+
+`DatabaseMaintenanceService` condivide selezione, conteggi e cancellazione dei
+casi chiusi tra cron e pannello admin. Il predicato usa `closed_at < cutoff`
+e stati terminali, senza filtro di origine: locale e federato seguono la stessa
+regola. Cutoff con mesi di calendario senza overflow, configurazione
+`openbook.maintenance.closed_report_retention_months` (default 12, minimo 1).
+I casi senza data di chiusura non vengono stimati o retrodatati. Una singola
+DELETE mantiene il controllo sullo stato al momento della cancellazione.
+Le FK eliminano i target e azzerano `report_receipts.report_id`; il digest
+resta vincolato univocamente e `ReportManager` non ricrea il caso al replay.
+L’audit rimane invariato e la pulizia non produce consegne o notifiche.
+
+Le transizioni staff acquisiscono il lock sul caso e salvano stato e audit
+nella stessa transazione. Se la manutenzione ha già rimosso il caso, la
+transizione restituisce il normale esito di oggetto non trovato.
+
+La migration `2026_10_23_000003_add_report_retention_index` aggiunge
+`reports(closed_at, status)` per scansione temporale e conteggio coperto.
+EXPLAIN va verificato su conteggio e DELETE realmente emessi dal servizio,
+con dataset rappresentativo e statistiche aggiornate; i test usano solo schemi
+temporanei. Rollback del solo indice senza perdita dei casi.
+
 ### Federazione (Fase 3)
 
 Ogni Actor locale e' ora raggiungibile dal Fediverso tramite gli endpoint standard di

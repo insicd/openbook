@@ -6,6 +6,60 @@ Federation lets an Openbook account follow and interact with accounts on other
 ActivityPub-compatible servers. Each server has its own rules, processing times
 and available features.
 
+## Incoming federated reports (#119)
+
+Openbook receives `Flag` reports through its ordinary ActivityPub inboxes,
+with the same authenticity checks as other activities. Reports may concern
+local people and their posts, comments, events and event comments.
+The recorded sender is the remote server's authenticated Actor, which does
+not necessarily identify the person who originally submitted the report.
+
+A Flag creates a case restricted to moderation; redelivery does not duplicate
+it. Unavailable local content is recorded as already handled positively.
+Reception neither notifies the reported person nor applies sanctions or changes
+content visibility. Sending reports to other servers and synchronising outcomes
+are excluded.
+
+In **Admin → Reports**, local and federated cases have distinct labels.
+The detail shows the sending Actor and instance, motivation and each reference,
+identifying unavailable or access-restricted content. Previews follow ordinary
+reading permissions even for staff; a report does not grant access to private
+conversations. Administrators and moderators can review and dismiss the case,
+including after marking it as reviewed.
+
+From the detail, **User management** opens the existing user tools with their
+ordinary permissions. Alternatively, select individual local content items to
+delete before pressing **Delete selected and close**. No checkbox is selected by default.
+The command closes the case even without selections, for example after taking
+action on a user. Deleting an event also removes its comments and attachments,
+as in the ordinary flow. Deletions produce normal federated Delete activities,
+without the report's motivation or provenance.
+
+The detail separates the report reason and subjects from **Case management**.
+**Mark as examined** records examination and leaves the case open;
+**Close without action** archives it without applying measures. The final
+command shows **Close as handled** without selections or **Delete selected
+and close** with selections, including the number of items to remove.
+Explanations remain visible on devices without hover. Original addresses and
+sender information can be expanded. Forms and selections also work without
+JavaScript, with explicit fallback wording for the operations.
+
+Closed cases are retained for **12 months after closure**, configurable;
+open or only examined cases are preserved. Existing maintenance performs cleanup
+and retains a minimal receipt to prevent duplicates even after case removal.
+See [Report retention](configuration.md#report-retention).
+
+### Upgrade and rollback (#119)
+
+Run `php artisan migrate` before using the feature. The four migrations
+`2026_10_23_000000`–`000003` extend case data and motivation, add references and
+receipts, and index listing and retention queries. No permanent workers or new
+services are needed. Rolling back the first migration deletes federated cases
+and receipts, because the previous schema requires a local reporter; reverting
+motivation from LONGTEXT to TEXT requires texts to fit TEXT capacity, otherwise
+MySQL/MariaDB strict mode rejects it. Rolling back only the retention index does
+not delete cases or receipts.
+
 ## Finding and following a remote account
 
 Search for the full address, such as `name@domain.example`. From the remote

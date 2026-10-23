@@ -3,9 +3,11 @@
 namespace App\Application\Services;
 
 use App\Domain\Accounts\User;
+use App\Domain\Moderation\Report;
 use App\Domain\Posts\ExternalLinkPreview;
 use App\Domain\Posts\PendingPostPublication;
 use App\Federation\Inbox\InboxItem;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -13,8 +15,8 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Statistiche e pulizia sicura di tabelle operative che crescono nel tempo
- * (inbox grezzo, job falliti, cache/sessioni e coda pubblicazioni). Ogni
- * famiglia applica la propria retention; non tocca post, utenti o media
+ * (inbox grezzo, casi di moderazione chiusi, job falliti, cache/sessioni e
+ * coda pubblicazioni). Ogni famiglia applica la propria retention; non tocca post, utenti o media
  * pubblicati.
  */
 final class DatabaseMaintenanceService
@@ -79,6 +81,7 @@ final class DatabaseMaintenanceService
                 'description' => __($definition['description_key'], [
                     'hours' => self::RETENTION_HOURS,
                     'days' => $this->publicationQueueRetentionDays(),
+                    'months' => $this->closedReportRetentionMonths(),
                 ]),
                 'available' => true,
                 'row_count' => (int) DB::table($table)->count(),
@@ -110,6 +113,7 @@ final class DatabaseMaintenanceService
             $this->auditLogger->log($actor, 'database.purge', null, [
                 'retention_hours' => self::RETENTION_HOURS,
                 'publication_queue_retention_days' => $this->publicationQueueRetentionDays(),
+                'closed_report_retention_months' => $this->closedReportRetentionMonths(),
                 'deleted' => $deleted,
             ]);
         }
@@ -127,6 +131,7 @@ final class DatabaseMaintenanceService
 
         $deleted = match ($key) {
             'inbox_items' => $this->purgeInboxItems(),
+            'reports' => $this->closedReportsPurgeableQuery()->delete(),
             'failed_jobs' => $this->purgeFailedJobs(),
             'cache' => $this->purgeCache(),
             'cache_locks' => $this->purgeCacheLocks(),
@@ -142,6 +147,7 @@ final class DatabaseMaintenanceService
                 'table' => $key,
                 'retention_hours' => self::RETENTION_HOURS,
                 'publication_queue_retention_days' => $this->publicationQueueRetentionDays(),
+                'closed_report_retention_months' => $this->closedReportRetentionMonths(),
                 'deleted' => $deleted,
             ]);
         }
@@ -159,6 +165,7 @@ final class DatabaseMaintenanceService
 
         return match ($key) {
             'inbox_items' => $this->inboxItemsPurgeableQuery()->count(),
+            'reports' => $this->closedReportsPurgeableQuery()->count(),
             'failed_jobs' => $this->failedJobsPurgeableQuery()->count(),
             'cache' => $this->cachePurgeableQuery()->count(),
             'cache_locks' => $this->cacheLocksPurgeableQuery()->count(),
@@ -181,6 +188,12 @@ final class DatabaseMaintenanceService
                 'table' => 'inbox_items',
                 'label_key' => 'openbook.admin.database.tables.inbox_items',
                 'description_key' => 'openbook.admin.database.tables.inbox_items_help',
+            ],
+            [
+                'key' => 'reports',
+                'table' => 'reports',
+                'label_key' => 'openbook.admin.database.tables.reports',
+                'description_key' => 'openbook.admin.database.tables.reports_help',
             ],
             [
                 'key' => 'failed_jobs',
@@ -285,6 +298,20 @@ final class DatabaseMaintenanceService
                 InboxItem::STATUS_FAILED,
             ])
             ->where('received_at', '<', $this->cutoff());
+    }
+
+    private function closedReportsPurgeableQuery(): Builder
+    {
+        // NULL dates from older cases are preserved; never invent a closure date.
+        // Foreign keys remove targets and leave the receipt's digest without a case.
+        return Report::query()
+            ->where('closed_at', '<', now()->subMonthsNoOverflow($this->closedReportRetentionMonths()))
+            ->whereIn('status', [Report::STATUS_DISMISSED, Report::STATUS_ACTIONED]);
+    }
+
+    private function closedReportRetentionMonths(): int
+    {
+        return max(1, (int) config('openbook.maintenance.closed_report_retention_months', 12));
     }
 
     private function failedJobsPurgeableQuery()

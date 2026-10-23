@@ -11,10 +11,12 @@ use App\Application\Services\FollowManager;
 use App\Application\Services\LocalCommunityIngester;
 use App\Application\Services\ReactionManager;
 use App\Application\Services\RelayHandshakeManager;
+use App\Application\Services\ReportManager;
 use App\Domain\Comments\Comment;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventAnnounce;
 use App\Domain\Events\EventParticipation;
+use App\Domain\Moderation\ReportTarget;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -74,6 +76,7 @@ final class InboxActivityProcessor
         private readonly RemoteAccountMoveHandler $accountMoves,
         private readonly LocalCommunityIngester $communityIngester,
         private readonly LocalPollVoteIngester $pollVotes,
+        private readonly ReportManager $reports,
     ) {}
 
     public function process(InboxItem $item): string
@@ -109,6 +112,7 @@ final class InboxActivityProcessor
 
         $status = match ($item->activity_type) {
             'Move' => $this->accountMoves->handle($activity, $signer),
+            'Flag' => $this->handleFlag($activity, $signer),
             'Follow' => $this->handleFollow($activity, $signer),
             'Accept' => $this->handleAccept($activity, $signer),
             'Reject' => $this->handleReject($activity, $signer),
@@ -128,6 +132,40 @@ final class InboxActivityProcessor
         }
 
         return $status;
+    }
+
+    /** @param array<string, mixed> $activity */
+    private function handleFlag(array $activity, Actor $sender): string
+    {
+        $objects = $activity['object'] ?? null;
+        $objects = is_array($objects) && array_is_list($objects) ? $objects : [$objects];
+        $targets = [];
+        foreach ($objects as $object) {
+            $uri = $this->objectId($object);
+            $reference = $uri === null ? null : $this->objects->resolveLocalReference($uri);
+            if ($reference === null) {
+                continue;
+            }
+            $subject = $reference['subject'];
+            if ($subject !== null) {
+                if (! ReportTarget::isLocalPersonSubject($subject)) {
+                    continue;
+                }
+            } elseif ($reference['type'] === ReportTarget::TYPE_ACTOR) {
+                continue;
+            }
+            $targets[] = ['uri' => $uri, ...$reference];
+        }
+
+        if ($targets === []) {
+            return InboxItem::STATUS_IGNORED;
+        }
+        $details = is_string($activity['content'] ?? null)
+            ? RemoteContentSanitizer::toPlainText($activity['content'])
+            : null;
+        $this->reports->recordFederated($sender, $activity['id'], $details, $targets);
+
+        return InboxItem::STATUS_PROCESSED;
     }
 
     /** @param array<string, mixed> $activity */

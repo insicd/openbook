@@ -3,12 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Application\Services\CommentComposer;
-use App\Application\Services\CommentSoftDeleter;
+use App\Application\Services\LocalContentDeleter;
 use App\Domain\Comments\Comment;
 use App\Domain\Comments\CommentThread;
 use App\Domain\Posts\Post;
-use App\Federation\Delivery\ActivityDelivery;
-use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\NoteSerializer;
 use App\Http\Requests\Comments\StoreCommentRequest;
 use App\Http\Support\ActivityPubNegotiation;
@@ -21,9 +19,8 @@ use Illuminate\Support\Facades\Gate;
 class CommentController extends Controller
 {
     public function __construct(
+        private readonly LocalContentDeleter $localContentDeleter,
         private readonly CommentComposer $commentComposer,
-        private readonly CommentSoftDeleter $commentSoftDeleter,
-        private readonly ActivityDelivery $delivery,
     ) {}
 
     /**
@@ -118,16 +115,7 @@ class CommentController extends Controller
     {
         Gate::authorize('delete', $comment);
 
-        $comment->load('mentions.actor', 'actor', 'post', 'parent.actor');
-        $isLocalAuthor = $comment->actor->isLocal();
-
-        $this->commentSoftDeleter->delete($comment);
-
-        if ($isLocalAuthor) {
-            $repliedToAuthor = $comment->parent?->actor ?? $comment->post->actor;
-
-            $this->delivery->deliverContent($comment, ActivitySerializer::delete($comment), [$repliedToAuthor]);
-        }
+        $this->localContentDeleter->delete(auth()->user()->actor, $comment);
 
         return redirect()->route('posts.show', $comment->post_id)->with('status', 'Commento eliminato.');
     }

@@ -256,6 +256,8 @@ return [
     ],
 
     'maintenance' => [
+        // Durata dalla chiusura effettiva, per casi locali e federati.
+        'closed_report_retention_months' => (int) env('OPENBOOK_CLOSED_REPORT_RETENTION_MONTHS', 12),
         // Le pubblicazioni completate o fallite restano consultabili per
         // qualche giorno prima di eliminare righe e staging temporaneo.
         'publication_queue_retention_days' => (int) env('OPENBOOK_PUBLICATION_QUEUE_RETENTION_DAYS', 7),
