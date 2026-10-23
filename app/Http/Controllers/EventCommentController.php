@@ -3,11 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Application\Services\EventCommentComposer;
-use App\Application\Services\EventCommentSoftDeleter;
+use App\Application\Services\LocalContentDeleter;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventComment;
-use App\Federation\Delivery\ActivityDelivery;
-use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\EventCommentSerializer;
 use App\Http\Requests\Events\StoreEventCommentRequest;
 use App\Http\Support\ActivityPubNegotiation;
@@ -19,9 +17,8 @@ use Illuminate\Support\Facades\Gate;
 class EventCommentController extends Controller
 {
     public function __construct(
+        private readonly LocalContentDeleter $localContentDeleter,
         private readonly EventCommentComposer $composer,
-        private readonly EventCommentSoftDeleter $deleter,
-        private readonly ActivityDelivery $delivery,
     ) {}
 
     public function show(Request $request, EventComment $comment): RedirectResponse|JsonResponse
@@ -67,15 +64,7 @@ class EventCommentController extends Controller
     public function destroy(EventComment $comment): RedirectResponse
     {
         Gate::authorize('delete', $comment);
-        $comment->load('mentions.actor', 'actor', 'event.actor', 'parent.actor');
-        $directTargets = $comment->mentions->pluck('actor')
-            ->push($comment->parent?->actor ?? $comment->event->actor)
-            ->filter()
-            ->unique('id')
-            ->values()
-            ->all();
-        $this->deleter->delete($comment);
-        $this->delivery->deliverContent($comment, ActivitySerializer::delete($comment), $directTargets);
+        $this->localContentDeleter->delete(auth()->user()->actor, $comment);
 
         return redirect(route('events.show', $comment->event_id).'#commenti')
             ->with('status', __('openbook.comments.deleted'));

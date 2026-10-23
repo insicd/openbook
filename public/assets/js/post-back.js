@@ -124,6 +124,7 @@
         var entry = window.history.state && window.history.state.obPostBack;
         if (validContext(entry)) {
             depth = entry.depth;
+            saveContext(false);
         } else {
             depth += 1;
             rememberEntry();

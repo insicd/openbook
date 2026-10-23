@@ -2,6 +2,86 @@
 
 ## Test
 
+Conservazione e ciclo completo (#119, sprint 5):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/ReportRetentionTest.php tests/Feature/Federation/FlagInboxTest.php tests/Feature/Admin/AdminDatabaseMaintenanceTest.php tests/Feature/Console/PurgeDatabaseCommandTest.php
+OPENBOOK_TEST_REPORTS_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportMysqlPersistenceTest.php
+```
+
+La suite di conservazione è condivisa SQLite/MySQL: casi locali/federati,
+stati terminali, date mancanti, soglia esatta, mesi senza overflow, configurazione,
+riapertura, chiusura automatica e ricevute minime dopo scadenza. Il percorso HTTP
+firmato attraversa esame e provvedimento staff, pulizia tramite comando e
+riconsegna senza ricreare il caso. Verificati permessi admin e conteggi del
+pannello, audit e rollback dell’indice. Il test MySQL verifica EXPLAIN di
+conteggio e DELETE reali. Le prove non attestano interoperabilità online con
+un’altra implementazione: rimane da eseguire una consegna da un’istanza remota
+di prova a un’istanza Openbook raggiungibile.
+
+
+Provvedimenti manuali (#119, sprint 4):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Admin/AdminFederatedReportActionTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php tests/Feature/Events
+```
+
+Coperti i quattro tipi di contenuto per admin e moderatore, selezione esplicita,
+ruoli negati, riferimenti di altri casi, soggetti diventati remoti, cancellazioni
+ripetute e target rimossi, audit, chiusura senza sanzioni, pulizia media e normali
+Delete senza dati del reclamo. Il test MySQL del pannello verifica anche i piani
+delle query del comando. Il test browser controlla l’invio delle selezioni, label e colore dinamici,
+layout a quattro larghezze, profilo in italiano e fallback senza JavaScript.
+
+Pannello delle segnalazioni federate (#119, sprint 3):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Admin/AdminFederatedReportTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php tests/Feature/Admin/AdminAccessTest.php tests/Unit/Support/FinnishTranslationsTest.php
+node tests/Browser/reports.cjs
+```
+
+La suite verifica provenienza, cinque tipi, permessi staff, anteprime private,
+casi già gestiti e mancanti, escaping, revisione/archiviazione, dashboard e
+paginazione. La fixture browser usa SQLite in memoria e le viste Blade/CSS
+reali su desktop e mobile; `OPENBOOK_REPORT_SCREENSHOTS` salva le schermate.
+Come gli altri test browser richiede Playwright; `BROWSER_EXECUTABLE_PATH`
+permette di usare un browser locale compatibile già installato. Il test MySQL
+delle segnalazioni verifica anche i piani di tutte le code e delle anteprime,
+con ANALYZE sulle sole tabelle temporanee dopo il caricamento massivo.
+
+Ricezione delle segnalazioni federate (#119, sprint 2):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Federation/FlagInboxTest.php tests/Feature/Moderation/FederatedReportPersistenceTest.php tests/Feature/Federation/InboxSignatureTest.php tests/Feature/Federation/InboxActivityProcessorTest.php tests/Feature/Federation/EventInboxActivityTest.php
+```
+
+I test attraversano inbox firmata, job e persistenza per i cinque tipi;
+coprono contenuti mancanti, privacy, riconsegne dopo pulizia, firme non valide,
+blocchi e i normali inoltri via firma Linked Data/relay o refetch dall'origine.
+Il test MySQL sotto verifica anche gli indici delle query reali dei resolver,
+motivazioni oltre 64 KiB e rollback dell'estensione LONGTEXT.
+
+Persistenza delle segnalazioni federate (#119, sprint 1):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportPersistenceTest.php tests/Feature/Moderation/ReportPostTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php
+OPENBOOK_TEST_REPORTS_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportMysqlPersistenceTest.php
+```
+
+Il test MySQL/MariaDB usa `OPENBOOK_TEST_MYSQL_*` (incluso il socket opzionale)
+e crea/elimina soltanto schemi casuali `openbook_reports_test_*`. Quando attivato,
+un errore di connessione o migration fa fallire il test. La copertura comprende
+i cinque tipi, casi locali preesistenti, chiusura automatica, rollback atomico,
+riconsegne dopo cancellazione del caso, FK, concorrenza tra due processi e
+EXPLAIN delle query per ricevuta e riferimenti. La fixture `Reports/flag.json`
+è illustrativa, non acquisita da un server reale.
+
+Lo sprint 1 prepara la persistenza; lo sprint 2 aggiunge la ricezione descritta
+sopra. La UI è descritta nella sezione del pannello sopra. La migration `2026_10_23_000000_extend_reports_for_federation`
+preserva i casi locali; il suo rollback elimina i casi federati e le ricevute
+prima di ripristinare il reporter locale obbligatorio. La manutenzione e la
+verifica di interoperabilità online appartengono agli sprint successivi.
+
 Statistiche dell’istanza:
 
 ```bash
@@ -32,6 +112,12 @@ risoluzione remota e normali job di consegna. Il test MySQL opzionale crea uno
 schema isolato con i parametri `OPENBOOK_TEST_MYSQL_*` descritti sotto. Controlla
 EXPLAIN della prima pagina di export, delle successive e della ricerca di account
 conosciuti, ed esporta più pagine senza modificare il database dell’applicazione.
+Le verifiche catturano le tre query reali delle pagine, incluso il cursore, e
+richiedono la lettura coperta da `follows_export_index`, senza filesort né
+scansioni complete. Verificano gli account esportati e l’esclusione dei follow
+pendenti. Rollback e riapplicazione dell’indice sono coperti su SQLite e MySQL,
+senza perdere follow o alterare l’export. Per aggiornare un’istanza applicare
+`2026_10_24_000000_add_follow_export_index`.
 
 Partenza degli account (#117):
 
@@ -177,6 +263,9 @@ installato sulla macchina di sviluppo; non sono requisiti dell'applicazione
 o dell'hosting. `BROWSER_TYPE` (default `chromium`) e `BROWSER_EXECUTABLE_PATH`
 permettono di scegliere un browser esistente. La verifica integra PHPUnit e
 non sostituisce una prova della web app installata su un dispositivo iOS reale.
+Il test browser del ritorno dal post attende l’elaborazione di `hashchange`,
+oltre al cambio URL, e confronta sessione e cronologia dopo avanti, indietro,
+refresh e ritorno alla lista.
 
 Per l’editor del profilo, `node tests/Browser/profile-fields.cjs` verifica il
 partial Blade, JS e CSS di produzione con valori preesistenti, pulsanti di

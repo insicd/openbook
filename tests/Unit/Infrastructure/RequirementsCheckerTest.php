@@ -16,6 +16,7 @@ class RequirementsCheckerTest extends TestCase
         $this->assertNotNull($phpCheck);
         $this->assertTrue($phpCheck['ok']);
         $this->assertStringContainsString(PHP_VERSION, $phpCheck['detail']);
+        $this->assertStringContainsString('richiesta almeno 8.4.1', $phpCheck['detail']);
     }
 
     public function test_it_reports_all_required_extensions_as_present_in_the_test_environment(): void

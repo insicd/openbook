@@ -18,6 +18,7 @@ Tutte le impostazioni specifiche di Openbook sono centralizzate in
 | `OPENBOOK_SEARCH_MIN_LENGTH` / `OPENBOOK_SEARCH_PER_SECTION` | Lunghezza minima della query e risultati massimi per sezione nella pagina Cerca, incluse le persone locali e remote gia' note. |
 | `DB_PERSISTENT` | Se `true`, riusa le connessioni PDO MySQL/MariaDB fra richieste. Consigliato su hosting con limite di nuove connessioni/secondo (es. Hostinger: errore `2002 Operation not permitted`). |
 | `OPENBOOK_FEED_PER_PAGE` | Numero di post per pagina nel feed personale, nel feed locale e nelle pagine profilo/hashtag. |
+| `OPENBOOK_CLOSED_REPORT_RETENTION_MONTHS` | Mesi di calendario per conservare le segnalazioni locali e federate dalla chiusura effettiva: default 12, minimo 1. I casi aperti, solo esaminati o senza data di chiusura sono conservati. |
 | `OPENBOOK_ACTOR_KEY_BITS` | Lunghezza (bit) delle chiavi RSA generate per i nuovi Actor ActivityPub (minimo consigliato: 2048). |
 | `OPENBOOK_SIGNATURE_MAX_SKEW` | Scarto massimo (secondi) tollerato tra l'header `Date` di una richiesta firmata in ingresso e l'orologio locale, prima di rifiutarla. |
 | `OPENBOOK_FETCH_MAX_REDIRECTS` / `OPENBOOK_FETCH_TIMEOUT` / `OPENBOOK_FETCH_CONNECT_TIMEOUT` / `OPENBOOK_FETCH_MAX_BYTES` | Limiti applicati dal client HTTP protetto da SSRF usato per recuperare Actor e risorse remote. |
@@ -113,7 +114,7 @@ eseguire le manutenzioni periodiche. Il comando coordina questi task:
   se risultiamo gia' nella collection `followers` del target (Accept mancante);
 - `openbook:fetch-feeds` — importa i feed RSS/Atom;
 - `openbook:auto-announce` — esegue le condivisioni automatiche configurate;
-- `openbook:purge-database` — pulisce le righe operative scadute ogni 24 ore;
+- `openbook:purge-database` — pulisce le righe operative scadute e le segnalazioni chiuse oltre la conservazione prevista, ogni 24 ore;
 - `openbook:database-sanity --scheduled` — riconcilia gli orfani ogni 24 ore,
   rimandando al giro successivo quando viene eseguita la Maintenance operativa.
 
@@ -137,6 +138,25 @@ GET https://tuo-dominio.example.org/cron/run?token=IL_TUO_TOKEN
 L’endpoint richiede il token corretto e rifiuta richieste troppo ravvicinate (`OPENBOOK_WEB_CRON_MIN_INTERVAL`, default 55
 secondi, risposta 429) restituendo 404 se la funzione e' disabilitata o 403 se il
 token e' mancante o errato.
+
+### Conservazione delle segnalazioni
+
+La manutenzione ordinaria `openbook:purge-database`, già richiamata da
+`openbook:cron`, elimina i casi locali e federati in stato archiviato o gestito
+con data di chiusura precedente a 12 mesi di calendario. La durata è configurabile
+con `OPENBOOK_CLOSED_REPORT_RETENTION_MONTHS` (minimo 1; 0 non disabilita la pulizia).
+Non usa la data di creazione o dell’ultimo esame: i casi aperti, soltanto esaminati
+oppure preesistenti senza `closed_at` restano conservati. Una riapertura azzera
+la data; una nuova chiusura fa ripartire il periodo.
+
+In **Admin → Database → Maintenance**, la riga **Segnalazioni chiuse** mostra
+conteggio e durata applicata. Il comando di pulizia e la pulizia manuale usano
+la stessa selezione. I riferimenti del caso vengono rimossi; la ricevuta tecnica
+federata rimane con il solo digest dell’ID attività e collegamento al caso nullo.
+Non contiene motivazione, riferimenti o identità del mittente e impedisce che
+la stessa attività ricrei un caso dopo la scadenza. La pulizia non rimuove i
+soggetti segnalati, gli utenti o il registro audit, né invia messaggi federati.
+La pulizia ordinaria dell’inbox resta indipendente e non elimina casi o ricevute.
 
 ### Retention dei post remoti
 

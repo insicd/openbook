@@ -21,7 +21,9 @@ proporre modifiche in modo coerente con l'architettura e gli obiettivi del proge
 
 ## Requisiti di sviluppo
 
-- PHP 8.2+, Composer.
+- PHP 8.4.1+, Composer. `config.platform.php` in `composer.json` fissa la
+  risoluzione delle dipendenze al minimo supportato, anche su PHP più
+  recenti. Mantenerlo allineato ai requisiti di installazione.
 - Un client MySQL/MariaDB e' opzionale per lo sviluppo quotidiano (la suite di test
   usa SQLite in memoria di default) ma e' necessario per esercitare i test di
   integrazione specifici sull'installer (vedi [Test](development/testing.it.md)).

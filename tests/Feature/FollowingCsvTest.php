@@ -12,6 +12,7 @@ use Illuminate\Http\Client\Factory;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
@@ -62,6 +63,25 @@ class FollowingCsvTest extends TestCase
         $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
         Http::assertNothingSent();
         Queue::assertNothingPushed();
+    }
+
+    public function test_export_index_round_trip_preserves_follow_data_and_export(): void
+    {
+        $remote = $this->createRemoteActor('indexed');
+        $this->follow($remote);
+        $migration = require database_path('migrations/2026_10_24_000000_add_follow_export_index.php');
+        $this->assertTrue(Schema::hasIndex('follows', 'follows_export_index'));
+        $migration->down();
+        try {
+            $this->assertFalse(Schema::hasIndex('follows', 'follows_export_index'));
+            $this->actingAs($this->owner)->get(route('settings.following.export'))
+                ->assertOk()->assertStreamedContent("\"Account address\"\n".$remote->handle()."\n");
+            $this->assertDatabaseHas('follows', ['follower_id' => $this->owner->actor->id,
+                'following_id' => $remote->id, 'status' => Follow::STATUS_ACCEPTED]);
+        } finally {
+            $migration->up();
+        }
+        $this->assertTrue(Schema::hasIndex('follows', 'follows_export_index'));
     }
 
     public function test_export_rejects_guests_and_inactive_accounts(): void

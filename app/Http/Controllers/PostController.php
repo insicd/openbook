@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Services\LocalContentDeleter;
 use App\Application\Services\PostComposer;
 use App\Application\Services\PostPublicationStager;
 use App\Application\Services\QuotedPostResolver;
@@ -10,10 +11,8 @@ use App\Domain\Comments\Comment;
 use App\Domain\Comments\CommentThread;
 use App\Domain\Posts\PendingPostPublication;
 use App\Domain\Posts\Post;
-use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Posts\RemotePostRefresher;
 use App\Federation\Replies\RemoteRepliesFetcher;
-use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\NoteSerializer;
 use App\Http\Requests\Posts\StorePostRequest;
 use App\Http\Requests\Posts\UpdatePostRequest;
@@ -30,8 +29,8 @@ use Illuminate\Support\Facades\Storage;
 class PostController extends Controller
 {
     public function __construct(
+        private readonly LocalContentDeleter $localContentDeleter,
         private readonly PostComposer $postComposer,
-        private readonly ActivityDelivery $delivery,
         private readonly RemoteRepliesFetcher $remoteRepliesFetcher,
         private readonly RemotePostRefresher $remotePostRefresher,
         private readonly QuotedPostResolver $quotedPostResolver,
@@ -277,20 +276,7 @@ class PostController extends Controller
     {
         Gate::authorize('delete', $post);
 
-        $post->load('mentions.actor', 'actor');
-        $isLocalAuthor = $post->actor->isLocal();
-
-        DB::transaction(fn () => $post->update([
-            'title' => null,
-            'content_warning' => null,
-            'body' => '',
-            'status' => Post::STATUS_DELETED,
-        ]));
-        $post->location()->delete();
-
-        if ($isLocalAuthor) {
-            $this->delivery->deliverContent($post, ActivitySerializer::delete($post));
-        }
+        $this->localContentDeleter->delete(auth()->user()->actor, $post);
 
         return redirect()->route('feed.index')->with('status', 'Post eliminato.');
     }

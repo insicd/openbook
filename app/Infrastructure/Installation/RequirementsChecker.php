@@ -3,7 +3,7 @@
 namespace App\Infrastructure\Installation;
 
 /**
- * Verifica i requisiti minimi dichiarati per Openbook (PHP 8.2+, estensioni,
+ * Verifica i requisiti minimi dichiarati per Openbook (PHP 8.4.1+, estensioni,
  * permessi di scrittura) cosi' come richiesto dallo step 1 dell'installer
  * guidato. Non tenta di correggere nulla: si limita a riportare lo stato,
  * lasciando all'amministratore la responsabilita' di intervenire sul server.
@@ -19,7 +19,7 @@ final class RequirementsChecker
      */
     private const RECOMMENDED_EXTENSIONS = ['gd'];
 
-    private const MIN_PHP_VERSION = '8.2.0';
+    private const MIN_PHP_VERSION = '8.4.1';
 
     /**
      * @return array<int, array{label: string, ok: bool, detail: string, critical: bool}>

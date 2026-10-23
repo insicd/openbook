@@ -28,8 +28,10 @@ final class FollowingCsvService
     {
         $this->assertOwner($user);
 
-        return Follow::query()->where('follower_id', $user->actor->id)
-            ->where('status', Follow::STATUS_ACCEPTED)->with('following');
+        // Keep the paginated lookup covered by the follower/status/target index.
+        return Follow::query()->select('following_id')->where('follower_id', $user->actor->id)
+            ->where('status', Follow::STATUS_ACCEPTED)
+            ->with('following:id,type,preferred_username,domain');
     }
 
     /** @param resource $stream */

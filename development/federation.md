@@ -2,6 +2,91 @@
 
 # Federation
 
+## Incoming Flag (#119, sprint 2)
+
+`InboxActivityProcessor` handles `Flag` in its existing dispatch and delegates
+persistence to `ReportManager::recordFederated()`. Inboxes, HTTP/Linked Data
+signatures, refetch, forwarding, relays, blocks and jobs retain their ordinary
+behaviour. `ObjectResolver::resolveLocalReference()` uses the shared resolvers
+and local paths while retaining the type of missing content. It includes
+inactive local Actors to allow reports about suspended people; communities
+and cached remote content do not become local subjects.
+
+Single objects, lists and embedded objects with an `id` are accepted. The
+`content` text uses the ordinary `RemoteContentSanitizer`; embedded subject data
+does not update local content. No new acknowledgement activities or automatic
+sanctions are generated. HTTP 202 acknowledges reception.
+
+Apply the sprint 1 migrations and `2026_10_23_000001_widen_report_details`:
+the motivation field becomes LONGTEXT to accommodate inbox-accepted text without
+imposing the local form's limit. On MySQL/MariaDB, reverting to TEXT requires
+motivations to fit its capacity; strict mode prevents silent truncation.
+
+### Moderation panel (sprint 3)
+
+`ReportModerationQuery` shares listing and previews across local and federated
+cases. Ordering is stable by `created_at DESC, id DESC`; migration
+`2026_10_23_000002_add_report_listing_indexes` adds the time index for all states
+and extends the status index with the ID. Check MySQL plans with fixture
+statistics refreshed after bulk loading.
+
+Previews contain only the subject's text and references, without loading
+conversations, quotes, media or voters. Post/event eager loads use `visibleTo`;
+comment loads check their parent post/event visibility. Existing but unreadable
+references remain distinct from missing ones. Automatic closure is presented
+as already handled positively, without attributing review to a moderator.
+Review and dismissal use the existing routes and audit; dismissal remains
+available after review. Automatic cleanup is described in sprint 5 below.
+
+### Manual actions (sprint 4)
+
+`ReportActionManager` rechecks the role, case status, selected-target membership
+and local ownership at command time. It locks the case and content within a
+transaction, trusting neither incoming URIs nor IDs from other cases. Profiles
+link to user management; the command cannot delete them. `LocalContentDeleter`
+shares deletion, counters and ordinary delivery between controllers and
+moderation. For events it uses `EventComposer` with the actual moderator Actor,
+without impersonating the author; editing remains owner-only. Event and event
+comment Delete permissions include staff. Every removed item generates a
+`report.target_deleted` audit entry and the case uses ordinary `report.actioned`.
+Resubmitting a closed case does not repeat the action. Event deletion preserves
+the ordinary cascade to comments and attachments; the UI informs the operator.
+No report data enters Delete activities.
+Physical removal of local event and event-comment files happens after commit:
+a rolled-back action preserves both rows and files. The shared profile resolver
+compares the host even when the development domain includes a port, as it
+already does for content.
+
+The detail uses a responsive layout separating commands from evidence.
+`report-moderation.js` updates the final command label, selection count and
+colour without changing case state: the backend remains authoritative.
+Forms work without JavaScript with explicit fallback labels. Command
+explanations are visible and associated through `aria-describedby`; original
+URIs can be expanded using native `details` elements.
+
+### Retention and redelivery (sprint 5)
+
+`DatabaseMaintenanceService` shares closed-case selection, counts and deletion
+between cron and the admin panel. The predicate uses `closed_at < cutoff` and
+terminal states without filtering origin: local and federated cases follow the
+same rule. The cutoff uses calendar months without overflow, configured through
+`openbook.maintenance.closed_report_retention_months` (default 12, minimum 1).
+Missing closure dates are never inferred or backdated. A single DELETE keeps
+state checking at deletion time. Foreign keys remove targets and clear
+`report_receipts.report_id`; the digest remains unique and `ReportManager`
+does not recreate the case on replay. Audit entries remain unchanged and cleanup
+produces neither delivery nor notifications.
+
+Staff transitions lock the case and save state and audit in the same
+transaction. If maintenance already removed the case, the transition returns
+the ordinary not-found outcome.
+
+Migration `2026_10_23_000003_add_report_retention_index` adds
+`reports(closed_at, status)` for time-range access and a covering count.
+Check EXPLAIN for the actual service count and DELETE with representative data
+and refreshed statistics; tests use only temporary schemas. Rolling back this
+index alone preserves cases.
+
 ### Federation (Phase 3)
 
 Every local Actor is now reachable from the Fediverse through the standard
