@@ -2,6 +2,24 @@
 
 ## Tests
 
+Retention and the complete lifecycle (#119, sprint 5):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/ReportRetentionTest.php tests/Feature/Federation/FlagInboxTest.php tests/Feature/Admin/AdminDatabaseMaintenanceTest.php tests/Feature/Console/PurgeDatabaseCommandTest.php
+OPENBOOK_TEST_REPORTS_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportMysqlPersistenceTest.php
+```
+
+The retention suite is shared by SQLite and MySQL: local/federated cases,
+terminal states, missing dates, exact boundary, months without overflow,
+configuration, reopening, automatic closure and minimal receipts after expiry.
+The signed HTTP flow traverses staff examination and action, command-line
+cleanup and redelivery without recreating a case. Admin permissions, panel
+counts, audit and index rollback are verified. The MySQL test checks EXPLAIN
+for actual count and DELETE queries. These tests do not establish online
+interoperability with another implementation: delivery from a remote test
+instance to a reachable Openbook instance remains pending.
+
+
 Manual actions (#119, sprint 4):
 
 ```bash

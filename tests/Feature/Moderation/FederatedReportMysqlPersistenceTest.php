@@ -3,6 +3,7 @@
 namespace Tests\Feature\Moderation;
 
 use App\Application\Queries\ReportModerationQuery;
+use App\Application\Services\DatabaseMaintenanceService;
 use App\Application\Services\ReportActionManager;
 use App\Domain\Moderation\Report;
 use App\Federation\Resolution\ObjectResolver;
@@ -14,11 +15,12 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\Concerns\TestsFederatedReportPersistence;
+use Tests\Concerns\TestsReportRetention;
 use Tests\TestCase;
 
 class FederatedReportMysqlPersistenceTest extends TestCase
 {
-    use TestsFederatedReportPersistence;
+    use TestsFederatedReportPersistence, TestsReportRetention;
 
     private ?string $temporarySchema = null;
 
@@ -246,5 +248,48 @@ class FederatedReportMysqlPersistenceTest extends TestCase
                 $this->assertFalse($step->type === 'ALL' && ($step->rows ?? 0) > 10, $query['query']);
             }
         }
+    }
+
+    public function test_report_retention_migration_and_actual_count_delete_query_plans(): void
+    {
+        [$sender, $targets] = $this->reportFixture();
+        $report = $this->storeReport($sender, $targets);
+        $report->update(['status' => 'dismissed', 'closed_at' => now()->subMonthsNoOverflow(13)]);
+        $rows = [];
+        for ($i = 0; $i < 1000; $i++) {
+            $rows[] = ['id' => (string) Str::uuid(), 'origin' => 'federated', 'reason' => 'other',
+                'status' => $i < 10 ? 'actioned' : 'open',
+                'closed_at' => $i < 10 ? now()->subMonthsNoOverflow(13) : null,
+                'details' => str_repeat('Moderation evidence. ', 40), 'created_at' => now(), 'updated_at' => now()];
+        }
+        foreach (array_chunk($rows, 100) as $chunk) {
+            DB::table('reports')->insert($chunk);
+        }
+        $migration = require database_path('migrations/2026_10_23_000003_add_report_retention_index.php');
+        $migration->down();
+        $this->assertFalse(Schema::hasIndex('reports', 'reports_closed_at_status_index'));
+        $migration->up();
+        DB::statement('ANALYZE TABLE reports');
+        $service = app(DatabaseMaintenanceService::class);
+        DB::enableQueryLog();
+        $this->assertSame(11, $service->purgeableCount('reports'));
+        $this->assertSame(11, $service->purgeKey('reports'));
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+        $checked = 0;
+        foreach ($queries as $query) {
+            if (! str_contains($query['query'], '`reports`')
+                || (! str_starts_with($query['query'], 'delete') && ! str_contains($query['query'], 'count(*)'))) {
+                continue;
+            }
+            $plan = DB::select('EXPLAIN FORMAT=TRADITIONAL '.$query['query'], $query['bindings']);
+            $this->assertSame('reports_closed_at_status_index', $plan[0]->key, $query['query'].' '.json_encode($plan));
+            $this->assertNotSame('ALL', $plan[0]->type);
+            $checked++;
+        }
+        $this->assertSame(2, $checked);
+        $this->assertDatabaseCount('reports', 990);
+        $this->assertDatabaseMissing('report_targets', ['report_id' => $report->id]);
+        $this->assertDatabaseHas('report_receipts', ['activity_hash' => hash('sha256', $report->remote_activity_uri), 'report_id' => null]);
     }
 }

@@ -157,6 +157,38 @@ class FlagInboxTest extends TestCase
         $this->assertDatabaseCount('report_receipts', 1);
     }
 
+    public function test_signed_flag_review_action_cleanup_and_redelivery_complete_the_same_normal_flow(): void
+    {
+        $activity = $this->activity();
+        $this->send($activity)->assertStatus(202);
+        $this->process($activity['id']);
+        $report = Report::sole();
+        $moderator = $this->createFullAccount('moderator');
+        $moderator->forceFill(['is_moderator' => true])->save();
+        $target = $report->targets()->where('type', 'post')->sole();
+        $this->actingAs($moderator)->get(route('admin.reports.show', $report))->assertOk();
+        $this->post(route('admin.reports.review', $report))->assertRedirect();
+        $this->post(route('admin.reports.action', $report), ['targets' => [$target->id]])->assertRedirect();
+        $this->assertSame('deleted', Post::sole()->status);
+        $this->assertSame('actioned', $report->fresh()->status);
+        $this->travelTo(now()->addMonthsNoOverflow(13));
+        $this->artisan('openbook:purge-database', ['--force' => true])->assertSuccessful();
+        $this->assertDatabaseCount('reports', 0);
+        $this->assertDatabaseCount('report_targets', 0);
+        $this->assertDatabaseCount('inbox_items', 0);
+        $this->assertDatabaseHas('report_receipts', ['activity_hash' => hash('sha256', $activity['id']), 'report_id' => null]);
+        // The HTTP verifier uses the real clock; only cleanup needs simulated ageing.
+        $this->travelBack();
+        $activity['content'] = 'Changed motivation after cleanup';
+        $this->send($activity)->assertStatus(202);
+        $this->assertSame(InboxItem::STATUS_PROCESSED, $this->process($activity['id'])->status);
+        $this->assertDatabaseCount('reports', 0);
+        $this->assertDatabaseCount('report_targets', 0);
+        $this->assertDatabaseCount('report_receipts', 1);
+        $this->assertDatabaseCount('notifications', 0);
+        Http::assertNothingSent();
+    }
+
     public function test_missing_and_deleted_content_is_already_handled_while_mixed_cases_stay_open(): void
     {
         $activity = $this->activity();

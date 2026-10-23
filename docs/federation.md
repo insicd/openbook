@@ -44,6 +44,22 @@ Explanations remain visible on devices without hover. Original addresses and
 sender information can be expanded. Forms and selections also work without
 JavaScript, with explicit fallback wording for the operations.
 
+Closed cases are retained for **12 months after closure**, configurable;
+open or only examined cases are preserved. Existing maintenance performs cleanup
+and retains a minimal receipt to prevent duplicates even after case removal.
+See [Report retention](configuration.md#report-retention).
+
+### Upgrade and rollback (#119)
+
+Run `php artisan migrate` before using the feature. The four migrations
+`2026_10_23_000000`–`000003` extend case data and motivation, add references and
+receipts, and index listing and retention queries. No permanent workers or new
+services are needed. Rolling back the first migration deletes federated cases
+and receipts, because the previous schema requires a local reporter; reverting
+motivation from LONGTEXT to TEXT requires texts to fit TEXT capacity, otherwise
+MySQL/MariaDB strict mode rejects it. Rolling back only the retention index does
+not delete cases or receipts.
+
 ## Finding and following a remote account
 
 Search for the full address, such as `name@domain.example`. From the remote

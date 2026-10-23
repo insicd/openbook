@@ -5,7 +5,7 @@
 **Base esaminata:** `main`, commit `d86d70b`.
 **Stato:** kickoff `c51b1ea`; sprint 1 revisionato e committato (`2e41184`).
 Sprint 2 revisionato e committato (`2ba899a`). Sprint 3 revisionato e committato
-(`dc17c0a`), con prova UI locale confermata dall’utente. Sprint 4 revisionato e verificato, pronto per il commit. Sprint 5 da avviare.
+(`dc17c0a`), con prova UI locale confermata dall’utente. Sprint 4 revisionato e committato (`a281787`). Sprint 5 concluso e revisionato; verifiche automatiche superate, con i limiti indicati nella sezione 13.
 
 ## 1. Obiettivo e perimetro
 
@@ -92,7 +92,10 @@ tecnica minima per riconoscere la stessa attività, senza motivazione, target
 né identità personale del segnalante. Non conservare copie integrali dei
 contenuti cancellati. La pulizia inbox non deve eliminare casi o ricevute.
 
-## 3. Stato attuale e componenti da estendere
+## 3. Base esaminata al kickoff e componenti da estendere
+
+La tabella descrive la base `main` al kickoff, prima dell’implementazione;
+gli esiti aggiornati sono nelle sezioni 9–13.
 
 I percorsi `app/` sono abbreviati nella tabella.
 
@@ -583,7 +586,7 @@ sprint 5. MariaDB separato e interoperabilità online restano non verificati.
 
 ### Stato e limiti
 
-Sprint 4 verificato manualmente dall’utente e revisionato per il commit. Nessuna
+Sprint 4 verificato manualmente dall’utente, revisionato e committato (`a281787`). Nessuna
 nuova migration e nessuna modifica ai dati applicativi locali in questo sprint:
 la segnalazione simulata sul profilo rimane disponibile per provare il link
 alla gestione utenti e la chiusura manuale. La conservazione automatica resta
@@ -624,3 +627,85 @@ privacy, selezione e idempotenza, layout, script, traduzioni e documentazione.
 Allineati i messaggi di esame/chiusura inglesi e finlandesi alla terminologia
 finale. Confermati 99 test mirati (5.916 asserzioni), Pint e whitespace;
 nessuna anomalia bloccante rimasta.
+
+
+## 13. Esito dello sprint 5 — Conservazione e completamento
+
+### Implementazione
+
+- `DatabaseMaintenanceService` include i casi locali e federati chiusi con
+  data effettiva oltre 12 mesi di calendario, configurabili tramite
+  `OPENBOOK_CLOSED_REPORT_RETENTION_MONTHS` (minimo 1, come le configurazioni
+  di manutenzione esistenti). Conteggio e cancellazione condividono il predicato.
+- Nessuna scadenza per aperti, soltanto esaminati o vecchi casi senza
+  `closed_at`; non viene inventata una data da `created_at` o `reviewed_at`.
+  Le normali transizioni già svuotano la data alla riapertura e la valorizzano
+  alla nuova chiusura. Soglia stretta, con mesi senza overflow nei fine mese.
+- Le transizioni staff rileggono il caso con lock, in transazione con l’audit:
+  una richiesta basata su un caso già scaduto non lo ricrea né registra una
+  revisione inesistente.
+- La pulizia usa il comando giornaliero e la pagina Database esistenti, con
+  una nuova riga «Segnalazioni chiuse» e durata/configurazione nell’audit.
+  Nessun nuovo job, worker, endpoint o servizio esterno. Non sono state lanciate
+  pulizie sul database applicativo locale.
+- Una DELETE verificata sullo stato corrente elimina i casi idonei; le FK
+  rimuovono i riferimenti e azzerano il collegamento della ricevuta. Rimane
+  solo il digest e la FK nulla, senza dati del reclamo. La pulizia inbox resta
+  indipendente, l’audit non viene rimosso e nessuna attività federata è inviata.
+- Migration `2026_10_23_000003_add_report_retention_index` con indice
+  `(closed_at, status)`; rollback dell’indice senza eliminazione di dati.
+  `.env.example`, configurazione, messaggi IT/EN/FI, guide di federazione,
+  aggiornamento/rollback e configurazione IT/EN e changelog aggiornati.
+
+### Verifiche
+
+- Verifiche mirate finali: **85 test superati, 5.936 asserzioni**; i 19 test
+  MySQL opzionali saltati in questa esecuzione sono stati eseguiti separatamente.
+  Inclusi persistenza, retention, ciclo HTTP firmato, pannello, provvedimenti,
+  permessi Database, comando periodico e traduzioni.
+- Suite completa finale: **1.954 test superati, 130 saltati, 15.107 asserzioni**
+  (142,58 secondi). Nessun fallimento rimasto. Nel primo passaggio il test
+  storico annullava soltanto la migration iniziale lasciando il nuovo indice
+  sulla colonna da rimuovere: aggiornato per eseguire down/up di tutte e quattro
+  le migration nel loro ordine reale. Nessuna modifica retroattiva alle
+  migration già committate; ciclo completo confermato su SQLite e MySQL.
+- MySQL: **19 test superati, 272 asserzioni** (72,28 secondi), su schemi
+  temporanei isolati. Suite di conservazione condivisa con SQLite, upgrade e
+  rollback completi, concorrenza di ricezione e regressioni dei quattro sprint.
+- EXPLAIN delle query effettive di conteggio e DELETE su 1.001 casi, 11 scaduti:
+  entrambe scelgono `reports_closed_at_status_index`, senza scansione `ALL`.
+  Dopo la pulizia restano 990 casi; verificati cascade dei riferimenti e
+  ricevuta senza collegamento al caso. Gli altri piani di resolver, elenco,
+  anteprime e provvedimenti rimangono verificati nella stessa suite.
+- Il ciclo firmato parte dall’inbox ordinaria, attraversa UI di esame e
+  provvedimento, comando di pulizia e nuova consegna dello stesso Flag:
+  ricevuta preservata, nessun caso o riferimento ricreato, nessuna notifica.
+  Test di soglia esatta, fine mese, configurazione, riapertura, chiusura
+  positiva automatica, vecchi casi senza data e transizione su caso già scaduto.
+- Browser finale con tutte le migration: elenco e casi locali/federati,
+  profilo in italiano, chiusure automatiche, selezioni e fallback senza JS,
+  a 375/768/1.024/1.280 pixel. Nessun overflow, errore JS o chiave irrisolta.
+  Schermate in `/tmp/openbook-report-final`.
+- Pint, controllo whitespace e review completa del diff superati.
+
+### Stato e limiti
+
+Sprint 5 revisionato e approvato per il commit. L’utente ha confermato la
+presenza della riga «Segnalazioni chiuse» in Admin → Database → Maintenance.
+Il controllo locale di sola lettura ha confermato l’indice applicato, un caso
+e zero casi eliminabili. Nessuna migration, pulizia cron o consegna in uscita
+eseguita dall’agente sul database applicativo durante lo sprint.
+
+Review finale dell’intero diff conclusa senza anomalie bloccanti: controllati
+criteri di scadenza, transizioni, autorizzazioni, FK e ricevute, configurazione,
+migration e rollback, privacy, test, documentazione IT/EN e traduzioni IT/EN/FI.
+Confermati **45 test mirati, 5.496 asserzioni**, Pint e controllo whitespace.
+Il codice coincide con quello della suite completa e della verifica MySQL
+riportate sopra; nessuna ulteriore modifica funzionale dopo quelle esecuzioni.
+
+La verifica automatica copre il ciclo richiesto. Non è stato usato un server
+MariaDB separato e non è stata eseguita una consegna Mastodon → Openbook online:
+non è predisposta un’istanza remota di prova per questo ambiente locale. La
+prova manuale confermata dall’utente riguarda inbox simulata e UI; le prove HTTP
+usano firme reali con risposte remote simulate. La verifica di interoperabilità
+live resta pendente e non viene dichiarata superata.

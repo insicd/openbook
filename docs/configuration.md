@@ -21,6 +21,7 @@ All Openbook-specific settings are centralized in
 | `DB_PERSISTENT` | If `true`, reuse PDO MySQL/MariaDB connections across requests. Recommended on hosting with a limit on new connections per second (e.g. Hostinger: error `2002 Operation not permitted`). |
 | `OPENBOOK_FEED_PER_PAGE` | Number of posts per page in the personal feed, the local feed, and profile/hashtag pages. |
 | `OPENBOOK_PUBLICATION_QUEUE_RETENTION_DAYS` | Days to retain completed or failed video publication jobs before database rows and any residual private staging files are removed. |
+| `OPENBOOK_CLOSED_REPORT_RETENTION_MONTHS` | Calendar months to retain local and federated reports after actual closure: default 12, minimum 1. Open, only examined or undated cases are preserved. |
 | `OPENBOOK_ACTOR_KEY_BITS` | Length (bits) of the RSA keys generated for new ActivityPub Actors (recommended minimum: 2048). |
 | `OPENBOOK_SIGNATURE_MAX_SKEW` | Maximum skew (seconds) tolerated between the `Date` header of an incoming signed request and the local clock, before rejecting it. |
 | `OPENBOOK_FETCH_MAX_REDIRECTS` / `OPENBOOK_FETCH_TIMEOUT` / `OPENBOOK_FETCH_CONNECT_TIMEOUT` / `OPENBOOK_FETCH_MAX_BYTES` | Limits applied by the SSRF-protected HTTP client used to fetch remote Actors and resources. |
@@ -113,7 +114,7 @@ maintenance. The command coordinates these tasks:
   if we already appear in the target's `followers` collection (missing Accept);
 - `openbook:fetch-feeds` — imports RSS/Atom feeds;
 - `openbook:auto-announce` — performs configured automatic shares;
-- `openbook:purge-database` — cleans expired operational rows once every 24 hours;
+- `openbook:purge-database` — cleans expired operational rows and closed reports past their retention once every 24 hours;
 - `openbook:database-sanity --scheduled` — reconciles orphans once every 24
   hours, deferred to the next invocation when operational Maintenance runs.
 
@@ -138,6 +139,25 @@ The endpoint requires the correct token and rejects requests that are too close
 together (`OPENBOOK_WEB_CRON_MIN_INTERVAL`,
 default 55 seconds, 429 response), returning 404 if the feature is disabled or
 403 if the token is missing or wrong.
+
+### Report retention
+
+Ordinary `openbook:purge-database` maintenance, already called by
+`openbook:cron`, deletes local and federated cases in dismissed or actioned
+status with a closure date older than 12 calendar months. Configure the period
+with `OPENBOOK_CLOSED_REPORT_RETENTION_MONTHS` (minimum 1; 0 does not disable cleanup).
+Creation and examination dates are not used: open, only examined and legacy
+cases without `closed_at` are preserved. Reopening clears the closure date;
+a subsequent closure starts a new period.
+
+In **Admin → Database → Maintenance**, **Closed reports** shows the count and
+applied period. Command-line and manual cleanup use the same selection.
+Case references are removed; the federated technical receipt remains with only
+the activity ID digest and a null case reference. It contains no motivation,
+targets or sender identity and prevents the same activity from recreating a
+case after expiry. Cleanup does not remove reported subjects, users or audit
+entries, or send federated messages. Ordinary inbox cleanup stays independent
+and does not delete cases or receipts.
 
 ### Remote post retention
 

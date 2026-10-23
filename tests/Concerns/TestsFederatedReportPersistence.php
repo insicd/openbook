@@ -188,17 +188,30 @@ trait TestsFederatedReportPersistence
         [$sender, $targets] = $this->reportFixture();
         $reporter = $this->createFullAccount('localreporter');
         $local = app(ReportManager::class)->reportPost($reporter, $targets[1]['subject'], ['reason' => 'spam']);
-        $migration = require database_path('migrations/2026_10_23_000000_extend_reports_for_federation.php');
-        $migration->down();
+        $migrations = array_map(fn (string $path) => require $path, [
+            database_path('migrations/2026_10_23_000000_extend_reports_for_federation.php'),
+            database_path('migrations/2026_10_23_000001_widen_report_details.php'),
+            database_path('migrations/2026_10_23_000002_add_report_listing_indexes.php'),
+            database_path('migrations/2026_10_23_000003_add_report_retention_index.php'),
+        ]);
+        foreach (array_reverse($migrations) as $migration) {
+            $migration->down();
+        }
         $this->assertFalse(Schema::hasTable('report_targets'));
         $this->assertFalse(Schema::hasColumn('reports', 'origin'));
         $this->assertDatabaseHas('reports', ['id' => $local->id, 'reporter_id' => $reporter->id]);
-        $migration->up();
+        foreach ($migrations as $migration) {
+            $migration->up();
+        }
         $this->assertSame(Report::ORIGIN_LOCAL, $local->fresh()->origin);
         $this->storeReport($sender, $targets);
-        $migration->down();
+        foreach (array_reverse($migrations) as $migration) {
+            $migration->down();
+        }
         $this->assertDatabaseCount('reports', 1);
-        $migration->up();
+        foreach ($migrations as $migration) {
+            $migration->up();
+        }
         $again = app(ReportManager::class)->reportPost($reporter, $targets[1]['subject'], ['reason' => 'other']);
         $this->assertSame($local->id, $again->id);
         $this->assertSame('spam', $again->reason);

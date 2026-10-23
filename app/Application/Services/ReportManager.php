@@ -203,17 +203,21 @@ final class ReportManager
             throw new InvalidArgumentException('Non hai i permessi di moderazione.');
         }
 
-        $report->forceFill([
-            'status' => $status,
-            'reviewed_by' => $reviewer->id,
-            'reviewed_at' => now(),
-            'closed_at' => in_array($status, [Report::STATUS_DISMISSED, Report::STATUS_ACTIONED], true) ? now() : null,
-            'closure_reason' => null,
-        ])->save();
+        return DB::transaction(function () use ($report, $reviewer, $status): Report {
+            // Serialize staff transitions with expiry; a purged case stays absent.
+            Report::query()->whereKey($report->id)->lockForUpdate()->firstOrFail();
+            $report->forceFill([
+                'status' => $status,
+                'reviewed_by' => $reviewer->id,
+                'reviewed_at' => now(),
+                'closed_at' => in_array($status, [Report::STATUS_DISMISSED, Report::STATUS_ACTIONED], true) ? now() : null,
+                'closure_reason' => null,
+            ])->save();
 
-        $this->auditLogger->log($reviewer, 'report.'.$status, $report);
+            $this->auditLogger->log($reviewer, 'report.'.$status, $report);
 
-        return $report->refresh();
+            return $report->refresh();
+        });
     }
 
     private function validatedReason(mixed $reason): string

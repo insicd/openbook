@@ -36,7 +36,7 @@ comment loads check their parent post/event visibility. Existing but unreadable
 references remain distinct from missing ones. Automatic closure is presented
 as already handled positively, without attributing review to a moderator.
 Review and dismissal use the existing routes and audit; dismissal remains
-available after review. Automatic cleanup remains in sprint 5.
+available after review. Automatic cleanup is described in sprint 5 below.
 
 ### Manual actions (sprint 4)
 
@@ -59,6 +59,29 @@ colour without changing case state: the backend remains authoritative.
 Forms work without JavaScript with explicit fallback labels. Command
 explanations are visible and associated through `aria-describedby`; original
 URIs can be expanded using native `details` elements.
+
+### Retention and redelivery (sprint 5)
+
+`DatabaseMaintenanceService` shares closed-case selection, counts and deletion
+between cron and the admin panel. The predicate uses `closed_at < cutoff` and
+terminal states without filtering origin: local and federated cases follow the
+same rule. The cutoff uses calendar months without overflow, configured through
+`openbook.maintenance.closed_report_retention_months` (default 12, minimum 1).
+Missing closure dates are never inferred or backdated. A single DELETE keeps
+state checking at deletion time. Foreign keys remove targets and clear
+`report_receipts.report_id`; the digest remains unique and `ReportManager`
+does not recreate the case on replay. Audit entries remain unchanged and cleanup
+produces neither delivery nor notifications.
+
+Staff transitions lock the case and save state and audit in the same
+transaction. If maintenance already removed the case, the transition returns
+the ordinary not-found outcome.
+
+Migration `2026_10_23_000003_add_report_retention_index` adds
+`reports(closed_at, status)` for time-range access and a covering count.
+Check EXPLAIN for the actual service count and DELETE with representative data
+and refreshed statistics; tests use only temporary schemas. Rolling back this
+index alone preserves cases.
 
 ### Federation (Phase 3)
 

@@ -44,6 +44,22 @@ Le spiegazioni sono visibili anche su dispositivi senza hover. Gli indirizzi
 originali e le precisazioni sul mittente sono espandibili. Senza JavaScript
 restano disponibili form e selezioni, con un’etichetta esplicita sulle operazioni.
 
+I casi chiusi sono conservati per **12 mesi dalla chiusura**, configurabili;
+quelli aperti o soltanto esaminati restano conservati. La pulizia avviene tramite
+la manutenzione esistente e mantiene una ricevuta minima per evitare duplicati
+anche dopo la rimozione del caso. Vedi [Conservazione delle segnalazioni](configuration.it.md#conservazione-delle-segnalazioni).
+
+### Aggiornamento e rollback (#119)
+
+Applicare `php artisan migrate` prima di usare la funzionalità. Le quattro
+migration `2026_10_23_000000`–`000003` estendono dati e motivazione, aggiungono
+riferimenti/ricevute e indici di elenco e conservazione. Non servono worker
+permanenti o nuovi servizi. Il rollback della prima migration elimina casi
+federati e ricevute, perché lo schema precedente richiede un segnalante locale;
+il rollback della motivazione da LONGTEXT a TEXT richiede testi compatibili
+con la capacità di TEXT, altrimenti MySQL/MariaDB in modalità strict lo rifiuta.
+Il solo rollback dell’indice di conservazione non elimina casi né ricevute.
+
 ## Trovare e seguire un account remoto
 
 Cerca l’indirizzo completo, per esempio `nome@dominio.example`. Dal profilo

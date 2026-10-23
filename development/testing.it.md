@@ -2,6 +2,24 @@
 
 ## Test
 
+Conservazione e ciclo completo (#119, sprint 5):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/ReportRetentionTest.php tests/Feature/Federation/FlagInboxTest.php tests/Feature/Admin/AdminDatabaseMaintenanceTest.php tests/Feature/Console/PurgeDatabaseCommandTest.php
+OPENBOOK_TEST_REPORTS_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportMysqlPersistenceTest.php
+```
+
+La suite di conservazione è condivisa SQLite/MySQL: casi locali/federati,
+stati terminali, date mancanti, soglia esatta, mesi senza overflow, configurazione,
+riapertura, chiusura automatica e ricevute minime dopo scadenza. Il percorso HTTP
+firmato attraversa esame e provvedimento staff, pulizia tramite comando e
+riconsegna senza ricreare il caso. Verificati permessi admin e conteggi del
+pannello, audit e rollback dell’indice. Il test MySQL verifica EXPLAIN di
+conteggio e DELETE reali. Le prove non attestano interoperabilità online con
+un’altra implementazione: rimane da eseguire una consegna da un’istanza remota
+di prova a un’istanza Openbook raggiungibile.
+
+
 Provvedimenti manuali (#119, sprint 4):
 
 ```bash

@@ -38,7 +38,7 @@ post/evento. Un riferimento esistente ma non leggibile resta distinto da uno
 mancante. La chiusura automatica è presentata come già gestita positivamente,
 senza attribuire la revisione a un moderatore. Revisione e archiviazione usano
 le route e l'audit esistenti; l'archiviazione rimane disponibile dopo la revisione.
-La pulizia automatica rimane allo sprint 5.
+La conservazione automatica è descritta nello sprint 5 seguente.
 
 ### Provvedimenti manuali (sprint 4)
 
@@ -61,6 +61,29 @@ finale, senza cambiare stato del caso: il backend resta l’unica autorità.
 I form funzionano senza JavaScript con label di fallback esplicite. Le spiegazioni
 dei comandi sono visibili e associate con `aria-describedby`; gli URI originali
 sono espandibili tramite `details` nativi.
+
+### Conservazione e riconsegna (sprint 5)
+
+`DatabaseMaintenanceService` condivide selezione, conteggi e cancellazione dei
+casi chiusi tra cron e pannello admin. Il predicato usa `closed_at < cutoff`
+e stati terminali, senza filtro di origine: locale e federato seguono la stessa
+regola. Cutoff con mesi di calendario senza overflow, configurazione
+`openbook.maintenance.closed_report_retention_months` (default 12, minimo 1).
+I casi senza data di chiusura non vengono stimati o retrodatati. Una singola
+DELETE mantiene il controllo sullo stato al momento della cancellazione.
+Le FK eliminano i target e azzerano `report_receipts.report_id`; il digest
+resta vincolato univocamente e `ReportManager` non ricrea il caso al replay.
+L’audit rimane invariato e la pulizia non produce consegne o notifiche.
+
+Le transizioni staff acquisiscono il lock sul caso e salvano stato e audit
+nella stessa transazione. Se la manutenzione ha già rimosso il caso, la
+transizione restituisce il normale esito di oggetto non trovato.
+
+La migration `2026_10_23_000003_add_report_retention_index` aggiunge
+`reports(closed_at, status)` per scansione temporale e conteggio coperto.
+EXPLAIN va verificato su conteggio e DELETE realmente emessi dal servizio,
+con dataset rappresentativo e statistiche aggiornate; i test usano solo schemi
+temporanei. Rollback del solo indice senza perdita dei casi.
 
 ### Federazione (Fase 3)
 

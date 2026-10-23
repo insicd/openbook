@@ -19,7 +19,7 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Segnalazioni federate (#119, sprint 2–4)**: le attività `Flag`
+- **Segnalazioni federate (#119)**: le attività `Flag`
   vengono elaborate dall'inbox ActivityPub ordinaria e registrate come casi di
   moderazione su persone e contenuti locali, con riferimenti multipli e
   protezione dalle riconsegne. I contenuti non più disponibili risultano già
@@ -37,7 +37,13 @@ la [roadmap](docs/roadmap.md).
   Dettaglio riorganizzato in lettura e gestione del caso, con link affiancati,
   spiegazioni dei comandi e label esplicite: esaminare lascia il caso aperto,
   chiudere senza interventi archivia e il comando finale distingue la sola
-  chiusura dall’eliminazione dei contenuti selezionati.
+  chiusura dall’eliminazione dei contenuti selezionati. I casi locali e federati
+  chiusi scadono dopo 12 mesi di calendario dalla chiusura effettiva, configurabili
+  con `OPENBOOK_CLOSED_REPORT_RETENTION_MONTHS` (minimo 1), nella manutenzione
+  ordinaria e nel pannello Database. I casi aperti, soltanto esaminati o privi
+  di data di chiusura restano conservati; dopo la scadenza rimane la ricevuta
+  tecnica minima per impedire duplicati. Applicare anche la migration dell’indice
+  di conservazione.
 - **Retention nei grafici Stats**: linee verticali con legenda indicano le
   durate configurate per post remoti pertinenti e non pertinenti nei grafici
   temporali. Le fasce disabilitate o fuori periodo sono nascoste; durate uguali
