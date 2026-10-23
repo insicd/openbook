@@ -1,0 +1,128 @@
+<?php
+
+namespace Tests\Feature\Moderation;
+
+use App\Domain\Moderation\Report;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Tests\Concerns\TestsFederatedReportPersistence;
+use Tests\TestCase;
+
+class FederatedReportMysqlPersistenceTest extends TestCase
+{
+    use TestsFederatedReportPersistence;
+
+    private ?string $temporarySchema = null;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (! filter_var(env('OPENBOOK_TEST_REPORTS_MYSQL', false), FILTER_VALIDATE_BOOLEAN)) {
+            $this->markTestSkipped('Set OPENBOOK_TEST_REPORTS_MYSQL=1 to run isolated MySQL report tests.');
+        }
+        $connection = array_replace(config('database.connections.mysql'), [
+            'url' => null, 'database' => null, 'prefix' => '',
+            'host' => env('OPENBOOK_TEST_MYSQL_HOST', '127.0.0.1'),
+            'port' => env('OPENBOOK_TEST_MYSQL_PORT', '3307'),
+            'unix_socket' => env('OPENBOOK_TEST_MYSQL_SOCKET', ''),
+            'username' => env('OPENBOOK_TEST_MYSQL_USERNAME', 'root'),
+            'password' => env('OPENBOOK_TEST_MYSQL_PASSWORD', ''),
+        ]);
+        config(['database.connections.report_admin' => $connection]);
+        $schema = 'openbook_reports_test_'.Str::lower(Str::random(16));
+        DB::connection('report_admin')->statement('CREATE DATABASE `'.$schema.'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+        $this->temporarySchema = $schema;
+        config(['database.connections.report_schema' => array_replace($connection, ['database' => $schema]),
+            'database.default' => 'report_schema']);
+        Artisan::call('migrate', ['--database' => 'report_schema', '--force' => true]);
+    }
+
+    protected function tearDown(): void
+    {
+        try {
+            if ($this->temporarySchema !== null) {
+                DB::purge('report_schema');
+                DB::connection('report_admin')->statement('DROP DATABASE `'.$this->temporarySchema.'`');
+                $this->temporarySchema = null;
+            }
+        } finally {
+            DB::purge('report_admin');
+            config(['database.default' => 'sqlite']);
+            parent::tearDown();
+        }
+    }
+
+    public function test_two_concurrent_deliveries_create_one_complete_case(): void
+    {
+        [$sender, $targets] = $this->reportFixture();
+        $children = [];
+        try {
+            for ($i = 0; $i < 2; $i++) {
+                $process = proc_open([PHP_BINARY, base_path('tests/Support/ConcurrentFederatedReport.php')],
+                    [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, base_path());
+                $this->assertIsResource($process);
+                $children[] = [$process, $pipes];
+                stream_set_timeout($pipes[1], 20);
+                fwrite($pipes[0], json_encode([
+                    'database' => config('database.connections.report_schema'),
+                    'sender' => $sender->id, 'post' => $targets[1]['subject']->id, 'uri' => $targets[1]['uri'],
+                ], JSON_THROW_ON_ERROR)."\n");
+                $this->assertSame("ready\n", fgets($pipes[1]));
+            }
+            foreach ($children as [$process, $pipes]) {
+                fwrite($pipes[0], "go\n");
+                fflush($pipes[0]);
+            }
+            $ids = [];
+            foreach ($children as [$process, $pipes]) {
+                $id = trim(fgets($pipes[1]) ?: '');
+                $this->assertNotSame('', $id, stream_get_contents($pipes[2]));
+                $ids[] = $id;
+            }
+            $this->assertSame($ids[0], $ids[1]);
+            $this->assertDatabaseCount('reports', 1);
+            $this->assertDatabaseCount('report_targets', 1);
+            $this->assertDatabaseCount('report_receipts', 1);
+        } finally {
+            foreach ($children as [$process, $pipes]) {
+                foreach ($pipes as $pipe) {
+                    fclose($pipe);
+                }
+                proc_terminate($process);
+                proc_close($process);
+            }
+        }
+    }
+
+    public function test_receipt_and_target_queries_use_their_actual_indexes(): void
+    {
+        [$sender, $targets] = $this->reportFixture();
+        $report = $this->storeReport($sender, $targets);
+        $reports = $receipts = $rows = [];
+        for ($i = 0; $i < 1000; $i++) {
+            $id = (string) Str::uuid();
+            $reports[] = ['id' => $id, 'origin' => 'federated', 'reason' => 'other', 'status' => 'open',
+                'created_at' => now(), 'updated_at' => now()];
+            $receipts[] = ['activity_hash' => hash('sha256', 'https://remote.example/reports/seed-'.$i), 'report_id' => $id];
+            $rows[] = ['id' => (string) Str::uuid(), 'report_id' => $id, 'type' => 'post',
+                'uri' => $targets[1]['uri'], 'uri_hash' => hash('sha256', $targets[1]['uri']),
+                'unavailable' => false, 'post_id' => $targets[1]['subject']->id];
+        }
+        foreach (['reports' => $reports, 'report_receipts' => $receipts, 'report_targets' => $rows] as $table => $values) {
+            foreach (array_chunk($values, 100) as $chunk) {
+                DB::table($table)->insert($chunk);
+            }
+        }
+        $queries = [
+            [DB::table('report_receipts')->where('activity_hash', hash('sha256', 'https://remote.example/reports/one')), 'PRIMARY'],
+            [Report::query()->whereKey($report->id), 'PRIMARY'],
+            [$report->targets()->getQuery(), 'report_targets_report_id_uri_hash_unique'],
+        ];
+        foreach ($queries as [$query, $index]) {
+            $plan = DB::select('EXPLAIN FORMAT=TRADITIONAL '.$query->toSql(), $query->getBindings());
+            $this->assertSame($index, $plan[0]->key, $query->toSql());
+            $this->assertNotSame('ALL', $plan[0]->type);
+        }
+    }
+}

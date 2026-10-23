@@ -3,7 +3,8 @@
 **Issue:** [#119 — Ricevere e gestire segnalazioni federate sui soggetti locali](https://github.com/insicd/openbook/issues/119).
 **Data:** 23 ottobre 2026. **Ramo:** `issue_119`.
 **Base esaminata:** `main`, commit `d86d70b`.
-**Stato:** analisi di kickoff revisionata; sprint pianificati, implementazione da avviare.
+**Stato:** kickoff revisionato e committato (`c51b1ea`); sprint 1 implementato
+e verificato su SQLite e MySQL. Sprint 2–5 da avviare.
 
 ## 1. Obiettivo e perimetro
 
@@ -204,7 +205,7 @@ federati deve essere esplicita nelle istruzioni di aggiornamento.
 Gli sprint sono sequenziali. Si passa al successivo dopo aver verificato i
 criteri di uscita del precedente. Ogni sprint comprende test PHPUnit mirati,
 revisione dell'intero diff e aggiornamento di questa analisi con esiti e limiti
-effettivamente riscontrati. Gli sprint sotto sono pianificati, non eseguiti.
+effettivamente riscontrati. I risultati effettivi sono riportati nella sezione 9.
 L'implementazione resta sul ramo `issue_119`.
 
 ### Sprint 1 — Persistenza delle segnalazioni federate
@@ -332,3 +333,66 @@ Non rimangono decisioni di prodotto bloccanti per lo sprint 1.
 L'analisi di kickoff non cambia il comportamento applicativo e non richiede
 release note. I risultati di implementazione e verifica saranno registrati
 qui a conclusione di ciascuno sprint.
+
+## 9. Esito dello sprint 1 — Persistenza
+
+### Implementazione
+
+- Migration `2026_10_23_000000_extend_reports_for_federation`: campi di origine,
+  mittente federato e chiusura in `reports`, tabella `report_targets` con FK
+  esplicite nullable e tabella `report_receipts` con digest SHA-256 dell'ID Flag.
+- `ReportManager::recordFederated()` riceve riferimenti già risolti dal futuro
+  ramo del processor, ne verifica tipo e pertinenza locale e salva caso,
+  riferimenti e ricevuta in un'unica transazione. Una ricevuta senza più caso
+  impedisce di ricrearlo. Nessun collegamento dell'inbox introdotto in questo sprint.
+- Un contenuto risolto cancellato o un riferimento locale riconosciuto dal
+  chiamante come non più disponibile determina l'esito del riferimento.
+  Il caso chiude automaticamente soltanto se tutti i contenuti pertinenti
+  sono indisponibili; il profilo accompagnatorio non impedisce la chiusura.
+- La chiusura automatica valorizza `status=actioned`, `closed_at` e
+  `closure_reason=content_unavailable`, senza revisore umano. Le transizioni
+  ordinarie aggiornano il timestamp di chiusura; `reviewed` lo svuota.
+- Le FK dei riferimenti e del mittente usano `SET NULL`; URI e caso sopravvivono
+  alla cancellazione delle righe. La cancellazione del caso elimina i suoi
+  riferimenti ma conserva il digest minimo della ricevuta.
+- Aggiornate le guide dei test IT/EN. La fixture `Reports/flag.json` è un
+  esempio rappresentativo, non una cattura da un server reale.
+
+### Verifiche eseguite
+
+- SQLite: 8 test di persistenza, 103 asserzioni; tutti superati.
+- Regressioni locali mirate: 10 test per segnalazioni post/commenti e pannello
+  di moderazione, 44 asserzioni; tutti superati.
+- MySQL 26.10.0 Homebrew, isolamento `REPEATABLE-READ`: 10 test, 119 asserzioni;
+  tutti superati su schemi temporanei `openbook_reports_test_*`, senza modifiche
+  al database applicativo. Coperti upgrade/rollback con casi locali preesistenti,
+  cancellazioni fisiche e replay dopo rimozione del caso.
+- La prova a due processi stabilisce snapshot esterni prima della creazione:
+  entrambi ricevono lo stesso caso e rimangono un caso, un riferimento e una
+  ricevuta. In caso di conflitto, la lettura del vincitore usa un locking read
+  per non restare sullo snapshot precedente al commit dell'altro processo.
+- Piani EXPLAIN su 1.001 casi, 1.001 ricevute e 1.005 riferimenti:
+
+| Query effettiva | Indice scelto verificato |
+| --- | --- |
+| Ricevuta per `activity_hash` | `report_receipts.PRIMARY` |
+| Caso per ID | `reports.PRIMARY` |
+| Riferimenti per `report_id` | `report_targets_report_id_uri_hash_unique` |
+
+Nessuna delle tre query usa una scansione completa (`ALL`). Non sono state
+modificate query di elenco o manutenzione: i loro piani saranno verificati
+negli sprint che le introducono. Pint e controllo whitespace superati.
+
+Suite completa: **1.904 test superati, 121 saltati, 14.374 asserzioni**
+(150,08 secondi). I test MySQL opzionali dello sprint, saltati nella normale
+suite SQLite, sono stati eseguiti separatamente con l'esito riportato sopra.
+Revisione completa del diff conclusa senza anomalie bloccanti.
+
+### Limiti e lavoro successivo
+
+Non è disponibile un server MariaDB separato;
+la compatibilità non è stata verificata con un'esecuzione su quel motore.
+La ricevuta è già predisposta per la futura pulizia, ma conservazione automatica,
+inbox Flag, UI e provvedimenti restano agli sprint successivi. Nessuna prova
+di interoperabilità online eseguita. Nessuna release note di supporto Flag:
+questa fase introduce soltanto le basi interne della funzionalità.

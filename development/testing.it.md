@@ -2,6 +2,27 @@
 
 ## Test
 
+Persistenza delle segnalazioni federate (#119, sprint 1):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportPersistenceTest.php tests/Feature/Moderation/ReportPostTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php
+OPENBOOK_TEST_REPORTS_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportMysqlPersistenceTest.php
+```
+
+Il test MySQL/MariaDB usa `OPENBOOK_TEST_MYSQL_*` (incluso il socket opzionale)
+e crea/elimina soltanto schemi casuali `openbook_reports_test_*`. Quando attivato,
+un errore di connessione o migration fa fallire il test. La copertura comprende
+i cinque tipi, casi locali preesistenti, chiusura automatica, rollback atomico,
+riconsegne dopo cancellazione del caso, FK, concorrenza tra due processi e
+EXPLAIN delle query per ricevuta e riferimenti. La fixture `Reports/flag.json`
+è illustrativa, non acquisita da un server reale.
+
+Questo sprint prepara la persistenza: l'inbox non elabora ancora Flag e la UI
+non è ancora estesa. La migration `2026_10_23_000000_extend_reports_for_federation`
+preserva i casi locali; il suo rollback elimina i casi federati e le ricevute
+prima di ripristinare il reporter locale obbligatorio. L'integrazione inbox,
+la manutenzione e l'interoperabilità online appartengono agli sprint successivi.
+
 Statistiche dell’istanza:
 
 ```bash

@@ -2,6 +2,27 @@
 
 ## Tests
 
+Federated report persistence (#119, sprint 1):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportPersistenceTest.php tests/Feature/Moderation/ReportPostTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php
+OPENBOOK_TEST_REPORTS_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportMysqlPersistenceTest.php
+```
+
+The MySQL/MariaDB test uses `OPENBOOK_TEST_MYSQL_*` (including the optional
+socket) and creates/drops only random `openbook_reports_test_*` schemas.
+When enabled, connection or migration errors fail the test. Coverage includes
+the five types, existing local cases, automatic closure, atomic rollback,
+redelivery after case deletion, foreign keys, two-process concurrency and
+EXPLAIN for receipt and target queries. `Reports/flag.json` is an illustrative
+fixture, not captured from a live server.
+
+This sprint prepares persistence: the inbox does not process Flag yet and the
+UI has not been extended. Migration `2026_10_23_000000_extend_reports_for_federation`
+preserves local cases; rolling it back deletes federated cases and receipts
+before restoring the mandatory local reporter. Inbox integration, maintenance
+and live interoperability belong to subsequent sprints.
+
 Instance statistics:
 
 ```bash
