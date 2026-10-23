@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Application\Queries\StatsQuery;
+use App\Application\Services\InstanceSettings;
 use App\Application\Services\StatsDataset;
 use App\Domain\Communities\Community;
 use App\Domain\Events\Event;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Announce;
+use App\Infrastructure\Database\SystemSetting;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -74,6 +76,20 @@ class StatsTest extends TestCase
         $this->getJson('/stats/allegati')->assertOk()->assertJsonPath('metric', 'media');
         $this->getJson('/stats/sondaggi')->assertOk()->assertJsonPath('metric', 'polls');
         $this->getJson('/stats/provenienza')->assertOk()->assertJsonPath('metric', 'acquisition')->assertJsonPath('unit', 'content_deliveries');
+    }
+
+    public function test_the_stats_page_exposes_only_the_configured_retention_durations(): void
+    {
+        $user = $this->createFullAccount('statsretention');
+        SystemSetting::put(InstanceSettings::KEY_REMOTE_POST_PERTINENT_RETENTION_DAYS, '90');
+        SystemSetting::put(InstanceSettings::KEY_REMOTE_POST_NON_PERTINENT_RETENTION_DAYS, '30');
+        $this->actingAs($user)->get('/stats')->assertOk()
+            ->assertViewHas('retention', ['pertinent' => 90, 'non_pertinent' => 30]);
+
+        SystemSetting::put(InstanceSettings::KEY_REMOTE_POST_PERTINENT_RETENTION_DAYS, '0');
+        SystemSetting::put(InstanceSettings::KEY_REMOTE_POST_NON_PERTINENT_RETENTION_DAYS, '0');
+        $this->get('/stats')->assertOk()
+            ->assertViewHas('retention', ['pertinent' => 0, 'non_pertinent' => 0]);
     }
 
     public function test_hourly_buckets_are_complete_utc_hours_and_raw_datasets_are_fresh(): void

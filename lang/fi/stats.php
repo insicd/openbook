@@ -96,6 +96,12 @@ return [
         'failed' => 'Tilastojen välimuistia ei voitu tyhjentää. Yritä uudelleen.',
     ],
     'chart' => [
+        'retention_title' => 'Etäjulkaisujen säilytys',
+        'retention_non_pertinent' => 'Ei-olennaiset: :days :unit',
+        'retention_pertinent' => 'Olennaiset: :days :unit',
+        'retention_both' => 'Olennaiset ja ei-olennaiset: :days :unit',
+        'retention_day' => 'päivä',
+        'retention_days' => 'päivää',
         'cache_info' => 'Tietojen päivitys',
         'refresh_minutes' => 'Päivitetään :minutes minuutin välein.',
         'refresh_hour' => 'Päivitetään tunnin välein.',

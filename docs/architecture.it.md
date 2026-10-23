@@ -145,6 +145,15 @@ i dieci più usati nel periodo: passaggio del mouse o focus evidenziano la
 serie; i tooltip identificano anche gli hashtag fuori legenda. I range restano
 in UTC; la data di elaborazione usa il fuso del visitatore.
 
+I grafici temporali dei post mostrano anche le durate di retention configurate,
+con due linee verticali e una legenda: pertinenti e non pertinenti. Le soglie
+sono riferite alla data di generazione del dataset, interpolate fra i bucket
+senza modificare i dati o interrogare nuovamente il corpus. Sono riferimenti
+alle durate: la pulizia effettiva usa la prima importazione, mentre l'asse dei
+grafici usa la pubblicazione. Le soglie disabilitate o fuori periodo sono
+nascoste; durate uguali condividono una linea. Calendario eventi, distribuzioni
+non temporali e bucket delle delivery non mostrano questi riferimenti.
+
 La geografia mostra i paesi associati ai luoghi dei contenuti, sommando
 post ed eventi senza selettori. Conta solo i contenuti con un luogo, senza
 calcolare il totale del corpus o la percentuale di contenuti geotaggati.

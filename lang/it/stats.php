@@ -96,6 +96,12 @@ return [
         'failed' => 'Non è stato possibile svuotare la cache delle statistiche. Riprova.',
     ],
     'chart' => [
+        'retention_title' => 'Retention dei post remoti',
+        'retention_non_pertinent' => 'Non pertinenti: :days :unit',
+        'retention_pertinent' => 'Pertinenti: :days :unit',
+        'retention_both' => 'Pertinenti e non pertinenti: :days :unit',
+        'retention_day' => 'giorno',
+        'retention_days' => 'giorni',
         'cache_info' => 'Aggiornamento dei dati',
         'refresh_minutes' => 'Aggiornamento ogni :minutes minuti.',
         'refresh_hour' => 'Aggiornamento ogni ora.',

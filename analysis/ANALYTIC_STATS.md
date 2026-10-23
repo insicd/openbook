@@ -7,6 +7,13 @@ giornalieri condivisi per delivery di post ed eventi. Diffusione e conversazioni
 tra istanze sono state scartate. Riferimento operativo aggiornato:
 [configurazione e cache](../docs/configuration.it.md#statistiche-dellistanza-e-cache).
 
+Riferimenti retention approvati il 23 ottobre 2026: linee verticali leggere
+nei grafici temporali dei post, con legenda e senza tooltip aggiuntivi.
+Le durate arrivano dalle impostazioni della pagina, senza nuove query aggregate
+né invalidazioni cache. Posizione interpolata fra bucket rispetto alla
+generazione del dataset; soglie disabilitate/fuori periodo nascoste e durate
+coincidenti riunite. Esclusi distribuzioni, calendario eventi e delivery.
+
 Revisione produzione del 23 ottobre 2026: rimossa dalla geografia la percentuale
 di contenuti con luogo, insieme ai due conteggi complessivi di post ed eventi.
 Il grafico mantiene il totale geotaggato e i paesi, con due soli rami UNION ALL.

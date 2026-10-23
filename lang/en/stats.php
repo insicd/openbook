@@ -96,6 +96,12 @@ return [
         'failed' => 'The statistics cache could not be cleared. Please try again.',
     ],
     'chart' => [
+        'retention_title' => 'Remote post retention',
+        'retention_non_pertinent' => 'Non-pertinent: :days :unit',
+        'retention_pertinent' => 'Pertinent: :days :unit',
+        'retention_both' => 'Pertinent and non-pertinent: :days :unit',
+        'retention_day' => 'day',
+        'retention_days' => 'days',
         'cache_info' => 'Data updates',
         'refresh_minutes' => 'Updated every :minutes minutes.',
         'refresh_hour' => 'Updated every hour.',

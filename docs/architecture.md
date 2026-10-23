@@ -141,6 +141,15 @@ over the period: hover or keyboard focus highlights a series; tooltips also
 identify hashtags outside the legend. Ranges stay in UTC; generation times
 use the visitor’s timezone.
 
+Post timeline charts also show configured retention durations as vertical
+lines with a legend for pertinent and non-pertinent posts. Thresholds use
+the dataset generation time and are interpolated between buckets, without
+changing data or querying the corpus again. These are duration references:
+actual pruning uses first import time, while chart axes use publication time.
+Disabled or out-of-range thresholds are hidden; equal durations share one line.
+The event calendar, non-timeline distributions and delivery buckets do not
+show these references.
+
 Geography shows countries associated with content places, combining posts
 and events without a selector. It counts only content with a place, without
 computing a corpus-wide total or the percentage of geotagged content.

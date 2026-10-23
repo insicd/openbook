@@ -19,6 +19,10 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Retention nei grafici Stats**: linee verticali con legenda indicano le
+  durate configurate per post remoti pertinenti e non pertinenti nei grafici
+  temporali. Le fasce disabilitate o fuori periodo sono nascoste; durate uguali
+  condividono una sola linea. Nessuna nuova query aggregata.
 - **Stats**: pagina accessibile dal footer agli utenti autenticati,
   con ritmo dei post nelle ultime 360 ore complete e distribuzione delle lingue
   di post ed eventi pubblici conservati, account totali per istanza, volume
