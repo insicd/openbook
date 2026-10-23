@@ -10,7 +10,8 @@
 
 @section('content')
     <div class="ob-stats" data-stats data-timezone="{{ app(\App\Support\UserDate::class)->timezone() }}" data-locale="{{ str_replace('_', '-', app()->getLocale()) }}"
-         data-labels="{{ json_encode(__('stats.chart'), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) }}">
+         data-labels="{{ json_encode(__('stats.chart'), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) }}"
+         data-retention="{{ json_encode($retention, JSON_THROW_ON_ERROR) }}">
         <header class="ob-stats__intro">
             <span class="ob-stats__eyebrow">{{ __('stats.title') }}</span>
             <h1>{{ __('stats.heading') }}</h1>
@@ -40,6 +41,7 @@
                         <canvas data-stats-canvas role="img" aria-label="{{ __('stats.'.$metric.'.title') }}"
                                 aria-describedby="stats-{{ $metric }}-description"></canvas>
                     </div>
+                    <div class="ob-stats-retention" data-stats-retention hidden></div>
                     @if ($metric === 'hashtags')
                         <p class="ob-stats-card__period">{{ __('stats.chart.legend_top') }}</p>
                         <div class="ob-stats-legend" data-stats-legend role="group" aria-label="{{ __('stats.chart.legend_top') }}"></div>

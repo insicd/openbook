@@ -3,14 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Application\Services\CachedStatsDataset;
+use App\Application\Services\InstanceSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 
 final class StatsController extends Controller
 {
-    public function index(): View
+    public function index(InstanceSettings $settings): View
     {
-        return view('stats.index');
+        return view('stats.index', ['retention' => [
+            'pertinent' => $settings->remotePostPertinentRetentionDays(),
+            'non_pertinent' => $settings->remotePostNonPertinentRetentionDays(),
+        ]]);
     }
 
     public function rhythm(CachedStatsDataset $datasets): JsonResponse

@@ -19,6 +19,10 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Retention nei grafici Stats**: linee verticali con legenda indicano le
+  durate configurate per post remoti pertinenti e non pertinenti nei grafici
+  temporali. Le fasce disabilitate o fuori periodo sono nascoste; durate uguali
+  condividono una sola linea. Nessuna nuova query aggregata.
 - **Stats**: pagina accessibile dal footer agli utenti autenticati,
   con ritmo dei post nelle ultime 360 ore complete e distribuzione delle lingue
   di post ed eventi pubblici conservati, account totali per istanza, volume
@@ -311,6 +315,16 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Statistiche di pubblicazioni e autori**: su MySQL la query condivisa usa
+  l'indice temporale esistente, riducendo il costo della scansione dello storico.
+- **Statistiche degli allegati**: su MySQL la query privilegia gli allegati
+  come punto di partenza del join, evitando di filtrare prima l'intero corpus.
+- **Statistiche dei sondaggi**: «La voglia di chiedere» mostra il numero di
+  sondaggi per settimana al posto della percentuale sui post. La query considera
+  solo i contenuti con sondaggio, evitando il conteggio dell'intero corpus.
+- **Statistiche geografiche**: rimossa la percentuale di contenuti con luogo
+  e i relativi conteggi sull'intero corpus, che rallentavano il grafico sulle
+  istanze più popolate. Restano il totale dei contenuti geotaggati e i paesi.
 - **Footer**: il nome dell’istanza in fondo alla pagina rimanda alla home locale,
   come nel footer sotto il menù.
 - Lo sfondo della home ospite (immagine o alone di default) resta della

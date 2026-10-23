@@ -96,18 +96,12 @@ final class StatsDataset
         $to = CarbonImmutable::now('UTC')->startOfHour();
         $from = $to->subYearsNoOverflow(2);
         $data = $this->query->geography($from, $to);
-        $total = 0;
         $countries = [];
         foreach ($data as $row) {
-            if ($row->country === null) {
-                $total = (int) $row->count;
-
-                continue;
-            }
             $country = preg_match('/^[A-Z]{2}$/', $row->country) ? $row->country : 'OTHER';
             $countries[$country] = ($countries[$country] ?? 0) + (int) $row->count;
         }
-        $totals = ['contents' => $total, 'located' => array_sum($countries)];
+        $totals = ['located' => array_sum($countries)];
         $other = $countries['OTHER'] ?? 0;
         unset($countries['OTHER']);
         foreach ($countries as $country => $count) {
@@ -164,7 +158,7 @@ final class StatsDataset
 
     public function polls(): array
     {
-        return $this->weeklyDataset('polls', 'posts', ['posts', 'polls']);
+        return $this->weeklyDataset('polls', 'polls', ['polls']);
     }
 
     public function acquisition(): array

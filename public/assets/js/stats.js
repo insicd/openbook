@@ -4,6 +4,7 @@
     if (!root) return;
 
     var labels = JSON.parse(root.dataset.labels);
+    var retention = JSON.parse(root.dataset.retention || '{}');
     var locale = root.dataset.locale;
     var number = new Intl.NumberFormat(locale);
     var date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -47,6 +48,82 @@
             container.append(cell);
         });
     }
+
+    function retentionMarkers(card, data, colors) {
+        var container = card.querySelector('[data-stats-retention]');
+        if (!container) return [];
+        container.replaceChildren();
+        container.hidden = true;
+        var metric = card.dataset.statsCard;
+        if (['rhythm', 'volume', 'authors', 'hashtags', 'communityActivity', 'mediaTrend', 'polls'].indexOf(metric) === -1) return [];
+        if (!(retention.non_pertinent > 0 || retention.pertinent > 0)) return [];
+        var dates = metric === 'hashtags' ? data.months.map(function (month) { return month.month + '-01T00:00:00Z'; })
+            : metric === 'volume' || metric === 'authors' ? data.weeks.map(function (week) { return week + 'T00:00:00Z'; })
+            : data.rows.map(function (row) { return row.at || row.week + 'T00:00:00Z'; });
+        var buckets = dates.map(function (value) { return Date.parse(value); });
+        if (!buckets.length) return [];
+        var anchor = Date.parse(data.generated_at || data.period.to);
+        var from = Date.parse(data.period.from);
+        var to = Date.parse(data.period.to);
+        var markers = [];
+        ['non_pertinent', 'pertinent'].forEach(function (kind) {
+            var days = retention[kind];
+            if (!Number.isInteger(days) || days <= 0) return;
+            var at = anchor - days * 86400000;
+            if (at < from || at > to) return;
+            var existing = markers.find(function (marker) { return marker.days === days; });
+            if (existing) {
+                existing.kind = 'both';
+                existing.color = colors.primary;
+                return;
+            }
+            var position = buckets.length - 1;
+            for (var i = 0; i < buckets.length - 1; i++) {
+                if (at <= buckets[i + 1]) {
+                    position = i + Math.max(0, (at - buckets[i]) / (buckets[i + 1] - buckets[i]));
+                    break;
+                }
+            }
+            markers.push({ kind: kind, days: days, position: position, color: kind === 'pertinent' ? colors.primary : colors.muted });
+        });
+        if (!markers.length) return markers;
+        container.append(text('span', labels.retention_title, 'ob-stats-retention__title'));
+        markers.forEach(function (marker) {
+            var item = document.createElement('span');
+            item.className = 'ob-stats-retention__item ob-stats-retention__item--' + marker.kind;
+            item.style.setProperty('--ob-stats-retention-color', marker.color);
+            var unit = marker.days === 1 ? labels.retention_day : labels.retention_days;
+            item.append(text('span', labels['retention_' + marker.kind].replace(':days', number.format(marker.days)).replace(':unit', unit)));
+            container.append(item);
+        });
+        container.hidden = false;
+        return markers;
+    }
+
+    var retentionPlugin = {
+        id: 'statsRetention',
+        beforeDatasetsDraw: function (chart, args, options) {
+            if (!chart.chartArea || !options.markers || !options.markers.length) return;
+            var ctx = chart.ctx;
+            var area = chart.chartArea;
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(area.left, area.top, area.right - area.left, area.bottom - area.top);
+            ctx.clip();
+            ctx.globalAlpha = 0.65;
+            ctx.lineWidth = 1.5;
+            options.markers.forEach(function (marker) {
+                var x = chart.scales.x.getPixelForValue(marker.position);
+                ctx.strokeStyle = marker.color;
+                ctx.setLineDash(marker.kind === 'pertinent' ? [2, 4] : [6, 4]);
+                ctx.beginPath();
+                ctx.moveTo(x, area.top);
+                ctx.lineTo(x, area.bottom);
+                ctx.stroke();
+            });
+            ctx.restore();
+        }
+    };
 
     function horizontal(options) {
         options.indexAxis = 'y';
@@ -104,8 +181,7 @@
             + known.slice(10).reduce(function (sum, row) { return sum + row.count; }, 0);
         var displayed = known.slice(0, 10);
         if (other) displayed.push({ country: 'OTHER', count: other });
-        var percent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 });
-        summary(card, [[totals.located, labels.located_contents], [totals.contents ? percent.format(totals.located / totals.contents) : '—', labels.location_coverage]]);
+        summary(card, [[totals.located, labels.located_contents]]);
         horizontal(options);
         options.plugins.tooltip.callbacks = { label: function (item) { return labels.contents_count + ': ' + number.format(item.parsed.x); } };
         if (!totals.located) options.scales.x.suggestedMax = 1;
@@ -183,22 +259,18 @@
 
     function pollsChart(card, options, colors) {
         var rows = card._statsData.rows;
-        var posts = rows.reduce(function (sum, row) { return sum + row.posts; }, 0);
         var polls = rows.reduce(function (sum, row) { return sum + row.polls; }, 0);
-        var percent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 });
-        summary(card, [[polls, labels.poll_posts], [posts ? percent.format(polls / posts) : '—', labels.poll_share]]);
-        options.scales.y.ticks.precision = 2;
-        options.scales.y.ticks.callback = function (value) { return percent.format(value / 100); };
+        summary(card, [[polls, labels.poll_posts]]);
+        options.scales.y.ticks.precision = 0;
         options.scales.y.suggestedMax = polls ? undefined : 1;
         options.interaction = { intersect: false, mode: 'index' };
         options.plugins.tooltip.callbacks = {
             title: function (items) { return labels.week_of + ' ' + date.format(new Date(rows[items[0].dataIndex].week + 'T00:00:00Z')); },
-            label: function (item) { return labels.poll_percentage + ': ' + percent.format(item.parsed.y / 100); },
-            afterLabel: function (item) { var row = rows[item.dataIndex]; return labels.poll_posts + ': ' + number.format(row.polls) + ' / ' + number.format(row.posts); }
+            label: function (item) { return labels.poll_posts + ': ' + number.format(item.parsed.y); }
         };
-        return { total: posts, type: 'line', data: {
+        return { total: polls, type: 'line', data: {
             labels: rows.map(function (row) { return date.format(new Date(row.week + 'T00:00:00Z')); }),
-            datasets: [{ label: labels.poll_percentage, data: rows.map(function (row) { return row.posts ? row.polls / row.posts * 100 : null; }), borderColor: colors.primary, backgroundColor: colors.primary, borderWidth: 2.5, tension: 0, spanGaps: false, pointRadius: 0, pointHoverRadius: 4, pointHitRadius: 10 }]
+            datasets: [{ label: labels.poll_posts, data: rows.map(function (row) { return row.polls; }), borderColor: colors.primary, backgroundColor: colors.primary, borderWidth: 2.5, tension: 0, spanGaps: false, pointRadius: 0, pointHoverRadius: 4, pointHitRadius: 10 }]
         } };
     }
 
@@ -354,7 +426,8 @@
         card.querySelector('[data-stats-updated]').textContent = (cache.cached_at ? frequency : labels.not_cached) + '\n' + labels.updated + ' ' + generatedDate.format(new Date(cache.cached_at || data.generated_at));
         canvas.setAttribute('aria-label', card.querySelector('h2').textContent + '. ' + Array.from(card.querySelector('[data-stats-summary]').children, function (item) { return Array.from(item.children, function (part) { return part.textContent; }).join(' '); }).join('. ') + (accessibleDetails ? '. ' + accessibleDetails : ''));
         if (card._statsChart) card._statsChart.destroy();
-        card._statsChart = new Chart(canvas, { type: chartType, data: chartData, options: options });
+        options.plugins.statsRetention = { markers: retentionMarkers(card, data, colors) };
+        card._statsChart = new Chart(canvas, { type: chartType, data: chartData, options: options, plugins: [retentionPlugin] });
         if (metric === 'hashtags') {
             hashtagLegend(card);
             canvas.onmouseleave = function () { focusHashtag(card._statsChart, null); };

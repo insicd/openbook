@@ -43,6 +43,11 @@
 .ob-stats-summary__label { color: var(--ob-color-text-muted); font-size: .8rem; }
 .ob-stats-chart { position: relative; width: 100%; height: 300px; }
 .ob-stats-chart canvas { display: block; }
+.ob-stats-retention { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; margin-top: .85rem; color: var(--ob-color-text-muted); font-size: .72rem; }
+.ob-stats-retention__title { flex-basis: 100%; font-weight: 600; }
+.ob-stats-retention__item { display: inline-flex; align-items: center; gap: .4rem; }
+.ob-stats-retention__item::before { content: ''; width: 1.5rem; border-top: 2px dashed var(--ob-stats-retention-color); opacity: .65; }
+.ob-stats-retention__item--pertinent::before { border-top-style: dotted; }
 .ob-stats-card__period { color: var(--ob-color-text-muted); font-size: .75rem; margin: .8rem 0 0; }
 .ob-stats-card__note { color: var(--ob-color-text-muted); font-size: .8rem; margin: 1rem 0 0; padding-top: 1rem; border-top: 1px solid var(--ob-color-border); }
 .ob-stats-method { padding: 0 .25rem; color: var(--ob-color-text-muted); font-size: .8rem; }
