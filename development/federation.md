@@ -36,8 +36,29 @@ comment loads check their parent post/event visibility. Existing but unreadable
 references remain distinct from missing ones. Automatic closure is presented
 as already handled positively, without attributing review to a moderator.
 Review and dismissal use the existing routes and audit; dismissal remains
-available after review. Actions on federated references and automatic cleanup
-remain in sprints 4 and 5.
+available after review. Automatic cleanup remains in sprint 5.
+
+### Manual actions (sprint 4)
+
+`ReportActionManager` rechecks the role, case status, selected-target membership
+and local ownership at command time. It locks the case and content within a
+transaction, trusting neither incoming URIs nor IDs from other cases. Profiles
+link to user management; the command cannot delete them. `LocalContentDeleter`
+shares deletion, counters and ordinary delivery between controllers and
+moderation. For events it uses `EventComposer` with the actual moderator Actor,
+without impersonating the author; editing remains owner-only. Event and event
+comment Delete permissions include staff. Every removed item generates a
+`report.target_deleted` audit entry and the case uses ordinary `report.actioned`.
+Resubmitting a closed case does not repeat the action. Event deletion preserves
+the ordinary cascade to comments and attachments; the UI informs the operator.
+No report data enters Delete activities.
+
+The detail uses a responsive layout separating commands from evidence.
+`report-moderation.js` updates the final command label, selection count and
+colour without changing case state: the backend remains authoritative.
+Forms work without JavaScript with explicit fallback labels. Command
+explanations are visible and associated through `aria-describedby`; original
+URIs can be expanded using native `details` elements.
 
 ### Federation (Phase 3)
 

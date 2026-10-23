@@ -2,6 +2,20 @@
 
 ## Tests
 
+Manual actions (#119, sprint 4):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Admin/AdminFederatedReportActionTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php tests/Feature/Events
+```
+
+Covers all four content types for administrators and moderators, explicit
+selection, denied roles, targets from other cases, subjects that became remote,
+repeated deletion and removed targets, audit, closure without sanctions, media
+cleanup and ordinary Delete activities without report data. The moderation
+MySQL test also checks command query plans. Browser checks cover submission
+of selected references, dynamic labels and colour, four viewport widths,
+Italian profile layout and fallback without JavaScript.
+
 Federated report panel (#119, sprint 3):
 
 ```bash
@@ -46,7 +60,7 @@ EXPLAIN for receipt and target queries. `Reports/flag.json` is an illustrative
 fixture, not captured from a live server.
 
 Sprint 1 prepares persistence; sprint 2 adds the reception described above.
-The UI has not been extended. Migration `2026_10_23_000000_extend_reports_for_federation`
+The UI is described in the panel section above. Migration `2026_10_23_000000_extend_reports_for_federation`
 preserves local cases; rolling it back deletes federated cases and receipts
 before restoring the mandatory local reporter. Maintenance and live
 interoperability verification belong to subsequent sprints.

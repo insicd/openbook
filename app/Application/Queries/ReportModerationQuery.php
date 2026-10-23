@@ -42,18 +42,26 @@ final class ReportModerationQuery
             'eventComment' => fn ($query) => $query->whereHas('event', fn (Builder $event) => $event->visibleTo($viewer))->with('actor'),
         ]);
 
-        return $targets->map(function (ReportTarget $target): array {
+        return $targets->map(function (ReportTarget $target) use ($report): array {
             $relation = $target->type === ReportTarget::TYPE_EVENT_COMMENT ? 'eventComment' : $target->type;
             $subject = $target->getRelation($relation);
             $column = $target->type.'_id';
             $missing = $target->unavailable || $target->$column === null || $subject?->status === 'deleted';
             $state = $missing ? 'missing' : ($subject === null ? 'restricted' : 'available');
             $preview = ['type' => $target->type, 'uri' => $target->uri, 'state' => $state,
-                'author' => null, 'title' => null, 'body' => null, 'url' => null];
+                'author' => null, 'title' => null, 'body' => null, 'url' => null,
+                'target_id' => $target->id, 'can_delete' => false, 'manage_user_url' => null];
             if ($state !== 'available') {
                 return $preview;
             }
 
+            $author = $subject instanceof Actor ? $subject : $subject->actor;
+            $preview['can_delete'] = $report->isFederated() && ! $subject instanceof Actor
+                && ReportTarget::isLocalPersonSubject($subject)
+                && ($subject instanceof Event || $subject->isPublished());
+            if ($author?->isLocal() && $author->isPerson() && $author->user_id !== null) {
+                $preview['manage_user_url'] = route('admin.users.index', ['q' => $author->preferred_username]);
+            }
             $preview['author'] = $subject instanceof Actor ? $subject->preferred_username : $subject->actor?->preferred_username;
             $preview['title'] = $subject instanceof Actor ? ($subject->name ?: $subject->preferred_username)
                 : ($subject instanceof Event ? $subject->name : ($subject->title ?? null));

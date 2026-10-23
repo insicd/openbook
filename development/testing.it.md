@@ -2,6 +2,19 @@
 
 ## Test
 
+Provvedimenti manuali (#119, sprint 4):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Admin/AdminFederatedReportActionTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php tests/Feature/Events
+```
+
+Coperti i quattro tipi di contenuto per admin e moderatore, selezione esplicita,
+ruoli negati, riferimenti di altri casi, soggetti diventati remoti, cancellazioni
+ripetute e target rimossi, audit, chiusura senza sanzioni, pulizia media e normali
+Delete senza dati del reclamo. Il test MySQL del pannello verifica anche i piani
+delle query del comando. Il test browser controlla l’invio delle selezioni, label e colore dinamici,
+layout a quattro larghezze, profilo in italiano e fallback senza JavaScript.
+
 Pannello delle segnalazioni federate (#119, sprint 3):
 
 ```bash
@@ -46,7 +59,7 @@ EXPLAIN delle query per ricevuta e riferimenti. La fixture `Reports/flag.json`
 è illustrativa, non acquisita da un server reale.
 
 Lo sprint 1 prepara la persistenza; lo sprint 2 aggiunge la ricezione descritta
-sopra. La UI non è ancora estesa. La migration `2026_10_23_000000_extend_reports_for_federation`
+sopra. La UI è descritta nella sezione del pannello sopra. La migration `2026_10_23_000000_extend_reports_for_federation`
 preserva i casi locali; il suo rollback elimina i casi federati e le ricevute
 prima di ripristinare il reporter locale obbligatorio. La manutenzione e la
 verifica di interoperabilità online appartengono agli sprint successivi.

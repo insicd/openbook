@@ -38,8 +38,29 @@ post/evento. Un riferimento esistente ma non leggibile resta distinto da uno
 mancante. La chiusura automatica è presentata come già gestita positivamente,
 senza attribuire la revisione a un moderatore. Revisione e archiviazione usano
 le route e l'audit esistenti; l'archiviazione rimane disponibile dopo la revisione.
-I provvedimenti sui riferimenti federati e la pulizia automatica rimangono
-agli sprint 4 e 5.
+La pulizia automatica rimane allo sprint 5.
+
+### Provvedimenti manuali (sprint 4)
+
+`ReportActionManager` ricontrolla ruolo, stato del caso, appartenenza dei target
+selezionati e pertinenza locale al momento del comando. Blocca caso e contenuti
+in transazione, senza fidarsi degli URI ricevuti o degli ID di altri casi. I
+profili rimandano alla gestione utenti; non vengono eliminati dal comando.
+`LocalContentDeleter` condivide cancellazione, contatori e consegna ordinaria
+tra controller e moderazione. Per gli eventi usa `EventComposer` con l’Actor
+del moderatore effettivo, senza impersonare l’autore; l’editing resta riservato
+al proprietario. I permessi Delete di eventi e commenti evento includono lo staff.
+Ogni contenuto rimosso produce audit `report.target_deleted` e il caso usa il
+normale `report.actioned`. Le riconferme di un caso chiuso non ripetono l’azione.
+La cancellazione di eventi mantiene il normale cascade su commenti e allegati;
+la UI ne informa l’operatore. Nessun dato del reclamo entra nei Delete.
+
+Il dettaglio usa un layout responsive con comandi separati dalle evidenze.
+`report-moderation.js` aggiorna label, numero di selezioni e colore del comando
+finale, senza cambiare stato del caso: il backend resta l’unica autorità.
+I form funzionano senza JavaScript con label di fallback esplicite. Le spiegazioni
+dei comandi sono visibili e associate con `aria-describedby`; gli URI originali
+sono espandibili tramite `details` nativi.
 
 ### Federazione (Fase 3)
 

@@ -19,7 +19,7 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Segnalazioni federate (#119, sprint 2–3)**: le attività `Flag`
+- **Segnalazioni federate (#119, sprint 2–4)**: le attività `Flag`
   vengono elaborate dall'inbox ActivityPub ordinaria e registrate come casi di
   moderazione su persone e contenuti locali, con riferimenti multipli e
   protezione dalle riconsegne. I contenuti non più disponibili risultano già
@@ -29,6 +29,15 @@ la [roadmap](docs/roadmap.md).
   l'esame. Le anteprime rispettano gli ordinari permessi di lettura, senza
   mostrare contenuti privati inaccessibili allo staff. Applicare le nuove
   migration, incluse estensione della motivazione e indici delle code.
+  I provvedimenti manuali consentono di selezionare i singoli contenuti locali
+  da eliminare e aprire gli strumenti utenti; admin e moderatori possono
+  cancellare anche eventi e commenti evento tramite i servizi ordinari, con
+  pulizia media e Delete federato senza dati della segnalazione. I provvedimenti
+  sono tracciati nell’audit e gli invii ripetuti non duplicano le cancellazioni.
+  Dettaglio riorganizzato in lettura e gestione del caso, con link affiancati,
+  spiegazioni dei comandi e label esplicite: esaminare lascia il caso aperto,
+  chiudere senza interventi archivia e il comando finale distingue la sola
+  chiusura dall’eliminazione dei contenuti selezionati.
 - **Retention nei grafici Stats**: linee verticali con legenda indicano le
   durate configurate per post remoti pertinenti e non pertinenti nei grafici
   temporali. Le fasce disabilitate o fuori periodo sono nascoste; durate uguali

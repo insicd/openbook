@@ -3983,10 +3983,61 @@ a.ob-post__menu-item {
   white-space: pre-wrap;
 }
 
-.ob-report-target {
-  margin-top: 1rem;
-  padding: 1rem;
-  min-width: 0;
+/* Report detail: evidence and case decisions have separate, consistent spaces. */
+.ob-report-page { max-width: 1360px; }
+.ob-report-heading { margin-bottom: 1.5rem; }
+.ob-report-heading > a { display: inline-block; margin-bottom: 0.75rem; font-size: 0.9rem; }
+.ob-report-heading h1 { margin-bottom: 0.65rem; }
+.ob-report-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.ob-report-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.5rem; align-items: start; }
+.ob-report-content { min-width: 0; display: grid; gap: 1.5rem; }
+.ob-report-section, .ob-report-target, .ob-report-workflow { padding: 1.25rem; min-width: 0; }
+.ob-report-section h2, .ob-report-workflow h2, .ob-report-section-heading h2 { font-size: 1.15rem; margin: 0; }
+.ob-report-motivation { margin-top: 0.85rem; }
+.ob-report-source { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--ob-color-border); }
+.ob-report-facts { display: grid; gap: 0.7rem; margin: 0; font-size: 0.85rem; }
+.ob-report-facts > div { display: grid; grid-template-columns: 145px minmax(0, 1fr); gap: 0.75rem; }
+.ob-report-facts dt { color: var(--ob-color-text-muted); }
+.ob-report-facts dd { margin: 0; overflow-wrap: anywhere; }
+.ob-report-section-heading { display: flex; gap: 0.6rem; align-items: center; margin-bottom: 0.75rem; }
+.ob-report-targets { display: grid; gap: 0.75rem; }
+.ob-report-target-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 0.7rem; }
+.ob-report-target-heading .ob-field__help { margin: 0; }
+.ob-report-target h3 { font-size: 1.1rem; margin-bottom: 0.65rem; overflow-wrap: anywhere; }
+.ob-report-target-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
+.ob-report-page .ob-btn { font-size: 0.875rem; padding: 0.55rem 0.8rem; min-height: 40px; text-align: center; white-space: normal; }
+.ob-report-page .ob-btn:hover { box-shadow: 0 2px 5px rgb(20 24 34 / 10%); }
+.ob-report-disclosure { margin-top: 0.8rem; font-size: 0.8rem; color: var(--ob-color-text-muted); }
+.ob-report-disclosure summary { cursor: pointer; width: fit-content; }
+.ob-report-disclosure summary:hover { color: var(--ob-color-primary); }
+.ob-report-disclosure p { margin: 0.5rem 0 0; }
+.ob-report-delete-option { margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid var(--ob-color-border); }
+.ob-report-delete-option label { display: flex; gap: 0.6rem; align-items: start; cursor: pointer; font-size: 0.875rem; }
+.ob-report-delete-option input { margin-top: 0.25rem; accent-color: var(--ob-color-danger); flex-shrink: 0; }
+.ob-report-delete-option .ob-field__help { margin: 0.5rem 0 0 1.5rem; }
+.ob-report-delete-option:has(input:checked) { color: var(--ob-color-danger); }
+.ob-report-workflow-intro { margin: 0.65rem 0 0; }
+.ob-report-step { margin: 1rem 0 0; padding-top: 1rem; border-top: 1px solid var(--ob-color-border); }
+.ob-report-step .ob-btn { width: 100%; }
+.ob-report-step .ob-field__help { font-size: 0.8rem; line-height: 1.5; margin: 0.5rem 0 0; }
+.ob-report-complete .ob-field__help { margin: 0 0 0.75rem; }
+.ob-report-destructive { background: var(--ob-color-danger); border-color: var(--ob-color-danger); color: white; }
+.ob-report-destructive:hover, .ob-report-destructive:focus { background: var(--ob-color-danger); filter: brightness(0.9); }
+.ob-report-notice, .ob-report-outcome, .ob-report-reviewed { font-size: 0.9rem; margin: 0.5rem 0; color: var(--ob-color-text-muted); }
+.ob-report-history { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--ob-color-border); font-size: 0.8rem; color: var(--ob-color-text-muted); }
+.ob-report-history p { margin: 0 0 0.5rem; }
+.ob-report-timezone { margin-top: 1rem; }
+.ob-report-timezone p { font-size: 0.75rem; margin: 0; }
+@media (max-width: 1100px) {
+  .ob-report-layout { grid-template-columns: minmax(0, 1fr); }
+  .ob-report-workflow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1rem; }
+  .ob-report-workflow > h2, .ob-report-workflow-intro, .ob-report-history, .ob-report-timezone, .ob-report-outcome, .ob-report-workflow > .ob-field__help { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .ob-report-section, .ob-report-target, .ob-report-workflow { padding: 1rem; }
+  .ob-report-facts > div { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; }
+  .ob-report-workflow { display: block; }
+  .ob-report-target-actions > .ob-btn { flex: 1 1 auto; }
 }
 
 @media (max-width: 900px) {

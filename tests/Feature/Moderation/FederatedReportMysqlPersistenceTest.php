@@ -3,12 +3,14 @@
 namespace Tests\Feature\Moderation;
 
 use App\Application\Queries\ReportModerationQuery;
+use App\Application\Services\ReportActionManager;
 use App\Domain\Moderation\Report;
 use App\Federation\Resolution\ObjectResolver;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\Concerns\TestsFederatedReportPersistence;
@@ -226,6 +228,13 @@ class FederatedReportMysqlPersistenceTest extends TestCase
         DB::enableQueryLog();
         $queries->previews($report, $targets[0]['subject']);
         $queries->listing('all')->paginate(20);
+        Queue::fake();
+        $moderator = $targets[0]['subject']->user;
+        $moderator->forceFill(['is_moderator' => true])->save();
+        $selection = $report->targets()->where('type', 'post')->sole();
+        app(ReportActionManager::class)->action($report, $moderator, [$selection->id]);
+        $this->assertSame('deleted', $targets[1]['subject']->fresh()->status);
+        $this->assertSame('actioned', $report->fresh()->status);
         $sqlQueries = DB::getQueryLog();
         DB::disableQueryLog();
         foreach ($sqlQueries as $query) {

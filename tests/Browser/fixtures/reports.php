@@ -19,7 +19,7 @@ $app->make(Kernel::class)->bootstrap();
 config(['cache.default' => 'array', 'session.driver' => 'array', 'database.default' => 'sqlite',
     'database.connections.sqlite.database' => ':memory:', 'openbook.actor_key_bits' => 2048]);
 Artisan::call('migrate', ['--database' => 'sqlite', '--force' => true]);
-$app->setLocale('en');
+$app->setLocale($argv[2] ?? 'en');
 $request = Request::create('http://openbook.test/admin/segnalazioni');
 $app->instance('request', $request);
 $request->setLaravelSession(app('session.store'));
@@ -39,6 +39,9 @@ $fixture = new class
         $targets[1]['subject']->update(['title' => 'Repeated unwanted messages', 'body' => "Evidence of the reported behaviour.\nOnly this content is previewed."]);
         $targets[3]['subject']->update(['visibility' => 'direct']);
         $fed = $this->storeReport($sender, $targets, details: "Please examine these references.\nThe sending Actor represents our server.");
+        if ($mode === 'profile') {
+            $fed = $this->storeReport($sender, [$targets[0]], 'profile', '[SIMULATION] Please review this local profile.');
+        }
         $local = app(ReportManager::class)->reportPost($mod, $targets[1]['subject'], ['reason' => 'spam', 'details' => 'Local report for comparison.']);
         $local->refresh();
         $missing = $this->storeReport($sender, [['type' => 'post', 'uri' => 'https://openbook.test/posts/'.Str::uuid(), 'subject' => null]], 'missing');

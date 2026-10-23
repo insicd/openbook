@@ -27,6 +27,23 @@ reading permissions even for staff; a report does not grant access to private
 conversations. Administrators and moderators can review and dismiss the case,
 including after marking it as reviewed.
 
+From the detail, **User management** opens the existing user tools with their
+ordinary permissions. Alternatively, select individual local content items to
+delete before pressing **Delete selected and close**. No checkbox is selected by default.
+The command closes the case even without selections, for example after taking
+action on a user. Deleting an event also removes its comments and attachments,
+as in the ordinary flow. Deletions produce normal federated Delete activities,
+without the report's motivation or provenance.
+
+The detail separates the report reason and subjects from **Case management**.
+**Mark as examined** records examination and leaves the case open;
+**Close without action** archives it without applying measures. The final
+command shows **Close as handled** without selections or **Delete selected
+and close** with selections, including the number of items to remove.
+Explanations remain visible on devices without hover. Original addresses and
+sender information can be expanded. Forms and selections also work without
+JavaScript, with explicit fallback wording for the operations.
+
 ## Finding and following a remote account
 
 Search for the full address, such as `name@domain.example`. From the remote

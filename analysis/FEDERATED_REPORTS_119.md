@@ -4,8 +4,8 @@
 **Data:** 23 ottobre 2026. **Ramo:** `issue_119`.
 **Base esaminata:** `main`, commit `d86d70b`.
 **Stato:** kickoff `c51b1ea`; sprint 1 revisionato e committato (`2e41184`).
-Sprint 2 revisionato e committato (`2ba899a`). Sprint 3 revisionato e verificato
-su SQLite, MySQL e interfaccia locale; pronto per il commit. Sprint 4–5 da avviare.
+Sprint 2 revisionato e committato (`2ba899a`). Sprint 3 revisionato e committato
+(`dc17c0a`), con prova UI locale confermata dall’utente. Sprint 4 revisionato e verificato, pronto per il commit. Sprint 5 da avviare.
 
 ## 1. Obiettivo e perimetro
 
@@ -524,6 +524,103 @@ riferimento al profilo locale e ricevuta anti-replay. L’utente ha confermato
 il corretto risultato nel pannello web. La prova parte da un inbox item simulato
 già accettato, quindi non costituisce una verifica HTTP tra istanze.
 
-Review finale dell’intero diff confermata senza anomalie bloccanti. Lo sprint 4
-completerà i provvedimenti sui soggetti federati; lo sprint 5 la conservazione
-automatica. MariaDB separato e interoperabilità online restano non verificati.
+Review finale dell’intero diff confermata senza anomalie bloccanti; i 22 test
+mirati sono stati confermati prima del commit `dc17c0a`. I provvedimenti sono
+descritti nello sprint 4 seguente; la conservazione automatica rimane allo
+sprint 5. MariaDB separato e interoperabilità online restano non verificati.
+
+
+## 12. Esito dello sprint 4 — Provvedimenti manuali
+
+### Implementazione
+
+- Il dettaglio offre la gestione degli utenti tramite la pagina staff esistente,
+  con ricerca dell’autore locale e senza sanzioni automatiche. I profili non
+  sono cancellabili dal comando dei contenuti; il caso può essere segnato come
+  gestito dopo un intervento utente, anche senza selezionare contenuti.
+- Ogni riferimento federato disponibile offre una casella esplicita, inizialmente
+  vuota. Il form esistente invia solo gli ID dei riferimenti selezionati.
+  `ReportActionManager` ricontrolla ruolo staff, stato del caso, appartenenza
+  al caso e pertinenza locale dei soggetti. Un ID di altro caso o un profilo
+  passato come contenuto invalida il comando prima di qualsiasi rimozione.
+- Caso e soggetti vengono riletti con lock in transazione. Soggetti già rimossi
+  non generano un’altra cancellazione; un caso già chiuso non ripete provvedimenti
+  né audit. Le azioni locali precedenti continuano a usare gli stessi controlli.
+- `LocalContentDeleter` estrae e condivide il normale flusso di rimozione tra
+  controller web e pannello: post, contatori dei commenti, pulizia dei commenti
+  evento e `EventComposer` per eventi. Usa i serializzatori e `ActivityDelivery`
+  esistenti, con firma dell’autore originale e senza dati del reclamo.
+- Admin e moderatori possono cancellare eventi e commenti evento anche dalle
+  normali route. L’Actor che avvia la rimozione è quello effettivo dello staff;
+  l’editing degli eventi resta riservato all’autore. Il normale cascade degli
+  eventi su commenti e allegati è esplicitato vicino alla selezione.
+- Ogni rimozione effettiva registra `report.target_deleted`, con ID del caso;
+  la chiusura usa `report.actioned` e valorizza revisore e data. Non vengono
+  inviate notifiche di segnalazione al soggetto. Guide IT/EN, traduzioni IT/EN/FI
+  e changelog aggiornati; nessuna nuova migration richiesta.
+
+### Verifiche
+
+- Nuova suite dei provvedimenti: **22 test superati, 277 asserzioni**. Coperti
+  i quattro tipi per admin e moderatore, dinieghi agli utenti ordinari, target
+  estranei/profili, cambio di pertinenza locale dopo la ricezione, soggetti già
+  rimossi, invii ripetuti, chiusura senza selezione e normali route eventi.
+  Verificati media rimossi, contenuti non selezionati conservati, audit e Delete
+  firmati dall’autore originale senza motivazione o identità del mittente.
+- Suite completa: **1.947 test superati, 125 saltati, 14.939 asserzioni**
+  (151,26 secondi), incluse le regressioni di post, commenti ed eventi.
+- MySQL: **14 test superati, 223 asserzioni** (50,23 secondi) su schemi
+  temporanei isolati. La verifica EXPLAIN delle query reali del pannello ora
+  comprende anche selezione dei riferimenti, riletture con lock e comando di
+  cancellazione; nessuna scansione completa sui dataset significativi. Non
+  sono stati necessari indici o migration aggiuntivi.
+- Browser: elenco e dettagli a 1.280 e 375 pixel, nessun overflow o errore JS;
+  verificato che il form invii soltanto la casella selezionata anche se esterna
+  al form tramite attributo `form`. Anteprime riservate prive di selezioni.
+  Schermate in `/tmp/openbook-report-review-sprint4`, dettaglio mobile ispezionato.
+- Pint e controllo whitespace superati. Review dell’intero diff conclusa senza
+  anomalie bloccanti. Documentazione IT/EN e chiavi IT/EN/FI allineate.
+
+### Stato e limiti
+
+Sprint 4 verificato manualmente dall’utente e revisionato per il commit. Nessuna
+nuova migration e nessuna modifica ai dati applicativi locali in questo sprint:
+la segnalazione simulata sul profilo rimane disponibile per provare il link
+alla gestione utenti e la chiusura manuale. La conservazione automatica resta
+allo sprint 5. MariaDB separato e interoperabilità online non verificati.
+
+
+### Affinamento UI/UX dello sprint 4
+
+Su richiesta dell’utente dopo la prova locale, ridisegnato il dettaglio:
+lettura e decisioni in due colonne desktop, impilate su mobile; motivazione
+in primo piano, metadati compatti, URI espandibili, link profilo/gestione utente
+affiancati. Eliminata la ripetizione autore/titolo sui profili. Gli stati del
+dettaglio sono singolari e distinguono l’esame dalla chiusura.
+
+I comandi ora indicano l’effetto: «Segna come esaminata», «Chiudi senza
+interventi», «Chiudi come gestita». Selezionando contenuti, l’ultimo comando
+mostra «Elimina selezionati e chiudi», diventa rosso e indica il numero di
+selezioni. Il comportamento del backend resta quello verificato nello sprint 4.
+Spiegazioni persistenti associate ai pulsanti con `aria-describedby`, suggerimenti
+`title` e stati hover/focus. Le selezioni locali sono accanto al contenuto come
+quelle federate. Nessuna casella preselezionata; fallback senza JavaScript con
+label che esplicita applicazione delle selezioni e chiusura.
+
+
+Verifica dell’affinamento: **39 test mirati superati, 5.576 asserzioni**
+(pannello locale/federato, provvedimenti e traduzioni). Browser a 375, 768, 1.024
+e 1.280 pixel, inclusa la vista italiana del profilo: nessun overflow o errore
+JavaScript; controllati etichetta/colore/conteggio dopo selezione e deselezione,
+link affiancati, descrizioni associate ai comandi e fallback senza JavaScript.
+Schermate in `/tmp/openbook-report-redesign`; ispezionati dettaglio mobile e
+profilo desktop IT/EN. Pint, sintassi JavaScript e whitespace verificati.
+La suite completa dello sprint resta quella registrata sopra; dopo questo
+ritocco di presentazione sono state rieseguite le verifiche mirate e browser.
+
+
+Review finale dello sprint 4: ricontrollati diff completo, autorizzazioni,
+privacy, selezione e idempotenza, layout, script, traduzioni e documentazione.
+Allineati i messaggi di esame/chiusura inglesi e finlandesi alla terminologia
+finale. Confermati 99 test mirati (5.916 asserzioni), Pint e whitespace;
+nessuna anomalia bloccante rimasta.

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Services\EventComposer;
+use App\Application\Services\LocalContentDeleter;
 use App\Application\Services\QuotedEventResolver;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventComment;
@@ -24,6 +25,7 @@ class EventController extends Controller
     private const CARD_RELATIONS = ['actor.user.profile', 'location', 'media.thumbnail', 'attributions.user.profile'];
 
     public function __construct(
+        private readonly LocalContentDeleter $localContentDeleter,
         private readonly RemoteEventRefresher $refresher,
         private readonly QuotedEventResolver $quotedEvents,
         private readonly EventComposer $eventComposer,
@@ -92,7 +94,7 @@ class EventController extends Controller
     public function destroy(Event $event): RedirectResponse
     {
         Gate::authorize('delete', $event);
-        $this->eventComposer->delete(auth()->user()->actor, $event);
+        $this->localContentDeleter->delete(auth()->user()->actor, $event);
 
         return redirect()->route('events.index')
             ->with('status', __('openbook.events.deleted'));

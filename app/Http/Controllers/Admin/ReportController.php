@@ -3,25 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Application\Queries\ReportModerationQuery;
-use App\Application\Services\CommentSoftDeleter;
+use App\Application\Services\ReportActionManager;
 use App\Application\Services\ReportManager;
-use App\Domain\Comments\Comment;
 use App\Domain\Moderation\Report;
-use App\Domain\Posts\Post;
-use App\Federation\Delivery\ActivityDelivery;
-use App\Federation\Serialization\ActivitySerializer;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
     public function __construct(
         private readonly ReportManager $reportManager,
-        private readonly ActivityDelivery $delivery,
-        private readonly CommentSoftDeleter $commentSoftDeleter,
+        private readonly ReportActionManager $actions,
         private readonly ReportModerationQuery $reports,
     ) {}
 
@@ -72,63 +66,17 @@ class ReportController extends Controller
 
     public function action(Request $request, Report $report): RedirectResponse
     {
-        $report->loadMissing([
-            'post.actor',
-            'post.mentions.actor',
-            'comment.actor',
-            'comment.mentions.actor',
-            'comment.post.actor',
-            'comment.parent.actor',
+        $data = $request->validate([
+            'targets' => ['sometimes', 'array'],
+            'targets.*' => ['required', 'uuid', 'distinct'],
+            'delete_post' => ['sometimes', 'boolean'],
+            'delete_comment' => ['sometimes', 'boolean'],
         ]);
-
-        if ($request->boolean('delete_post') && $report->post) {
-            $this->softDeleteLocalPost($report->post);
-        }
-
-        if ($request->boolean('delete_comment') && $report->comment) {
-            $this->softDeleteLocalComment($report->comment);
-        }
-
-        $this->reportManager->markActioned($report, auth()->user());
+        $this->actions->action(
+            $report, $request->user(), $data['targets'] ?? [],
+            $request->boolean('delete_post'), $request->boolean('delete_comment'),
+        );
 
         return back()->with('status', __('openbook.admin.reports.marked_actioned'));
-    }
-
-    private function softDeleteLocalPost(Post $post): void
-    {
-        if ($post->isRemote() || ! $post->isPublished() || ! auth()->user()->canModerate()) {
-            return;
-        }
-
-        $isLocalAuthor = $post->actor->isLocal();
-        DB::transaction(fn () => $post->update([
-            'title' => null,
-            'content_warning' => null,
-            'body' => '',
-            'status' => Post::STATUS_DELETED,
-        ]));
-        $post->location()->delete();
-
-        if ($isLocalAuthor) {
-            $post->load('mentions.actor', 'actor');
-            $this->delivery->deliverContent($post, ActivitySerializer::delete($post));
-        }
-    }
-
-    private function softDeleteLocalComment(Comment $comment): void
-    {
-        if ($comment->isRemote() || $comment->status !== Comment::STATUS_PUBLISHED || ! auth()->user()->canModerate()) {
-            return;
-        }
-
-        $comment->loadMissing('mentions.actor', 'actor', 'post', 'parent.actor');
-        $isLocalAuthor = $comment->actor->isLocal();
-
-        $this->commentSoftDeleter->delete($comment);
-
-        if ($isLocalAuthor) {
-            $repliedToAuthor = $comment->parent?->actor ?? $comment->post->actor;
-            $this->delivery->deliverContent($comment, ActivitySerializer::delete($comment), [$repliedToAuthor]);
-        }
     }
 }
