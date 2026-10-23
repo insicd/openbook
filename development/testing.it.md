@@ -2,6 +2,18 @@
 
 ## Test
 
+Ricezione delle segnalazioni federate (#119, sprint 2):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Federation/FlagInboxTest.php tests/Feature/Moderation/FederatedReportPersistenceTest.php tests/Feature/Federation/InboxSignatureTest.php tests/Feature/Federation/InboxActivityProcessorTest.php tests/Feature/Federation/EventInboxActivityTest.php
+```
+
+I test attraversano inbox firmata, job e persistenza per i cinque tipi;
+coprono contenuti mancanti, privacy, riconsegne dopo pulizia, firme non valide,
+blocchi e i normali inoltri via firma Linked Data/relay o refetch dall'origine.
+Il test MySQL sotto verifica anche gli indici delle query reali dei resolver,
+motivazioni oltre 64 KiB e rollback dell'estensione LONGTEXT.
+
 Persistenza delle segnalazioni federate (#119, sprint 1):
 
 ```bash
@@ -17,11 +29,11 @@ riconsegne dopo cancellazione del caso, FK, concorrenza tra due processi e
 EXPLAIN delle query per ricevuta e riferimenti. La fixture `Reports/flag.json`
 è illustrativa, non acquisita da un server reale.
 
-Questo sprint prepara la persistenza: l'inbox non elabora ancora Flag e la UI
-non è ancora estesa. La migration `2026_10_23_000000_extend_reports_for_federation`
+Lo sprint 1 prepara la persistenza; lo sprint 2 aggiunge la ricezione descritta
+sopra. La UI non è ancora estesa. La migration `2026_10_23_000000_extend_reports_for_federation`
 preserva i casi locali; il suo rollback elimina i casi federati e le ricevute
-prima di ripristinare il reporter locale obbligatorio. L'integrazione inbox,
-la manutenzione e l'interoperabilità online appartengono agli sprint successivi.
+prima di ripristinare il reporter locale obbligatorio. La manutenzione e la
+verifica di interoperabilità online appartengono agli sprint successivi.
 
 Statistiche dell’istanza:
 

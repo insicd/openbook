@@ -6,6 +6,21 @@ Federation lets an Openbook account follow and interact with accounts on other
 ActivityPub-compatible servers. Each server has its own rules, processing times
 and available features.
 
+## Incoming federated reports (#119)
+
+Openbook receives `Flag` reports through its ordinary ActivityPub inboxes,
+with the same authenticity checks as other activities. Reports may concern
+local people and their posts, comments, events and event comments.
+The recorded sender is the remote server's authenticated Actor, which does
+not necessarily identify the person who originally submitted the report.
+
+A Flag creates a case restricted to moderation; redelivery does not duplicate
+it. Unavailable local content is recorded as already handled positively.
+Reception neither notifies the reported person nor applies sanctions or changes
+content visibility. Sending reports to other servers and synchronising outcomes
+are excluded. Sprint 2 implements reception and persistence; the complete
+moderation-panel detail will be available with sprint 3.
+
 ## Finding and following a remote account
 
 Search for the full address, such as `name@domain.example`. From the remote

@@ -3,8 +3,12 @@
 namespace Tests\Feature\Moderation;
 
 use App\Domain\Moderation\Report;
+use App\Federation\Resolution\ObjectResolver;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\Concerns\TestsFederatedReportPersistence;
 use Tests\TestCase;
@@ -124,5 +128,58 @@ class FederatedReportMysqlPersistenceTest extends TestCase
             $this->assertSame($index, $plan[0]->key, $query->toSql());
             $this->assertNotSame('ALL', $plan[0]->type);
         }
+    }
+
+    public function test_local_reference_resolution_uses_indexes_for_every_type(): void
+    {
+        [$sender, $targets] = $this->reportFixture();
+        $actors = [];
+        for ($i = 0; $i < 1000; $i++) {
+            $actors[] = ['id' => (string) Str::uuid(), 'is_local' => false, 'type' => 'person',
+                'preferred_username' => 'seed'.$i, 'domain' => 'seed.example',
+                'uri' => 'https://seed.example/users/seed'.$i, 'status' => 'active'];
+        }
+        foreach (array_chunk($actors, 100) as $chunk) {
+            DB::table('actors')->insert($chunk);
+        }
+
+        $queries = [];
+        DB::listen(function (QueryExecuted $query) use (&$queries): void {
+            if (str_starts_with($query->sql, 'select')) {
+                $queries[] = [$query->sql, $query->bindings];
+            }
+        });
+        $resolver = app(ObjectResolver::class);
+        foreach ($targets as $target) {
+            $reference = $resolver->resolveLocalReference($target['uri']);
+            $this->assertSame($target['type'], $reference['type']);
+            $this->assertTrue($reference['subject']->is($target['subject']));
+        }
+        $this->assertCount(5, $queries);
+        foreach ($queries as [$sql, $bindings]) {
+            $plan = DB::select('EXPLAIN FORMAT=TRADITIONAL '.$sql, $bindings);
+            $this->assertNotNull($plan[0]->key, $sql);
+            $this->assertNotSame('ALL', $plan[0]->type, $sql);
+        }
+    }
+
+    public function test_details_migration_round_trip_does_not_silently_truncate_long_reports(): void
+    {
+        [$sender, $targets] = $this->reportFixture();
+        $details = str_repeat('é', 40000);
+        $report = $this->storeReport($sender, $targets, details: $details);
+        $migration = require database_path('migrations/2026_10_23_000001_widen_report_details.php');
+        try {
+            $migration->down();
+            $this->fail('Narrowing must not silently discard a federated motivation.');
+        } catch (QueryException) {
+            $this->assertSame($details, $report->fresh()->details);
+        }
+        $report->update(['details' => 'Short reason']);
+        $migration->down();
+        $this->assertSame('text', collect(Schema::getColumns('reports'))->firstWhere('name', 'details')['type_name']);
+        $migration->up();
+        $this->assertSame('longtext', collect(Schema::getColumns('reports'))->firstWhere('name', 'details')['type_name']);
+        $this->assertSame('Short reason', $report->fresh()->details);
     }
 }

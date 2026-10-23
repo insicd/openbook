@@ -6,6 +6,22 @@ La federazione permette a un account Openbook di seguire e interagire con
 account di altri server compatibili con ActivityPub. Ogni server conserva le
 proprie regole, tempi di elaborazione e funzioni disponibili.
 
+## Segnalazioni federate in ingresso (#119)
+
+Openbook riceve le segnalazioni `Flag` tramite le inbox ActivityPub ordinarie,
+con le stesse verifiche di autenticità delle altre attività. Possono riguardare
+persone locali e i loro post, commenti, eventi e commenti degli eventi.
+Il mittente registrato è l'Actor autenticato del server remoto, non necessariamente
+la persona che ha presentato il reclamo.
+
+Un Flag genera un caso riservato alla moderazione; una riconsegna non lo duplica.
+I contenuti locali non più disponibili vengono registrati come già gestiti
+positivamente. La ricezione non notifica il segnalato, non applica sanzioni e
+non cambia la visibilità dei contenuti. L'invio di segnalazioni ad altri server
+e la sincronizzazione degli esiti sono esclusi. Lo sprint 2 implementa la
+ricezione e la registrazione; il dettaglio completo nel pannello di moderazione
+sarà disponibile con lo sprint 3.
+
 ## Trovare e seguire un account remoto
 
 Cerca l’indirizzo completo, per esempio `nome@dominio.example`. Dal profilo

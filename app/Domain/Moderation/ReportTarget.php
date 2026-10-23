@@ -37,6 +37,14 @@ class ReportTarget extends Model
         return ['unavailable' => 'boolean'];
     }
 
+    public static function isLocalPersonSubject(Actor|Post|Comment|Event|EventComment $subject): bool
+    {
+        $actor = $subject instanceof Actor ? $subject : $subject->actor;
+
+        return $actor !== null && $actor->isLocal() && $actor->isPerson()
+            && ($subject instanceof Actor || ! $subject->isRemote());
+    }
+
     public function report(): BelongsTo
     {
         return $this->belongsTo(Report::class);

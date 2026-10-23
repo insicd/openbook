@@ -2,6 +2,18 @@
 
 ## Tests
 
+Incoming federated reports (#119, sprint 2):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Federation/FlagInboxTest.php tests/Feature/Moderation/FederatedReportPersistenceTest.php tests/Feature/Federation/InboxSignatureTest.php tests/Feature/Federation/InboxActivityProcessorTest.php tests/Feature/Federation/EventInboxActivityTest.php
+```
+
+Tests cover the signed inbox, job and persistence for all five types, including
+missing content, privacy, redelivery after cleanup, invalid signatures, blocks
+and ordinary forwarding through Linked Data signatures/relays or origin refetch.
+The MySQL test below also checks actual resolver query plans, motivations over
+64 KiB and rollback of the LONGTEXT extension.
+
 Federated report persistence (#119, sprint 1):
 
 ```bash
@@ -17,11 +29,11 @@ redelivery after case deletion, foreign keys, two-process concurrency and
 EXPLAIN for receipt and target queries. `Reports/flag.json` is an illustrative
 fixture, not captured from a live server.
 
-This sprint prepares persistence: the inbox does not process Flag yet and the
-UI has not been extended. Migration `2026_10_23_000000_extend_reports_for_federation`
+Sprint 1 prepares persistence; sprint 2 adds the reception described above.
+The UI has not been extended. Migration `2026_10_23_000000_extend_reports_for_federation`
 preserves local cases; rolling it back deletes federated cases and receipts
-before restoring the mandatory local reporter. Inbox integration, maintenance
-and live interoperability belong to subsequent sprints.
+before restoring the mandatory local reporter. Maintenance and live
+interoperability verification belong to subsequent sprints.
 
 Instance statistics:
 

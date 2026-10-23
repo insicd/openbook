@@ -69,6 +69,43 @@ final class ObjectResolver
         return $this->remoteActorResolver->resolveByUri($uri);
     }
 
+    /**
+     * Resolve a local reference, preserving its type even after content removal.
+     * Unlike interaction targets, moderation references also include inactive actors.
+     *
+     * @return array{type: string, subject: Actor|Post|Comment|Event|EventComment|null}|null
+     */
+    public function resolveLocalReference(string $uri): ?array
+    {
+        $uri = ActivityPubUri::normalize($uri);
+        $username = $this->localActorUsernameFromUri($uri);
+        if ($username !== null) {
+            return [
+                'type' => (new Actor)->getMorphClass(),
+                'subject' => Actor::query()->where('is_local', true)->where('preferred_username', $username)->first(),
+            ];
+        }
+
+        foreach (['posts' => Post::class, 'comments' => Comment::class,
+            'eventi' => Event::class, 'event-comments' => EventComment::class] as $segment => $class) {
+            if ($this->localPathSegment($uri, $segment) === null) {
+                continue;
+            }
+
+            return [
+                'type' => (new $class)->getMorphClass(),
+                'subject' => match ($class) {
+                    Post::class => $this->resolvePost($uri),
+                    Comment::class => $this->resolveComment($uri),
+                    Event::class => $this->resolveEvent($uri),
+                    EventComment::class => $this->resolveEventComment($uri),
+                },
+            ];
+        }
+
+        return null;
+    }
+
     private function localFeedActorFromUri(string $uri): ?Actor
     {
         $host = parse_url($uri, PHP_URL_HOST);

@@ -3,8 +3,8 @@
 **Issue:** [#119 — Ricevere e gestire segnalazioni federate sui soggetti locali](https://github.com/insicd/openbook/issues/119).
 **Data:** 23 ottobre 2026. **Ramo:** `issue_119`.
 **Base esaminata:** `main`, commit `d86d70b`.
-**Stato:** kickoff revisionato e committato (`c51b1ea`); sprint 1 implementato
-e verificato su SQLite e MySQL. Sprint 2–5 da avviare.
+**Stato:** kickoff `c51b1ea`; sprint 1 revisionato e committato (`2e41184`).
+Sprint 2 implementato e verificato su SQLite e MySQL. Sprint 3–5 da avviare.
 
 ## 1. Obiettivo e perimetro
 
@@ -396,3 +396,64 @@ La ricevuta è già predisposta per la futura pulizia, ma conservazione automati
 inbox Flag, UI e provvedimenti restano agli sprint successivi. Nessuna prova
 di interoperabilità online eseguita. Nessuna release note di supporto Flag:
 questa fase introduce soltanto le basi interne della funzionalità.
+
+## 10. Esito dello sprint 2 — Ricezione Flag
+
+### Implementazione
+
+- Aggiunto `Flag` al dispatch ordinario di `InboxActivityProcessor`, con metodo
+  privato che legge i riferimenti e delega a `ReportManager::recordFederated()`.
+  Nessuna modifica a controller inbox, verifica firme, inoltri, relay o job.
+- `ObjectResolver::resolveLocalReference()` riusa percorsi, normalizzazione e
+  resolver esistenti, restituendo anche il tipo di un contenuto locale mancante.
+  La ricerca dei profili include persone locali sospese, senza cambiare la
+  risoluzione ordinaria degli Actor usata dalle altre attività.
+- La pertinenza ai soggetti locali è condivisa da processor e persistenza
+  attraverso `ReportTarget::isLocalPersonSubject()`. Gli oggetti incorporati
+  forniscono soltanto l'ID; non aggiornano autore o corpo dei contenuti.
+- URI singolo, liste e oggetti con `id` sono supportati. I riferimenti esterni,
+  le community e i contenuti remoti in cache sono esclusi; i riferimenti locali
+  validi della stessa lista rimangono elaborabili. Una lista senza soggetti
+  pertinenti segue il normale esito inbox `ignored`.
+- I contenuti mancanti o cancellati, i casi misti e i profili soli seguono le
+  decisioni del kickoff. La ricezione non cambia visibilità, non genera notifiche
+  al segnalato, provvedimenti o attività federate di riscontro.
+- La motivazione passa nel normale `RemoteContentSanitizer`. Una migration
+  incrementale porta `reports.details` da TEXT a LONGTEXT: il testo ammesso
+  dall'inbox può superare 64 KiB e non deve essere troncato o limitato dal form
+  locale. Su MySQL il rollback a TEXT con testi troppo grandi fallisce in modalità
+  strict, senza perdere dati; con testi compatibili il rollback è verificato.
+- Aggiornati changelog, guide di federazione e test IT/EN, distinguendo la
+  ricezione disponibile dal dettaglio completo del pannello previsto nello sprint 3.
+
+### Verifiche eseguite
+
+- 113 test mirati, 630 asserzioni: tutti superati. Comprendono la nuova suite
+  `FlagInboxTest`, persistenza e regressioni di firme, processor ed eventi.
+- Il percorso verificato parte da una richiesta HTTP firmata all'inbox personale
+  o condivisa, passa dal normale job e termina nel caso persistito con tutti
+  e cinque i tipi. Coperti motivazione HTML, profilo sospeso, privacy, autori
+  distinti, oggetti incorporati, contenuti mancanti e riconsegne dopo pulizia.
+- Verificati i normali rifiuti per firma non valida e dominio bloccato, oltre
+  all'accettazione tramite relay/firma Linked Data e refetch autenticato
+  dall'origine. Il caso registra l'Actor autenticato e il testo recuperato,
+  non un'identità o motivazione attribuita dal trasportatore.
+- MySQL: 12 test, 141 asserzioni, più un test dedicato di rollback LONGTEXT
+  con 4 asserzioni; tutti superati su schemi temporanei isolati. Le motivazioni
+  UTF-8 da 80.000 byte sono conservate integralmente.
+- EXPLAIN delle cinque query realmente emesse dal resolver, con 1.002 Actor
+  nella fixture: ciascuna usa un indice e nessuna usa scansione `ALL`. Restano
+  verdi i controlli su ricevute e riferimenti, migration e concorrenza dello sprint 1.
+- Suite completa: **1.917 test superati, 124 saltati, 14.463 asserzioni**
+  (148,06 secondi). I 13 test MySQL opzionali sono stati verificati separatamente
+  nelle due esecuzioni riportate sopra, per un totale di 145 asserzioni.
+- Review dell'intero diff, Pint e controllo whitespace superati. Nessuna
+  anomalia bloccante emersa. Review finale prima del commit: confermati
+  21 test di ricezione/persistenza (192 asserzioni), Pint e controllo del diff.
+
+### Limiti e lavoro successivo
+
+Il pannello federato completo rimane allo sprint 3,
+i provvedimenti allo sprint 4 e la pulizia automatica allo sprint 5.
+Nessuna verifica su un server MariaDB separato o tra istanze online; i test HTTP
+usano firme reali e risposte remote simulate, non attestano interoperabilità live.

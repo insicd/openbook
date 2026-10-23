@@ -174,12 +174,8 @@ final class ReportManager
         if ($target['uri'] === '' || ($subject !== null && (! $subject instanceof $class || ! $subject->exists))) {
             throw new InvalidArgumentException('Riferimento di segnalazione non valido.');
         }
-        if ($subject !== null) {
-            $actor = $subject instanceof Actor ? $subject : $subject->actor;
-            if ($actor === null || ! $actor->isLocal() || ! $actor->isPerson()
-                || (! $subject instanceof Actor && $subject->isRemote())) {
-                throw new InvalidArgumentException('Il soggetto deve appartenere a una persona locale.');
-            }
+        if ($subject !== null && ! ReportTarget::isLocalPersonSubject($subject)) {
+            throw new InvalidArgumentException('Il soggetto deve appartenere a una persona locale.');
         }
 
         return [

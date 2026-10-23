@@ -2,6 +2,27 @@
 
 # Federation
 
+## Incoming Flag (#119, sprint 2)
+
+`InboxActivityProcessor` handles `Flag` in its existing dispatch and delegates
+persistence to `ReportManager::recordFederated()`. Inboxes, HTTP/Linked Data
+signatures, refetch, forwarding, relays, blocks and jobs retain their ordinary
+behaviour. `ObjectResolver::resolveLocalReference()` uses the shared resolvers
+and local paths while retaining the type of missing content. It includes
+inactive local Actors to allow reports about suspended people; communities
+and cached remote content do not become local subjects.
+
+Single objects, lists and embedded objects with an `id` are accepted. The
+`content` text uses the ordinary `RemoteContentSanitizer`; embedded subject data
+does not update local content. No new acknowledgement activities or automatic
+sanctions are generated. HTTP 202 acknowledges reception.
+
+Apply the sprint 1 migrations and `2026_10_23_000001_widen_report_details`:
+the motivation field becomes LONGTEXT to accommodate inbox-accepted text without
+imposing the local form's limit. On MySQL/MariaDB, reverting to TEXT requires
+motivations to fit its capacity; strict mode prevents silent truncation.
+The complete federated UI and automatic cleanup remain in sprints 3 and 5.
+
 ### Federation (Phase 3)
 
 Every local Actor is now reachable from the Fediverse through the standard

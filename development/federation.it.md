@@ -2,6 +2,28 @@
 
 # Federazione
 
+## Ricezione Flag (#119, sprint 2)
+
+`InboxActivityProcessor` gestisce `Flag` nel dispatch esistente, delegando la
+persistenza a `ReportManager::recordFederated()`. Inbox, firme HTTP/Linked Data,
+refetch, inoltri, relay, blocchi e job mantengono il comportamento ordinario.
+`ObjectResolver::resolveLocalReference()` usa i resolver e i percorsi locali
+comuni, conservando il tipo dei contenuti mancanti. Include Actor locali non
+attivi per consentire segnalazioni su persone sospese; community e contenuti
+remoti in cache non diventano soggetti locali.
+
+Oggetto singolo, lista e oggetto incorporato con `id` sono accettati. Il testo
+di `content` passa nel normale `RemoteContentSanitizer`; i dati incorporati dei
+soggetti non aggiornano i contenuti locali. Non vengono inviate nuove attività
+di riscontro o applicati provvedimenti automatici. Il 202 conferma la ricezione.
+
+Applicare le migration dello sprint 1 e
+`2026_10_23_000001_widen_report_details`: il campo motivazione diventa LONGTEXT
+per accogliere i testi ammessi dall'inbox senza imporre il limite del form locale.
+Su MySQL/MariaDB il rollback a TEXT richiede motivazioni entro la sua capacità;
+la modalità strict impedisce il troncamento silenzioso. La UI federata completa
+e la pulizia automatica rimangono agli sprint 3 e 5.
+
 ### Federazione (Fase 3)
 
 Ogni Actor locale e' ora raggiungibile dal Fediverso tramite gli endpoint standard di

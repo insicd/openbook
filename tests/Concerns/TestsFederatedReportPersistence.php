@@ -29,8 +29,11 @@ trait TestsFederatedReportPersistence
             'body' => 'Comment', 'status' => 'published']);
         $event = Event::query()->create(['actor_id' => $author->id, 'uri' => 'https://openbook.test/eventi/example',
             'name' => 'Event', 'start_at' => now()->addDay(), 'visibility' => 'public', 'status' => 'scheduled']);
+        $event->update(['uri' => route('events.show', $event)]);
         $eventComment = EventComment::query()->create(['event_id' => $event->id, 'actor_id' => $author->id,
             'uri' => 'https://openbook.test/event-comments/example', 'body' => 'Event comment', 'status' => 'published']);
+
+        $eventComment->update(['uri' => route('event-comments.show', $eventComment)]);
 
         $targets = [
             ['type' => ReportTarget::TYPE_ACTOR, 'uri' => $author->uri, 'subject' => $author],
@@ -120,6 +123,14 @@ trait TestsFederatedReportPersistence
         $this->assertSame(Report::STATUS_OPEN, $mixed->status);
         $this->assertNull($mixed->closed_at);
         $this->assertDatabaseCount('audit_logs', 0);
+    }
+
+    public function test_federated_motivation_is_not_truncated_to_the_local_form_or_mysql_text_limit(): void
+    {
+        [$sender, $targets] = $this->reportFixture();
+        $details = str_repeat('é', 40000);
+        $report = $this->storeReport($sender, $targets, details: $details);
+        $this->assertSame($details, $report->fresh()->details);
     }
 
     public function test_deleting_subjects_or_the_sender_preserves_the_case_and_uris(): void
