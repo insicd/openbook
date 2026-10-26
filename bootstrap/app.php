@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureApplicationIsInstalled;
 use App\Http\Middleware\EnsureStaff;
+use App\Http\Middleware\RestPersonRequest;
 use App\Http\Middleware\SetUserLocale;
 use App\Infrastructure\Database\TransientConnectionHandler;
 use App\Support\UserDate;
@@ -27,6 +28,13 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::group([], base_path('routes/activitypub.php'));
 
             Route::group([], base_path('routes/cron.php'));
+
+            // The unauthenticated REST prototype must not be exposed by production instances.
+            if (app()->environment('local', 'testing')) {
+                Route::prefix('rest/v1')
+                    ->middleware([RestPersonRequest::class, 'throttle:60,1'])
+                    ->group(base_path('routes/rest.php'));
+            }
         },
     )
     ->withMiddleware(function (Middleware $middleware) {

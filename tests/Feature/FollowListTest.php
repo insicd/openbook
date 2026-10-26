@@ -213,6 +213,24 @@ class FollowListTest extends TestCase
             ->assertSee('#interesseprivato');
     }
 
+    public function test_mixed_following_excludes_pending_actors(): void
+    {
+        $owner = $this->createFullAccount('mixedpendingowner');
+        $accepted = $this->createFullAccount('mixedaccepted');
+        $pending = $this->createFullAccount('mixedpending');
+        $pending->actor->update(['manually_approves_followers' => true]);
+        app(FollowManager::class)->follow($owner->actor, $accepted->actor);
+        app(FollowManager::class)->follow($owner->actor, $pending->actor);
+        $hashtag = Hashtag::query()->create(['name' => 'mixedtag']);
+        $owner->actor->followedHashtags()->attach($hashtag->id);
+
+        $response = $this->actingAs($owner)->get(route('profile.following', $owner));
+
+        $response->assertOk()->assertSee('mixedaccepted')->assertSee('#mixedtag');
+        $response->assertViewHas('items', fn ($items) => $items->total() === 2
+            && ! $items->getCollection()->contains('id', $pending->actor->id));
+    }
+
     public function test_mixed_following_items_are_paginated_after_chronological_ordering(): void
     {
         config(['openbook.feed.per_page' => 2]);

@@ -19,6 +19,12 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Prototipo REST locale**: prima lettura `GET /rest/v1/persons/{personId}`,
+  senza autenticazione e disponibile solo in ambiente local/testing. Risposta
+  Person e liste followers/following paginate di PersonReference, errori Problem
+  Details ed ETag, senza fetch remoti o nuove migration.
+  Autenticazione, CORS e Last-Modified restano esclusi da questo primo giro;
+  i profili locali sospesi non sono ancora esposti. Aggiornare la cache delle route.
 - **Segnalazioni federate (#119)**: le attività `Flag`
   vengono elaborate dall'inbox ActivityPub ordinaria e registrate come casi di
   moderazione su persone e contenuti locali, con riferimenti multipli e

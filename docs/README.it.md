@@ -11,6 +11,7 @@ Guide per usare Openbook e amministrare un’istanza, divise per argomento.
 | Uso, profili, sondaggi, Mondo e Stats | [`architecture.it.md`](architecture.it.md) |
 | Federazione, community, eventi | [`federation.it.md`](federation.it.md) |
 | Sicurezza e privacy | [`security.it.md`](security.it.md) |
+| Bozza API REST e prototipo locale Person | [`api/README.it.md`](api/README.it.md) |
 | Roadmap e limitazioni note | [`roadmap.it.md`](roadmap.it.md) |
 
 Lo storico delle versioni resta in [`CHANGELOG.md`](../CHANGELOG.md).
