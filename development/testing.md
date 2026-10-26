@@ -112,6 +112,12 @@ remote resolution and ordinary delivery jobs. The optional MySQL test creates
 an isolated schema using the `OPENBOOK_TEST_MYSQL_*` settings below. It checks
 EXPLAIN for the first and subsequent export pages and known-account lookup,
 and exports more than one page without changing the application database.
+The export checks capture the actual three page queries, including the cursor,
+require a covering `follows_export_index` without filesort or full table scans,
+and verify exact exported accounts and pending-follow exclusion. The index
+migration is rolled back and reapplied on both SQLite and MySQL without
+changing follow data or the export. Apply `2026_10_24_000000_add_follow_export_index`
+when updating an instance.
 
 Account departures (#117):
 
@@ -256,6 +262,9 @@ installed browser on the development machine; these are not application or
 hosting requirements. `BROWSER_TYPE` (default `chromium`) and
 `BROWSER_EXECUTABLE_PATH` can select an existing browser. This check complements
 PHPUnit and does not replace a test on an actual iOS installed web app.
+The post-back browser check waits for `hashchange` state processing rather than
+just the URL change, then verifies session/history agreement after back and
+forward, refresh, and return to the list.
 
 For the profile editor, `node tests/Browser/profile-fields.cjs` checks the
 production Blade partial, JS and CSS with legacy values, add/remove buttons,

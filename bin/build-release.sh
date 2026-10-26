@@ -119,7 +119,7 @@ cat > "$DIST_DIR/latest.json" <<EOF
 {
   "schema_version": 1,
   "version": "$VERSION",
-  "min_php": "8.2.0",
+  "min_php": "8.4.1",
   "released_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "download_url": "https://about.openb.app/releases/openbook-$VERSION.zip",
   "sha256": "$SHA",

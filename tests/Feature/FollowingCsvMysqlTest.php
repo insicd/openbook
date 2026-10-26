@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Application\Services\FollowingCsvService;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -47,6 +48,12 @@ class FollowingCsvMysqlTest extends TestCase
                         'following_id' => $id, 'status' => 'accepted', 'requested_at' => now(), 'accepted_at' => now()];
                 }
             }
+            $pendingId = (string) Str::uuid();
+            $actors[] = ['id' => $pendingId, 'type' => 'person', 'is_local' => false,
+                'preferred_username' => 'pending', 'domain' => 'remote.example',
+                'uri' => 'https://remote.example/users/pending', 'status' => 'active'];
+            $follows[] = ['id' => (string) Str::uuid(), 'follower_id' => $owner->actor->id,
+                'following_id' => $pendingId, 'status' => 'pending', 'requested_at' => now(), 'accepted_at' => null];
             foreach (array_chunk($actors, 200) as $rows) {
                 Actor::query()->insert($rows);
             }
@@ -54,27 +61,47 @@ class FollowingCsvMysqlTest extends TestCase
                 Follow::query()->insert($rows);
             }
             DB::statement('ANALYZE TABLE follows, actors');
-            $base = app(FollowingCsvService::class)->exportQuery($owner);
-            foreach ([null, (clone $base)->orderBy('following_id')->limit(500)->pluck('following_id')->last()] as $cursor) {
-                $query = clone $base;
-                if ($cursor !== null) {
-                    $query->where('following_id', '>', $cursor);
+            $pageQueries = [];
+            DB::listen(function (QueryExecuted $query) use (&$pageQueries): void {
+                if (str_starts_with($query->sql, 'select ') && str_contains($query->sql, 'from `follows`')) {
+                    $pageQueries[] = [$query->sql, $query->bindings];
                 }
-                $query->orderBy('following_id')->limit(500);
-                $plan = DB::select('EXPLAIN FORMAT=TRADITIONAL '.$query->toSql(), $query->getBindings());
-                $this->assertSame('follows_follower_id_following_id_unique', $plan[0]->key, json_encode($plan));
+            });
+            $export = function () use ($owner): array {
+                $stream = fopen('php://temp', 'w+');
+                try {
+                    app(FollowingCsvService::class)->writeExport($owner, $stream);
+                    rewind($stream);
+
+                    return array_map('str_getcsv', array_filter(explode("\n", stream_get_contents($stream))));
+                } finally {
+                    fclose($stream);
+                }
+            };
+            $exported = $export();
+            $rows = $exported;
+            $this->assertSame(['Account address'], array_shift($rows));
+            $expected = array_map(fn (int $i) => 'csv'.$i.'@remote.example', range(0, 1199));
+            $this->assertEqualsCanonicalizing($expected, array_column($rows, 0));
+            $this->assertCount(3, $pageQueries);
+            foreach ($pageQueries as [$sql, $bindings]) {
+                $plan = DB::select('EXPLAIN FORMAT=TRADITIONAL '.$sql, $bindings);
+                $this->assertSame('follows_export_index', $plan[0]->key, json_encode($plan));
                 $this->assertNotSame('ALL', $plan[0]->type);
+                $this->assertContains('Using index', array_map('trim', explode(';', $plan[0]->Extra ?? '')));
                 $this->assertStringNotContainsString('filesort', strtolower($plan[0]->Extra ?? ''));
             }
             $query = Actor::query()->where('preferred_username', 'csv0')->where('domain', 'remote.example')->where('is_local', false);
             $plan = DB::select('EXPLAIN FORMAT=TRADITIONAL '.$query->toSql(), $query->getBindings());
             $this->assertNotNull($plan[0]->key);
             $this->assertNotSame('ALL', $plan[0]->type);
-            $stream = fopen('php://temp', 'w+');
-            app(FollowingCsvService::class)->writeExport($owner, $stream);
-            rewind($stream);
-            $this->assertSame(1201, count(array_filter(explode("\n", stream_get_contents($stream)))));
-            fclose($stream);
+            $migration = require database_path('migrations/2026_10_24_000000_add_follow_export_index.php');
+            $migration->down();
+            $this->assertFalse(DB::getSchemaBuilder()->hasIndex('follows', 'follows_export_index'));
+            $this->assertSame($exported, $export());
+            $migration->up();
+            $this->assertTrue(DB::getSchemaBuilder()->hasIndex('follows', 'follows_export_index'));
+            $this->assertSame($exported, $export());
         } finally {
             DB::purge('csv_test');
             config(['database.default' => 'sqlite']);

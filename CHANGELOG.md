@@ -275,6 +275,13 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Requisiti PHP e dipendenze**: requisito minimo allineato a PHP **8.4.1**
+  in Composer, installer e distribuzione; documentazione di installazione
+  aggiornata. La piattaforma Composer è fissata a 8.4.1 per mantenere il lock
+  compatibile con il minimo supportato anche durante gli aggiornamenti su
+  versioni PHP successive. Aggiornate tutte le dipendenze Composer entro le
+  major esistenti, incluso Laravel **12.70.1**, con le relative correzioni di
+  sicurezza.
 - **Registrazione e primi passi (#103)**: selettore della lingua condiviso tra
   pagine pubbliche e applicazione autenticata. La scelta è ricordata nel browser
   per un anno, aggiorna la preferenza dell'account dopo l'accesso ed è ereditata
@@ -343,6 +350,13 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Esportazione CSV dei seguiti**: lettura dei soli campi necessari e nuovo
+  indice per proprietario, stato e destinazione, per evitare scansioni complete
+  e ordinamenti aggiuntivi durante l’esportazione paginata. Applicare la
+  migration `2026_10_24_000000_add_follow_export_index`.
+- **Ritorno dal dettaglio post**: lo stato salvato in sessione viene riallineato
+  passando avanti o indietro tra le ancore, mantenendo coerente il ritorno alla
+  lista anche dopo un aggiornamento della pagina.
 - **Statistiche di pubblicazioni e autori**: su MySQL la query condivisa usa
   l'indice temporale esistente, riducendo il costo della scansione dello storico.
 - **Statistiche degli allegati**: su MySQL la query privilegia gli allegati

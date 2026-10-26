@@ -112,6 +112,12 @@ risoluzione remota e normali job di consegna. Il test MySQL opzionale crea uno
 schema isolato con i parametri `OPENBOOK_TEST_MYSQL_*` descritti sotto. Controlla
 EXPLAIN della prima pagina di export, delle successive e della ricerca di account
 conosciuti, ed esporta più pagine senza modificare il database dell’applicazione.
+Le verifiche catturano le tre query reali delle pagine, incluso il cursore, e
+richiedono la lettura coperta da `follows_export_index`, senza filesort né
+scansioni complete. Verificano gli account esportati e l’esclusione dei follow
+pendenti. Rollback e riapplicazione dell’indice sono coperti su SQLite e MySQL,
+senza perdere follow o alterare l’export. Per aggiornare un’istanza applicare
+`2026_10_24_000000_add_follow_export_index`.
 
 Partenza degli account (#117):
 
@@ -257,6 +263,9 @@ installato sulla macchina di sviluppo; non sono requisiti dell'applicazione
 o dell'hosting. `BROWSER_TYPE` (default `chromium`) e `BROWSER_EXECUTABLE_PATH`
 permettono di scegliere un browser esistente. La verifica integra PHPUnit e
 non sostituisce una prova della web app installata su un dispositivo iOS reale.
+Il test browser del ritorno dal post attende l’elaborazione di `hashchange`,
+oltre al cambio URL, e confronta sessione e cronologia dopo avanti, indietro,
+refresh e ritorno alla lista.
 
 Per l’editor del profilo, `node tests/Browser/profile-fields.cjs` verifica il
 partial Blade, JS e CSS di produzione con valori preesistenti, pulsanti di
