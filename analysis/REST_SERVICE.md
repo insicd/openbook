@@ -93,7 +93,8 @@ associati.
   mediante filtri sulle relazioni, non tramite raccolte di seguiti sotto `/me`.
 - `/me` contiene anche ciò che appartiene esclusivamente al contesto personale,
   come notifiche e richieste di follow ricevute. La risposta principale ha
-  un nodo `person` e i campi esclusivi dell'account; le raccolte sono separate.
+  un nodo `myPerson` con la Person autenticata; le raccolte sono separate.
+  L’entità `Me` iniziale contiene soltanto questo nodo.
 
 Una risorsa mantiene la stessa identità nei diversi elenchi. Un proprio post
 può comparire sia in `/posts` sia in `/me/posts`: non sono copie o insiemi
@@ -170,7 +171,7 @@ riferimento al ruolo già condiviso, senza anticiparne una specifica.
 #### Introduzione
 
 Person rappresenta account di persone o software, locali e remoti, tramite
-`/persons` e nel nodo `person` di `/me`. La fonte interna è il modello Actor
+`/persons` e nel nodo `myPerson` di `/me`. La fonte interna è il modello Actor
 nella tabella `actors`, con il relativo profilo quando presente. Actor è
 il nome del modello del Core, non un'ulteriore entità REST da specificare.
 
@@ -323,6 +324,24 @@ Le prime operazioni che lo restituiscono sono
 array diretto di PersonReference riferito alla persona nel percorso, anche
 quando diversa dall'utente corrente. Le relazioni pending non compaiono.
 Per i remoti l'elenco può essere parziale: include solo persone già note.
+
+### Me
+
+Contesto dell'utente autenticato, restituito da `GET /me`.
+Lo schema si chiama `Me`; le sue proprietà usano il prefisso `my`, scelto
+per leggibilità. La prima versione contiene una sola proprietà.
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| myPerson | Person (oggetto) | Sì | No | Account autenticato, con la stessa rappresentazione Person già definita. I campi interni mantengono il prefisso person. |
+
+Non si duplica l'identificativo con `myId`: l'UUID della persona rimane
+`myPerson.personId`. I dati della sessione corrente restano da definire e non
+sono inclusi in questa prima versione. L'endpoint riusa PersonQuery e
+PersonResource: nessuna nuova query, migration o modifica ai modelli.
+L'identità deriva esclusivamente dall'utente autenticato. Stesse regole Bearer,
+account attivo, cache privata ed ETag delle altre risorse REST, tramite logica
+HTTP condivisa. Rimane nel perimetro local/testing.
 
 ### Post
 
@@ -943,7 +962,7 @@ delle relazioni. I nomi definitivi dei campi restano da definire.
 
 | Area | Percorsi e metodi |
 | --- | --- |
-| Contesto personale | `GET /me`, con nodo `person`; `GET /me/notifications`, array di Notification con la paginazione comune. |
+| Contesto personale | `GET /me`, con entità Me e nodo `myPerson`; `GET /me/notifications`, array di Notification con la paginazione comune. |
 | Ownership | `GET /me/posts`, `GET /me/events`, `GET /me/communities`: pubblicati/creati dall'utente. |
 | Commenti | Sotto `/posts/{postId}/comments` e `/events/{eventId}/comments`, con dettaglio `/{commentId}`; metodi specifici da completare. |
 | Media | Risorsa indipendente `/media/{mediaId}`; operazioni da completare. |
@@ -1050,3 +1069,25 @@ Superati SDK OAuth reale con chiusura accesso/CSRF, controlli MySQL con rollback
 e EXPLAIN, validazione OpenAPI/Composer, Pint e git diff --check. Le chiavi e
 le credenziali di prova rimangono fuori dal repository. Il perimetro rimane
 local/testing; integrazione con installer/updater di produzione ancora esclusa.
+
+## 14. Prima implementazione di GET /me
+
+GET /rest/v1/me restituisce Me con la sola myPerson. MeController identifica
+la persona dal Bearer autenticato e riusa PersonQuery; MeResource riusa
+PersonResource. Nessuna nuova query, tabella o logica di dominio. La logica
+HTTP di cache privata/ETag è condivisa con PersonController nel concern
+RespondsWithConditionalRest, mantenendo invariato il comportamento esistente.
+
+Verifiche: 42 test REST e 583 asserzioni superati; SDK OAuth reale con /me,
+login, cache e revoca. Sull'istanza MySQL locale: 200 con corpo validato contro
+lo schema Me, 304 con ETag e 401 senza Bearer. OpenAPI, Pint e diff --check
+superati. Cache route locale aggiornata. Il perimetro resta local/testing.
+
+### Review di GET /me prima del commit
+
+Review completata su controller, risorsa, autenticazione, cache condivisa,
+specifica e documentazione; nessun problema funzionale residuo rilevato.
+Suite completa: 2.140 test, 15.766 asserzioni, nessun fallimento e 130 saltati.
+Verificati anche lo schema OpenAPI e i controlli Pint/diff; nessuna nuova query
+o migration. Inclusi nel commit i precedenti affinamenti della specifica
+sulla registrazione dei client.

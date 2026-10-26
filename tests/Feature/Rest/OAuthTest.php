@@ -126,6 +126,7 @@ class OAuthTest extends TestCase
         $this->assertGreaterThan(360 * 86400, $response->json('expires_in'));
         $this->assertLessThan(367 * 86400, $response->json('expires_in'));
         $token = $response->json('access_token');
+        $this->withToken($token)->get('/rest/v1/me')->assertOk()->assertJsonPath('myPerson.personId', $user->actor->id);
         $this->assertCount(3, explode('.', $token));
         $this->assertDatabaseHas('oauth_access_tokens', ['user_id' => $user->id, 'client_id' => $this->client->id]);
         foreach (['', '/followers', '/following'] as $suffix) {
@@ -137,13 +138,29 @@ class OAuthTest extends TestCase
     public function test_guests_web_sessions_and_invalid_bearers_cannot_read_rest(): void
     {
         $user = $this->createFullAccount('oauthguest');
+        $this->get('/rest/v1/me')->assertUnauthorized()->assertHeader('Content-Type', 'application/problem+json');
         foreach (['', '/followers', '/following'] as $suffix) {
             $this->get('/rest/v1/persons/'.$user->actor->id.$suffix)->assertUnauthorized()->assertHeader('WWW-Authenticate', 'Bearer')
                 ->assertHeader('Content-Type', 'application/problem+json');
         }
         $this->login($user);
+        $this->get('/rest/v1/me')->assertUnauthorized();
         $this->get('/rest/v1/persons/'.$user->actor->id)->assertUnauthorized();
         $this->withToken('invalid')->get('/rest/v1/persons/'.$user->actor->id)->assertUnauthorized();
+        $this->get('/rest/v1/me')->assertUnauthorized();
+    }
+
+    public function test_me_checks_revocation_and_account_status_before_cache_revalidation(): void
+    {
+        $user = $this->createFullAccount('oauthme');
+        $tokens = $this->exchange($this->code($user))->assertOk()->json();
+        $response = $this->withToken($tokens['access_token'])->get('/rest/v1/me')->assertOk();
+        $this->withHeader('If-None-Match', $response->headers->get('ETag'))->get('/rest/v1/me')->assertStatus(304);
+        Token::query()->where('user_id', $user->id)->update(['revoked' => true]);
+        $this->get('/rest/v1/me')->assertUnauthorized();
+        Token::query()->where('user_id', $user->id)->update(['revoked' => false]);
+        $user->update(['status' => User::STATUS_SUSPENDED]);
+        $this->get('/rest/v1/me')->assertForbidden();
     }
 
     public function test_configured_duration_applies_to_access_refresh_and_renewed_tokens(): void

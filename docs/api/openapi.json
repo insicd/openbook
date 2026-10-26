@@ -6,6 +6,436 @@
     "description": "Draft specification for applications integrating with OpenBook. REST entity property names and enum values use lowerCamelCase. Enum values are case-sensitive. OAuth parameters and protocol values retain their standard names."
   },
   "paths": {
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "Get the authenticated user",
+        "description": "Returns the current authenticated user as a Me object containing myPerson. The identity is determined by the Bearer token. myPerson uses the same full Person representation returned by the person detail endpoint. This experimental operation is available only for local development. Conditional requests are evaluated only after authentication, current account status and availability checks.",
+        "tags": [
+          "Me"
+        ],
+        "parameters": [
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "description": "An entity tag from a previous response. Takes precedence over If-Modified-Since.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Modified-Since",
+            "in": "header",
+            "required": false,
+            "description": "An HTTP-date from a previous Last-Modified header. Evaluated when a reliable last modification time is available and If-None-Match is absent.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The authenticated user context. The body contains only myPerson.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Last-Modified": {
+                "description": "The last modification time as an HTTP-date, when available for the complete representation.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The representation has not changed and remains accessible. No response body is returned.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Last-Modified": {
+                "description": "The last modification time as an HTTP-date, when available for the complete representation.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              }
+            }
+          },
+          "404": {
+            "description": "The authenticated account has no available Person representation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404,
+                  "detail": "The person was not found or is not available through this endpoint."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/persons/{personId}": {
       "get": {
         "operationId": "getPerson",
@@ -1590,7 +2020,8 @@
                   "client_name": {
                     "type": "string",
                     "maxLength": 80,
-                    "description": "A display name for the application."
+                    "description": "A display name for the application.",
+                    "minLength": 1
                   },
                   "redirect_uris": {
                     "type": "array",
@@ -1600,7 +2031,8 @@
                       "type": "string",
                       "format": "uri"
                     },
-                    "description": "HTTPS callback URIs, HTTP loopback callbacks for local apps, or reverse-domain private URI schemes for native apps. Fragments and user information are not accepted."
+                    "description": "HTTPS callback URIs, HTTP loopback callbacks for local apps, or reverse-domain private URI schemes for native apps. Fragments and user information are not accepted.",
+                    "uniqueItems": true
                   },
                   "token_endpoint_auth_method": {
                     "type": "string",
@@ -1619,7 +2051,10 @@
                         "refresh_token"
                       ]
                     },
-                    "description": "Authorization Code is required. The server registers support for both Authorization Code and refresh tokens and returns the resulting grant types."
+                    "description": "Authorization Code is required. The server registers support for both Authorization Code and refresh tokens and returns the resulting grant types.",
+                    "contains": {
+                      "const": "authorization_code"
+                    }
                   },
                   "response_types": {
                     "type": "array",
@@ -1631,11 +2066,16 @@
                     }
                   },
                   "scope": {
-                    "type": "string",
-                    "enum": [
-                      "api"
+                    "type": [
+                      "string",
+                      "null"
                     ],
-                    "description": "The single supported permission. Defaults to api; there is no granular scope selection."
+                    "enum": [
+                      "api",
+                      "",
+                      null
+                    ],
+                    "description": "The single supported permission. Omit it, or pass an empty value or null, to use api. There is no granular scope selection."
                   }
                 }
               },
@@ -2312,6 +2752,19 @@
           "personDomain": "example.org",
           "personName": "Alex Example",
           "personAvatar": "https://example.org/images/alex.png"
+        }
+      },
+      "Me": {
+        "type": "object",
+        "description": "The current authenticated user context. Its properties use the my prefix. The initial representation contains only the authenticated person.",
+        "required": [
+          "myPerson"
+        ],
+        "properties": {
+          "myPerson": {
+            "$ref": "#/components/schemas/Person",
+            "description": "The authenticated account, using the full Person representation."
+          }
         }
       }
     },

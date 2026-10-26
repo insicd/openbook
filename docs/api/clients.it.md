@@ -57,8 +57,8 @@ esegua PKCE e scambio token, senza riscriverli.
 Il repository contiene una prova con oidc-client-ts reale, SQLite isolato e un
 server PHP su loopback. Login e consenso browser sono simulati tramite HTTP,
 cookie jar e controlli CSRF reali; l'SDK genera PKCE/state, verifica la callback
-e scambia il codice. Poi legge una Person, verifica 200/304/401 e chiude
-l’accesso dalla pagina delle impostazioni con CSRF reale. Verifica che Bearer
+e scambia il codice. Poi legge `/me` con la Person autenticata, verifica
+200/304/401 e chiude l’accesso dalla pagina delle impostazioni con CSRF reale. Verifica che Bearer
 e rinnovo siano rifiutati e che il sito resti aperto. I dati
 temporanei vengono eliminati; non viene usato il database OpenBook locale.
 Non è una prova di rendering React o su dispositivi iOS/Android.

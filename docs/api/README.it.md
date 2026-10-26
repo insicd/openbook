@@ -6,6 +6,7 @@ Tutti gli endpoint REST di contenuto richiedono utente attivo e Bearer token
 OAuth, anche per contenuti pubblici sul sito. Il solo cookie Web non autorizza
 le chiamate REST. Questo prototipo è limitato a local/testing.
 
+- `GET /rest/v1/me` restituisce Me con myPerson, l’account autenticato come Person completa.
 - `GET /rest/v1/persons/{personId}` restituisce un oggetto Person.
 - `GET /rest/v1/persons/{personId}/followers` restituisce un array di PersonReference.
 - `GET /rest/v1/persons/{personId}/following` restituisce un array di PersonReference.

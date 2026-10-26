@@ -6,6 +6,7 @@ All REST content endpoints require an active user and an OAuth Bearer token,
 including content publicly readable on the website. A website session cookie
 alone does not authorize REST calls. This prototype is limited to local/testing.
 
+- `GET /rest/v1/me` returns Me with myPerson, the authenticated account as a full Person.
 - `GET /rest/v1/persons/{personId}` returns a Person object.
 - `GET /rest/v1/persons/{personId}/followers` returns an array of PersonReference.
 - `GET /rest/v1/persons/{personId}/following` returns an array of PersonReference.

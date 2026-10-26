@@ -57,8 +57,8 @@ than reimplementing them.
 The repository includes a test with the real oidc-client-ts library, an isolated
 SQLite database and a loopback PHP server. Browser login/consent is simulated
 through HTTP with a cookie jar and real CSRF checks; the SDK generates PKCE/state,
-validates the callback and performs token exchange itself. It then reads a Person
-and checks 200/304/401, then closes the access from settings with real CSRF
+validates the callback and performs token exchange itself. It then reads `/me`
+with the authenticated Person and checks 200/304/401, then closes the access from settings with real CSRF
 validation. It checks that the Bearer and refresh token are rejected while the
 website session stays open. The test deletes temporary data and does not use the local
 OpenBook database. It is not a React rendering test or an iOS/Android device test.

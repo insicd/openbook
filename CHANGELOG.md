@@ -19,8 +19,9 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Prototipo REST locale**: dettaglio Person e liste followers/following di
-  PersonReference con autenticazione OAuth 2 Passport, Authorization Code/PKCE
+- **Prototipo REST locale**: `GET /rest/v1/me` restituisce l’account autenticato
+  nell’entità Me, con proprietà `myPerson`. Dettaglio Person e liste
+  followers/following di PersonReference con autenticazione OAuth 2 Passport, Authorization Code/PKCE
   S256 e callback. Durata dei nuovi token di accesso e rinnovo configurabile
   in giorni con `OPENBOOK_OAUTH_TOKEN_DURATION` (default implicito: 365).
   Login esistente, scope unico api e registrazione automatica

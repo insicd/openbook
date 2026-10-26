@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Rest\V1;
 
 use App\Application\Queries\PersonFollowQuery;
 use App\Application\Queries\PersonQuery;
+use App\Http\Controllers\Concerns\RespondsWithConditionalRest;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Rest\V1\PersonReferenceResource;
 use App\Http\Resources\Rest\V1\PersonResource;
@@ -16,6 +17,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class PersonController extends Controller
 {
+    use RespondsWithConditionalRest;
+
     public function show(Request $request, string $personId, PersonQuery $persons): Response
     {
         abort_unless(Str::isUuid($personId), 404);
@@ -72,15 +75,5 @@ final class PersonController extends Controller
         }
 
         return $this->conditionalResponse($request, $response);
-    }
-
-    private function conditionalResponse(Request $request, Response $response): Response
-    {
-        $response->headers->set('Cache-Control', 'private, no-cache');
-        $response->setVary('Authorization');
-        $response->setEtag(hash('sha256', $response->getContent()."\n".$response->headers->get('Link', '')));
-        $response->isNotModified($request);
-
-        return $response;
     }
 }
