@@ -39,7 +39,9 @@ unrelated refactors.
   this does not restrict the language of actual user-generated API data.
 - REST API enum values use case-sensitive `lowerCamelCase` consistently in
   specifications, examples and implementation. This rule applies to enum
-  values, not to property names or schema names.
+  values, not to property names or schema names. Protocol-defined OAuth names
+  and values retain their standard wire format (for example grant_type and
+  authorization_code); never rename protocol fields to match REST entity casing.
 - For a major feature or architectural change, use `analysis/` to record the
   problem, constraints, decisions, open questions, and implementation stages
   before substantial coding. Keep the relevant analysis current as decisions

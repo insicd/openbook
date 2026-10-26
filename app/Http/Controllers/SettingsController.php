@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Application\Services\AccountPreferencesUpdater;
+use App\Application\Services\ConnectedApplications;
 use App\Application\Services\ProfileUpdater;
 use App\Http\Requests\Settings\UpdateAccountRequest;
 use App\Http\Requests\Settings\UpdateProfileRequest;
@@ -25,10 +26,12 @@ class SettingsController extends Controller
         private readonly VapidKeyManager $vapidKeyManager,
     ) {}
 
-    public function edit(Request $request): View
+    public function edit(Request $request, ConnectedApplications $applications): View
     {
+        $applicationsEnabled = app()->environment('local', 'testing');
         $activeTab = $request->query('tab', 'profile');
-        if (! in_array($activeTab, ['profile', 'account', 'notifications', 'migration', 'import_export'], true)) {
+        if (! in_array($activeTab, ['profile', 'account', 'notifications', 'migration', 'import_export'], true)
+            && ! ($applicationsEnabled && $activeTab === 'applications')) {
             $activeTab = 'profile';
         }
         $user = $request->user();
@@ -37,6 +40,7 @@ class SettingsController extends Controller
         return view('settings.index', [
             'viewer' => $user,
             'activeTab' => $activeTab,
+            'connectedApplications' => $activeTab === 'applications' ? $applications->forUser($user) : null,
             'pushVapidPublicKey' => $this->vapidKeyManager->getOrCreate()['publicKey'],
             'pushSubscriptionHashes' => $user->pushSubscriptions()->pluck('endpoint_hash')->all(),
         ]);

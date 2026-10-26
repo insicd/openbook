@@ -9,12 +9,22 @@ use App\Federation\SocialGraph\RemoteCollectionMember;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Laravel\Passport\Passport;
 use Tests\Concerns\CreatesAccounts;
+use Tests\Concerns\UsesPassportKeys;
 use Tests\TestCase;
 
 class PersonFollowTest extends TestCase
 {
-    use CreatesAccounts, RefreshDatabase;
+    use CreatesAccounts, RefreshDatabase, UsesPassportKeys;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->configurePassportKeys();
+        Passport::actingAs($this->createFullAccount('restviewer'), ['api'], 'rest');
+        $this->withHeader('Authorization', 'Bearer test-token');
+    }
 
     private function person(string $name, array $attributes = []): Actor
     {
@@ -65,7 +75,8 @@ class PersonFollowTest extends TestCase
         $this->follow($owner, $pending, 'pending');
         $this->follow($pending, $owner, 'pending');
 
-        $this->actingAs($other)->get($this->url($owner, 'following'))->assertOk()->assertExactJson([[
+        Passport::actingAs($other, ['api'], 'rest');
+        $this->get($this->url($owner, 'following'))->assertOk()->assertExactJson([[
             'personId' => $remote->id, 'personUsername' => 'robot',
             'personDomain' => 'remote.example', 'personName' => 'Robot',
             'personAvatar' => 'https://remote.example/avatar.png',

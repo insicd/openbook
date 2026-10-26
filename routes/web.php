@@ -20,6 +20,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CommunityController;
+use App\Http\Controllers\ConnectedApplicationController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\EventCommentController;
 use App\Http\Controllers\EventController;
@@ -225,6 +226,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/messaggi/{conversation}', [ConversationController::class, 'store'])->name('messages.store');
 
     Route::get('/impostazioni', [SettingsController::class, 'edit'])->name('settings.edit');
+    if (app()->environment('local', 'testing')) {
+        Route::delete('/impostazioni/applicazioni/{access}', [ConnectedApplicationController::class, 'destroy'])
+            ->middleware('throttle:20,1,connected-applications:')->name('settings.applications.destroy');
+    }
     Route::get('/impostazioni/dati/seguiti.csv', [FollowingCsvController::class, 'export'])
         ->middleware('throttle:10,1')->name('settings.following.export');
     Route::post('/impostazioni/dati/seguiti/importa', [FollowingCsvController::class, 'import'])

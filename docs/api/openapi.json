@@ -3,18 +3,17 @@
   "info": {
     "title": "OpenBook REST API",
     "version": "0.1.0-draft",
-    "description": "Draft specification for applications integrating with OpenBook. Property names and enum values use lowerCamelCase. Enum values are case-sensitive."
+    "description": "Draft specification for applications integrating with OpenBook. REST entity property names and enum values use lowerCamelCase. Enum values are case-sensitive. OAuth parameters and protocol values retain their standard names."
   },
   "paths": {
     "/persons/{personId}": {
       "get": {
         "operationId": "getPerson",
         "summary": "Get a person",
-        "description": "Returns the person identified by personId. This experimental operation is currently available only for local development and does not require authentication, including for remote accounts. Local and remote accounts use the same Person representation. Remote profiles use the information already available to OpenBook. Deleted accounts, unavailable profiles and resources not represented as Person return HTTP 404. Locally suspended profiles are not available in this initial version. Conditional requests are evaluated only after availability checks.",
+        "description": "Returns the person identified by personId. This experimental operation is available only for local development and requires an authenticated user with a Bearer token. Local and remote accounts use the same Person representation. Remote profiles use the information already available to OpenBook. Deleted accounts, unavailable profiles and resources not represented as Person return HTTP 404. Locally suspended profiles are not available in this initial version. Conditional requests are evaluated only after authentication and availability checks.",
         "tags": [
           "Persons"
         ],
-        "security": [],
         "parameters": [
           {
             "name": "personId",
@@ -334,6 +333,115 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
           }
         }
       }
@@ -342,11 +450,10 @@
       "get": {
         "operationId": "getPersonFollowers",
         "summary": "List a person's followers",
-        "description": "Returns a paginated array of PersonReference objects for the specified person's followers. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This experimental operation is available only for local development and does not require authentication. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after availability checks.",
+        "description": "Returns a paginated array of PersonReference objects for the specified person's followers. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This experimental operation is available only for local development and requires an authenticated user with a Bearer token. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after authentication and availability checks.",
         "tags": [
           "Persons"
         ],
-        "security": [],
         "parameters": [
           {
             "name": "personId",
@@ -781,6 +888,115 @@
                       "The limit field must not be greater than 100."
                     ]
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
                 }
               }
             }
@@ -792,11 +1008,10 @@
       "get": {
         "operationId": "getPersonFollowing",
         "summary": "List a person's following",
-        "description": "Returns a paginated array of PersonReference objects for the specified person's following. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This experimental operation is available only for local development and does not require authentication. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after availability checks.",
+        "description": "Returns a paginated array of PersonReference objects for the specified person's following. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This experimental operation is available only for local development and requires an authenticated user with a Bearer token. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after authentication and availability checks.",
         "tags": [
           "Persons"
         ],
-        "security": [],
         "parameters": [
           {
             "name": "personId",
@@ -1234,6 +1449,545 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/register": {
+      "servers": [
+        {
+          "url": "/"
+        }
+      ],
+      "post": {
+        "operationId": "registerOAuthClient",
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Register a public OAuth client",
+        "description": "Dynamic Client Registration using RFC 7591 metadata. No initial access token is required. Register once and retain client_id; each call creates a new registration. Public native and browser clients do not receive a client secret. Available only for local development.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "redirect_uris",
+                  "token_endpoint_auth_method"
+                ],
+                "properties": {
+                  "client_name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "A display name for the application."
+                  },
+                  "redirect_uris": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 5,
+                    "items": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "description": "HTTPS callback URIs, HTTP loopback callbacks for local apps, or reverse-domain private URI schemes for native apps. Fragments and user information are not accepted."
+                  },
+                  "token_endpoint_auth_method": {
+                    "type": "string",
+                    "const": "none",
+                    "description": "Register a public client without a client secret."
+                  },
+                  "grant_types": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 2,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "authorization_code",
+                        "refresh_token"
+                      ]
+                    },
+                    "description": "Authorization Code is required. The server registers support for both Authorization Code and refresh tokens and returns the resulting grant types."
+                  },
+                  "response_types": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": {
+                      "type": "string",
+                      "const": "code"
+                    }
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "api"
+                    ],
+                    "description": "The single supported permission. Defaults to api; there is no granular scope selection."
+                  }
+                }
+              },
+              "example": {
+                "client_name": "Example application",
+                "redirect_uris": [
+                  "https://client.example/callback"
+                ],
+                "token_endpoint_auth_method": "none",
+                "grant_types": [
+                  "authorization_code",
+                  "refresh_token"
+                ],
+                "response_types": [
+                  "code"
+                ],
+                "scope": "api"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The registered client metadata. The server grants Authorization Code and refresh_token support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "client_id",
+                    "client_id_issued_at",
+                    "redirect_uris",
+                    "token_endpoint_auth_method",
+                    "grant_types",
+                    "response_types",
+                    "scope"
+                  ],
+                  "properties": {
+                    "client_id": {
+                      "type": "string",
+                      "description": "Store this identifier and reuse it for subsequent logins to this instance."
+                    },
+                    "client_id_issued_at": {
+                      "type": "integer",
+                      "description": "Registration time in seconds since the Unix epoch."
+                    },
+                    "client_name": {
+                      "type": "string"
+                    },
+                    "redirect_uris": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 5,
+                      "items": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "description": "HTTPS callback URIs, HTTP loopback callbacks for local apps, or reverse-domain private URI schemes for native apps. Fragments and user information are not accepted."
+                    },
+                    "token_endpoint_auth_method": {
+                      "type": "string",
+                      "const": "none"
+                    },
+                    "grant_types": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "response_types": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "const": "code"
+                      }
+                    },
+                    "scope": {
+                      "type": "string",
+                      "const": "api"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid client metadata or redirect URI.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many registrations."
+          }
+        }
+      }
+    },
+    "/.well-known/oauth-authorization-server": {
+      "servers": [
+        {
+          "url": "/"
+        }
+      ],
+      "get": {
+        "operationId": "getOAuthServerMetadata",
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Get OAuth authorization server metadata",
+        "description": "RFC 8414 metadata. This is an OAuth 2 authorization server, not an OpenID Connect provider. Available only for local development.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Supported OAuth endpoints and capabilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "issuer",
+                    "authorization_endpoint",
+                    "token_endpoint",
+                    "registration_endpoint",
+                    "response_types_supported",
+                    "grant_types_supported",
+                    "code_challenge_methods_supported"
+                  ],
+                  "properties": {
+                    "issuer": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "authorization_endpoint": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "token_endpoint": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "registration_endpoint": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "response_types_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "grant_types_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "token_endpoint_auth_methods_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "code_challenge_methods_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "scopes_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/token": {
+      "servers": [
+        {
+          "url": "/"
+        }
+      ],
+      "post": {
+        "operationId": "exchangeOAuthToken",
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Exchange an authorization code or refresh token",
+        "description": "Standard OAuth 2 token exchange. Public clients send client_id in the form body without a client secret. PKCE S256 is required for authorization code exchange. Available only for local development.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "grant_type",
+                      "client_id",
+                      "redirect_uri",
+                      "code",
+                      "code_verifier"
+                    ],
+                    "properties": {
+                      "grant_type": {
+                        "type": "string",
+                        "const": "authorization_code"
+                      },
+                      "client_id": {
+                        "type": "string"
+                      },
+                      "redirect_uri": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "code": {
+                        "type": "string"
+                      },
+                      "code_verifier": {
+                        "type": "string",
+                        "minLength": 43,
+                        "maxLength": 128
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "grant_type",
+                      "client_id",
+                      "refresh_token"
+                    ],
+                    "properties": {
+                      "grant_type": {
+                        "type": "string",
+                        "const": "refresh_token"
+                      },
+                      "client_id": {
+                        "type": "string"
+                      },
+                      "refresh_token": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OAuth token response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "access_token",
+                    "token_type",
+                    "expires_in"
+                  ],
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "token_type": {
+                      "type": "string",
+                      "const": "Bearer"
+                    },
+                    "expires_in": {
+                      "type": "integer",
+                      "description": "Seconds until the access token expires."
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    },
+                    "scope": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid OAuth request or grant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The client or account cannot be authenticated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many token requests."
           }
         }
       }
@@ -1560,12 +2314,34 @@
           "personAvatar": "https://example.org/images/alex.png"
         }
       }
+    },
+    "securitySchemes": {
+      "openBookOAuth": {
+        "type": "oauth2",
+        "description": "User authorization using Authorization Code with PKCE S256. Register the application and its redirect URI with the instance. Public clients do not use a client secret. Access tokens are long-lived JWT Bearer credentials with server-side revocation checks. Account availability is checked on every request. The default token lifetime is 365 days and may vary by instance. Refresh tokens allow renewal without another browser login.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "/oauth/authorize",
+            "tokenUrl": "/oauth/token",
+            "scopes": {
+              "api": "Use OpenBook user features."
+            }
+          }
+        }
+      }
     }
   },
   "servers": [
     {
       "url": "/rest/v1",
       "description": "The REST API of this OpenBook instance."
+    }
+  ],
+  "security": [
+    {
+      "openBookOAuth": [
+        "api"
+      ]
     }
   ]
 }

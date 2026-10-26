@@ -7,12 +7,22 @@ use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Laravel\Passport\Passport;
 use Tests\Concerns\CreatesAccounts;
+use Tests\Concerns\UsesPassportKeys;
 use Tests\TestCase;
 
 class PersonTest extends TestCase
 {
-    use CreatesAccounts, RefreshDatabase;
+    use CreatesAccounts, RefreshDatabase, UsesPassportKeys;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->configurePassportKeys();
+        Passport::actingAs($this->createFullAccount('restviewer'), ['api'], 'rest');
+        $this->withHeader('Authorization', 'Bearer test-token');
+    }
 
     private function remote(string $username, array $attributes = []): Actor
     {
@@ -35,7 +45,7 @@ class PersonTest extends TestCase
         return '/rest/v1/persons/'.$actor->id;
     }
 
-    public function test_a_guest_can_read_a_local_person_without_a_wrapper_or_private_fields(): void
+    public function test_an_authenticated_user_can_read_a_local_person_without_a_wrapper_or_private_fields(): void
     {
         $user = $this->createFullAccount('localperson');
         $user->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
@@ -67,7 +77,7 @@ class PersonTest extends TestCase
         $this->assertNull($response->headers->get('Last-Modified'));
     }
 
-    public function test_a_guest_can_read_cached_remote_data_without_network_requests(): void
+    public function test_an_authenticated_user_can_read_cached_remote_data_without_network_requests(): void
     {
         Http::preventStrayRequests();
         $destination = $this->remote('destination');

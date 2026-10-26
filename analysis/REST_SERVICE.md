@@ -7,8 +7,8 @@ Stato: canovaccio delle regole generali e prototipo locale di lettura Person e l
 Le sezioni 1–8 raccolgono decisioni, orientamenti e rappresentazioni in corso
 di definizione; la sezione 9 raccoglie le scelte generali aperte e la sezione 10
 descrive gli agganci della prima implementazione; la sezione 11 documenta gli elenchi.
-La sezione 12 analizza l'autenticazione, ancora da implementare. Tutte le API
-REST richiederanno login: l'accesso anonimo del prototipo locale è provvisorio.
+La sezione 12 descrive OAuth 2 standard con Passport; la sezione 13 descrive
+la gestione degli accessi nelle impostazioni. Tutte le risorse REST richiedono Bearer; le note sul prototipo anonimo sono storiche.
 L'appendice conserva i percorsi già discussi; l'inventario e il perimetro della
 prima release non sono ancora completi.
 
@@ -462,8 +462,7 @@ essere autenticati non consente di leggere contenuti privati altrui o usare
 funzioni staff tramite REST. Leggibilità tramite link non significa presenza
 in elenchi o ricerca.
 
-Il codice attuale resta un prototipo locale non autenticato: il requisito sarà
-applicato nel prossimo intervento, non è già operativo con questa revisione.
+Il requisito è applicato nel primo giro Passport descritto nella sezione 12.
 
 Le autorizzazioni restano sul server. Si verificano identità, sessione,
 account e permessi correnti a ogni richiesta, anche prima di un `304`.
@@ -471,9 +470,9 @@ I controlli coprono dettagli, elenchi, ricerca, contatori, media e oggetti
 annidati, rispettando visibilità, destinatari, membership, blocchi e sospensioni.
 
 **Requisito confermato:** credenziale durevole, revocabile, associata a un
-accesso persistito sul server. Il formato opaco era l'orientamento iniziale;
-Passport usa JWT con revoca verificata sul database, quindi richiede una scelta
-esplicita sul formato e sulla durata (sezione 12). Nessun JWT autosufficiente
+accesso persistito sul server. La soluzione approvata usa i JWT di Passport,
+con revoca verificata sul database e durata predefinita di 365 giorni,
+configurabile (sezione 12). Nessun JWT autosufficiente
 come fonte dei permessi. Restringere l’accesso o revocare la sessione non
 richiede di attendere la scadenza del token. La revoca blocca anche ogni eventuale rinnovo.
 
@@ -486,12 +485,12 @@ Accessi distinti della stessa app devono essere riconoscibili e revocabili
 separatamente. Utente e staff autorizzato li gestiscono dalla UI nativa.
 Una revoca non annulla operazioni già autorizzate né copie già scaricate.
 
-Il percorso ora da approfondire è OAuth 2 con Authorization Code e PKCE,
-usando un pacchetto standard Laravel; Passport è il candidato esaminato nella
-sezione 12. Il flusso fa accedere l'utente presso OpenBook senza consegnare
-la password all'app. Registrazione delle app,
-durate, inattività, logout, cambio password ed eventuale rinnovo restano da
-raffinare. Nessun registro centrale o servizio esterno è presupposto.
+La soluzione è OAuth 2 Authorization Code con PKCE S256 tramite Passport,
+con registrazione dei client e rinnovo standard: dettagli nella sezione 12.
+Il flusso fa accedere l'utente presso OpenBook senza consegnare la password
+all'app. Gestione degli accessi nella UI descritta nella sezione 13; inattività e
+conseguenze di logout e cambio password restano da raffinare. Nessun registro centrale o servizio
+esterno è presupposto.
 
 ## 7. Cache e HTTP standard
 
@@ -558,7 +557,7 @@ Le voci seguenti sono temi da discutere, non scelte già approvate.
 | Scritture | Campi modificabili, comportamento dei retry e duplicati, conflitti fra modifiche concorrenti e significato delle cancellazioni. |
 | Operazioni differite | Come rappresentare elaborazione media, successo locale e lavoro ancora pendente; nessun obbligo di streaming. |
 | Evoluzione e documentazione | Cambi compatibili/incompatibili, dismissioni, descrizione del contratto e capacità/limiti dell'istanza rilevabili dai client. |
-| Login e protezioni operative | Autenticazione obbligatoria per tutte le risorse REST; candidato OAuth 2/PKCE con Passport. Da decidere durata/formato del token, registrazione app e ciclo di revoca/rinnovo; limiti e CORS. |
+| Gestione degli accessi | OAuth 2/PKCE con Passport, registrazione app, rinnovo, limiti e CORS definiti nella sezione 12. Gestione delle revoche nella UI descritta nella sezione 13; restano politiche di inattività, logout e cambio password. |
 
 ### Stato della rappresentazione Person
 
@@ -670,14 +669,14 @@ non descrivono tutti componenti già implementati.
 Primo endpoint descritto in `docs/api/openapi.json`: GET su
 `/rest/v1/persons/{personId}`, con UUID dell'Actor corrispondente e risposta
 Person diretta. La bozza documenta 200, 304, 404, 429, 500 e 503, richieste condizionali
-e Problem Details. L'autenticazione di tutte le risorse REST è un requisito
-da implementare; il prototipo locale rimane temporaneamente non autenticato.
+e Problem Details. Questo primo checkpoint era privo di autenticazione;
+la sezione 12 descrive la successiva protezione OAuth di tutte le risorse REST.
 
 **Accesso verificato nella UI:** `/@{username}` è pubblico; le route
 `/attori/{actor}` sono invece nel gruppo auth in `routes/web.php`. È una
 constatazione sul Web, non la regola di autenticazione REST: le API richiederanno
-sempre login. Il prototipo locale è ancora privo di autenticazione;
-l'OpenAPI attuale la descrive senza uno schema Bearer non implementato.
+sempre login. L'OpenAPI corrente descrive lo schema OAuth implementato
+nel successivo giro della sezione 12.
 Un profilo non esistente, cancellato o estraneo alla risorsa Person dà 404.
 
 ### Flusso e componenti del prototipo
@@ -854,117 +853,86 @@ Autenticazione, CORS e Last-Modified conservano i limiti del prototipo locale.
 - Pint e git diff --check superati. Test eseguiti con APP_CONFIG_CACHE su
   percorso temporaneo, senza utilizzare il database locale per le fixture.
 
-## 12. Ricognizione autenticazione: OAuth 2 e Laravel Passport
+## 12. OAuth 2 standard con Passport: decisione corrente
 
-### Esito e vincoli
+Si riparte dal checkpoint pulito `939c1e8`. Sono approvati OAuth 2,
+Authorization Code con PKCE S256, registrazione dei client e callback.
+Il protocollo temporaneo con polling è scartato. Nessun ulteriore tentativo
+Sanctum o protocollo alternativo: priorità alla compatibilità delle librerie.
 
-È un'analisi, non un'integrazione già realizzata. Esaminati composer.json/lock,
-config/auth.php, bootstrap/app.php, User, LoginRequest, SessionController,
-StaffUserManager, RestPersonRequest, installer e updater. Laravel installato:
-12.70.1; presenti soltanto guard web/sessione e provider Eloquent User.
-Né Passport né Sanctum sono installati. Il ramo Passport 13.x consultato
-dichiara compatibilità Laravel 12 e PHP 8.2+, compatibile con i requisiti del
-progetto; la risoluzione effettiva Composer deve ancora essere provata.
+### Perimetro del primo giro
 
-Passport è il candidato consigliato per riusare un server OAuth 2 completo,
-Authorization Code/PKCE e i controlli standard di client, redirect e codice.
-Sanctum offre token opachi, revocabili e anche senza scadenza, ma non implementa
-il flusso OAuth di autorizzazione nel browser: quel pezzo andrebbe costruito.
-Non si propone di combinare Passport e Sanctum o di riscrivere il protocollo.
+- Laravel Passport standard per emissione/scambio/rinnovo/verifica dei token,
+  codici monouso e controlli client/redirect. Guard REST sul modello User esistente.
+- Client pubblici per mobile e SPA: nessun secret statico distribuito. Login
+  Web esistente e semplice conferma dell'app; callback con codice, mai Bearer.
+- PKCE S256 obbligatorio nelle richieste di autorizzazione. Lo generano le
+  librerie client, senza passaggi manuali per l'utente o polling.
+- Client registrabili con comando Passport e con endpoint pubblico RFC 7591,
+  limitato ai client pubblici Authorization Code/refresh. Il pacchetto non offre
+  questo endpoint di serie: piccolo adattatore di validazione/persistenza sui
+  suoi modelli, senza implementare un altro motore di autenticazione.
+- Metadata OAuth RFC 8414: endpoint, capacità e registrazione pubblicati.
+  Non si dichiara supporto OpenID Connect o ID token non implementati.
+- CORS per le API Bearer e gli endpoint pubblici necessari ai client browser;
+  nessun accesso REST tramite cookie o credenziali browser condivise.
+- Tutte le risorse REST richiedono Bearer e account attivo prima anche dei 304.
+  Le autorizzazioni correnti del Core restano sul server. Nessuna funzione staff.
+- Durata di access token e refresh token configurabile con
+  OPENBOOK_OAUTH_TOKEN_DURATION in giorni interi positivi; assente, vuota o
+  non valida usa 365 giorni. Si applica solo ai nuovi token, inclusi quelli
+  emessi al rinnovo; quelli esistenti mantengono la scadenza. Configurazione
+  letta tramite config/openbook.php, compatibile con config:cache.
+  Unico scope fisso api, nessun selettore di scope granulari. Gestione degli accessi
+  nel profilo descritta nella sezione 13;
+  revoca sul DB già verificata dal pacchetto. Logout Web distinto da OAuth.
+- Migration standard OAuth con riferimenti User e owner UUID compatibili con
+  OpenBook. Nessuna modifica a tabelle dei contenuti. Chiavi OAuth distinte da
+  ActivityPub; setup locale con comandi standard. Local/testing finché il giro
+  di prova non è completato; integrazione installer/updater produzione rinviata.
 
-**Differenza da approvare prima del codice:** Passport emette JWT firmati,
-con scadenza configurabile; non offre di serie il token opaco letteralmente
-permanente concordato inizialmente. Il suo validatore verifica a ogni richiesta
-la revoca sul database e il guard recupera client attivo e utente corrente.
-Non è quindi un JWT accettato solo in base alla firma fino alla scadenza.
-Una durata molto lunga è configurabile; «nessun nuovo login frequente» è
-compatibile, «nessuna scadenza in assoluto» richiede una scelta diversa o
-personalizzazioni che qui non si propongono.
+### Registrazione e client
 
-Gli scope standard di Passport provengono dal token, non diventano dinamici
-modificando la colonna scopes sul DB. Proposta: niente selettore di scope
-all'utente e nessuna autorizzazione di dominio ricavata da claim del JWT.
-Permessi e restrizioni correnti dell'account/app si verificano lato server.
-Nessun accesso REST alle funzioni amministrative o staff, anche per un admin.
+Un client_id identifica una registrazione, non un account utente o un telefono.
+Può essere condiviso da più installazioni se lo sviluppatore lo distribuisce;
+la registrazione dinamica indipendente crea invece un client per registrazione.
+Non si promette deduplicazione automatica per nome o URL: non identificano
+in modo affidabile la stessa applicazione. Le app conservano il client_id e
+lo riusano; non si registrano a ogni login. Endpoint di registrazione con rate
+limit, redirect validati, nessun fetch di URL o metadati remoti.
 
-### Flusso proposto
+### Librerie e criterio di verifica
 
-1. Il client viene registrato sull'istanza con nome e redirect URI ammessi.
-   Per mobile è un client pubblico, con client_id e senza segreto incorporato.
-   La registrazione è una configurazione dello sviluppatore/app: l'utente non
-   genera né copia API key. Modalità di registrazione multi-istanza da definire.
-2. L'app apre `/oauth/authorize` nel browser di sistema, con state e PKCE S256.
-   OpenBook usa il guard web e il login esistente `/accedi` se necessario.
-3. Una semplice pagina Blade mostra account, nome app e una conferma comprensibile
-   «Consenti a questa app di usare OpenBook con il tuo account», senza checkbox
-   di scope. Una sessione browser già presente può evitare un nuovo login,
-   ma non deve aggirare il controllo sullo stato attuale dell'account.
-4. Dopo l'approvazione OpenBook rinvia alla callback un codice breve monouso,
-   non il Bearer nell'URL. L'app verifica state e scambia codice e verifier
-   tramite `POST /oauth/token`, ricevendo il token nel JSON.
-5. Le chiamate a `/rest/v1/*` inviano `Authorization: Bearer ...`; il cookie
-   della UI da solo non è la credenziale REST proposta. Login HTML con sessione
-   e CSRF; consultazione REST stateless e senza redirect alla pagina di login.
+AppAuth-iOS e AppAuth-Android gestiscono Authorization Code/PKCE e registrazione
+dinamica. oidc-client-ts supporta OAuth 2 senza obbligo di OIDC; per registrare
+il client React serve prima un normale POST. Configurare endpoint OAuth e scope
+api, senza richiedere openid o ID token. La prova con oidc-client-ts ha mostrato
+che la libreria richiede uno scope non vuoto; api indica l’accesso ordinario
+alle API, senza una nuova scelta o suddivisione dei permessi per l’utente.
+Il flusso effettivo è verificato con questa libreria JavaScript, oltre ai test HTTP.
+Non si dichiara test su dispositivo iOS/Android se non eseguito.
 
-La pagina di login e conferma può essere semplice; il passaggio codice/token
-resta quello standard, gestito da Passport. Gli errori di protocollo OAuth
-mantengono il formato OAuth; le risposte delle risorse REST usano Problem Details.
+Test: login esistente, consenso/annullamento, PKCE, callback/state, codice
+monouso, refresh, credenziali invalide/scadute/revocate, account non attivo,
+protezione dei 304, registrazione RFC 7591, metadata, CORS e UUID/indici MySQL.
 
-### Agganci e interventi necessari
+### Verifiche eseguite
 
-| Punto | Intervento previsto |
-| --- | --- |
-| Dipendenze e User | Installare Passport dopo verifica Composer; aggiungere trait/contratto OAuth al modello User esistente. Nessun secondo modello di account o login duplicato. |
-| Configurazione | Guard REST con driver passport e provider users; guard web esplicito per autorizzazione HTML. Configurare vista Blade e durata; usare solo il percorso utente Authorization Code/PKCE nel perimetro REST. |
-| Schema OAuth | Pubblicare e adattare le migration del pacchetto: OpenBook usa UUID per users.id, mentre i riferimenti utente nelle migration consultate sono numerici. Le tabelle OAuth sono nuove; nessuna modifica alle tabelle dei contenuti. |
-| Installer/updater | Integrare migration e generazione/conservazione delle chiavi OAuth nell'installazione e aggiornamento ordinari, disponibili anche da Web. Chiavi distinte da quelle ActivityPub; niente worker, Redis o servizio esterno obbligatorio. |
-| Accesso REST | Guard Bearer su tutto il gruppo, controllo User.isActive e identità Actor coerente; eventuali restrizioni app correnti. Controlli prima del controller e di qualsiasi 304. |
-| Emissione | Verificare lo stato corrente anche quando un codice già emesso o un refresh viene scambiato. Un aggancio candidato è il repository AccessTokenRepository di Passport prima della persistenza, riusando User.isActive; non scrivere un grant o decodificare manualmente codici OAuth. |
-| Errori REST | RestPersonRequest oggi non gestisce esplicitamente AuthenticationException: integrare 401 Problem Details con WWW-Authenticate: Bearer, distinguendo 403 e mantenendo no-store. Nessun redirect HTML dalle API. |
-| Revoca | Il singolo access token è già un record revocabile Passport. Revocare anche i refresh associati; gestire revoca di uno specifico accesso e di tutti gli accessi utente/client nella UI nativa, con autorizzazioni staff esistenti. |
-
-LoginRequest già controlla credenziali, rate limit e User.isActive e rigenera
-la sessione attraverso SessionController. StaffUserManager aggiorna lo stato
-User/Actor ma non esiste un registro di sessioni OAuth da revocare. Il controllo
-corrente dello stato deve valere sia prima dell'emissione/scambio/rinnovo sia
-su ogni chiamata REST, non soltanto quando si inserisce la password.
-Il rifiuto mentre l'account è sospeso è distinto dalla revoca definitiva dei
-token: va stabilito se una riattivazione debba richiedere un nuovo login.
-
-Gli accessi della stessa app devono restare distinguibili. Un access token può
-rappresentare inizialmente un singolo accesso. Passport non fornisce già una
-pagina OpenBook «app collegate» o una nozione completa di installazione/device.
-Se attiviamo rinnovi, serve mantenere un'identità stabile dell'accesso per
-revocare anche token rinnovati e refresh dell'intera catena; non basta revocare
-un vecchio access token. Eventuali metadati aggiuntivi vanno limitati a questo
-scopo, senza duplicare il motore OAuth.
-
-### Sequenza proposta e decisioni residue
-
-Prima fissare formato/durata: Passport standard con JWT durevole e revocabile,
-oppure requisito inderogabile di token opaco senza scadenza. Non si installa
-Passport assumendo che queste due cose siano equivalenti.
-
-Poi: verifica dipendenze e migration UUID; client pubblico di prova e flusso
-HTML/PKCE; guard sul gruppo REST; revoca del singolo accesso e dei relativi
-refresh; aggiornamento OpenAPI con OAuth e 401/403; test completi del percorso.
-Test mirati: token mancante/invalido/scaduto/revocato, cookie web senza Bearer,
-account sospeso/disabilitato, PKCE/redirect/state/codice monouso, due accessi
-indipendenti, revoca e tentato rinnovo, controlli anche su If-None-Match.
-Il flusso deve restare locale/testing fino alla chiusura di questi controlli.
-
-Restano da decidere con l'utente, un tema alla volta: durata e formato,
-registrazione app, rinnovo/identità dell'accesso, effetto di logout Web,
-cambio password e riattivazione dell'account. Il logout del client deve revocare
-il suo accesso; il logout Web non va implicitamente equiparato a revoca globale.
-
-Fonti consultate: [Passport Laravel 12](https://laravel.com/docs/12.x/passport),
-[Sanctum Laravel 12](https://laravel.com/docs/12.x/sanctum),
-[validatore Bearer League](https://github.com/thephpleague/oauth2-server/blob/9.2.0/src/AuthorizationValidators/BearerTokenValidator.php),
-[revoca Passport](https://github.com/laravel/passport/blob/13.x/src/Bridge/AccessTokenRepository.php),
-[guard Passport](https://github.com/laravel/passport/blob/13.x/src/Guards/TokenGuard.php),
-[migration access token](https://github.com/laravel/passport/blob/13.x/database/migrations/2016_06_01_000002_create_oauth_access_tokens_table.php),
-[OAuth per app native, RFC 8252](https://www.rfc-editor.org/rfc/rfc8252.html).
+- Suite completa: 2.116 test, 15.547 asserzioni, nessun fallimento; 130 test
+  saltati. Dopo l'aggiunta del controllo sull'ordine dei middleware, suite REST
+  mirata: 28 test e 419 asserzioni superati.
+- Flusso HTTP completo con oidc-client-ts 3.5.0: registrazione dinamica,
+  PKCE/state generati dalla libreria, login e consenso con CSRF, callback,
+  scambio tramite SDK e letture REST 200/304/401. Browser simulato tramite
+  HTTP, non test grafico o su dispositivo iOS/Android.
+- Migration OAuth applicate sul MySQL locale; UUID verificati. EXPLAIN dei
+  lookup di token/client/utente/codice usa le chiavi primarie; la ricerca dei
+  token autorizzati per utente/client usa oauth_access_tokens_user_id_index.
+  Prova HTTP MySQL 200/304/401 con dati OAuth temporanei in rollback.
+- OpenAPI validato, Composer validate, Pint e git diff --check superati.
+  Nessun aggiornamento di dipendenze preesistenti: aggiunti Passport e le sue
+  dipendenze. Chiavi locali generate senza sovrascrivere chiavi esistenti;
+  cache configurazione e route aggiornate.
 
 ## Appendice A. Percorsi già concordati
 
@@ -1011,3 +979,74 @@ Fonti di approfondimento, senza obbligo di adottare ogni meccanismo:
 - [Token Revocation — RFC 7009](https://www.rfc-editor.org/rfc/rfc7009.html),
   [Token Introspection — RFC 7662](https://www.rfc-editor.org/rfc/rfc7662.html),
   [OpenID Connect Core](https://openid.net/specs/openid-connect-core-1_0.html).
+
+## 13. Applicazioni collegate nelle impostazioni
+
+Intervento approvato: una scheda «Applicazioni collegate» nelle impostazioni
+personali, con accessi aperti e comando «Chiudi questo accesso». Nessun token,
+client_id, scope o altro dettaglio di protocollo nell'interfaccia.
+
+Si riusano i modelli Passport, senza nuove tabelle o modifiche alle query dei
+contenuti. Ogni coppia corrente access token/refresh token è un accesso distinto;
+il rinnovo standard sostituisce la coppia precedente. Si mostrano nome dell'app,
+data di creazione dell'accesso corrente e scadenza, nel fuso dell'utente. Non si
+inventano dispositivo o ultimo utilizzo: non sono registrati dal prototipo.
+
+Sono inclusi accessi utilizzabili o ancora rinnovabili; quelli chiusi, scaduti
+o appartenenti a client revocati sono esclusi. Chiusura limitata all'utente
+corrente e alla singola coppia, con revoca di entrambi i token nella stessa
+transazione. Il rinnovo standard viene eseguito in transazione e blocca la
+coppia corrente nello stesso ordine della chiusura, prima della verifica del
+refresh: una chiusura concorrente non deve lasciar creare nuovi token. Non si
+modifica il protocollo o la logica di emissione Passport. Se nel frattempo il rinnovo ha sostituito l'accesso visualizzato,
+si aggiorna l'elenco e si chiede di ricontrollarlo: non si dichiara chiusa una
+coppia differente. Gli altri accessi e la sessione Web rimangono indipendenti.
+
+La scheda segue il perimetro local/testing di OAuth: non deve interrogare
+le tabelle OAuth in produzione. Form Web con CSRF, paginazione e nomi app
+sottoposti a escaping. Nessuna cancellazione di registrazioni o dati utente.
+
+Verifiche previste: isolamento tra utenti, più accessi della stessa app,
+revoca di accesso e rinnovo, esclusione delle coppie non più valide,
+paginazione, date, ambiente di produzione e piani MySQL reali.
+
+### Esito delle verifiche della sezione 13
+
+- Suite completa: 2.127 test, 15.624 asserzioni, nessun fallimento; 130 test
+  saltati. Suite mirata con impostazioni, gestione accessi, migrazione account,
+  import/export e REST: 66 test e 700 asserzioni superati.
+- Prova SDK con HTTP e CSRF reali estesa alla pagina: chiusura accesso,
+  Bearer rifiutato, refresh rifiutato e sessione Web ancora aperta.
+- MySQL: lista, revoca di entrambe le credenziali e gestione della ripetizione
+  verificate con dati in rollback. EXPLAIN usa user_id per limitare gli accessi,
+  access_token_id per i refresh associati e le PK per i lock; sui due client
+  della fixture l'optimizer sceglie una scansione della minuscola tabella client.
+  Nessun nuovo indice giustificato su questo access pattern per utente.
+- La suite completa ha rilevato il riuso della barra delle schede nelle pagine
+  di migrazione/import: corretto il passaggio della nuova scheda affinché non
+  richieda variabili aggiuntive a quelle pagine. Test di regressione superati.
+- Pint e git diff --check superati. Cache delle route locali aggiornata.
+  Nessuna nuova migration per la gestione degli accessi. Accesso Paw esistente
+  lasciato invariato. Nessun test grafico o su dispositivo nativo eseguito.
+
+### Durata configurabile dei token
+
+OPENBOOK_OAUTH_TOKEN_DURATION controlla in giorni la durata dei nuovi access
+e refresh token. Default implicito: 365; valori vuoti, non interi o non
+positivi usano il default. Nessuna modifica alle scadenze già persistite.
+Verificati emissione, rinnovo e fallback con 45 test REST/gestione accessi
+(572 asserzioni), oltre al caricamento effettivo da ENV con config:cache e
+valore personalizzato di 7 giorni. Cache locale rigenerata con default 365.
+
+### Review prima del commit
+
+Riviste tutte le modifiche del giro OAuth e della gestione accessi. Corrette
+la validazione delle liste JSON nella registrazione e la gestione dei valori
+booleani nella durata configurata; allineati testi e traduzioni del consenso.
+Nessuna raccolta IP o GeoIP introdotta.
+
+Suite completa: 2.137 test e 15.733 asserzioni, nessun fallimento, 130 saltati.
+Superati SDK OAuth reale con chiusura accesso/CSRF, controlli MySQL con rollback
+e EXPLAIN, validazione OpenAPI/Composer, Pint e git diff --check. Le chiavi e
+le credenziali di prova rimangono fuori dal repository. Il perimetro rimane
+local/testing; integrazione con installer/updater di produzione ancora esclusa.

@@ -8,6 +8,7 @@ Tutte le impostazioni specifiche di Openbook sono centralizzate in
 
 | Variabile | Descrizione |
 |---|---|
+| `OPENBOOK_OAUTH_TOKEN_DURATION` | Durata in giorni dei nuovi token OAuth di accesso e rinnovo. Intero positivo; se assente, vuoto o non valido si usano 365 giorni. I token esistenti conservano la loro scadenza. Dopo la modifica eseguire `php artisan config:cache`. |
 | `OPENBOOK_DOMAIN` | Dominio pubblico dell'istanza, usato negli indirizzi `utente@dominio`. Deve coincidere con l'host di `APP_URL`. Se cambi dominio, aggiorna entrambi e poi `php artisan openbook:repair-federation-urls` (altrimenti Lemmy rifiuta i Follow se id e inbox sono su host diversi). Il comando aggiorna anche l'Actor tecnico `/relay` mantenendo i suoi percorsi dedicati; usa `--dry-run` per vedere prima le modifiche. |
 | `OPENBOOK_INSTALLED` | Impostata automaticamente dall'installer; non modificare a mano. |
 | `OPENBOOK_WEB_CRON_ENABLED` / `OPENBOOK_WEB_CRON_TOKEN` | Abilitano l'esecuzione dei processi periodici via richiesta HTTP, per hosting privi di cron reale. |

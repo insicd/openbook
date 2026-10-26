@@ -27,6 +27,9 @@ return [
 
     'paths' => [
         'api/*',
+        'rest/v1/*',
+        'oauth/token',
+        'oauth/register',
         'sanctum/csrf-cookie',
         '.well-known/*',
         'nodeinfo/*',
@@ -44,7 +47,7 @@ return [
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    'exposed_headers' => ['ETag', 'Link', 'Retry-After', 'WWW-Authenticate'],
 
     'max_age' => 0,
 
