@@ -284,8 +284,7 @@ final class StatsQuery
     private function authors(Builder $query): Builder
     {
         $query->where('a.status', 'active')->where('a.remote_suspended', false)
-            ->whereNull('a.deleted_at')
-            ->where('a.type', '<>', 'application');
+            ->whereNull('a.deleted_at');
 
         $blocked = $this->domainBlocks->blockedHosts();
         $query->whereNotIn('a.domain', $blocked);

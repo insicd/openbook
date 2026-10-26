@@ -2353,3 +2353,18 @@ Tempi locali su campione corrente: non sono una garanzia di produzione.
 
 Quattro processi concorrenti sul dataset del ritmo: una sola query aggregata,
 stesso JSON e cached_at per tutti. Chiavi temporanee e lock rimossi.
+
+## Rimozione del filtro sul tipo di attore — 25 ottobre 2026
+
+Verificate con EXPLAIN le query correnti su MySQL locale (`26.10.0`), senza
+filtro sul tipo di attore, mantenendo visibilità e moderazione. Inclusi tutti
+i rami UNION ALL di geografia, lingue e community.
+
+La geografia parte da `post_locations` (86 righe stimate), con lookup PRIMARY
+su post e autori; il ramo eventi scansiona `events` (149 righe stimate), con
+lookup PRIMARY su location e autori. I controlli hashtag usano le PRIMARY
+delle pivot e degli hashtag. Il conteggio domini scansiona `actors` (34.518
+righe stimate), aggregando in tabella temporanea; non usa un indice sul tipo.
+Nessun nuovo indice giustificato dalla rimozione del filtro.
+Questi piani descrivono il campione locale, non garantiscono il piano in
+produzione.

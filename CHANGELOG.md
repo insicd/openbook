@@ -350,6 +350,9 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Statistiche**: rimosso il filtro che escludeva gli attori `Application`
+  dai conteggi degli account per istanza e dei contenuti pubblici. Restano
+  applicati i controlli di visibilità e moderazione.
 - **Esportazione CSV dei seguiti**: lettura dei soli campi necessari e nuovo
   indice per proprietario, stato e destinazione, per evitare scansioni complete
   e ordinamenti aggiuntivi durante l’esportazione paginata. Applicare la
