@@ -196,7 +196,13 @@ final class EventComposer
 
     public function delete(Actor $author, Event $event): Event
     {
-        $this->ensureOwner($author, $event);
+        if (! $author->isLocal() || $event->isRemote()
+            || ($event->actor_id !== $author->id && ! $author->user?->canModerate())) {
+            throw new InvalidArgumentException('Non puoi eliminare questo evento locale.');
+        }
+        if ($event->isDeleted()) {
+            return $event;
+        }
         $event->loadMissing('mentions.actor');
         $directTargets = $event->mentions->pluck('actor')->filter()->values()->all();
         $comments = $event->comments()->with('media')->get();
@@ -351,9 +357,12 @@ final class EventComposer
         $media->delete();
 
         if (! $media->isRemote()) {
-            foreach ($paths as [$disk, $path]) {
-                Storage::disk($disk)->delete($path);
-            }
+            // Keep files intact if an outer moderation transaction rolls back.
+            DB::afterCommit(function () use ($paths): void {
+                foreach ($paths as [$disk, $path]) {
+                    Storage::disk($disk)->delete($path);
+                }
+            });
         }
     }
 }

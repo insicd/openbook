@@ -11,6 +11,6 @@ class EventCommentPolicy
     {
         return ! $comment->isRemote()
             && $comment->isPublished()
-            && ($comment->actor?->user_id === $user->id || $user->is_admin);
+            && ($comment->actor?->user_id === $user->id || $user->canModerate());
     }
 }

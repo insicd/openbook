@@ -45,9 +45,12 @@ final class EventCommentSoftDeleter
             Media::query()->whereKey($item->id)->delete();
 
             if (! $isRemote) {
-                foreach ($paths as [$disk, $path]) {
-                    Storage::disk($disk)->delete($path);
-                }
+                // Keep files intact if an outer moderation transaction rolls back.
+                DB::afterCommit(function () use ($paths): void {
+                    foreach ($paths as [$disk, $path]) {
+                        Storage::disk($disk)->delete($path);
+                    }
+                });
             }
         }
 

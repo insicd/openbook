@@ -5,17 +5,18 @@ namespace App\Domain\Moderation;
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
 use App\Domain\Posts\Post;
+use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
- * Segnalazione locale di un post o commento (remoto o locale). Non e' un'attivita'
- * ActivityPub: serve solo alla moderazione dell'istanza.
+ * Caso di moderazione locale, aperto da un utente o da un Flag federato.
  *
  * @property string $id
- * @property string $reporter_id
+ * @property string|null $reporter_id
  * @property string|null $post_id
  * @property string|null $comment_id
  * @property string $reason
@@ -27,6 +28,12 @@ use Illuminate\Support\Carbon;
 class Report extends Model
 {
     use HasUuids;
+
+    public const ORIGIN_LOCAL = 'local';
+
+    public const ORIGIN_FEDERATED = 'federated';
+
+    public const CLOSURE_UNAVAILABLE = 'content_unavailable';
 
     public const REASON_SPAM = 'spam';
 
@@ -72,12 +79,20 @@ class Report extends Model
         'status',
         'reviewed_by',
         'reviewed_at',
+        'origin',
+        'reporter_actor_id',
+        'reporter_uri',
+        'reporter_domain',
+        'remote_activity_uri',
+        'closed_at',
+        'closure_reason',
     ];
 
     protected function casts(): array
     {
         return [
             'reviewed_at' => 'datetime',
+            'closed_at' => 'datetime',
         ];
     }
 
@@ -101,9 +116,32 @@ class Report extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function reporterActor(): BelongsTo
+    {
+        return $this->belongsTo(Actor::class, 'reporter_actor_id');
+    }
+
+    public function targets(): HasMany
+    {
+        return $this->hasMany(ReportTarget::class);
+    }
+
     public function isOpen(): bool
     {
         return $this->status === self::STATUS_OPEN;
+    }
+
+    public function isFederated(): bool
+    {
+        return $this->origin === self::ORIGIN_FEDERATED;
+    }
+
+    /** @return list<string> */
+    public function targetTypes(): array
+    {
+        return $this->isFederated()
+            ? $this->targets->pluck('type')->unique()->values()->all()
+            : [$this->isCommentReport() ? ReportTarget::TYPE_COMMENT : ReportTarget::TYPE_POST];
     }
 
     public function isCommentReport(): bool

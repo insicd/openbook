@@ -2,6 +2,87 @@
 
 ## Tests
 
+Retention and the complete lifecycle (#119, sprint 5):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/ReportRetentionTest.php tests/Feature/Federation/FlagInboxTest.php tests/Feature/Admin/AdminDatabaseMaintenanceTest.php tests/Feature/Console/PurgeDatabaseCommandTest.php
+OPENBOOK_TEST_REPORTS_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportMysqlPersistenceTest.php
+```
+
+The retention suite is shared by SQLite and MySQL: local/federated cases,
+terminal states, missing dates, exact boundary, months without overflow,
+configuration, reopening, automatic closure and minimal receipts after expiry.
+The signed HTTP flow traverses staff examination and action, command-line
+cleanup and redelivery without recreating a case. Admin permissions, panel
+counts, audit and index rollback are verified. The MySQL test checks EXPLAIN
+for actual count and DELETE queries. These tests do not establish online
+interoperability with another implementation: delivery from a remote test
+instance to a reachable Openbook instance remains pending.
+
+
+Manual actions (#119, sprint 4):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Admin/AdminFederatedReportActionTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php tests/Feature/Events
+```
+
+Covers all four content types for administrators and moderators, explicit
+selection, denied roles, targets from other cases, subjects that became remote,
+repeated deletion and removed targets, audit, closure without sanctions, media
+cleanup and ordinary Delete activities without report data. The moderation
+MySQL test also checks command query plans. Browser checks cover submission
+of selected references, dynamic labels and colour, four viewport widths,
+Italian profile layout and fallback without JavaScript.
+
+Federated report panel (#119, sprint 3):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Admin/AdminFederatedReportTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php tests/Feature/Admin/AdminAccessTest.php tests/Unit/Support/FinnishTranslationsTest.php
+node tests/Browser/reports.cjs
+```
+
+The suite covers provenance, five types, staff permissions, private previews,
+handled and missing cases, escaping, review/dismissal, dashboard and pagination.
+The browser fixture uses in-memory SQLite and production Blade/CSS at desktop
+and mobile sizes; `OPENBOOK_REPORT_SCREENSHOTS` saves screenshots. Like other
+browser checks it requires Playwright; `BROWSER_EXECUTABLE_PATH` selects an
+already installed compatible local browser. The report MySQL test also checks
+all queue and preview query plans, running ANALYZE only on temporary tables
+after bulk loading.
+
+Incoming federated reports (#119, sprint 2):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Federation/FlagInboxTest.php tests/Feature/Moderation/FederatedReportPersistenceTest.php tests/Feature/Federation/InboxSignatureTest.php tests/Feature/Federation/InboxActivityProcessorTest.php tests/Feature/Federation/EventInboxActivityTest.php
+```
+
+Tests cover the signed inbox, job and persistence for all five types, including
+missing content, privacy, redelivery after cleanup, invalid signatures, blocks
+and ordinary forwarding through Linked Data signatures/relays or origin refetch.
+The MySQL test below also checks actual resolver query plans, motivations over
+64 KiB and rollback of the LONGTEXT extension.
+
+Federated report persistence (#119, sprint 1):
+
+```bash
+APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportPersistenceTest.php tests/Feature/Moderation/ReportPostTest.php tests/Feature/Admin/AdminReportModerationTest.php tests/Feature/Admin/AdminCommentReportTest.php
+OPENBOOK_TEST_REPORTS_MYSQL=1 APP_CONFIG_CACHE=/tmp/openbook-test-config.php php artisan test --compact tests/Feature/Moderation/FederatedReportMysqlPersistenceTest.php
+```
+
+The MySQL/MariaDB test uses `OPENBOOK_TEST_MYSQL_*` (including the optional
+socket) and creates/drops only random `openbook_reports_test_*` schemas.
+When enabled, connection or migration errors fail the test. Coverage includes
+the five types, existing local cases, automatic closure, atomic rollback,
+redelivery after case deletion, foreign keys, two-process concurrency and
+EXPLAIN for receipt and target queries. `Reports/flag.json` is an illustrative
+fixture, not captured from a live server.
+
+Sprint 1 prepares persistence; sprint 2 adds the reception described above.
+The UI is described in the panel section above. Migration `2026_10_23_000000_extend_reports_for_federation`
+preserves local cases; rolling it back deletes federated cases and receipts
+before restoring the mandatory local reporter. Maintenance and live
+interoperability verification belong to subsequent sprints.
+
 Instance statistics:
 
 ```bash

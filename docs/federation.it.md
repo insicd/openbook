@@ -6,6 +6,60 @@ La federazione permette a un account Openbook di seguire e interagire con
 account di altri server compatibili con ActivityPub. Ogni server conserva le
 proprie regole, tempi di elaborazione e funzioni disponibili.
 
+## Segnalazioni federate in ingresso (#119)
+
+Openbook riceve le segnalazioni `Flag` tramite le inbox ActivityPub ordinarie,
+con le stesse verifiche di autenticità delle altre attività. Possono riguardare
+persone locali e i loro post, commenti, eventi e commenti degli eventi.
+Il mittente registrato è l'Actor autenticato del server remoto, non necessariamente
+la persona che ha presentato il reclamo.
+
+Un Flag genera un caso riservato alla moderazione; una riconsegna non lo duplica.
+I contenuti locali non più disponibili vengono registrati come già gestiti
+positivamente. La ricezione non notifica il segnalato, non applica sanzioni e
+non cambia la visibilità dei contenuti. L'invio di segnalazioni ad altri server
+e la sincronizzazione degli esiti sono esclusi.
+
+In **Admin → Segnalazioni**, i casi locali e federati hanno un'etichetta
+distinta. Il dettaglio mostra Actor e istanza mittente, motivazione e ogni
+riferimento, indicando quelli non più disponibili o ad accesso limitato.
+Le anteprime seguono i normali permessi di lettura anche per lo staff;
+una segnalazione non apre l'accesso a conversazioni private. Admin e moderatori
+possono revisionare e archiviare il caso, anche dopo averlo segnato come revisionato.
+
+Dal dettaglio è possibile aprire **Gestione utente**, che usa i consueti
+permessi e strumenti, oppure selezionare i singoli contenuti locali da eliminare
+prima di premere **Elimina selezionati e chiudi**. Nessuna casella è preselezionata. Il
+comando chiude il caso anche senza selezioni, ad esempio dopo un provvedimento
+sull’utente. Eliminare un evento rimuove anche i relativi commenti e allegati,
+come nel normale flusso. Le cancellazioni producono i normali Delete federati,
+senza motivazione o provenienza della segnalazione.
+
+Il dettaglio separa motivazione e soggetti dai comandi di **Gestione del caso**.
+**Segna come esaminata** registra la lettura e lascia il caso aperto;
+**Chiudi senza interventi** archivia senza provvedimenti. Il comando finale
+mostra **Chiudi come gestita** quando non ci sono selezioni e **Elimina
+selezionati e chiudi** quando ce ne sono, con il numero di contenuti da rimuovere.
+Le spiegazioni sono visibili anche su dispositivi senza hover. Gli indirizzi
+originali e le precisazioni sul mittente sono espandibili. Senza JavaScript
+restano disponibili form e selezioni, con un’etichetta esplicita sulle operazioni.
+
+I casi chiusi sono conservati per **12 mesi dalla chiusura**, configurabili;
+quelli aperti o soltanto esaminati restano conservati. La pulizia avviene tramite
+la manutenzione esistente e mantiene una ricevuta minima per evitare duplicati
+anche dopo la rimozione del caso. Vedi [Conservazione delle segnalazioni](configuration.it.md#conservazione-delle-segnalazioni).
+
+### Aggiornamento e rollback (#119)
+
+Applicare `php artisan migrate` prima di usare la funzionalità. Le quattro
+migration `2026_10_23_000000`–`000003` estendono dati e motivazione, aggiungono
+riferimenti/ricevute e indici di elenco e conservazione. Non servono worker
+permanenti o nuovi servizi. Il rollback della prima migration elimina casi
+federati e ricevute, perché lo schema precedente richiede un segnalante locale;
+il rollback della motivazione da LONGTEXT a TEXT richiede testi compatibili
+con la capacità di TEXT, altrimenti MySQL/MariaDB in modalità strict lo rifiuta.
+Il solo rollback dell’indice di conservazione non elimina casi né ricevute.
+
 ## Trovare e seguire un account remoto
 
 Cerca l’indirizzo completo, per esempio `nome@dominio.example`. Dal profilo

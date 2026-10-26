@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Pulizia automatica delle tabelle operative (inbox grezzo, job falliti,
- * cache, sessioni). Pensato per essere richiamato da {@see CronCommand}
+ * cache, sessioni, casi di moderazione chiusi). Richiamato da {@see CronCommand}
  * al massimo una volta ogni {@see DatabaseMaintenanceService::RETENTION_HOURS}
  * ore; la stessa logica del pannello admin Database.
  */
@@ -21,7 +21,7 @@ class PurgeDatabaseCommand extends Command
     protected $signature = 'openbook:purge-database
         {--force : Esegue subito ignorando l\'intervallo minimo tra due pulizie}';
 
-    protected $description = 'Elimina righe operative scadute e pubblicazioni video terminali secondo le rispettive retention.';
+    protected $description = 'Elimina righe operative scadute, segnalazioni chiuse e pubblicazioni video terminali secondo le rispettive retention.';
 
     public function handle(DatabaseMaintenanceService $maintenance): int
     {
@@ -42,6 +42,7 @@ class PurgeDatabaseCommand extends Command
             $this->info("Pulizia database completata: {$total} righe eliminate.");
             Log::info('openbook.database_purge', [
                 'retention_hours' => DatabaseMaintenanceService::RETENTION_HOURS,
+                'closed_report_retention_months' => max(1, (int) config('openbook.maintenance.closed_report_retention_months', 12)),
                 'publication_queue_retention_days' => (int) config('openbook.maintenance.publication_queue_retention_days', 7),
                 'deleted' => $deletedByTable,
             ]);

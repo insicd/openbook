@@ -18,6 +18,6 @@ class EventPolicy
     {
         return ! $event->isRemote()
             && ! $event->isDeleted()
-            && $event->actor?->user_id === $user->id;
+            && ($event->actor?->user_id === $user->id || $user->canModerate());
     }
 }

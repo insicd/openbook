@@ -19,6 +19,34 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Segnalazioni federate (#119)**: le attività `Flag`
+  vengono elaborate dall'inbox ActivityPub ordinaria e registrate come casi di
+  moderazione su persone e contenuti locali, con riferimenti multipli e
+  protezione dalle riconsegne. I contenuti non più disponibili risultano già
+  gestiti positivamente; nessuna notifica al segnalato o sanzione automatica.
+  Il pannello distingue casi locali e federati, mostra mittente, istanza,
+  motivazione e riferimenti e consente revisione e archiviazione anche dopo
+  l'esame. Le anteprime rispettano gli ordinari permessi di lettura, senza
+  mostrare contenuti privati inaccessibili allo staff. Applicare le nuove
+  migration, incluse estensione della motivazione e indici delle code.
+  I provvedimenti manuali consentono di selezionare i singoli contenuti locali
+  da eliminare e aprire gli strumenti utenti; admin e moderatori possono
+  cancellare anche eventi e commenti evento tramite i servizi ordinari, con
+  pulizia media e Delete federato senza dati della segnalazione. I provvedimenti
+  sono tracciati nell’audit e gli invii ripetuti non duplicano le cancellazioni.
+  Dettaglio riorganizzato in lettura e gestione del caso, con link affiancati,
+  spiegazioni dei comandi e label esplicite: esaminare lascia il caso aperto,
+  chiudere senza interventi archivia e il comando finale distingue la sola
+  chiusura dall’eliminazione dei contenuti selezionati. I casi locali e federati
+  chiusi scadono dopo 12 mesi di calendario dalla chiusura effettiva, configurabili
+  con `OPENBOOK_CLOSED_REPORT_RETENTION_MONTHS` (minimo 1), nella manutenzione
+  ordinaria e nel pannello Database. I casi aperti, soltanto esaminati o privi
+  di data di chiusura restano conservati; dopo la scadenza rimane la ricevuta
+  tecnica minima per impedire duplicati. Applicare anche la migration dell’indice
+  di conservazione. La risoluzione dei profili locali gestisce anche i domini
+  di sviluppo con porta, in modo coerente con quella dei contenuti. I file
+  degli allegati rimossi vengono eliminati dopo il commit, così restano
+  disponibili se un provvedimento viene annullato dalla transazione.
 - **Retention nei grafici Stats**: linee verticali con legenda indicano le
   durate configurate per post remoti pertinenti e non pertinenti nei grafici
   temporali. Le fasce disabilitate o fuori periodo sono nascoste; durate uguali
