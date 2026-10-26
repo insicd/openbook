@@ -47,7 +47,7 @@ return [
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => ['ETag', 'Link', 'Retry-After', 'WWW-Authenticate'],
+    'exposed_headers' => ['ETag', 'Link', 'Location', 'Retry-After', 'WWW-Authenticate'],
 
     'max_age' => 0,
 

@@ -7,6 +7,7 @@ use App\Domain\Feeds\FeedSource;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Laravel\Passport\Passport;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\UsesPassportKeys;
@@ -22,6 +23,7 @@ class PersonKindsTest extends TestCase
         $this->configurePassportKeys();
         Passport::actingAs($this->createFullAccount('kindsviewer'), ['api'], 'rest');
         $this->withToken('test-token');
+        Http::preventStrayRequests();
     }
 
     private function actor(string $type, bool $local = false): Actor
@@ -30,7 +32,8 @@ class PersonKindsTest extends TestCase
             'type' => $type, 'is_local' => $local,
             'preferred_username' => $type, 'domain' => 'example.org',
             'uri' => 'https://example.org/'.$type, 'name' => ucfirst($type),
-            'status' => Actor::STATUS_ACTIVE,
+            'status' => Actor::STATUS_ACTIVE, 'last_fetched_at' => now(),
+            'collections_fetched_at' => now(), 'published_at' => now()->subYear(),
         ]);
     }
 

@@ -8,8 +8,10 @@ use App\Domain\Accounts\User;
 use App\Domain\Locations\PostLocation;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
+use App\Http\Resources\Rest\V1\PostResource;
 use App\Infrastructure\Media\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Laravel\Passport\Passport;
@@ -121,11 +123,32 @@ class PostTest extends TestCase
         $first = $this->get('/rest/v1/posts')->assertOk()->assertHeader('Vary', 'Authorization');
         $this->withHeader('If-None-Match', $first->headers->get('ETag'))->get('/rest/v1/posts')->assertStatus(304);
         $this->withoutHeader('If-None-Match');
-        foreach (['engine=timeline', 'limit=0', 'limit=101', 'after=bad', 'after=00000000-0000-4000-8000-000000000000', 'direction=asc', 'cursor=old'] as $query) {
+        foreach (['engine=unknown', 'afterAt=2026-01-01T00:00:00Z', 'sort=postTimelineAt', 'limit=0', 'limit=101', 'after=bad', 'after=00000000-0000-4000-8000-000000000000', 'direction=asc', 'cursor=old'] as $query) {
             $this->get('/rest/v1/posts?'.$query)->assertStatus(422)->assertHeader('Content-Type', 'application/problem+json');
         }
         $secret = $this->cachePost(['visibility' => 'followers']);
         $this->get('/rest/v1/posts?after='.$secret->id)->assertStatus(422);
         $this->withoutHeader('Authorization')->get('/rest/v1/posts')->assertUnauthorized();
+    }
+
+    public function test_announce_context_is_an_optional_post_field_independent_of_the_engine(): void
+    {
+        $post = $this->cachePost()->load(Post::CARD_RELATIONS);
+        $post->setRelation('sharedBy', $this->viewer->actor);
+        $post->shared_at = now()->startOfSecond();
+        foreach (['world', 'timeline'] as $engine) {
+            $resource = new PostResource($post);
+            if ($engine === 'timeline') {
+                $resource->withTimelineContext();
+            }
+            $request = Request::create('/rest/v1/posts?engine='.$engine);
+            $data = $resource->resolve($request);
+            $this->assertSame($this->viewer->actor->id, $data['postAnnounce']['announceAuthor']['personId']);
+            $this->assertSame($post->shared_at->toISOString(), $data['postAnnounce']['announcePublishedAt']);
+            $this->assertSame($post->actor_id, $data['postAuthor']['personId']);
+            $post->shared_at = null;
+            $this->assertArrayNotHasKey('postAnnounce', $resource->resolve($request));
+            $post->shared_at = now()->startOfSecond();
+        }
     }
 }

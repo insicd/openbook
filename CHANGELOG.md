@@ -22,8 +22,14 @@ la [roadmap](docs/roadmap.md).
 - **Prototipo REST locale**: `GET /rest/v1/me` restituisce l’account autenticato
   nell’entità Me, con proprietà `myPerson`. `GET /rest/v1/posts` espone il feed
   Mondo con paginazione per ID, media, luogo, CW, contatori e interazioni,
-  riusando il Core; engine timeline ancora escluso. Dettaglio Person e liste
-  followers/following di PersonReference, con tipi Person person/application/feed/group
+  riusando il Core. `engine=timeline` riproduce la home personale, con contesto
+  del rilancio e paginazione senza stato tramite `after` e `afterAt`.
+  `postAnnounce` è un campo opzionale comune ai Post di entrambi gli engine,
+  esposto quando il feed fornisce il contesto del rilancio.
+  Dettaglio Post con aggiornamento remoto come sul Web e Mi piace idempotenti
+  tramite PUT/DELETE; dettaglio Person con aggiornamento dei metadati e
+  conteggi remoti secondo le cache esistenti.
+  Dettaglio Person e liste followers/following di PersonReference, con tipi Person person/application/feed/group
   e protezione delle membership delle community private, con autenticazione OAuth 2 Passport, Authorization Code/PKCE
   S256 e callback. Durata dei nuovi token di accesso e rinnovo configurabile
   in giorni con `OPENBOOK_OAUTH_TOKEN_DURATION` (default implicito: 365).

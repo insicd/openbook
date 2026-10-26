@@ -10,6 +10,15 @@ class PostResource extends JsonResource
 {
     public static $wrap = null;
 
+    private bool $timelineContext = false;
+
+    public function withTimelineContext(): self
+    {
+        $this->timelineContext = true;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         $post = $this->resource;
@@ -48,6 +57,18 @@ class PostResource extends JsonResource
         }
         if ($post->media->isNotEmpty()) {
             $data['postAttachments'] = MediaResource::collection($post->media)->resolve($request);
+        }
+        if ($this->timelineContext) {
+            $data['postTimelineAt'] = ($post->shared_at ?? $post->published_at)->toISOString();
+        }
+        if ($post->shared_at !== null) {
+            $sharer = $post->sharedBy ?? ($post->shared_by_actor_id === $post->actor_id ? $post->actor : null);
+            if ($sharer !== null) {
+                $data['postAnnounce'] = [
+                    'announceAuthor' => (new PersonReferenceResource($sharer))->resolve($request),
+                    'announcePublishedAt' => $post->shared_at->toISOString(),
+                ];
+            }
         }
 
         return $data;

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Rest\V1;
 
 use App\Application\Queries\PersonFollowQuery;
 use App\Application\Queries\PersonQuery;
+use App\Federation\Actors\RemoteActorResolver;
+use App\Federation\SocialGraph\RemoteFollowCollectionsFetcher;
 use App\Http\Controllers\Concerns\RespondsWithConditionalRest;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Rest\V1\PersonReferenceResource;
@@ -20,9 +22,27 @@ final class PersonController extends Controller
 {
     use RespondsWithConditionalRest;
 
-    public function show(Request $request, string $personId, PersonQuery $persons): Response
+    public function show(Request $request, string $personId, PersonQuery $persons, RemoteActorResolver $actors, RemoteFollowCollectionsFetcher $collections): Response
     {
         abort_unless(Str::isUuid($personId), 404);
+        $actor = $persons->findActor($personId);
+        abort_if($actor === null, 404);
+        if (! $actor->isLocal() && ! $actor->isFeed()) {
+            if ($actor->isActive()) {
+                try {
+                    $actors->resolveByUri($actor->uri);
+                } catch (\Throwable $exception) {
+                    report($exception);
+                }
+            }
+            $actor = $persons->findActor($personId);
+            abort_if($actor === null, 404);
+            try {
+                $collections->refreshIfStale($actor);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
         $person = $persons->find($personId);
         abort_if($person === null, 404);
 

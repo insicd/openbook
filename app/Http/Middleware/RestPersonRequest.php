@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Infrastructure\Installation\InstallationLock;
 use Closure;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -31,7 +32,11 @@ final class RestPersonRequest
                 'WWW-Authenticate' => $response->headers->get('WWW-Authenticate'),
             ], static fn (?string $value): bool => $value !== null);
         } catch (Throwable $exception) {
-            $status = $exception instanceof HttpExceptionInterface ? $exception->getStatusCode() : 500;
+            $status = match (true) {
+                $exception instanceof AuthorizationException => $exception->status() ?? 403,
+                $exception instanceof HttpExceptionInterface => $exception->getStatusCode(),
+                default => 500,
+            };
             $headers = $exception instanceof HttpExceptionInterface ? $exception->getHeaders() : [];
             if ($status >= 500) {
                 report($exception);

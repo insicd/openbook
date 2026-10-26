@@ -22,6 +22,7 @@ class PersonTest extends TestCase
         $this->configurePassportKeys();
         Passport::actingAs($this->createFullAccount('restviewer'), ['api'], 'rest');
         $this->withHeader('Authorization', 'Bearer test-token');
+        Http::preventStrayRequests();
     }
 
     private function remote(string $username, array $attributes = []): Actor
@@ -37,6 +38,8 @@ class PersonTest extends TestCase
             'discoverable' => true,
             'indexable' => false,
             'published_at' => now()->subYears(2),
+            'last_fetched_at' => now(),
+            'collections_fetched_at' => now(),
         ], $attributes));
     }
 

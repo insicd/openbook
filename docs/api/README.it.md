@@ -6,17 +6,20 @@ Tutti gli endpoint REST di contenuto richiedono utente attivo e Bearer token
 OAuth, anche per contenuti pubblici sul sito. Il solo cookie Web non autorizza
 le chiamate REST. Questo prototipo è limitato a local/testing.
 
-- `GET /rest/v1/posts` restituisce un array di Post del feed Mondo.
+- `GET /rest/v1/posts` restituisce un array di Post da Mondo o dalla home personale.
+- `GET /rest/v1/posts/{postId}` restituisce un singolo Post.
+- `PUT /rest/v1/posts/{postId}/like` aggiunge il proprio Mi piace.
+- `DELETE /rest/v1/posts/{postId}/like` rimuove il proprio Mi piace.
 - `GET /rest/v1/me` restituisce Me con myPerson, l’account autenticato come Person completa.
 - `GET /rest/v1/persons/{personId}` restituisce un oggetto Person.
 - `GET /rest/v1/persons/{personId}/followers` restituisce un array di PersonReference.
 - `GET /rest/v1/persons/{personId}/following` restituisce un array di PersonReference.
 
 PersonReference contiene personId, personUsername, personDomain, personName e
-personAvatar opzionale. Le liste usano after, limit (predefinito 20, massimo 100),
+personAvatar opzionale. Le liste di persone usano after, limit (predefinito 20, massimo 100),
 sort=personId e direction=asc (predefinita) o desc. Link con rel="next" indica
-la pagina successiva. Le informazioni remote possono essere parziali e non si
-avviano fetch remoti. Profili locali sospesi e risorse non disponibili danno 404.
+la pagina successiva. Le liste di relazioni remote possono essere parziali;
+questi elenchi non avviano fetch remoti. Profili locali sospesi e risorse non disponibili danno 404.
 
 Person supporta i tipi case-sensitive `person`, `application`, `feed` e
 `group`. PersonReference usa gli stessi campi compatti per tutti i tipi.
@@ -27,15 +30,58 @@ di relazioni danno 403 e le identità private sono escluse dagli elenchi di rela
 
 `GET /rest/v1/posts` restituisce un array diretto di Post. `engine=world` è
 il valore predefinito e riproduce selezione, esclusioni e ordine della sezione
-Mondo. `timeline` non è ancora supportato e restituisce 422. Il primo giro
-espone testo, autore PersonReference, CW, media, luogo, contatori e interazioni;
-sondaggi, citazioni e altri oggetti collegati restano da aggiungere.
+Mondo. `engine=timeline` usa la home personale dell'utente autenticato, compresi
+i rilanci. La rappresentazione espone testo, autore PersonReference, CW, media,
+luogo, contatori e interazioni; sondaggi, citazioni e altri oggetti collegati
+restano da aggiungere.
 
-Parametri: limit (20, massimo 100), after (ultimo postId), sort=postPublishedAt,
-direction=desc. Link next indica la pagina successiva. Un riferimento non più
-disponibile o non leggibile dà 422; ripartire dalla prima pagina. cursor e page
-non sono supportati. Il testo non viene renderizzato in HTML dall’API. I campi
-facoltativi senza valore vengono omessi, compresi titolo, fonte ed emoji.
+Entrambi gli engine accettano limit (default 20, massimo 100) e direction=desc.
+Mondo usa sort=postPublishedAt e after (ultimo postId). Un riferimento Mondo
+non più disponibile o non leggibile dà 422; ripartire dalla prima pagina.
+La timeline usa sort=postTimelineAt e la coppia after + afterAt, contenente
+l'ultimo postId e il suo postTimelineAt. Seguire il Link next, che include tutti
+i parametri. Nessuno stato di paginazione viene conservato sul server.
+cursor e page non sono supportati.
+
+Le voci della timeline conservano postAuthor e postPublishedAt originali.
+postTimelineAt è la data usata per ordinare; postAnnounce, quando presente,
+contiene announceAuthor (PersonReference) e announcePublishedAt. Ogni post
+compare una sola volta con l'ultimo rilancio pertinente; sono inclusi i rilanci
+dei propri post e la distribuzione dei gruppi. postAnnounce è facoltativo per
+entrambi gli engine e viene omesso quando manca un contesto di rilancio. Mondo
+attualmente elenca gli originali senza selezionare un rilancio e omette
+postTimelineAt. La paginazione non è
+una fotografia del feed: le modifiche possono influire sulle pagine successive.
+
+Il testo non viene renderizzato in HTML dall’API. I campi facoltativi senza
+valore vengono omessi, compresi titolo, fonte ed emoji.
+
+## Dettaglio Post e Mi piace
+
+GET /posts/{postId} restituisce la stessa rappresentazione Post degli elenchi.
+Sono disponibili soltanto post pubblicati e visibili all'utente autenticato;
+i messaggi privati sono esclusi. Risposte e contatori remoti vengono aggiornati
+con la politica di cache già usata dal Web. Se il server remoto non risponde,
+si usano i dati disponibili. Dopo il refresh si ricontrolla la visibilità,
+prima di restituire dati o 304. Il dettaglio omette postAnnounce e postTimelineAt
+perché non seleziona un contesto di feed.
+
+PUT /posts/{postId}/like e DELETE /posts/{postId}/like non richiedono un body.
+PUT restituisce 201 con Location alla creazione, oppure 204 se già presente.
+DELETE restituisce 204 anche se già assente. Entrambi restituiscono un body
+vuoto e no-store; contatori, notifiche e federazione seguono il comportamento
+Web. Post non disponibili danno 404; Mi piace ad autori sospesi dal server
+remoto danno 403.
+
+## Aggiornamento del dettaglio Person
+
+GET /persons/{personId} aggiorna metadati e conteggi followers/following remoti
+quando scadono le rispettive cache, con la stessa politica del Web. Se il server
+remoto non risponde, si usano i dati disponibili. Non si importano liste di post.
+La disponibilità viene ricontrollata dopo il refresh, prima dell'eventuale 304.
+Profili locali e feed non attivano questi recuperi del profilo remoto. Gli
+elenchi continuano a usare i dati locali. Le letture condizionali usano
+ETag/If-None-Match; gli endpoint REST attuali non emettono Last-Modified.
 
 ## Flusso OAuth
 
@@ -117,7 +163,7 @@ corrispondere esattamente a quella registrata. Uno strumento senza supporto PKCE
 non può completare automaticamente questo flusso.
 
 CORS consente ai browser le chiamate Bearer a REST, metadata, registrazione e
-token senza cookie Web. ETag, Link, Retry-After e WWW-Authenticate sono esposti
+token senza cookie Web. ETag, Link, Location, Retry-After e WWW-Authenticate sono esposti
 a JavaScript. Gli errori REST usano Problem Details; OAuth conserva il proprio
 formato standard. Credenziali mancanti/non valide danno 401; account inattivo dà
 403. ETag/If-None-Match consente 304 dopo tutti i controlli di accesso.
