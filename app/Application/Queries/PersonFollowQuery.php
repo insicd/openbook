@@ -17,6 +17,8 @@ final class PersonFollowQuery
     public function page(Actor $owner, bool $followers, int $limit, ?string $after, string $direction): array
     {
         $items = $this->persons->available()
+            // Private community membership must not be revealed by another account's lists.
+            ->whereDoesntHave('community', fn ($query) => $query->where('is_private', true))
             ->joinSub($this->follows->memberIdsQuery($owner, $followers), 'person_memberships', static function (JoinClause $join): void {
                 $join->on('actors.id', '=', 'person_memberships.actor_id');
             })

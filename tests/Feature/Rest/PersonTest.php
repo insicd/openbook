@@ -107,12 +107,10 @@ class PersonTest extends TestCase
         $this->assertTrue($remote->fresh()->remote_suspended);
     }
 
-    public function test_missing_invalid_deleted_and_non_person_resources_return_problem_details(): void
+    public function test_missing_invalid_deleted_and_technical_resources_return_problem_details(): void
     {
         $actors = [
             $this->remote('deleted', ['status' => Actor::STATUS_DELETED]),
-            $this->remote('group', ['type' => Actor::TYPE_GROUP]),
-            $this->remote('feed', ['type' => Actor::TYPE_FEED]),
             $this->remote('relay', ['is_local' => true, 'type' => Actor::TYPE_APPLICATION]),
         ];
         $urls = array_map(fn (Actor $actor): string => $this->url($actor), $actors);

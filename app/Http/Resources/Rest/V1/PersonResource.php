@@ -58,7 +58,7 @@ class PersonResource extends JsonResource
         }
         $movedTo = $actor->movedTo;
         if ($movedTo !== null && ! $movedTo->isDeleted()
-            && in_array($movedTo->type, [Actor::TYPE_PERSON, Actor::TYPE_APPLICATION], true)) {
+            && in_array($movedTo->type, [Actor::TYPE_PERSON, Actor::TYPE_APPLICATION, Actor::TYPE_FEED, Actor::TYPE_GROUP], true)) {
             $attributes['personMovedTo'] = [
                 'personId' => $movedTo->id,
                 'personUri' => $movedTo->activityPubId(),

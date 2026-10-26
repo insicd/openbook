@@ -43,15 +43,18 @@ final class PersonQuery
     {
         // The prototype excludes redacted local profiles and local technical actors.
         return Actor::query()
-            ->whereIn('actors.type', [Actor::TYPE_PERSON, Actor::TYPE_APPLICATION])
+            ->whereIn('actors.type', [Actor::TYPE_PERSON, Actor::TYPE_APPLICATION, Actor::TYPE_FEED, Actor::TYPE_GROUP])
             ->where('actors.status', '!=', Actor::STATUS_DELETED)
             ->where(static function (Builder $query): void {
                 $query->where('actors.is_local', false)
                     ->orWhere(static function (Builder $local): void {
                         $local->where('actors.is_local', true)
-                            ->where('actors.type', Actor::TYPE_PERSON)
                             ->where('actors.status', Actor::STATUS_ACTIVE)
-                            ->whereHas('user');
+                            ->where(static function (Builder $identity): void {
+                                $identity->where(fn (Builder $person) => $person->where('actors.type', Actor::TYPE_PERSON)->whereHas('user'))
+                                    ->orWhere(fn (Builder $group) => $group->where('actors.type', Actor::TYPE_GROUP)->whereHas('community'))
+                                    ->orWhere(fn (Builder $feed) => $feed->where('actors.type', Actor::TYPE_FEED)->whereHas('feedSource'));
+                            });
                     });
             });
     }

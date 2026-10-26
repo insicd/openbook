@@ -170,14 +170,14 @@ riferimento al ruolo già condiviso, senza anticiparne una specifica.
 
 #### Introduzione
 
-Person rappresenta account di persone o software, locali e remoti, tramite
+Person rappresenta identità di persone, software, feed e gruppi, locali e remoti, tramite
 `/persons` e nel nodo `myPerson` di `/me`. La fonte interna è il modello Actor
 nella tabella `actors`, con il relativo profilo quando presente. Actor è
 il nome del modello del Core, non un'ulteriore entità REST da specificare.
 
-Il modello interno può rappresentare anche altri tipi di attore: non tutte
-le righe di `actors` sono quindi automaticamente Person. Communities resta
-un'entità REST distinta. Questo approfondimento non accorpa le risorse.
+I tipi Person sono person, application, feed e group. Restano esclusi gli
+attori tecnici locali. La Person di tipo group rappresenta l'identità della
+community; Community resta una risorsa distinta per spazio, regole e contenuti.
 
 La fonte di ogni campo va definita coerentemente con il Core: per le persone
 locali i dati di presentazione possono provenire dal profilo associato;
@@ -223,7 +223,7 @@ I conteggi restano al primo livello, come negli esempi. Esclusi `personUrl`, `pe
 | --- | --- | --- | --- | --- |
 | `personId` | string, UUID | Sì | No | Identificatore nell'istanza OpenBook, corrispondente all'Actor interno. |
 | `personUri` | string, URI assoluto | Sì | No | Identificatore ActivityPub canonico. |
-| `personType` | string, enum `person`, `application` | Sì | No | Natura dell'account: person per una persona, application per un account software. Valori case-sensitive. Group è rappresentato da Community. Gli account software seguono gli stessi criteri di rappresentazione e accessibilità della UI, senza introdurre una categoria o selezione REST separata. |
+| `personType` | string, enum `person`, `application`, `feed`, `group` | Sì | No | Natura dell’identità: persona, applicazione, feed o gruppo. Valori case-sensitive. group identifica l’attore della community; Community rimane una risorsa distinta. |
 | `personUsername` | string | Sì | No | Username conservato dal Core; non include il dominio. |
 | `personDomain` | string | Sì | No | Dominio dell'identità federata. |
 | `personStatus` | string, enum `active`, `inactive` | Sì | No | Stato pubblico uniforme per locali e remoti. active indica un account attivo; inactive include account bloccati, disabilitati o sospesi. Le persone cancellate non sono rappresentate: il dettaglio restituisce 404. |
@@ -303,6 +303,31 @@ Gli ulteriori dettagli saranno consolidati aggiornando insieme questa
 sezione e la bozza OpenAPI. Nessun nuovo campo interno viene esposto
 implicitamente.
 
+#### Feed, gruppi e autori dei post
+
+Decisione concordata: Person include person, application, feed e group.
+Il contratto e i filtri REST di dettaglio/elenchi vengono adeguati insieme;
+non si modificano i modelli o le query condivise dalla UI. Per gli attori
+locali restano richiesti account, community o sorgente feed corrispondenti,
+con stato attivo; gli attori tecnici locali restano esclusi.
+
+Le community private conservano identità e contatori pubblici come nella UI;
+le loro raccolte followers/following sono protette tramite CommunityPolicy.
+Le identità di community private vengono inoltre escluse dalle liste di
+relazioni, prima di applicare il limite, per non rivelarne la membership.
+
+I Group possono generare Create/Note oltre agli Announce: OpenBook lo fa già
+per gli avvisi della community. postAuthor è sempre un PersonReference,
+indipendentemente dal tipo dell'autore. Nessun tipo alternativo di riferimento.
+
+Verifiche dell'estensione: 46 test REST e 604 asserzioni superati, inclusi
+profili locali senza User, quattro tipi remoti, liste e passaggio di community
+da pubblica a privata con ETag precedente. OpenAPI validato. Su MySQL provati
+dettaglio/lista e filtro membership con dati temporanei in rollback: lookup
+Actor su PK, community/feed source sui rispettivi indici univoci actor_id,
+follows e cache remota indicizzati anche nei due rami della UNION delle liste.
+Nessuna migration o nuovo indice necessario.
+
 ### PersonReference
 
 Rappresentazione compatta di Person per gli elenchi di persone. Il nome
@@ -345,8 +370,121 @@ HTTP condivisa. Rimane nel perimetro local/testing.
 
 ### Post
 
-Pubblicazione. Rappresentazione e campi da definire; i post mantengono la stessa
-identità nei cataloghi generali, personali e delle community.
+La prima lettura prevista è `GET /posts`. Senza parametri equivale a
+`GET /posts?engine=world` e riproduce il feed della sezione Mondo della UI.
+`engine` seleziona la logica del feed, con valori iniziali `world` e `timeline`:
+
+| engine | Significato |
+| --- | --- |
+| world | Default. Stessi contenuti e ordinamento della sezione Mondo. Attualmente comprende post pubblici di attori remoti già conosciuti dall'istanza, con le esclusioni applicate dal Core. |
+| timeline | Stessi contenuti e ordinamento della home personale dell'utente autenticato. |
+
+Entrambi richiedono autenticazione e restituiscono la stessa entità Post.
+Il parametro sceglie il feed; non cambia la forma della rappresentazione.
+Gli agganci esistenti sono FeedQuery::world() e FeedQuery::forActor(), già
+usati dalla UI, insieme all'annotazione dello stato del lettore. Prima
+implementazione mirata a world; definizione della rappresentazione Post e
+adattamento della paginazione REST ancora da completare. Nessuna query nuova
+è presupposta.
+
+Pubblicazione. I post mantengono la stessa identità nei cataloghi generali,
+personali e delle community.
+
+#### Ricognizione e proposta da discutere
+
+Verificati lo schema MySQL locale di posts, il modello Post, le card Web e
+la serializzazione esistente. La tabella conserva identità/autore, community,
+conversazione, URI e fonte RSS, tre tipi di citazione, titolo, avviso, corpo,
+lingua, visibilità/stato, tre contatori, date ed emoji. Media, hashtag,
+menzioni, luogo e sondaggio sono relazioni separate. Non è ancora una
+specifica approvata: nomi, raggruppamenti, obbligatorietà e nullabilità vanno
+concordati prima di aggiungere lo schema Post all'OpenAPI.
+
+#### Specifica proposta dei campi
+
+Prima ipotesi da rivedere insieme, basata sulle colonne e sulle relazioni
+attuali. Obbligatorio indica la presenza della chiave; Nullable indica se il
+valore può essere null. Per i campi annidati l'obbligo vale quando il relativo
+oggetto è presente e non null. Le facoltatività concordate restano ferme;
+per gli altri campi le scelte sotto sono proposte, non un contratto definitivo.
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| `postId` | string, UUID | Sì | No | Identificativo nell'istanza; id è non null nel DB. |
+| `postUri` | string, URI assoluto | Sì | No | Identificativo canonico. Anche se uri è nullable nel DB, per i locali il Core lo calcola. |
+| `postAuthor` | PersonReference | Sì | No | Autore, con personType person/application/feed/group nel dettaglio Person. actor_id è non null. Il riferimento compatto conserva i campi già definiti. |
+| `postName` | string, massimo 255 caratteri | No | No | Titolo. Campo omesso se non valorizzato; non si restituisce null. |
+| `postContent` | string | Sì | No | Testo; body è non null. Può essere vuoto per un post con soli allegati. Formato del testo ancora da concordare. |
+| `postCW` | boolean | Sì | No | Indica il Content Warning effettivo della UI. Campo derivato, non copia nullable di content_warning. |
+| `postCWText` | string | No | Sì | Eventuale testo del Content Warning. content_warning è nullable; eventuali avvisi applicati dal Core vanno rispettati. Proposta: con postCW=false il campo è omesso o null. |
+| `postLanguage` | string, massimo 255 caratteri | No | Sì | Facoltativo concordato. language è nullable; formato dei codici da fissare. |
+| `postVisibility` | string, enum public/unlisted/followers/direct | Sì | No | Visibilità, non null nel DB. Il valore direct non autorizza l'esposizione delle conversazioni private. |
+| `postPublishedAt` | string, date-time | Sì | No | Data di pubblicazione; published_at è non null. |
+| `postEditedAt` | string, date-time | No | Sì | Facoltativo concordato. edited_at è nullable; assente o null se non modificato. |
+| `postSourceUri` | string, massimo 768 caratteri | No | No | Fonte originale, soprattutto per RSS/Atom. Campo omesso se non valorizzato; non si restituisce null. Formato da verificare rispetto agli identificatori dei feed. |
+| `postCustomEmojis` | object, mappa string → URI | No | No | Mappa delle emoji. Campo omesso se non valorizzato o privo di elementi; non si restituisce null. Collocazione finale tra i raggruppamenti ancora da discutere. |
+| `postAttachments` | array di Media | No | No | Facoltativo concordato. Relazione ordinata: [] è una raccolta vuota, non null. Struttura Media ancora da definire. |
+| `postAttributes` | object | Sì | No | Contenitore degli attributi aggiuntivi; oggetto della rappresentazione, non colonna DB. |
+| `postAttributes.postLocation` | Location | Sì | Sì | Relazione opzionale. Prima proposta: null se manca la riga di località associata. |
+| `postCounters` | object | Sì | No | Raggruppamento dei contatori esistenti. |
+| `postCounters.postLikesCount` | integer, minimo 0 | Sì | No | likes_count: intero unsigned non null, default 0. |
+| `postCounters.postCommentsCount` | integer, minimo 0 | Sì | No | comments_count: intero unsigned non null, default 0. |
+| `postCounters.postAnnouncesCount` | integer, minimo 0 | Sì | No | announces_count: intero unsigned non null, default 0. |
+| `postMyInteractions` | object | Sì | No | Nome concordato per le interazioni già compiute dall'utente autenticato. |
+| `postMyInteractions.postLiked` | boolean | Sì | No | Mi piace dell'utente corrente. Calcolato con il flusso Web esistente; false se non presente. |
+| `postMyInteractions.postAnnounced` | boolean | Sì | No | Presenza di una condivisione attribuita all'utente corrente, anche automatica. |
+| `postMyInteractions.postDirectAnnounced` | boolean | Sì | No | Condivisione manuale tramite Condividi, distinta da quelle automatiche collegate per esempio alle citazioni. Non indica una condivisione privata. |
+
+#### Presenza, null e campi calcolati
+
+Confermati facoltativi postLanguage, postEditedAt, postAttachments, postName,
+postSourceUri e postCustomEmojis. Gli ultimi tre sono non nullable e vengono
+omessi quando non valorizzati; la mappa delle emoji è omessa anche se vuota. Il testo
+postCWText è proposto facoltativo perché l'avviso testuale è eventuale.
+Per gli altri dati nullable del DB la prima ipotesi è una chiave obbligatoria
+con valore null, da rivedere: null e campo omesso non hanno lo stesso significato.
+
+Il flag postCW segue l'avviso effettivo della UI. I contatori e le interazioni
+non richiedono tipi o valori null solo perché alcuni valori sono calcolati:
+contatori a zero e booleani false rappresentano stati conosciuti. Il nome
+postMyInteractions è concordato; non contiene il profilo del lettore.
+
+#### Raggruppamenti concordati
+
+- `postAttachments` raccoglie i media allegati, mantenendo l'ordine degli
+  allegati del post. Struttura dei Media e loro riferimenti da definire.
+- `postAttributes` raccoglie attributi aggiuntivi coerenti. Il primo campo
+  concordato è `postLocation`, con valore di tipo `Location` riutilizzabile.
+  La collocazione degli altri attributi sarà discussa nei prossimi passaggi.
+- La Location non contiene il riferimento al post padre; lo stesso oggetto
+  potrà essere usato come `eventLocation`. La posizione di eventLocation
+  nell'entità Event verrà definita quando si affronterà Event.
+
+Struttura concettuale; tipi e vincoli proposti nella tabella sopra:
+
+```text
+Post
+  postAuthor: PersonReference
+  postAttachments: raccolta di Media
+  postAttributes
+    postLocation: Location
+  ...altri campi Post già proposti
+```
+
+Resta da rappresentare hashtag/menzioni, community,
+sondaggio e citazioni (di post, eventi e, nei messaggi, profili). Tipi e
+profondità dei riferimenti annidati sono da discutere, rispettando sempre la
+leggibilità delle risorse collegate. Non confondere il post citato con una
+condivisione: sharedBy/shared_at sono contesto del feed e non colonne di posts.
+
+Esclusioni proposte: created_at/updated_at, remote_updated_at,
+replies_fetched_at e conversation_id come dettagli di persistenza/federazione
+o dell'area messaggi. status non offre uno stato utile nel primo elenco:
+si restituiscono i pubblicati, escludendo i cancellati.
+
+Questione da affrontare: il corpo remoto viene importato come testo ripulito,
+mentre quello locale supporta Markdown; non è corretto dichiarare tutti i
+body come sorgente Markdown senza una scelta esplicita del contratto.
 
 ### Event
 
@@ -355,7 +493,8 @@ partecipazione sono relazioni indipendenti, non tipi diversi di evento.
 
 ### Community
 
-Community distinta da Person. Campi da definire;
+Community descrive lo spazio della community, distinto dalla sua identità
+Person di tipo group. Campi da definire;
 locali e remote condividono il catalogo, con un attributo di origine.
 
 ### Notification
@@ -373,10 +512,51 @@ codifica dell'identificatore da definire.
 Rappresentazione comune per commenti a post ed eventi, esposti soltanto sotto
 il contenuto padre. Campi e rappresentazione delle risposte annidate da definire.
 
+### Location
+
+Entità geografica generica, riutilizzabile in `postAttributes.postLocation`
+e in futuro in `eventLocation`. Campi iniziali proposti a partire dai dati
+già disponibili per le località di post ed eventi. La tabella propone tipi,
+obbligatorietà e nullabilità da rivedere insieme; i formati restano da fissare.
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| `locationName` | string, massimo 500 caratteri | Sì | Sì | Nome del luogo. post_locations lo richiede non null e massimo 200; event_locations ammette null e massimo 500. Il tipo generico proposto copre entrambi. |
+| `locationRegion` | string, massimo 200 caratteri | Sì | Sì | Area amministrativa: admin1_name nei post e region negli eventi; entrambe nullable. |
+| `locationCountryCode` | string, massimo 8 caratteri | Sì | Sì | Codice del paese. Nei post è char(2), negli eventi string(8); formato/normalizzazione pubblici ancora da concordare. |
+| `locationCountryName` | string, massimo 200 caratteri | Sì | Sì | Nome del paese; nullable in entrambe le tabelle. |
+| `locationLatitude` | number | Sì | Sì | Coordinata; decimal(10,7) nullable nel DB, esposta come numero JSON. Precisione e limiti pubblici da fissare. |
+| `locationLongitude` | number | Sì | Sì | Coordinata; decimal(10,7) nullable nel DB, esposta come numero JSON. Precisione e limiti pubblici da fissare. |
+
+La presenza costante dei campi Location con null per i dati mancanti è una
+prima proposta. Si considera già la compatibilità con event_locations per
+non imporre un nome obbligatoriamente valorizzato o codici lunghi solo due
+caratteri che il modello degli eventi attuale non garantisce.
+
+La tabella post_locations conserva anche geo_city_id e source: rimane da
+valutare se abbiano utilità nel contratto pubblico. post_id e i timestamp di
+persistenza non fanno parte della Location generica. Non si fissano ancora
+un identificativo proprio della Location o un endpoint dedicato.
+
+EventLocation dispone inoltre di indirizzo, strada, località, codice postale,
+URI e URL: possibili estensioni dello stesso oggetto, da discutere insieme
+all'entità Event, evitando due strutture geografiche concorrenti.
+
 ### Media
 
-Risorsa multimediale indipendente, collegabile ad altre entità. Campi, stato
-di elaborazione, proprietà e regole di riuso da definire.
+Risorsa multimediale indipendente, collegabile ad altre entità. La prima
+rappresentazione incorporata in postAttachments espone questi campi; stato
+di elaborazione e ulteriori proprietà restano da definire.
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| mediaId | string, UUID | Sì | No | Identificativo del media. |
+| mediaUrl | string, URI assoluto | Sì | No | URL del contenuto, tramite il metodo esistente. |
+| mediaPreviewUrl | string, URI assoluto | Sì | No | URL di anteprima fornito dal Core; può coincidere con mediaUrl. |
+| mediaMimeType | string | Sì | No | Tipo MIME. |
+| mediaWidth | integer | Sì | Sì | Larghezza in pixel, se nota. |
+| mediaHeight | integer | Sì | Sì | Altezza in pixel, se nota. |
+| mediaAltText | string | Sì | Sì | Testo alternativo, se disponibile. |
 
 ## 5. Consultazione degli elenchi
 
@@ -1091,3 +1271,72 @@ Suite completa: 2.140 test, 15.766 asserzioni, nessun fallimento e 130 saltati.
 Verificati anche lo schema OpenAPI e i controlli Pint/diff; nessuna nuova query
 o migration. Inclusi nel commit i precedenti affinamenti della specifica
 sulla registrazione dei client.
+
+## 15. Prima implementazione di GET /posts: world
+
+Perimetro mirato: GET /rest/v1/posts, engine=world implicito o esplicito.
+engine=timeline resta previsto nel disegno ma non implementato in questo giro:
+richiederlo restituisce 422. Stessa selezione e stesso ordinamento della UI
+Mondo tramite FeedQuery::world(), con annotazione delle interazioni tramite
+Post::annotateViewerState(). Nessuna modifica a FeedQuery, Post, Media,
+Location, servizi del Core o controller Web.
+
+L'adattamento è nel controller REST: after è l'ID dell'ultimo post. Il
+riferimento viene risolto con lo scope di visibilità esistente, escludendo
+conversazioni private e contenuti non pubblicati, poi trasformato nel FeedCursor
+interno. Nessun cursore persistito o esposto; un ID ignoto/non leggibile dà 422.
+Il filtro finale rimane sempre quello di world. Limit 20, massimo 100; sort
+supporta postPublishedAt e direction desc, coerentemente con Mondo. Link next
+contiene solo parametri REST. La scadenza/retention del riferimento può rendere
+non più utilizzabile un after precedente: il client riparte dalla prima pagina.
+
+PostResource espone i campi della tabella corrente, senza HTML renderizzato.
+postName, postSourceUri, postCustomEmojis e le altre proprietà facoltative
+non valorizzate vengono omessi. postCW deriva dall'avviso effettivo del Core.
+postAttributes.postLocation è null oppure Location. Le date sono date-time.
+Il testo è il sorgente disponibile al Core, potenzialmente con sintassi Markdown,
+senza promettere un originale remoto HTML/Markdown non conservato.
+
+Prima rappresentazione Media per gli allegati: mediaId, mediaUrl,
+mediaPreviewUrl, mediaMimeType, mediaWidth, mediaHeight, mediaAltText. URL
+assoluti tramite i metodi esistenti; dimensioni/alt nullable. Nessun disk,
+path o altro dato di memorizzazione esposto. Non si aggiunge un endpoint Media.
+LocationResource mantiene i sei campi definiti e supporta la regione di
+PostLocation o EventLocation, senza modificare i modelli.
+
+Sondaggi, citazioni, hashtag/menzioni e dettaglio community non sono ancora
+serializzati come strutture: restano da definire nei passaggi successivi.
+Autenticazione, Problem Details, ETag/Vary e limite richieste restano quelli
+comuni REST. Nessuna migration o cambiamento esterno alla parte REST.
+
+### Verifiche del primo GET /posts
+
+68 test REST/Mondo, 749 asserzioni superati. Verificate parità con world,
+esclusioni pubblico/privato e moderazione CW, campi opzionali omessi,
+ordine media, coordinate numeriche, interazioni, pagination after/Link,
+riferimenti non leggibili e 200/304/401/422.
+
+Su MySQL due pagine HTTP reali restituite correttamente; EXPLAIN usa
+posts_visibility_status_published_at_index nel feed iniziale e nel seguito,
+PK per il riferimento after e join puntuali per attori/community. Nessun
+nuovo indice necessario. Sul server locale validati 20 Post reali contro
+OpenAPI, oltre a 304 con ETag e 401 senza Bearer. Pint e diff --check superati.
+Confermato il diff vuoto su FeedQuery, Post, Media, località e controller Mondo.
+
+## 16. Review prima del commit: Post e tipi Person
+
+Rivisti tutti i file non committati: endpoint world, risorse Post/Media/Location,
+estensione Person a feed/group, privacy delle relazioni, test e documentazione.
+OpenAPI allineato anche a risposte 403 per le community private, significato
+dei riferimenti e date delle identità non personali, proprietà facoltative e
+supporto ETag effettivo di /posts (senza Last-Modified in questo giro).
+Il riferimento after legge soltanto ID e data necessari alla paginazione.
+
+Suite completa superata: 2.149 test, 15.860 asserzioni, 130 saltati.
+Dopo le rifiniture: 68 test REST/Mondo, 756 asserzioni superate. Controllati
+nuovamente EXPLAIN e risposte su MySQL, incluse le due branche delle liste
+remote Person; fixture in rollback. Validati 20 Post reali contro l'OpenAPI
+finale e verificati 200/304/401. Superati validazione OpenAPI e Composer,
+Pint e diff --check. Nessuna modifica a Core, modelli o UI del feed.
+Rimangono espliciti i limiti del primo giro: local/testing, engine world,
+sondaggi/citazioni e altre relazioni ancora da rappresentare.

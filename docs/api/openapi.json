@@ -880,7 +880,7 @@
       "get": {
         "operationId": "getPersonFollowers",
         "summary": "List a person's followers",
-        "description": "Returns a paginated array of PersonReference objects for the specified person's followers. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This experimental operation is available only for local development and requires an authenticated user with a Bearer token. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after authentication and availability checks.",
+        "description": "Returns a paginated array of PersonReference objects for the specified person's followers. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This experimental operation is available only for local development and requires an authenticated user with a Bearer token. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after authentication and availability checks. PersonReference entries may identify individuals, applications, feeds or groups. Local private community membership is not exposed: their relationship collections return HTTP 403, and private community identities are omitted from relationship lists.",
         "tags": [
           "Persons"
         ],
@@ -1381,7 +1381,7 @@
             }
           },
           "403": {
-            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "description": "The account is inactive, or access to this relationship collection is not allowed. Local private community membership is not exposed.",
             "headers": {
               "Cache-Control": {
                 "description": "Errors are not stored.",
@@ -1438,7 +1438,7 @@
       "get": {
         "operationId": "getPersonFollowing",
         "summary": "List a person's following",
-        "description": "Returns a paginated array of PersonReference objects for the specified person's following. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This experimental operation is available only for local development and requires an authenticated user with a Bearer token. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after authentication and availability checks.",
+        "description": "Returns a paginated array of PersonReference objects for the specified person's following. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This experimental operation is available only for local development and requires an authenticated user with a Bearer token. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after authentication and availability checks. PersonReference entries may identify individuals, applications, feeds or groups. Local private community membership is not exposed: their relationship collections return HTTP 403, and private community identities are omitted from relationship lists.",
         "tags": [
           "Persons"
         ],
@@ -1939,7 +1939,7 @@
             }
           },
           "403": {
-            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "description": "The account is inactive, or access to this relationship collection is not allowed. Local private community membership is not exposed.",
             "headers": {
               "Cache-Control": {
                 "description": "Errors are not stored.",
@@ -2431,13 +2431,516 @@
           }
         }
       }
+    },
+    "/posts": {
+      "get": {
+        "operationId": "listPosts",
+        "summary": "List posts",
+        "description": "Returns a direct array of posts with the same selection and chronological ordering as the World section. Only cached public remote posts are included, with the visibility and content-warning exclusions used by OpenBook. No remote fetch is triggered. Only engine=world is currently supported; timeline and other engines return 422. The initial representation does not include polls, quotes or community details. Requires an authenticated active account. Available only for local development. Revalidation uses ETag and If-None-Match; Last-Modified is not emitted in this version.",
+        "tags": [
+          "Posts"
+        ],
+        "parameters": [
+          {
+            "name": "engine",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "world"
+              ],
+              "default": "world"
+            },
+            "description": "The feed to read. Defaults to world. Other engines are not available in this initial version."
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The last post ID from the preceding page. Unknown or unreadable reference posts return 422."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Maximum number of posts."
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "postPublishedAt"
+              ],
+              "default": "postPublishedAt"
+            },
+            "description": "The World feed ordering criterion."
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "desc"
+              ],
+              "default": "desc"
+            },
+            "description": "The World feed uses newest-first ordering."
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "description": "An entity tag from a previous response. Takes precedence over If-Modified-Since.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A chronological array of posts.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              },
+              "Link": {
+                "description": "The next page URL with rel=\"next\", when another page is available. Absent on the last page.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Post"
+                  }
+                },
+                "example": [
+                  {
+                    "personId": "01900000-0000-7000-8000-000000000001",
+                    "personUsername": "alex",
+                    "personDomain": "example.org",
+                    "personName": "Alex Example",
+                    "personAvatar": "https://example.org/images/alex.png"
+                  }
+                ]
+              }
+            }
+          },
+          "304": {
+            "description": "The representation has not changed and remains accessible. No response body is returned.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              },
+              "Link": {
+                "description": "The next page URL with rel=\"next\", when another page is available. Absent on the last page.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, an unsupported engine or ordering, or an unavailable reference post. cursor and page parameters are not supported.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    },
+                    "errors": {
+                      "type": "object",
+                      "description": "Validation messages keyed by query parameter.",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unprocessable Content",
+                  "status": 422,
+                  "errors": {
+                    "limit": [
+                      "The limit field must not be greater than 100."
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
       "Person": {
         "type": "object",
-        "description": "A user-facing account representing a person or a software application. Local and remote accounts use the same representation. Deleted accounts are not returned as Person resources; requests for their details return HTTP 404.",
+        "description": "A user-facing identity representing an individual, a software application, a feed or a group. Local and remote identities use the same representation. A group Person represents the community identity; the Community resource represents its space and features. Deleted identities are not returned as Person resources; requests for their details return HTTP 404.",
         "required": [
           "personId",
           "personUri",
@@ -2462,10 +2965,12 @@
           },
           "personType": {
             "type": "string",
-            "description": "The kind of account: person for an individual person, application for a software account. Values are case-sensitive. Account roles are described separately.",
+            "description": "The kind of identity: person for an individual, application for software, feed for a feed source, or group for a community identity. Values are case-sensitive. Account roles are described separately.",
             "enum": [
               "person",
-              "application"
+              "application",
+              "feed",
+              "group"
             ]
           },
           "personUsername": {
@@ -2495,7 +3000,7 @@
               "string",
               "null"
             ],
-            "description": "The account registration date displayed by OpenBook. For local accounts this is the OpenBook registration date; for remote accounts it is the date reported by the origin. Null when unavailable.",
+            "description": "The creation or publication date associated with this identity. For local user accounts this is the OpenBook registration date; for other identities it is the date available from their profile. Null when unavailable.",
             "format": "date-time"
           },
           "personProfile": {
@@ -2715,7 +3220,7 @@
       },
       "PersonReference": {
         "type": "object",
-        "description": "A compact person representation for lists. Use personId to retrieve the full Person resource. Local and remote accounts have the same representation.",
+        "description": "A compact Person reference for lists and related resources. The same representation is used for individuals, applications, feeds and groups.",
         "required": [
           "personId",
           "personUsername",
@@ -2764,6 +3269,284 @@
           "myPerson": {
             "$ref": "#/components/schemas/Person",
             "description": "The authenticated account, using the full Person representation."
+          }
+        }
+      },
+      "Location": {
+        "type": "object",
+        "description": "A geographic place reusable across resources.",
+        "required": [
+          "locationName",
+          "locationRegion",
+          "locationCountryCode",
+          "locationCountryName",
+          "locationLatitude",
+          "locationLongitude"
+        ],
+        "properties": {
+          "locationName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The place name.",
+            "maxLength": 500
+          },
+          "locationRegion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The administrative region.",
+            "maxLength": 200
+          },
+          "locationCountryCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The country code when known.",
+            "maxLength": 8
+          },
+          "locationCountryName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The country name.",
+            "maxLength": 200
+          },
+          "locationLatitude": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Latitude when known."
+          },
+          "locationLongitude": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Longitude when known."
+          }
+        }
+      },
+      "Media": {
+        "type": "object",
+        "description": "The media information included in a post attachment.",
+        "required": [
+          "mediaId",
+          "mediaUrl",
+          "mediaPreviewUrl",
+          "mediaMimeType",
+          "mediaWidth",
+          "mediaHeight",
+          "mediaAltText"
+        ],
+        "properties": {
+          "mediaId": {
+            "type": "string",
+            "description": "The attachment identifier.",
+            "format": "uuid"
+          },
+          "mediaUrl": {
+            "type": "string",
+            "description": "The absolute URL of the media.",
+            "format": "uri"
+          },
+          "mediaPreviewUrl": {
+            "type": "string",
+            "description": "The preview URL provided by OpenBook; it may equal mediaUrl.",
+            "format": "uri"
+          },
+          "mediaMimeType": {
+            "type": "string",
+            "description": "The MIME type of the media."
+          },
+          "mediaWidth": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Width in pixels when known."
+          },
+          "mediaHeight": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Height in pixels when known."
+          },
+          "mediaAltText": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Alternative text when available."
+          }
+        }
+      },
+      "Post": {
+        "type": "object",
+        "description": "A post returned by an authenticated feed. This initial representation includes text, author, warning, media, location, counters and current-user interactions. Polls, quotes and other related resources are not yet represented.",
+        "required": [
+          "postId",
+          "postUri",
+          "postAuthor",
+          "postContent",
+          "postCW",
+          "postVisibility",
+          "postPublishedAt",
+          "postAttributes",
+          "postCounters",
+          "postMyInteractions"
+        ],
+        "properties": {
+          "postId": {
+            "type": "string",
+            "description": "The post identifier within this instance.",
+            "format": "uuid"
+          },
+          "postUri": {
+            "type": "string",
+            "description": "The canonical identifier of the post.",
+            "format": "uri"
+          },
+          "postAuthor": {
+            "$ref": "#/components/schemas/PersonReference"
+          },
+          "postName": {
+            "type": "string",
+            "description": "The post title, omitted when empty.",
+            "maxLength": 255
+          },
+          "postContent": {
+            "type": "string",
+            "description": "The textual content available to OpenBook. It may contain Markdown syntax and is not rendered to HTML by this API. It may be empty for media-only posts."
+          },
+          "postCW": {
+            "type": "boolean",
+            "description": "Whether OpenBook applies a content warning to the post."
+          },
+          "postCWText": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The effective warning text, when available."
+          },
+          "postLanguage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The content language when known.",
+            "maxLength": 255
+          },
+          "postVisibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "unlisted",
+              "followers",
+              "direct"
+            ],
+            "description": "The audience of the post. This does not grant access to private messages."
+          },
+          "postPublishedAt": {
+            "type": "string",
+            "description": "The publication time.",
+            "format": "date-time"
+          },
+          "postEditedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The modification time when available.",
+            "format": "date-time"
+          },
+          "postSourceUri": {
+            "type": "string",
+            "description": "The original source identifier or article link, omitted when empty.",
+            "maxLength": 768
+          },
+          "postCustomEmojis": {
+            "type": "object",
+            "description": "Emoji names mapped to image URLs; omitted when empty.",
+            "additionalProperties": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "postAttachments": {
+            "type": "array",
+            "description": "Attached media in presentation order. Omitted when empty.",
+            "items": {
+              "$ref": "#/components/schemas/Media"
+            }
+          },
+          "postAttributes": {
+            "type": "object",
+            "required": [
+              "postLocation"
+            ],
+            "properties": {
+              "postLocation": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Location"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The associated place, or null when none is available."
+              }
+            }
+          },
+          "postCounters": {
+            "type": "object",
+            "required": [
+              "postLikesCount",
+              "postCommentsCount",
+              "postAnnouncesCount"
+            ],
+            "properties": {
+              "postLikesCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "postCommentsCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "postAnnouncesCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "postMyInteractions": {
+            "type": "object",
+            "description": "Interactions performed by the authenticated user. A direct announce means a manual share.",
+            "required": [
+              "postLiked",
+              "postAnnounced",
+              "postDirectAnnounced"
+            ],
+            "properties": {
+              "postLiked": {
+                "type": "boolean"
+              },
+              "postAnnounced": {
+                "type": "boolean"
+              },
+              "postDirectAnnounced": {
+                "type": "boolean"
+              }
+            }
           }
         }
       }

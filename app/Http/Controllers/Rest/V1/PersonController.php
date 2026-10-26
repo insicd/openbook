@@ -10,6 +10,7 @@ use App\Http\Resources\Rest\V1\PersonReferenceResource;
 use App\Http\Resources\Rest\V1\PersonResource;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -60,6 +61,9 @@ final class PersonController extends Controller
         $values = $validator->validated();
         $owner = $persons->findActor($personId);
         abort_if($owner === null, 404);
+        if ($owner->isGroup() && $owner->community !== null) {
+            Gate::authorize('viewMembers', $owner->community);
+        }
         $limit = (int) ($values['limit'] ?? 20);
         $direction = $values['direction'] ?? 'asc';
         $page = $follows->page($owner, $followers, $limit, $values['after'] ?? null, $direction);

@@ -102,9 +102,9 @@ class PersonFollowTest extends TestCase
             $this->cacheMember($owner, $collection, $cached);
             $this->cacheMember($owner, $collection, $group);
             $this->cacheMember($owner, $collection, null);
-            $response = $this->get($this->url($owner, $collection))->assertOk()->assertJsonCount(2);
+            $response = $this->get($this->url($owner, $collection))->assertOk()->assertJsonCount(3);
             $ids = $response->json('*.personId');
-            $this->assertEqualsCanonicalizing([$known->id, $cached->id], $ids);
+            $this->assertEqualsCanonicalizing([$known->id, $cached->id, $group->id], $ids);
             $webLists = app(FollowListQuery::class);
             $webPage = $collection === 'followers'
                 ? $webLists->followers($owner)
@@ -113,7 +113,6 @@ class PersonFollowTest extends TestCase
             $this->assertEqualsCanonicalizing([$cached->id, $group->id], $webPreview->pluck('id')->all());
             $this->assertEqualsCanonicalizing(
                 $webPage->getCollection()->concat($webPreview)
-                    ->whereIn('type', [Actor::TYPE_PERSON, Actor::TYPE_APPLICATION])
                     ->pluck('id')->all(),
                 $ids,
             );
@@ -157,8 +156,6 @@ class PersonFollowTest extends TestCase
         $hidden = [
             $suspended,
             $this->person('deleted', ['status' => Actor::STATUS_DELETED]),
-            $this->person('group', ['type' => Actor::TYPE_GROUP]),
-            $this->person('feed', ['type' => Actor::TYPE_FEED]),
             $this->person('technical', ['type' => Actor::TYPE_APPLICATION, 'is_local' => true]),
         ];
         $visible = $this->person('visible', ['id' => 'ffffffff-ffff-4fff-8fff-ffffffffffff']);
@@ -218,7 +215,7 @@ class PersonFollowTest extends TestCase
         $empty = $this->person('empty');
         foreach (['followers', 'following'] as $collection) {
             $this->get($this->url($empty, $collection))->assertOk()->assertExactJson([])->assertHeaderMissing('Link');
-            foreach (['invalid', (string) Str::uuid(), $this->person('group'.$collection, ['type' => Actor::TYPE_GROUP])->id] as $id) {
+            foreach (['invalid', (string) Str::uuid(), $this->person('group'.$collection, ['type' => Actor::TYPE_GROUP, 'status' => Actor::STATUS_DELETED])->id] as $id) {
                 $this->get('/rest/v1/persons/'.$id.'/'.$collection)->assertNotFound()->assertJsonPath('status', 404);
             }
         }

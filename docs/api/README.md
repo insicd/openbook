@@ -6,6 +6,7 @@ All REST content endpoints require an active user and an OAuth Bearer token,
 including content publicly readable on the website. A website session cookie
 alone does not authorize REST calls. This prototype is limited to local/testing.
 
+- `GET /rest/v1/posts` returns an array of Post objects from the World feed.
 - `GET /rest/v1/me` returns Me with myPerson, the authenticated account as a full Person.
 - `GET /rest/v1/persons/{personId}` returns a Person object.
 - `GET /rest/v1/persons/{personId}/followers` returns an array of PersonReference.
@@ -16,6 +17,26 @@ an optional personAvatar. Lists use after, limit (default 20, maximum 100),
 sort=personId and direction=asc (default) or desc. Link with rel="next" supplies
 the next URL. Remote information may be incomplete; no remote fetch is triggered.
 Locally suspended profiles and unavailable resources return 404.
+
+Person supports the case-sensitive types `person`, `application`, `feed` and
+`group`. PersonReference uses the same compact fields for every type. Local
+private community profiles remain readable; their relationship collections
+return 403 and private community identities are omitted from relationship lists.
+
+## Post list
+
+`GET /rest/v1/posts` returns a direct array of Post objects. `engine=world` is
+the default, using the World section's selection, exclusions and ordering.
+`timeline` is not supported yet and returns 422. The initial representation
+includes text, author PersonReference, content warning, media, location,
+counters and user interactions; polls, quotes and other related objects are
+not yet represented.
+
+Parameters: limit (20, maximum 100), after (the last postId),
+sort=postPublishedAt, direction=desc. Link next supplies the next page.
+Unknown or unreadable reference posts return 422; restart from the first page.
+cursor and page are not supported. Text is not rendered to HTML by this API.
+Optional fields without values are omitted, including title, source and emojis.
 
 ## OAuth flow
 

@@ -6,6 +6,7 @@ Tutti gli endpoint REST di contenuto richiedono utente attivo e Bearer token
 OAuth, anche per contenuti pubblici sul sito. Il solo cookie Web non autorizza
 le chiamate REST. Questo prototipo è limitato a local/testing.
 
+- `GET /rest/v1/posts` restituisce un array di Post del feed Mondo.
 - `GET /rest/v1/me` restituisce Me con myPerson, l’account autenticato come Person completa.
 - `GET /rest/v1/persons/{personId}` restituisce un oggetto Person.
 - `GET /rest/v1/persons/{personId}/followers` restituisce un array di PersonReference.
@@ -16,6 +17,25 @@ personAvatar opzionale. Le liste usano after, limit (predefinito 20, massimo 100
 sort=personId e direction=asc (predefinita) o desc. Link con rel="next" indica
 la pagina successiva. Le informazioni remote possono essere parziali e non si
 avviano fetch remoti. Profili locali sospesi e risorse non disponibili danno 404.
+
+Person supporta i tipi case-sensitive `person`, `application`, `feed` e
+`group`. PersonReference usa gli stessi campi compatti per tutti i tipi.
+L’identità delle community private locali rimane leggibile; le loro raccolte
+di relazioni danno 403 e le identità private sono escluse dagli elenchi di relazioni.
+
+## Elenco dei post
+
+`GET /rest/v1/posts` restituisce un array diretto di Post. `engine=world` è
+il valore predefinito e riproduce selezione, esclusioni e ordine della sezione
+Mondo. `timeline` non è ancora supportato e restituisce 422. Il primo giro
+espone testo, autore PersonReference, CW, media, luogo, contatori e interazioni;
+sondaggi, citazioni e altri oggetti collegati restano da aggiungere.
+
+Parametri: limit (20, massimo 100), after (ultimo postId), sort=postPublishedAt,
+direction=desc. Link next indica la pagina successiva. Un riferimento non più
+disponibile o non leggibile dà 422; ripartire dalla prima pagina. cursor e page
+non sono supportati. Il testo non viene renderizzato in HTML dall’API. I campi
+facoltativi senza valore vengono omessi, compresi titolo, fonte ed emoji.
 
 ## Flusso OAuth
 
