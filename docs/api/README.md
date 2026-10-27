@@ -6,6 +6,7 @@ All REST content endpoints require an active user and an OAuth Bearer token,
 including content publicly readable on the website. A website session cookie
 alone does not authorize REST calls. This prototype is limited to local/testing.
 
+- `GET /rest/v1/instance` returns general instance metadata.
 - `POST /rest/v1/posts` creates a text post from NewPost and returns Post.
 - `GET /rest/v1/posts` returns an array of Post objects from World or the home timeline.
 - `GET /rest/v1/posts/{postId}` returns a single Post.
@@ -30,6 +31,21 @@ Person supports the case-sensitive types `person`, `application`, `feed` and
 `group`. PersonReference uses the same compact fields for every type. Local
 private community profiles remain readable; their relationship collections
 return 403 and private community identities are omitted from relationship lists.
+
+## Instance metadata
+
+GET /instance returns a direct Instance object containing instanceName,
+instanceDomain, instanceUrl and instanceDescription. The description is an
+empty string if not configured. instanceIcon is optional and omitted when
+there is no custom icon; otherwise it is an absolute URL for the 512-pixel PNG.
+The base URL and domain identify the configured instance, independently of
+the request Host. Description content is returned without additional rendering.
+
+The endpoint requires the same active Bearer identity as other REST endpoints.
+It includes no statistics, contacts, software details, limits or administrative
+settings. Responses use private caching, Vary: Authorization and ETag with
+If-None-Match; metadata changes invalidate the representation. Access checks
+precede 304. There is no creation or modification operation for Instance.
 
 ## Creation schemas
 

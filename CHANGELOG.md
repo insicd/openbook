@@ -19,7 +19,9 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Prototipo REST locale**: `GET /rest/v1/me` restituisce l’account autenticato
+- **Prototipo REST locale**: `GET /rest/v1/instance` restituisce nome, dominio,
+  URL, descrizione e icona personalizzata dell’istanza, senza statistiche.
+  `GET /rest/v1/me` restituisce l’account autenticato
   nell’entità Me, con proprietà `myPerson`. `GET /rest/v1/posts` espone il feed
   Mondo con paginazione per ID, media, luogo, CW, contatori e interazioni,
   riusando il Core. `engine=timeline` riproduce la home personale, con contesto

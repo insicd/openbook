@@ -6,6 +6,7 @@ Tutti gli endpoint REST di contenuto richiedono utente attivo e Bearer token
 OAuth, anche per contenuti pubblici sul sito. Il solo cookie Web non autorizza
 le chiamate REST. Questo prototipo è limitato a local/testing.
 
+- `GET /rest/v1/instance` restituisce i metadati generali dell’istanza.
 - `POST /rest/v1/posts` crea un post testuale da NewPost e restituisce Post.
 - `GET /rest/v1/posts` restituisce un array di Post da Mondo o dalla home personale.
 - `GET /rest/v1/posts/{postId}` restituisce un singolo Post.
@@ -29,6 +30,21 @@ Person supporta i tipi case-sensitive `person`, `application`, `feed` e
 `group`. PersonReference usa gli stessi campi compatti per tutti i tipi.
 L’identità delle community private locali rimane leggibile; le loro raccolte
 di relazioni danno 403 e le identità private sono escluse dagli elenchi di relazioni.
+
+## Metadati dell’istanza
+
+GET /instance restituisce un oggetto Instance diretto con instanceName,
+instanceDomain, instanceUrl e instanceDescription. La descrizione è una
+stringa vuota se non configurata. instanceIcon è opzionale e omesso se manca
+un’icona personalizzata; altrimenti è l’URL assoluto della variante PNG 512.
+URL base e dominio identificano l’istanza configurata, indipendentemente
+dall’header Host. La descrizione non riceve rendering aggiuntivo.
+
+L’endpoint richiede Bearer attivo come gli altri endpoint REST. Non include
+statistiche, contatti, dettagli software, limiti o impostazioni amministrative.
+Cache privata, Vary: Authorization ed ETag con If-None-Match; i cambiamenti ai
+metadati invalidano la rappresentazione. I controlli di accesso precedono 304.
+Non sono previste operazioni di creazione o modifica di Instance.
 
 ## Schemi di creazione
 

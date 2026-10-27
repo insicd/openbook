@@ -163,7 +163,7 @@ Questa sezione raccoglie la rappresentazione JSON delle entità, distinta dai
 percorsi e dalle operazioni. I nomi campo referenziano il tipo mediante
 prefisso. Ogni sottosezione descrive significato, struttura e campi progressivamente
 concordati; tipi, formati e nullabilità non ancora decisi restano espliciti.
-Person, PersonReference, Me, Post, Location e Media hanno una prima
+Instance, Person, PersonReference, Me, Post, Location e Media hanno una prima
 rappresentazione implementata. Le altre entità conservano il ruolo condiviso,
 senza anticiparne una specifica.
 
@@ -181,6 +181,23 @@ Per `NewPost` soltanto `postContent` e `postVisibility` sono obbligatori. Gli
 altri campi che verranno introdotti saranno opzionali, con semantica di omissione
 e nullabilità da definire quando vengono aggiunti. Per ora lo schema comprende
 soltanto i due campi concordati; non si anticipano funzionalità non supportate.
+
+### Instance
+
+Metadati generali di sola lettura dell'istanza corrente. GET /instance richiede
+Bearer come gli altri endpoint REST. La rappresentazione espone solo i cinque
+campi concordati, senza statistiche, contatti o configurazioni riservate.
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| `instanceName` | string | Sì | No | Nome configurato dell’istanza; riusa InstanceSettings::siteName. |
+| `instanceDomain` | string | Sì | No | Dominio configurato, come usato dagli indirizzi federati. |
+| `instanceUrl` | string, URI assoluto | Sì | No | URL base configurato dell’istanza, senza slash finale. |
+| `instanceDescription` | string | Sì | No | Descrizione configurata, senza rendering aggiuntivo; stringa vuota se assente. |
+| `instanceIcon` | string, URI assoluto | No | No | Icona personalizzata PNG 512; omessa se non configurata. |
+
+Non è prevista una controparte NewInstance: la gestione dell'istanza resta
+nella UI nativa. Vedere la sezione 22 per gli agganci e le verifiche.
 
 ### Person
 
@@ -1727,3 +1744,50 @@ TTL, permessi prima del 304, dimensione pagina Web e ordinamento Group.
 Confermate le verifiche completa/REST riportate sopra sul codice corrente;
 rivalidati OpenAPI e 92 esempi, copertura delle 12 operazioni REST, Pint e
 diff --check. Nessuna modifica al Core o al dettaglio Person.
+
+## 22. Informazioni statiche dell’istanza
+
+Obiettivo: permettere al client di mostrare il nome e le informazioni generali
+dell'istanza autenticata, senza statistiche o conteggi. Percorso concordato:
+GET /instance, entità di risposta Instance. «Instance» riprende il termine
+usato dal prodotto e dagli endpoint di compatibilità; host è prevalentemente
+tecnico e node richiama il documento NodeInfo più che l'identità del servizio.
+
+Prima rappresentazione concordata: instanceName, instanceDomain, instanceUrl,
+instanceDescription e instanceIcon. Contatti, link a regole/privacy e limiti
+configurati sono possibili estensioni da concordare; non sono statistiche.
+Eventuali gruppi instanceContact/instanceLinks/instanceLimits andranno definiti
+prima di moltiplicare le proprietà di primo livello. Nessun NewInstance:
+l'endpoint è di sola lettura e l'amministrazione rimane nella UI nativa.
+
+Fonte già esistente: InstanceSettings espone nome, descrizione, email,
+registrazioni, regole/privacy, icone e limiti. Dominio/URL vengono dai riferimenti
+configurati dell’istanza. Si usa direttamente questo servizio, non le risposte
+dei controller Mastodon/NodeInfo, che calcolano anche statistiche. Non sono
+necessarie modifiche al Core. Bearer obbligatorio e caching privato con ETag
+seguono il contratto REST corrente. I primi quattro campi sono sempre presenti
+e non null; la descrizione può essere vuota. instanceIcon è opzionale e
+non null: omesso senza icona personalizzata. Si usa la variante PNG 512 già
+prodotta dal servizio, con URL assoluto. URL base e dominio vengono dalla
+configurazione dell’istanza, non dall’header Host della richiesta. Nessuna
+statistica o impostazione aggiuntiva viene letta dalla rappresentazione.
+
+Verifiche: 6 test Instance e 43 asserzioni; suite completa con 2195 test,
+16526 asserzioni e 130 skip, nessun errore. Coperti valori configurati e
+fallback, descrizione vuota, icona omessa/assoluta/CDN, URL canonico indipendente
+da Host, assenza di statistiche e campi riservati, ETag modificato al cambio
+dei cinque dati, 304, scope, autenticazione/account inattivo e guard ambiente.
+OpenAPI e 100 esempi di richiesta/risposta validati; tutte le 13 operazioni
+REST coperte. Sul MySQL locale: 200/304/401, corpo validato contro Instance,
+nessuna query aggregata; EXPLAIN delle letture impostazioni usa
+system_settings_key_unique con una riga. Cache route aggiornata, Pint e
+diff --check superati. Core e UI invariati; nessuna migrazione o nuova dipendenza.
+
+
+Review prima del commit: riletto l'intero diff pendente, inclusi controller,
+risorsa Instance, test, route, changelog e documentazione bilingue. Nessun
+problema aperto individuato. Confermati whitelist dei cinque campi, icona
+opzionale, URL configurati, assenza di statistiche e autenticazione prima del
+304. Confermate le verifiche completa e mirata riportate sopra sul codice
+corrente; rivalidati OpenAPI/100 esempi, copertura delle 13 operazioni REST,
+Pint e diff --check. Core e UI invariati.

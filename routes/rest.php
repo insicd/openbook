@@ -1,11 +1,13 @@
 <?php
 
+use App\Http\Controllers\Rest\V1\InstanceController;
 use App\Http\Controllers\Rest\V1\MeController;
 use App\Http\Controllers\Rest\V1\PersonController;
 use App\Http\Controllers\Rest\V1\PersonPostController;
 use App\Http\Controllers\Rest\V1\PostController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/instance', [InstanceController::class, 'show'])->name('rest.v1.instance.show');
 Route::get('/me', [MeController::class, 'show'])->name('rest.v1.me.show');
 Route::get('/posts', [PostController::class, 'index'])->name('rest.v1.posts.index');
 Route::post('/posts', [PostController::class, 'store'])->name('rest.v1.posts.store');
