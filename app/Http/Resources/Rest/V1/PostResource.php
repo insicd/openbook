@@ -12,9 +12,12 @@ class PostResource extends JsonResource
 
     private bool $timelineContext = false;
 
-    public function withTimelineContext(): self
+    private bool $useShareSort = true;
+
+    public function withTimelineContext(bool $useShareSort = true): self
     {
         $this->timelineContext = true;
+        $this->useShareSort = $useShareSort;
 
         return $this;
     }
@@ -59,7 +62,8 @@ class PostResource extends JsonResource
             $data['postAttachments'] = MediaResource::collection($post->media)->resolve($request);
         }
         if ($this->timelineContext) {
-            $data['postTimelineAt'] = ($post->shared_at ?? $post->published_at)->toISOString();
+            $sortAt = $this->useShareSort ? ($post->shared_at ?? $post->published_at) : $post->published_at;
+            $data['postTimelineAt'] = $sortAt->toISOString();
         }
         if ($post->shared_at !== null) {
             $sharer = $post->sharedBy ?? ($post->shared_by_actor_id === $post->actor_id ? $post->actor : null);

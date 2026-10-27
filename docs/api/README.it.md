@@ -15,6 +15,7 @@ le chiamate REST. Questo prototipo è limitato a local/testing.
 - `DELETE /rest/v1/posts/{postId}/like` rimuove il proprio Mi piace.
 - `GET /rest/v1/me` restituisce Me con myPerson, l’account autenticato come Person completa.
 - `GET /rest/v1/persons/{personId}` restituisce un oggetto Person.
+- `GET /rest/v1/persons/{personId}/posts` restituisce post e rilanci del profilo.
 - `GET /rest/v1/persons/{personId}/followers` restituisce un array di PersonReference.
 - `GET /rest/v1/persons/{personId}/following` restituisce un array di PersonReference.
 
@@ -136,14 +137,37 @@ vuoto e no-store; contatori, notifiche e federazione seguono il comportamento
 Web. Post non disponibili danno 404; Mi piace ad autori sospesi dal server
 remoto danno 403.
 
+## Post di una Person
+
+GET /persons/{personId}/posts restituisce un array di Post come il tab Post
+del profilo, inclusi post propri e rilanci visibili all'utente corrente.
+L'importazione dei contenuti remoti recenti avviene qui, quando previsto dalla
+politica di cache esistente; GET /persons/{personId} resta dedicato a metadati
+e conteggi delle relazioni. I profili RSS/Atom rispettano l'intervallo configurato
+per i feed. Se il server remoto non risponde, restano disponibili i dati in
+cache. I contenuti importati sono una vista locale parziale, non tutta la
+cronologia remota.
+
+Le voci includono postTimelineAt e, quando pertinente, postAnnounce riferito
+al rilancio del profilo. I profili ordinari ordinano per rilancio/pubblicazione;
+i gruppi mantengono l'ordine di pubblicazione originale. sort=postTimelineAt
+è il default, direction=desc; Link next fornisce after + afterAt. La dimensione
+pagina è quella configurata per il feed Web: limit non è selezionabile.
+limit, cursor, page ed engine danno 422. Seguire il Link senza aggiungerli.
+
+Le bacheche delle community locali private richiedono membership o proprietà.
+Accesso dell'account, disponibilità del profilo e visibilità precedono dati o
+304, anche dopo l'importazione. Cache privata con Vary: Authorization.
+
 ## Aggiornamento del dettaglio Person
 
 GET /persons/{personId} aggiorna metadati e conteggi followers/following remoti
 quando scadono le rispettive cache, con la stessa politica del Web. Se il server
 remoto non risponde, si usano i dati disponibili. Non si importano liste di post.
 La disponibilità viene ricontrollata dopo il refresh, prima dell'eventuale 304.
-Profili locali e feed non attivano questi recuperi del profilo remoto. Gli
-elenchi continuano a usare i dati locali. Le letture condizionali usano
+Profili locali e feed non attivano questi recuperi del profilo remoto. Le liste
+di PersonReference e i feed Mondo/home continuano a usare i dati locali.
+Le letture condizionali usano
 ETag/If-None-Match; gli endpoint REST attuali non emettono Last-Modified.
 
 ## Flusso OAuth

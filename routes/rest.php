@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Rest\V1\MeController;
 use App\Http\Controllers\Rest\V1\PersonController;
+use App\Http\Controllers\Rest\V1\PersonPostController;
 use App\Http\Controllers\Rest\V1\PostController;
 use Illuminate\Support\Facades\Route;
 
@@ -14,5 +15,6 @@ Route::delete('/posts/{postId}', [PostController::class, 'destroy'])->name('rest
 Route::put('/posts/{postId}/like', [PostController::class, 'like'])->name('rest.v1.posts.like');
 Route::delete('/posts/{postId}/like', [PostController::class, 'unlike'])->name('rest.v1.posts.unlike');
 Route::get('/persons/{personId}', [PersonController::class, 'show'])->name('rest.v1.persons.show');
+Route::get('/persons/{personId}/posts', [PersonPostController::class, 'index'])->name('rest.v1.persons.posts');
 Route::get('/persons/{personId}/followers', [PersonController::class, 'followers'])->name('rest.v1.persons.followers');
 Route::get('/persons/{personId}/following', [PersonController::class, 'following'])->name('rest.v1.persons.following');

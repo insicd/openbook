@@ -35,6 +35,9 @@ la [roadmap](docs/roadmap.md).
   Dettaglio Post con aggiornamento remoto come sul Web e Mi piace idempotenti
   tramite PUT/DELETE; dettaglio Person con aggiornamento dei metadati e
   conteggi remoti secondo le cache esistenti.
+  `GET /rest/v1/persons/{personId}/posts` espone post e rilanci del profilo,
+  con importazione dei contenuti remoti nel rispetto delle cache esistenti,
+  dimensione pagina del Web e Link con after/afterAt; dettaglio Person invariato.
   Dettaglio Person e liste followers/following di PersonReference, con tipi Person person/application/feed/group
   e protezione delle membership delle community private, con autenticazione OAuth 2 Passport, Authorization Code/PKCE
   S256 e callback. Durata dei nuovi token di accesso e rinnovo configurabile

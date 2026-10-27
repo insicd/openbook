@@ -15,6 +15,7 @@ alone does not authorize REST calls. This prototype is limited to local/testing.
 - `DELETE /rest/v1/posts/{postId}/like` removes your like.
 - `GET /rest/v1/me` returns Me with myPerson, the authenticated account as a full Person.
 - `GET /rest/v1/persons/{personId}` returns a Person object.
+- `GET /rest/v1/persons/{personId}/posts` returns the profile's posts and announces.
 - `GET /rest/v1/persons/{personId}/followers` returns an array of PersonReference.
 - `GET /rest/v1/persons/{personId}/following` returns an array of PersonReference.
 
@@ -135,14 +136,36 @@ returns 204 even if already absent. Both return an empty body and no-store;
 counts, notifications and federation follow the website behavior. Unavailable
 posts return 404; liking a remotely suspended author returns 403.
 
+## Person posts
+
+GET /persons/{personId}/posts returns an array of Post objects matching the
+profile's Posts tab, including authored posts and announces visible to the
+current user. This is where recent remote content is imported when due under
+the existing cache policy; GET /persons/{personId} remains limited to profile
+metadata and relationship totals. RSS/Atom profiles follow the configured feed
+refresh interval. Remote failures preserve available cached results. Imported
+content is a partial local view, not the complete remote history.
+
+Entries include postTimelineAt and, where applicable, postAnnounce identifying
+the profile's announce. Ordinary profiles order by announce/publication time;
+groups retain original publication order. Use sort=postTimelineAt (default),
+direction=desc and the next Link with after + afterAt. Page size matches the
+website feed configuration; limit is not selectable. limit, cursor, page and
+engine parameters return 422. The client should follow Link without adding them.
+
+Local private community walls require membership or ownership. Account access,
+profile availability and visibility are checked before returning data or 304,
+including after import. Responses use private caching and Vary: Authorization.
+
 ## Person detail refresh
 
 GET /persons/{personId} refreshes remote metadata and follower/following totals
 when their caches expire, using the website's refresh policy. Available cached
 data is returned on remote failures. This operation does not import post lists.
 Availability is checked again after refresh, before an eventual 304. Local
-profiles and feeds do not trigger these remote profile fetches. List operations
-remain based on locally available data. Conditional reads use ETag/If-None-Match;
+profiles and feeds do not trigger these remote profile fetches. Person-reference
+lists and the world/home feeds remain based on locally available data.
+Conditional reads use ETag/If-None-Match;
 Last-Modified is not emitted by the current REST endpoints.
 
 ## OAuth flow

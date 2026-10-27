@@ -435,7 +435,7 @@ vincoli; estensioni e nuove relazioni vanno concordate separatamente.
 | `postLanguage` | string, massimo 255 caratteri | No | Sì | Facoltativo concordato. language è nullable; formato dei codici da fissare. |
 | `postVisibility` | string, enum public/unlisted/followers/direct | Sì | No | Visibilità, non null nel DB. Il valore direct non autorizza l'esposizione delle conversazioni private. |
 | `postPublishedAt` | string, date-time | Sì | No | Data di pubblicazione; published_at è non null. |
-| `postTimelineAt` | string, date-time | Solo timeline | No | Data di ordinamento della voce: rilancio selezionato oppure pubblicazione originale. Assente in Mondo. |
+| `postTimelineAt` | string, date-time | Timeline e post del profilo | No | Data di ordinamento: rilancio selezionato oppure pubblicazione originale; nei Group sempre pubblicazione. Assente in Mondo e nei dettagli. |
 | `postAnnounce` | object | No | No | Contesto del rilancio selezionato dal feed, facoltativo per entrambi gli engine; omesso se il contesto non esiste. Nella timeline è l’ultimo rilancio pertinente. |
 | `postAnnounce.announceAuthor` | PersonReference | Sì | No | Autore del rilancio, anche gruppo o autore originale del post. |
 | `postAnnounce.announcePublishedAt` | string, date-time | Sì | No | Data del rilancio selezionato. |
@@ -1463,7 +1463,9 @@ RemoteFollowCollectionsFetcher), rispettandone TTL e fallback. Non si importa
 la lista di post, i post fissati o il feed RSS: non fanno parte del dettaglio
 Person. Dopo l'aggiornamento si rilegge Person tramite la query esistente,
 ricontrollando la disponibilità prima dell'eventuale 304. Nessuna modifica a
-Core, model o query di dominio; gli elenchi restano privi di refresh remoto.
+Core, model o query di dominio; gli elenchi di quella fase restano privi di
+refresh remoto. La sezione 21 aggiunge il recupero dei contenuti all’elenco
+dei post di una Person.
 
 
 ### Review e verifiche prima del commit
@@ -1675,3 +1677,53 @@ Nessun problema aperto individuato, Core/policy/UI invariati. Suite completa
 rieseguita dopo la revisione del 404: 2181 test, 16398 asserzioni, 130 skip,
 nessun errore. OpenAPI e 84 esempi validati; copertura delle 11 operazioni REST
 verificata rispetto alle route. Pint e diff --check superati.
+
+## 21. GET /persons/{personId}/posts
+
+Decisioni concordate: dettaglio Person invariato; recupero dei contenuti
+sull'elenco dei post. L'elenco replica il tab Post del profilo Web, inclusi
+post propri e rilanci, tramite FeedQuery::forProfile senza modificarlo.
+La dimensione pagina resta quella configurata per il feed Web, perché il
+metodo non espone un parametro per richiesta; limit non è selezionabile.
+Nessuna modifica temporanea della configurazione e nessuna query parallela.
+
+I remoti ActivityPub usano RemoteOutboxFetcher::fetchRecentContent: TTL,
+importazione recente e fallback sono quelli del servizio esistente. I feed
+RSS/Atom usano FeedImporter quando scade l'intervallo minimo già configurato
+per il recupero feed; ETag/Last-Modified restano gestiti dal servizio. I normali
+profili locali non richiedono recuperi remoti. Gli errori remoti consentono
+la lettura della cache disponibile, come nel Web. La presenza di contenuti
+in cache non implica una cronologia remota completa.
+
+Restituisce un array diretto di Post con postAnnounce quando il Core seleziona
+un rilancio. postTimelineAt espone sempre la data effettiva di ordinamento:
+rilancio o pubblicazione per Person/Application/Feed, pubblicazione per Group,
+come il Core. Link next usa after + afterAt, senza stato server. sort ammesso
+postTimelineAt, direction desc; limit, cursor, page ed engine non supportati.
+Per le community locali private si applica viewWall prima del recupero e della
+lettura. Disponibilità e autorizzazione vengono ricontrollate dopo il recupero,
+prima della risposta o dell'eventuale 304. Cache privata con Vary Authorization.
+
+Verifiche: suite completa con 2189 test, 16476 asserzioni e 130 skip, nessun
+errore; dopo l'estensione del caso di paginazione con rilanci e date pari,
+suite REST finale con 91 test e 1300 asserzioni. Coperti parità col profilo Web,
+rilanci, ordinamento Group, link e dimensione pagina, importazione remota,
+TTL, aggiornamento dopo scadenza anche con ETag precedente, dettaglio Person
+senza import, fallback, profilo cancellato durante il recupero, community
+private prima del 304, RSS con TTL/ETag, autenticazione e validazione.
+OpenAPI e 92 esempi validati; 41 Post reali di profili Person/Group su MySQL
+validati contro lo schema. EXPLAIN per entrambe le pagine Person e la bacheca
+Group: index_merge su posts_actor_id_published_at_index/PRIMARY, lookup su
+announces_actor_id_post_id_unique, PK e indici del grafo per i controlli di
+visibilità; nessuna nuova query di dominio o indice. Le importazioni remote
+sono simulate nei test, senza pubblicare dati di prova nell'istanza locale.
+Cache route aggiornata, copertura OpenAPI di tutte le route verificata,
+Pint e diff --check superati. Core, UI e dettaglio Person invariati.
+
+Review prima del commit: riletto l'intero diff, inclusi controller e test nuovi,
+risorsa Post, route, changelog, documentazione bilingue e OpenAPI. Nessun
+problema aperto individuato. Confermati refresh sul solo elenco contenuti,
+TTL, permessi prima del 304, dimensione pagina Web e ordinamento Group.
+Confermate le verifiche completa/REST riportate sopra sul codice corrente;
+rivalidati OpenAPI e 92 esempi, copertura delle 12 operazioni REST, Pint e
+diff --check. Nessuna modifica al Core o al dettaglio Person.
