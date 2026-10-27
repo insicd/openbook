@@ -19,6 +19,9 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Post personali REST**: `GET /rest/v1/me/posts` elenca i propri post
+  pubblicati, senza rilanci o messaggi privati, con paginazione after/limit
+  e cache privata con ETag.
 - **Rilanci REST**: PUT/DELETE `/rest/v1/posts/{postId}/announce` attivano e
   rimuovono il proprio rilancio manuale, con contatori, notifiche e federazione
   esistenti. Nuovi rilanci limitati a post public/unlisted fuori da community

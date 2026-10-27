@@ -17,6 +17,7 @@ alone does not authorize REST calls. This prototype is limited to local/testing.
 - `PUT /rest/v1/posts/{postId}/announce` adds your manual announce.
 - `DELETE /rest/v1/posts/{postId}/announce` removes your manual announce.
 - `GET /rest/v1/me` returns Me with myPerson, the authenticated account as a full Person.
+- `GET /rest/v1/me/posts` lists your published posts, excluding announces.
 - `GET /rest/v1/persons/{personId}` returns a Person object.
 - `GET /rest/v1/persons/{personId}/posts` returns the profile's posts and announces.
 - `GET /rest/v1/persons/{personId}/followers` returns an array of PersonReference.
@@ -80,6 +81,22 @@ yet supported by this operation.
   "postVisibility": "public"
 }
 ```
+
+## Your posts
+
+GET /me/posts returns a direct array of Post objects authored by the Bearer
+user. Deleted posts and private conversation messages are excluded; your
+restricted posts, community posts and quotes are included. Announces of other
+authors' posts are excluded. An authored post that is also announced appears
+once in publication order, without postAnnounce or postTimelineAt.
+
+Supports limit (default 20, maximum 100), sort=postPublishedAt and direction=desc.
+The next Link includes after, the last received postId, and all other navigation
+parameters. The reference must still belong to this collection: deleted or
+excluded posts and other users' posts return 422; restart from the first page.
+engine, afterAt, cursor and page are not supported. No remote content is fetched.
+Private caching with ETag and Vary Authorization applies, with authentication
+before any 304 response, as with other REST lists.
 
 ## Post list
 

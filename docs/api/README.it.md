@@ -17,6 +17,7 @@ le chiamate REST. Questo prototipo è limitato a local/testing.
 - `PUT /rest/v1/posts/{postId}/announce` attiva il proprio rilancio manuale.
 - `DELETE /rest/v1/posts/{postId}/announce` rimuove il proprio rilancio manuale.
 - `GET /rest/v1/me` restituisce Me con myPerson, l’account autenticato come Person completa.
+- `GET /rest/v1/me/posts` restituisce solo i propri post pubblicati, senza rilanci.
 - `GET /rest/v1/persons/{personId}` restituisce un oggetto Person.
 - `GET /rest/v1/persons/{personId}/posts` restituisce post e rilanci del profilo.
 - `GET /rest/v1/persons/{personId}/followers` restituisce un array di PersonReference.
@@ -78,6 +79,22 @@ sondaggi, citazioni, community, posizione e post direct non sono ancora supporta
   "postVisibility": "public"
 }
 ```
+
+## I propri post
+
+GET /me/posts restituisce un array diretto di Post pubblicati dall'utente del
+Bearer. Esclude post cancellati e messaggi di conversazioni private; include
+i propri post riservati, nelle community e le citazioni. I rilanci di post
+altrui non fanno parte della raccolta. Un proprio post rilanciato compare una
+sola volta, in ordine di pubblicazione, senza postAnnounce né postTimelineAt.
+
+Usa limit (default 20, massimo 100), sort=postPublishedAt e direction=desc.
+Il Link next contiene after, l'ultimo postId ricevuto, e tutti gli altri
+parametri di navigazione. L'ancora deve ancora appartenere alla raccolta:
+un post cancellato, escluso o di altri utenti dà 422; ripartire dalla prima
+pagina. engine, afterAt, cursor e page non sono supportati. Nessun contenuto
+remoto viene importato. Si applicano cache privata con ETag, Vary Authorization
+e autenticazione prima dell'eventuale 304, come nelle altre liste REST.
 
 ## Elenco dei post
 

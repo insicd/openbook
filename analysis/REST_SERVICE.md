@@ -1848,3 +1848,52 @@ OpenAPI, 264 esempi inline e corrispondenza di tutte le 15 operazioni REST
 con entrambi i README; le operazioni e gli schemi precedenti sono invariati.
 Ripetuti con successo i 139 test mirati (1608 asserzioni), Pint e diff --check.
 La suite completa riportata sopra è stata eseguita sul medesimo codice.
+
+## 24. GET /me/posts
+
+Collezione dei soli post pubblicati dall'attore associato al Bearer corrente,
+coerente con ownership. Esclusi rilanci di post altrui, post cancellati/non
+pubblicati e messaggi di conversazioni private. Restano inclusi i propri post
+followers/direct non appartenenti a conversazioni, quelli nelle community e
+le citazioni pubblicate come propri post. Un proprio post rilanciato resta
+presente una sola volta, ordinato per pubblicazione, senza contesto Announce.
+
+Riuso senza modifiche al Core: relazione Actor::posts(), scope Post esistenti,
+FeedQuery::paginatePublishedQuery() (già usato dal Web per hashtag),
+Post::annotateViewerState e PostResource. Non usare forProfile(), perché
+comprende rilanci e ordina anche per data di condivisione.
+
+Array diretto di Post, senza postAnnounce né postTimelineAt. Parametri after
+(UUID dell'ultimo post), limit (default 20, massimo 100), sort=postPublishedAt
+e direction=desc. Ordinamento deterministico pubblicazione/ID tramite il
+paginatore esistente. L'ancora deve appartenere alla stessa collezione, anche
+in presenza di un ID di altri utenti noto al client: altrimenti 422. Link
+rel="next" completo, nessun cursore opaco o stato server. afterAt, engine,
+cursor e page non supportati. Cache privata con ETag, Vary Authorization e
+controlli di autenticazione/account prima dell'eventuale 304. Nessun fetch
+remoto, nuova entità, migrazione o modifica a servizi/modelli condivisi.
+
+Verifiche completate: suite REST iniziale con 116 test/1568 asserzioni;
+aggiunto poi il caso esplicito di rilancio del proprio post senza riordino.
+Suite completa finale: 2215 test, 16757 asserzioni, 130 skip, nessun errore.
+Coperti ownership, esclusione rilanci/cancellati/messaggi privati, propri post
+riservati/community/citazioni, ordine e parità di date, nuovi inserimenti tra
+pagine, ancore estranee/non disponibili, limiti, parametri, cache e identità.
+OpenAPI e 288 esempi validati, incluse le raccolte vuote e la risposta reale;
+16 operazioni REST allineate ai README bilingui. Pint e diff --check superati.
+Sul MySQL locale: 200/304/200 per prima pagina, ETag e pagina successiva,
+nessun fetch remoto. EXPLAIN delle SELECT effettive usa
+posts_actor_id_published_at_index (ref/range, Backward index scan, senza
+filesort) e PRIMARY per l'ancora; controlli correlati sulle chiavi esistenti
+di community, follow e menzioni. Nessuna migrazione o indice nuovo necessario.
+Cache route locale aggiornata. Review del diff: nessuna modifica al Core,
+nessun problema aperto individuato.
+
+Review finale prima del commit: riletto il diff completo, inclusi controller,
+test e contratto pubblico. Nessun problema aperto individuato. Confermati
+isolamento dell'ownership, esclusione dei messaggi privati e dei rilanci altrui,
+ordinamento per pubblicazione, vincoli delle ancore e cache autenticata.
+Rivalidati OpenAPI/288 esempi e corrispondenza delle 16 operazioni REST nei
+README bilingui; endpoint e schemi precedenti invariati. Ripetuti i 9 test
+specifici (112 asserzioni), Pint e diff --check. Suite completa sopra eseguita
+sullo stesso codice; nessuna modifica al Core.
