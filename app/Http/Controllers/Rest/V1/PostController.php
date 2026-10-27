@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Rest\V1;
 
 use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
+use App\Application\Services\LocalContentDeleter;
 use App\Application\Services\PostComposer;
 use App\Application\Services\ReactionManager;
 use App\Domain\Posts\Post;
@@ -14,6 +15,8 @@ use App\Http\Resources\Rest\V1\PostResource;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -25,28 +28,7 @@ final class PostController extends Controller
 
     public function store(Request $request, PostComposer $composer): Response
     {
-        abort_unless($request->isJson(), 415);
-        try {
-            $payload = json_decode($request->getContent(), flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            abort(400);
-        }
-        if (! $payload instanceof \stdClass) {
-            $this->invalid(['body' => ['The request body must be a JSON object.']]);
-        }
-        $data = $request->json()->all();
-        $validator = Validator::make($data, [
-            'postContent' => ['required', 'string', 'regex:/\S/u', 'max:'.(int) config('openbook.posts.max_length')],
-            'postVisibility' => ['required', 'string', Rule::in([Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED, Post::VISIBILITY_FOLLOWERS])],
-        ]);
-        $errors = $validator->errors()->toArray();
-        foreach (array_diff(array_keys($data), ['postContent', 'postVisibility']) as $field) {
-            $errors[$field] = ['This field is not supported.'];
-        }
-        if ($errors !== []) {
-            $this->invalid($errors);
-        }
-        $values = $validator->validated();
+        $values = $this->postInput($request);
         $author = $request->user()->actor;
         $post = $composer->compose($author, [
             'body' => $values['postContent'],
@@ -60,6 +42,91 @@ final class PostController extends Controller
         $response->headers->set('Cache-Control', 'no-store');
 
         return $response;
+    }
+
+    public function update(Request $request, string $postId, PostComposer $composer): Response
+    {
+        $values = $this->postInput($request, partial: true);
+        $post = DB::transaction(function () use ($request, $postId, $composer, $values): Post {
+            $post = $this->ownedPost($request, $postId);
+            Gate::authorize('update', $post);
+            abort_if(
+                ! in_array($post->visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED, Post::VISIBILITY_FOLLOWERS], true)
+                || $post->community_id !== null || $post->quoted_post_id !== null
+                || $post->quoted_event_id !== null || $post->quoted_actor_id !== null
+                || $post->media()->exists() || $post->location()->exists() || $post->poll()->exists(),
+                409,
+            );
+
+            return $composer->update($request->user()->actor, $post, [
+                'body' => $values['postContent'] ?? $post->body,
+                'visibility' => $values['postVisibility'] ?? $post->visibility,
+                'title' => $post->title,
+                'content_warning' => $post->content_warning,
+                'language' => $post->language,
+            ]);
+        });
+        $post->refresh()->load(Post::CARD_RELATIONS);
+        Post::annotateViewerState([$post], $request->user()->actor);
+        $response = (new PostResource($post))->toResponse($request);
+        $response->setStatusCode(200);
+        $response->headers->set('Cache-Control', 'no-store');
+
+        return $response;
+    }
+
+    public function destroy(Request $request, string $postId, LocalContentDeleter $deleter): Response
+    {
+        DB::transaction(function () use ($request, $postId, $deleter): void {
+            $post = $this->ownedPost($request, $postId);
+            Gate::authorize('delete', $post);
+            $deleter->delete($request->user()->actor, $post);
+        });
+
+        return response()->noContent()->header('Cache-Control', 'no-store');
+    }
+
+    private function ownedPost(Request $request, string $postId): Post
+    {
+        abort_unless(Str::isUuid($postId), 404);
+        $post = Post::query()->whereKey($postId)->where('actor_id', $request->user()->actor->id)
+            ->excludingPrivateMessages()->where('status', Post::STATUS_PUBLISHED)
+            ->with('actor')->lockForUpdate()->first();
+        abort_if($post === null, 404);
+        abort_if($post->isRemote() || ! $post->actor->isLocal(), 403);
+
+        return $post;
+    }
+
+    private function postInput(Request $request, bool $partial = false): array
+    {
+        abort_unless($request->isJson(), 415);
+        try {
+            $payload = json_decode($request->getContent(), flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            abort(400);
+        }
+        if (! $payload instanceof \stdClass) {
+            $this->invalid(['body' => ['The request body must be a JSON object.']]);
+        }
+        $data = $request->json()->all();
+        $presence = $partial ? ['sometimes', 'required'] : ['required'];
+        $validator = Validator::make($data, [
+            'postContent' => [...$presence, 'string', 'regex:/\S/u', 'max:'.(int) config('openbook.posts.max_length')],
+            'postVisibility' => [...$presence, 'string', Rule::in([Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED, Post::VISIBILITY_FOLLOWERS])],
+        ]);
+        $errors = $validator->errors()->toArray();
+        if ($partial && $data === []) {
+            $errors['body'] = ['At least one property must be supplied.'];
+        }
+        foreach (array_diff(array_keys($data), ['postContent', 'postVisibility']) as $field) {
+            $errors[$field] = ['This field is not supported.'];
+        }
+        if ($errors !== []) {
+            $this->invalid($errors);
+        }
+
+        return $validator->validated();
     }
 
     public function show(Request $request, string $postId, RemoteRepliesFetcher $replies): Response

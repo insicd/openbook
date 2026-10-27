@@ -9,6 +9,8 @@ alone does not authorize REST calls. This prototype is limited to local/testing.
 - `POST /rest/v1/posts` creates a text post from NewPost and returns Post.
 - `GET /rest/v1/posts` returns an array of Post objects from World or the home timeline.
 - `GET /rest/v1/posts/{postId}` returns a single Post.
+- `PATCH /rest/v1/posts/{postId}` edits an owned simple post using PatchPost.
+- `DELETE /rest/v1/posts/{postId}` deletes an owned local post.
 - `PUT /rest/v1/posts/{postId}/like` adds your like.
 - `DELETE /rest/v1/posts/{postId}/like` removes your like.
 - `GET /rest/v1/me` returns Me with myPerson, the authenticated account as a full Person.
@@ -88,6 +90,35 @@ subsequent pages.
 
 Text is not rendered to HTML by this API. Optional fields without values are
 omitted, including title, source and emojis.
+
+## Editing and deleting posts
+
+PATCH /posts/{postId} accepts a PatchPost JSON object. postContent and
+postVisibility are both optional, but at least one must be present. Supplied
+values are non-null and follow NewPost constraints. Omitted properties retain
+their values, including any existing title, content warning and language.
+An empty object or invalid/unknown properties return 422; malformed JSON returns
+400 and a non-JSON content type returns 415.
+
+This initial editing scope includes owned, published local posts without
+attachments, location, polls, communities or quotes, with a public, unlisted or
+followers audience. Unsupported posts return 409 without changes. Success
+returns 200 with the updated Post; hashtags, mentions, notifications and
+federation use the website editing flow.
+
+```json
+{
+  "postContent": "An updated message. #OpenBook"
+}
+```
+
+DELETE /posts/{postId} deletes an owned local post, including posts outside
+this simple editing scope. It returns 204 with no body on success. An already
+deleted post returns 404 at lookup, before deletion authorization or processing.
+Subsequent GET returns 404. Private messages,
+unknown or unavailable posts, and other users' posts return 404. Admin roles
+do not permit acting on other users' posts through these operations.
+Both mutations require an active Bearer identity and return no-store responses.
 
 ## Post details and likes
 

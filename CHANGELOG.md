@@ -28,7 +28,10 @@ la [roadmap](docs/roadmap.md).
   esposto quando il feed fornisce il contesto del rilancio.
   `POST /rest/v1/posts` crea post testuali da NewPost, con visibilità esplicita,
   hashtag, menzioni e federazione tramite il flusso di pubblicazione esistente;
-  restituisce Post e Location con stato 201.
+  restituisce Post e Location con stato 201. `PATCH /rest/v1/posts/{postId}`
+  modifica i propri post semplici con campi opzionali (almeno uno richiesto);
+  `DELETE /rest/v1/posts/{postId}` elimina i propri post locali, senza privilegi
+  staff; una DELETE su un post già cancellato restituisce subito 404.
   Dettaglio Post con aggiornamento remoto come sul Web e Mi piace idempotenti
   tramite PUT/DELETE; dettaglio Person con aggiornamento dei metadati e
   conteggi remoti secondo le cache esistenti.

@@ -9,6 +9,8 @@ le chiamate REST. Questo prototipo è limitato a local/testing.
 - `POST /rest/v1/posts` crea un post testuale da NewPost e restituisce Post.
 - `GET /rest/v1/posts` restituisce un array di Post da Mondo o dalla home personale.
 - `GET /rest/v1/posts/{postId}` restituisce un singolo Post.
+- `PATCH /rest/v1/posts/{postId}` modifica un proprio post semplice con PatchPost.
+- `DELETE /rest/v1/posts/{postId}` elimina un proprio post locale.
 - `PUT /rest/v1/posts/{postId}/like` aggiunge il proprio Mi piace.
 - `DELETE /rest/v1/posts/{postId}/like` rimuove il proprio Mi piace.
 - `GET /rest/v1/me` restituisce Me con myPerson, l’account autenticato come Person completa.
@@ -87,6 +89,35 @@ una fotografia del feed: le modifiche possono influire sulle pagine successive.
 
 Il testo non viene renderizzato in HTML dall’API. I campi facoltativi senza
 valore vengono omessi, compresi titolo, fonte ed emoji.
+
+## Modifica e cancellazione dei post
+
+PATCH /posts/{postId} accetta un oggetto JSON PatchPost. postContent e
+postVisibility sono entrambi opzionali, ma almeno uno deve essere presente.
+I valori forniti non ammettono null e seguono i vincoli di NewPost. I campi
+omessi mantengono i loro valori, inclusi titolo, CW e lingua già esistenti.
+Oggetto vuoto, proprietà sconosciute o valori non validi danno 422; JSON
+malformato dà 400 e Content-Type non JSON dà 415.
+
+Il primo giro di modifica copre i propri post locali pubblicati, senza
+allegati, località, sondaggi, community o citazioni, con visibilità public,
+unlisted o followers. Post non supportati danno 409 senza modifiche. Il
+successo restituisce 200 con il Post aggiornato; hashtag, menzioni, notifiche
+e federazione seguono il flusso di modifica Web.
+
+```json
+{
+  "postContent": "Un messaggio aggiornato. #OpenBook"
+}
+```
+
+DELETE /posts/{postId} elimina un proprio post locale, anche fuori dal
+perimetro semplice della modifica. Restituisce 204 senza body in caso di
+successo. Un post già cancellato dà 404 alla ricerca iniziale, prima della
+policy e del servizio di cancellazione. Il GET successivo dà 404. Messaggi privati, post
+inesistenti o non disponibili e post altrui danno 404. Il ruolo admin non
+consente di operare sui post altrui tramite queste API.
+Entrambe le scritture richiedono Bearer attivo e restituiscono no-store.
 
 ## Dettaglio Post e Mi piace
 

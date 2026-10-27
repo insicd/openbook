@@ -522,6 +522,21 @@ Le proprietà non definite non sono accettate. I futuri campi aggiuntivi saranno
 facoltativi. NewPost è uno schema autonomo: non usa un'ereditarietà da Post che
 trascinerebbe i requisiti della risposta nella richiesta.
 
+### PatchPost
+
+Richiesta di modifica parziale distinta da NewPost. Tutti i campi sono
+opzionali ma almeno uno deve essere inviato. Le proprietà omesse conservano
+il valore corrente; null non significa rimozione e non è accettato.
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| `postContent` | string | No | No | Testo non vuoto, con gli stessi vincoli di NewPost. |
+| `postVisibility` | string, enum public/unlisted/followers | No | No | Nuova visibilità; se omessa resta quella corrente. |
+
+Schema autonomo con almeno una proprietà e nessuna proprietà aggiuntiva.
+Si applica solo ai propri post semplici pubblicati, come delimitato nella
+sezione 20; non amplia le proprietà modificabili del Core.
+
 ### Event
 
 Evento distinto da Post. Rappresentazione e campi da definire; interesse e
@@ -1558,3 +1573,105 @@ bilingue e OpenAPI. Nessun problema aperto individuato. Confermati autore dal
 Bearer, whitelist degli input, limiti configurati, risposta 201/Location e
 assenza di modifiche al Core. Confermate le verifiche complete e REST riportate
 sopra sul codice corrente; rivalidati OpenAPI/66 esempi, Pint e diff --check.
+
+## 20. PATCH e DELETE /posts/{postId}
+
+Implementazione locale con servizi esistenti; operazioni e schema PatchPost
+descritti nell’OpenAPI. Nessuna modifica al Core.
+
+DELETE riusa LocalContentDeleter::delete, già chiamato dal controller Web:
+marca il post cancellato, svuota i dati previsti dal flusso esistente e
+consegna Delete tramite ActivityDelivery. Il servizio gestisce la transazione,
+il lock e il caso già cancellato. Risposta HTTP: 204 senza body; GET successivo
+404. Per le API va verificata esplicitamente la proprietà del post locale:
+PostPolicy::delete permette anche agli amministratori di cancellare post
+altrui, mentre la moderazione REST è fuori perimetro. L'ownership REST si
+aggiunge al controllo esistente senza modificare la policy del Core.
+Messaggi privati e contenuti remoti rimangono fuori da questi endpoint.
+Una DELETE ripetuta sul proprio post già cancellato restituisce 404: il lookup
+ammette solo pubblicati, prima di policy e servizio di cancellazione.
+
+PATCH chiama PostComposer::update, già usato dal Web con autorizzazione
+PostPolicy::update. Il servizio verifica autore locale e stato pubblicato,
+ricalcola hashtag/menzioni, aggiorna edited_at e consegna Update, inclusa la
+gestione dei relay al cambio di visibilità. Per il primo caso testuale si
+possono modificare postContent e/o postVisibility; soltanto i campi presenti
+vengono applicati, con almeno un campo presente e gli stessi vincoli del POST.
+Risposta: 200 con Post aggiornato, Cache-Control no-store.
+
+Il servizio riceve però i dati di una form completa, non un aggiornamento
+parziale: body è richiesto, title e content_warning mancanti vengono azzerati,
+location_id mancante rimuove la località. L'adattatore REST deve riempire body,
+titolo, CW, lingua e visibilità con i valori esistenti per i campi omessi.
+Allegati già presenti non vengono rimossi omettendo nuovi upload.
+
+Limite evidente per un PATCH generico senza modifiche al Core: la località
+non ha un'opzione «mantieni il valore attuale». Passare il geo_city_id la
+ricostruisce dall'anagrafica corrente e non conserva necessariamente la
+fotografia esistente; se manca l'ID o la città non esiste più non basta.
+Non chiamare update omettendo location_id su un post geolocalizzato.
+I sondaggi hanno ulteriori vincoli nel servizio LocalPollPublisher, fra cui
+visibilità e nuove menzioni, da affrontare separatamente.
+
+Il primo perimetro è quello dei post semplici specificato sotto. I casi non
+gestiti vengono rifiutati esplicitamente. DELETE usa il servizio esistente
+per i propri post locali. Nessuna modifica a servizi, modelli o UI del Core.
+
+### Implementazione concordata
+
+PATCH accetta un oggetto PatchPost con postContent e postVisibility opzionali,
+non null, e almeno una proprietà. Valori e limite testo restano quelli di
+NewPost. Si rifiutano campi sconosciuti; il cambio riguarda soltanto i campi
+presenti. Per questo primo giro sono semplici i post senza media, località,
+sondaggi, community o citazioni, con visibilità public/unlisted/followers.
+I post fuori da questo perimetro danno 409, senza modifiche. Titolo, CW e
+lingua già esistenti vengono conservati. Il controllo del perimetro e la
+lettura dei valori da preservare avvengono sotto lock del post in una
+transazione REST, prima di chiamare il composer esistente, evitando un merge
+su una fotografia precedente a una modifica concorrente.
+
+DELETE ammette i propri post locali anche se non semplici; conversazioni
+private escluse. Un post già cancellato restituisce 404 alla ricerca iniziale,
+prima di policy e servizio di cancellazione. Post non propri,
+inesistenti o non disponibili danno 404; nessuna eccezione per gli admin.
+La policy esistente viene comunque applicata dopo il controllo di ownership.
+PATCH restituisce Post aggiornato con 200; DELETE 204 senza body. Entrambe
+le risposte usano no-store. Nessuna modifica al Core o migrazione richiesta.
+
+
+### Verifiche di PATCH e DELETE
+
+Suite completa: 2181 test, 16399 asserzioni, 130 skip, nessun errore. Test
+mirati Mutation/Create: 14 test e 356 asserzioni. Coperti PATCH di solo testo,
+sola visibilità e combinato, conservazione di titolo/CW/lingua e data originale,
+input vuoti/null/non validi, proprietà sconosciute, JSON e Content-Type,
+perimetro semplice (inclusa località senza geo_city_id conservata al rifiuto),
+ownership anche per admin, messaggi privati, remoto, account inattivo,
+cancellazione ripetuta e mancato ripristino via PATCH. Verificati ricalcolo
+hashtag/menzioni/notifiche e Update/Delete federati senza doppia cancellazione.
+OpenAPI valido, 84 esempi di richiesta/risposta validati e tutte le route REST
+coperte. EXPLAIN MySQL: lookup pubblicato/cancellato su PRIMARY (una riga),
+allegati su post_attachments_post_id_position_index e media PRIMARY; località
+e poll assenti risolti dall'ottimizzatore senza scansione. Nessuna modifica a
+indici o migrazioni. Cache route locale aggiornata, Pint e diff --check passati.
+Core, policy e UI invariati.
+
+Revisione concordata: DELETE cerca soltanto post pubblicati, come PATCH.
+La risorsa già cancellata dà 404 dopo autenticazione e lookup, senza passare
+dalla policy né dal servizio. Rimossa l’opzione includeDeleted dall’adattatore
+REST; il comportamento interno di LocalContentDeleter resta invariato.
+Verifica della revisione: 8 test Mutation, 164 asserzioni, nessun errore;
+regressione esplicita con policy configurata per fallire se invocata sul post
+già cancellato. Verificata assenza di una seconda consegna Delete. OpenAPI,
+Pint e diff --check superati.
+
+### Review complessiva prima del commit
+
+Riletto tutto il diff pendente: controller/route REST, schema PatchPost,
+operazioni OpenAPI, test, analisi, README inglese/italiano e changelog.
+Confermati ownership senza privilegi staff, campi omessi preservati sotto lock,
+409 sui post non semplici e DELETE 404 sul già cancellato prima della policy.
+Nessun problema aperto individuato, Core/policy/UI invariati. Suite completa
+rieseguita dopo la revisione del 404: 2181 test, 16398 asserzioni, 130 skip,
+nessun errore. OpenAPI e 84 esempi validati; copertura delle 11 operazioni REST
+verificata rispetto alle route. Pint e diff --check superati.
