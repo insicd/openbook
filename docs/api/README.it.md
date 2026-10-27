@@ -6,6 +6,7 @@ Tutti gli endpoint REST di contenuto richiedono utente attivo e Bearer token
 OAuth, anche per contenuti pubblici sul sito. Il solo cookie Web non autorizza
 le chiamate REST. Questo prototipo è limitato a local/testing.
 
+- `POST /rest/v1/posts` crea un post testuale da NewPost e restituisce Post.
 - `GET /rest/v1/posts` restituisce un array di Post da Mondo o dalla home personale.
 - `GET /rest/v1/posts/{postId}` restituisce un singolo Post.
 - `PUT /rest/v1/posts/{postId}/like` aggiunge il proprio Mi piace.
@@ -25,6 +26,37 @@ Person supporta i tipi case-sensitive `person`, `application`, `feed` e
 `group`. PersonReference usa gli stessi campi compatti per tutti i tipi.
 L’identità delle community private locali rimane leggibile; le loro raccolte
 di relazioni danno 403 e le identità private sono escluse dagli elenchi di relazioni.
+
+## Schemi di creazione
+
+Gli input di creazione usano schemi `New<Entity>`, separati dalle entità di
+risposta: per esempio NewPost è la controparte di creazione di Post. Nomi e
+raggruppamenti sono conservati quando applicabili; obbligatorietà e nullabilità
+sono definite separatamente. I campi generati dal server o di sola lettura
+non fanno parte degli input.
+
+NewPost accetta per ora soltanto postContent e postVisibility, entrambi
+obbligatori e non null. postContent deve contenere testo non composto soltanto
+da spazi e rispettare il limite dell'istanza. postVisibility accetta public,
+unlisted o followers, senza default. Gli altri campi che verranno aggiunti
+saranno opzionali. POST /posts accetta NewPost come oggetto JSON e restituisce
+201 con il Post completo e Location verso il dettaglio REST. La risposta usa
+no-store. Proprietà sconosciute o riservate a funzioni future danno 422, come
+i campi mancanti o non validi. JSON malformato dà 400; un Content-Type non JSON
+dà 415. L’autenticazione precede la validazione.
+
+Hashtag, menzioni note, notifiche e federazione seguono la pubblicazione Web.
+201 conferma la pubblicazione locale, non la consegna remota. Ripetere un POST
+può creare un altro post e un errore non garantisce che nulla sia stato creato.
+Il limite del testo segue la configurazione dell’istanza come sul sito. Media,
+sondaggi, citazioni, community, posizione e post direct non sono ancora supportati.
+
+```json
+{
+  "postContent": "Ciao dalla mia applicazione! #OpenBook",
+  "postVisibility": "public"
+}
+```
 
 ## Elenco dei post
 

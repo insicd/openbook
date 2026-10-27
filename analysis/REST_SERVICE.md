@@ -167,6 +167,21 @@ Person, PersonReference, Me, Post, Location e Media hanno una prima
 rappresentazione implementata. Le altre entità conservano il ruolo condiviso,
 senza anticiparne una specifica.
 
+### Convenzione per le entità di creazione
+
+Per ogni entità creabile dal client si definisce una coppia `Entità` /
+`NewEntità`: per esempio `Post` / `NewPost`. L'entità ordinaria rappresenta
+la risposta; `NewEntità` contiene esclusivamente i campi accettati in creazione,
+con gli stessi nomi e raggruppamenti quando applicabili. Non eredita
+automaticamente campi obbligatori, contatori, identità o date della risposta.
+Obbligatorietà e nullabilità sono definite separatamente per la richiesta: un
+campo obbligatorio in lettura non diventa obbligatorio in scrittura.
+
+Per `NewPost` soltanto `postContent` e `postVisibility` sono obbligatori. Gli
+altri campi che verranno introdotti saranno opzionali, con semantica di omissione
+e nullabilità da definire quando vengono aggiunti. Per ora lo schema comprende
+soltanto i due campi concordati; non si anticipano funzionalità non supportate.
+
 ### Person
 
 #### Introduzione
@@ -489,6 +504,23 @@ si restituiscono i pubblicati, escludendo i cancellati.
 Il corpo remoto viene importato come testo ripulito, mentre quello locale
 supporta Markdown. Il contratto espone il testo disponibile nel Core senza
 rendering HTML, senza promettere il sorgente originale del server remoto.
+
+### NewPost
+
+Richiesta di creazione di Post, separata dalla rappresentazione di risposta.
+Prima versione testuale, senza allegati o altre funzionalità avanzate.
+L'autore viene dal contesto autenticato. ID, URI, date, contatori e interazioni
+non sono inviabili dal client. Lo schema è definito nell'OpenAPI;
+`POST /posts` è implementato nel prototipo locale ed è descritto nell’OpenAPI.
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| `postContent` | string | Sì | No | Testo non vuoto né composto soltanto da spazi; limite della stessa configurazione del Web. Supporta il normale testo sorgente del Core, inclusi hashtag e menzioni. |
+| `postVisibility` | string, enum public/unlisted/followers | Sì | No | Visibilità esplicita, senza valore predefinito. direct resta fuori dal primo giro. |
+
+Le proprietà non definite non sono accettate. I futuri campi aggiuntivi saranno
+facoltativi. NewPost è uno schema autonomo: non usa un'ereditarietà da Post che
+trascinerebbe i requisiti della risposta nella richiesta.
 
 ### Event
 
@@ -1438,3 +1470,91 @@ REST verificata. Sul MySQL locale: dettaglio Post 200/304 e Person 200, corpi
 validati contro gli schemi; EXPLAIN della lettura Post usa PRIMARY con una
 riga e il vincolo univoco del grafo follow. Cache route/config locali aggiornate.
 Pint e diff --check superati. Non sono state introdotte migration.
+
+## 19. Ricognizione POST /posts: primo caso testuale
+
+NewPost e la convenzione Entità/NewEntità sono concordati e definiti nella
+sezione 4. L’implementazione del primo caso testuale è descritta sotto.
+L'aggancio è PostComposer::compose(Actor $author, array $data), già usato da
+PostController::store. Il ramo senza video del Web lo chiama direttamente;
+PostPublicationStager non serve nel caso senza allegati.
+
+Il servizio esistente crea il post pubblicato con ID e data server-side,
+collega hashtag e menzioni, genera le notifiche e attiva la consegna Create
+secondo l'audience. I passaggi non applicabili (media, sondaggi, community,
+citazioni e posizione) rimangono inattivi se non vengono passati i relativi
+input. Non sono necessarie modifiche a servizi, modelli o query del Core.
+I test PostComposerTest coprono già il post testuale e le sue conseguenze.
+
+Perimetro concordato di NewPost:
+
+| Campo di richiesta | Vincolo | Adattamento verso il servizio |
+| --- | --- | --- |
+| postContent | Testo obbligatorio, non vuoto, con lo stesso limite configurato per il Web (openbook.posts.max_length, default 5000). | body |
+| postVisibility | Obbligatorio come nella form Web; public, unlisted o followers. | visibility |
+
+L'autore viene esclusivamente dall'utente autenticato, senza personId fornito
+dal client. direct rimane fuori dal primo giro, insieme a
+messaggi privati, allegati, località, community, citazioni e sondaggi. Titolo,
+lingua e CW sono già gestibili dal servizio ma possono essere aggiunti al
+contratto in un passaggio successivo. Non si inoltra il JSON integrale al
+composer: una whitelist esplicita impedisce di abilitare funzioni fuori scope.
+
+La validazione REST è specifica per i nomi pubblici, con enum/limiti
+presi dagli stessi riferimenti del Web. StorePostRequest è una FormRequest
+per il composer Web completo, inclusi upload e poll: riusarla integralmente
+non semplifica il caso REST minimo. Non si replica la logica di pubblicazione.
+
+Hashtag e menzioni testuali mantengono il comportamento attuale: ContentParser
+risolve i contatti locali e i remoti già noti; non introduce WebFinger per
+indirizzi sconosciuti. Il testo resta sorgente per il normale rendering del
+Core, non HTML prodotto dall'API.
+
+Flusso REST: autenticazione esistente, validazione e adattamento,
+compose, rilettura del post e caricamento CARD_RELATIONS/annotazione dello
+stato del lettore, PostResource. La rilettura include anche i valori iniziali
+dei contatori definiti dal database. Risposta 201 con entità Post diretta e
+Location verso GET /posts/{postId}, Cache-Control no-store; input non valido
+422 Problem Details. La risposta descrive la creazione locale, non conferma
+la ricezione su tutti i server federati. Un normale POST ripetuto crea un
+altro post: eventuali garanzie aggiuntive sui retry sono un tema separato.
+Come nel Web, il servizio salva prima della consegna federata: non presumere
+che un errore successivo alla creazione equivalga a nessun post salvato.
+
+L’implementazione è coperta da test REST per identità dell’autore,
+validazione, visibilità, hashtag/menzioni/notifiche, consegna federata e forma
+201/Location/Post, senza aprire gli input delle funzionalità rinviate.
+
+
+### Implementazione del primo POST /posts
+
+Controller REST: validazione di un oggetto JSON NewPost, rifiuto di proprietà
+non supportate anche se null, mappatura esplicita di postContent/body e
+postVisibility/visibility, chiamata a PostComposer::compose con autore dal
+Bearer. Il limite usa openbook.posts.max_length. I soli valori ammessi sono
+public/unlisted/followers; non c'è una visibilità implicita.
+
+Dopo compose, refresh del Post per includere i default dei contatori,
+CARD_RELATIONS e annotateViewerState, poi PostResource. Risposta 201 con
+Location REST e Cache-Control no-store, senza condizionale 304. JSON malformato
+restituisce 400, Content-Type non JSON 415, corpo non oggetto o campi non validi
+422 Problem Details. L'autenticazione precede la validazione e la scrittura.
+Nessuna modifica a servizi, modelli, query o flussi Web del Core.
+
+Verifiche dell’implementazione: suite completa con 2173 test, 16231 asserzioni,
+130 skip e nessun errore; suite REST finale con 75 test e 1051 asserzioni.
+I casi di creazione coprono risposta Post completa e Location/CORS, valori
+iniziali dei contatori, lettura del nuovo dettaglio, visibilità delle tre
+audience, testo obbligatorio/limite configurato, campi sconosciuti anche null,
+JSON malformato o non oggetto, Content-Type, autenticazione/account inattivo,
+hashtag, menzioni/notifiche e consegna Create attraverso il servizio esistente.
+OpenAPI e 66 esempi di richiesta/risposta validati; route REST coperte dalla
+specifica. Pint e diff --check superati. Cache route locale aggiornata.
+Nessuna migration o nuova query di dominio; Core e UI invariati.
+
+Review prima del commit: verificato l'intero diff, inclusi NewPost, convenzione
+New<Entity> in AGENTS.md, controller/route REST, test, changelog, documentazione
+bilingue e OpenAPI. Nessun problema aperto individuato. Confermati autore dal
+Bearer, whitelist degli input, limiti configurati, risposta 201/Location e
+assenza di modifiche al Core. Confermate le verifiche complete e REST riportate
+sopra sul codice corrente; rivalidati OpenAPI/66 esempi, Pint e diff --check.

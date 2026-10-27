@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Rest\V1;
 
 use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
+use App\Application\Services\PostComposer;
 use App\Application\Services\ReactionManager;
 use App\Domain\Posts\Post;
 use App\Federation\Replies\RemoteRepliesFetcher;
@@ -21,6 +22,45 @@ use Symfony\Component\HttpFoundation\Response;
 final class PostController extends Controller
 {
     use RespondsWithConditionalRest;
+
+    public function store(Request $request, PostComposer $composer): Response
+    {
+        abort_unless($request->isJson(), 415);
+        try {
+            $payload = json_decode($request->getContent(), flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            abort(400);
+        }
+        if (! $payload instanceof \stdClass) {
+            $this->invalid(['body' => ['The request body must be a JSON object.']]);
+        }
+        $data = $request->json()->all();
+        $validator = Validator::make($data, [
+            'postContent' => ['required', 'string', 'regex:/\S/u', 'max:'.(int) config('openbook.posts.max_length')],
+            'postVisibility' => ['required', 'string', Rule::in([Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED, Post::VISIBILITY_FOLLOWERS])],
+        ]);
+        $errors = $validator->errors()->toArray();
+        foreach (array_diff(array_keys($data), ['postContent', 'postVisibility']) as $field) {
+            $errors[$field] = ['This field is not supported.'];
+        }
+        if ($errors !== []) {
+            $this->invalid($errors);
+        }
+        $values = $validator->validated();
+        $author = $request->user()->actor;
+        $post = $composer->compose($author, [
+            'body' => $values['postContent'],
+            'visibility' => $values['postVisibility'],
+        ]);
+        $post->refresh()->load(Post::CARD_RELATIONS);
+        Post::annotateViewerState([$post], $author);
+        $response = (new PostResource($post))->toResponse($request);
+        $response->setStatusCode(201);
+        $response->headers->set('Location', route('rest.v1.posts.show', ['postId' => $post->id]));
+        $response->headers->set('Cache-Control', 'no-store');
+
+        return $response;
+    }
 
     public function show(Request $request, string $postId, RemoteRepliesFetcher $replies): Response
     {
@@ -129,7 +169,7 @@ final class PostController extends Controller
     private function invalid(array $errors): never
     {
         throw new HttpResponseException(response()->json([
-            'type' => 'about:blank', 'title' => 'Unprocessable Content', 'status' => 422, 'errors' => $errors,
+            'type' => 'about:blank', 'title' => 'Unprocessable Content', 'status' => 422, 'errors' => (object) $errors,
         ], 422, ['Content-Type' => 'application/problem+json', 'Cache-Control' => 'no-store']));
     }
 }

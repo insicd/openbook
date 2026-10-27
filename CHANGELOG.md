@@ -26,6 +26,9 @@ la [roadmap](docs/roadmap.md).
   del rilancio e paginazione senza stato tramite `after` e `afterAt`.
   `postAnnounce` è un campo opzionale comune ai Post di entrambi gli engine,
   esposto quando il feed fornisce il contesto del rilancio.
+  `POST /rest/v1/posts` crea post testuali da NewPost, con visibilità esplicita,
+  hashtag, menzioni e federazione tramite il flusso di pubblicazione esistente;
+  restituisce Post e Location con stato 201.
   Dettaglio Post con aggiornamento remoto come sul Web e Mi piace idempotenti
   tramite PUT/DELETE; dettaglio Person con aggiornamento dei metadati e
   conteggi remoti secondo le cache esistenti.

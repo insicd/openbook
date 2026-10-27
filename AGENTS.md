@@ -33,6 +33,12 @@ unrelated refactors.
   internal models, implementation details, design discussions, unresolved
   internal reasoning or references to internal analysis. Keep that material in
   `analysis/`. Use synthetic examples without credentials or private data.
+- For client-created REST resources, define a separate `New<Entity>` schema
+  (for example `NewPost`) containing only accepted creation inputs. Preserve
+  the response entity's field names and grouping where applicable, but define
+  required and nullable independently; do not inherit response requirements.
+  `NewPost` requires only `postContent` and `postVisibility`; future creation
+  fields added to this schema must be optional.
 - Write all OpenAPI property and schema names, endpoint paths, operation names,
   parameters, enum values, summaries, descriptions, tags and other authored
   documentation in English. Use English for explanatory example content too;

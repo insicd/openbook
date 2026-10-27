@@ -6,6 +6,7 @@ All REST content endpoints require an active user and an OAuth Bearer token,
 including content publicly readable on the website. A website session cookie
 alone does not authorize REST calls. This prototype is limited to local/testing.
 
+- `POST /rest/v1/posts` creates a text post from NewPost and returns Post.
 - `GET /rest/v1/posts` returns an array of Post objects from World or the home timeline.
 - `GET /rest/v1/posts/{postId}` returns a single Post.
 - `PUT /rest/v1/posts/{postId}/like` adds your like.
@@ -26,6 +27,38 @@ Person supports the case-sensitive types `person`, `application`, `feed` and
 `group`. PersonReference uses the same compact fields for every type. Local
 private community profiles remain readable; their relationship collections
 return 403 and private community identities are omitted from relationship lists.
+
+## Creation schemas
+
+Creation inputs use `New<Entity>` schemas, separate from response entities:
+for example, NewPost is the creation counterpart of Post. Field names and
+grouping are preserved where applicable; required and nullable constraints are
+defined independently. Server-generated and read-only fields are not inputs.
+
+NewPost currently accepts only postContent and postVisibility, both required
+and non-null. postContent must contain non-whitespace text and respect the
+instance's post length limit. postVisibility accepts public, unlisted or
+followers, with no default. Additional fields introduced later will be optional.
+POST /posts accepts NewPost as a JSON object and returns 201 with the full
+Post and a Location header pointing to its REST detail. Creation responses use
+no-store. Unknown properties are rejected with 422, including fields reserved
+for future features. Missing or invalid fields also return 422; malformed JSON
+returns 400 and a non-JSON content type returns 415. Authentication is required
+before validation.
+
+Hashtags, known mentions, notifications and federation follow website publishing.
+201 confirms local publication; it does not confirm remote delivery. Repeating
+a POST may create another post, and an error does not guarantee that nothing
+was created. The text limit follows the instance configuration, just like the
+website. Media, polls, quotes, communities, location and direct posts are not
+yet supported by this operation.
+
+```json
+{
+  "postContent": "Hello from my application! #OpenBook",
+  "postVisibility": "public"
+}
+```
 
 ## Post list
 
