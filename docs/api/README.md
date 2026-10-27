@@ -14,6 +14,8 @@ alone does not authorize REST calls. This prototype is limited to local/testing.
 - `DELETE /rest/v1/posts/{postId}` deletes an owned local post.
 - `PUT /rest/v1/posts/{postId}/like` adds your like.
 - `DELETE /rest/v1/posts/{postId}/like` removes your like.
+- `PUT /rest/v1/posts/{postId}/announce` adds your manual announce.
+- `DELETE /rest/v1/posts/{postId}/announce` removes your manual announce.
 - `GET /rest/v1/me` returns Me with myPerson, the authenticated account as a full Person.
 - `GET /rest/v1/persons/{personId}` returns a Person object.
 - `GET /rest/v1/persons/{personId}/posts` returns the profile's posts and announces.
@@ -151,6 +153,28 @@ PUT returns 201 with Location on creation, or 204 if already liked. DELETE
 returns 204 even if already absent. Both return an empty body and no-store;
 counts, notifications and federation follow the website behavior. Unavailable
 posts return 404; liking a remotely suspended author returns 403.
+
+## Announces
+
+PUT /posts/{postId}/announce requires a published, visible public or unlisted
+post outside private communities. It returns 201 with Location when a manual
+announce is activated, including promotion of an implicit quote share, or 204
+if already active. Visible restricted posts and remotely suspended authors
+return 403; unavailable posts and private messages return 404.
+
+DELETE on the same URL returns 204 when your manual announce is removed or
+already absent on a visible post. An existing manual announce can also be
+removed after the post becomes invisible or restricted, or its remote author
+is suspended. Once removed, repeating DELETE for an invisible post returns
+404. Deleted posts and private messages always return 404. Published quotes
+and their implicit shares are preserved: postMyInteractions.postAnnounced may
+remain true while postDirectAnnounced becomes false. Use the latter for the
+announce button; postAnnounce represents a feed entry's context instead.
+
+Both operations require no body, return an empty body and no-store, and act
+only on the Bearer identity. Counts, notifications and federation follow the
+website behavior without duplicates on repeated requests. No new entity is
+required.
 
 ## Person posts
 

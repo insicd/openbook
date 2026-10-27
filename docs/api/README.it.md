@@ -14,6 +14,8 @@ le chiamate REST. Questo prototipo è limitato a local/testing.
 - `DELETE /rest/v1/posts/{postId}` elimina un proprio post locale.
 - `PUT /rest/v1/posts/{postId}/like` aggiunge il proprio Mi piace.
 - `DELETE /rest/v1/posts/{postId}/like` rimuove il proprio Mi piace.
+- `PUT /rest/v1/posts/{postId}/announce` attiva il proprio rilancio manuale.
+- `DELETE /rest/v1/posts/{postId}/announce` rimuove il proprio rilancio manuale.
 - `GET /rest/v1/me` restituisce Me con myPerson, l’account autenticato come Person completa.
 - `GET /rest/v1/persons/{personId}` restituisce un oggetto Person.
 - `GET /rest/v1/persons/{personId}/posts` restituisce post e rilanci del profilo.
@@ -152,6 +154,29 @@ DELETE restituisce 204 anche se già assente. Entrambi restituiscono un body
 vuoto e no-store; contatori, notifiche e federazione seguono il comportamento
 Web. Post non disponibili danno 404; Mi piace ad autori sospesi dal server
 remoto danno 403.
+
+## Rilanci
+
+PUT /posts/{postId}/announce richiede un post pubblicato e leggibile, public o
+unlisted e fuori da community private. Restituisce 201 con Location quando
+attiva il rilancio manuale, anche promuovendo una condivisione implicita di
+citazione; 204 se già attivo. Post leggibili ma riservati e autori sospesi da
+remoto danno 403; risorse non disponibili e messaggi privati danno 404.
+
+DELETE sullo stesso URL restituisce 204 quando rimuove il proprio rilancio
+manuale o questo è già assente su un post leggibile. Un rilancio esistente
+può essere rimosso anche se nel frattempo il post non è più leggibile o
+rilanciabile o l'autore remoto è sospeso. Dopo la rimozione, ripetere DELETE
+su un post non più leggibile dà 404. Post cancellati e messaggi privati danno
+sempre 404. Le citazioni pubblicate e le loro condivisioni implicite rimangono
+intatte: postMyInteractions.postAnnounced può restare true, mentre
+postDirectAnnounced diventa false. Usare quest'ultimo per il pulsante rilancio;
+postAnnounce è invece il contesto di una voce del feed.
+
+Entrambe le operazioni non richiedono body, restituiscono un corpo vuoto e
+no-store e agiscono solo sull'identità del Bearer. Contatori, notifiche e
+federazione seguono il comportamento del sito senza duplicazioni alle richieste
+ripetute. Nessuna nuova entità è necessaria.
 
 ## Post di una Person
 

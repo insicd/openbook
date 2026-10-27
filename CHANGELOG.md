@@ -19,6 +19,10 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Rilanci REST**: PUT/DELETE `/rest/v1/posts/{postId}/announce` attivano e
+  rimuovono il proprio rilancio manuale, con contatori, notifiche e federazione
+  esistenti. Nuovi rilanci limitati a post public/unlisted fuori da community
+  private; le citazioni rimangono intatte alla rimozione.
 - **Prototipo REST locale**: `GET /rest/v1/instance` restituisce nome, dominio,
   URL, descrizione e icona personalizzata dell’istanza, senza statistiche.
   `GET /rest/v1/me` restituisce l’account autenticato

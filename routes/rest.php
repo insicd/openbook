@@ -4,6 +4,7 @@ use App\Http\Controllers\Rest\V1\InstanceController;
 use App\Http\Controllers\Rest\V1\MeController;
 use App\Http\Controllers\Rest\V1\PersonController;
 use App\Http\Controllers\Rest\V1\PersonPostController;
+use App\Http\Controllers\Rest\V1\PostAnnounceController;
 use App\Http\Controllers\Rest\V1\PostController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,3 +21,6 @@ Route::get('/persons/{personId}', [PersonController::class, 'show'])->name('rest
 Route::get('/persons/{personId}/posts', [PersonPostController::class, 'index'])->name('rest.v1.persons.posts');
 Route::get('/persons/{personId}/followers', [PersonController::class, 'followers'])->name('rest.v1.persons.followers');
 Route::get('/persons/{personId}/following', [PersonController::class, 'following'])->name('rest.v1.persons.following');
+
+Route::put('/posts/{postId}/announce', [PostAnnounceController::class, 'store'])->name('rest.v1.posts.announce');
+Route::delete('/posts/{postId}/announce', [PostAnnounceController::class, 'destroy'])->name('rest.v1.posts.unannounce');

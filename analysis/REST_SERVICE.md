@@ -1791,3 +1791,60 @@ opzionale, URL configurati, assenza di statistiche e autenticazione prima del
 304. Confermate le verifiche completa e mirata riportate sopra sul codice
 corrente; rivalidati OpenAPI/100 esempi, copertura delle 13 operazioni REST,
 Pint e diff --check. Core e UI invariati.
+
+## 23. PUT/DELETE /posts/{postId}/announce
+
+Decisione approvata: rilanci manuali dell'identità Bearer, senza body né nuova
+entità. PUT è idempotente e identifica la relazione personale sul post;
+201 con Location quando attiva il rilancio manuale (anche promuovendo una
+condivisione implicita di citazione), 204 se già attivo. DELETE restituisce
+204 se rimosso o già assente su un post leggibile. Risposte vuote no-store.
+
+PUT richiede un originale pubblicato e leggibile, public/unlisted, fuori da
+community private. Risorse invisibili, cancellate o messaggi privati: 404.
+Post leggibili con visibilità non ammessa o in community private: 403.
+RemoteInteractionGuard rifiuta nuovi rilanci di autori sospesi da remoto.
+DELETE permette la rimozione di un proprio rilancio manuale già esistente
+anche se l'originale è diventato invisibile, riservato o l'autore remoto è
+sospeso. Dopo la rimozione, ulteriori DELETE su un originale invisibile danno
+404. Post cancellati e messaggi privati restano sempre esclusi con 404.
+
+PostAnnounceController usa AnnounceManager::announce con direct=true e
+AnnounceManager::unannounce, come il Web. Il servizio conserva gestione di
+contatori, notifiche, federazione Announce/Undo, originali locali/remoti e
+rilanci dei propri post. Nessun actorId o flag direct viene letto dal body.
+Non è richiesta ownership dell'originale: si agisce solo sul proprio rilancio.
+Il lock REST sul post serializza queste mutazioni API; non estende la garanzia
+alle chiamate Web che non acquisiscono lo stesso lock preventivo.
+
+Il controllo REST sulla visibilità è necessario perché AnnounceManager non
+valida lo stato o la visibilità dell'originale e il serializer ordinario usa
+as:Public; quello delle community private usa destinatari differenti, ma non
+rende sicura una condivisione manuale ai follower del condivisore.
+Nessun cambiamento a Core, servizi, query condivise, serializer o UI.
+
+DELETE conserva la citazione pubblicata e la sua condivisione implicita:
+postMyInteractions.postAnnounced può rimanere true, postDirectAnnounced diventa
+false e il contatore può restare invariato. Il flag del pulsante rilancio è
+postDirectAnnounced; postAnnounce è invece il contesto di una voce del feed.
+
+Verifiche: 139 test REST/rilanci/citazioni, 1608 asserzioni; suite completa
+con 2206 test, 16645 asserzioni e 130 skip, nessun errore. Coperti idempotenza,
+contatori, notifiche, Announce/Undo federati, promozione e conservazione delle
+citazioni, isolamento dell'identità Bearer, visibilità e rimozione dopo cambio
+di visibilità/sospensione, esclusione di post cancellati e messaggi privati,
+scopo api e account attivo. OpenAPI validato con 264 esempi inline e copertura
+di tutte le 15 operazioni REST implementate; Pint e diff --check superati.
+Prova sul MySQL locale con Bearer reale: PUT 201/204 e DELETE 204/204 su post
+temporaneo, rollback finale e consegne simulate. EXPLAIN delle SELECT effettive
+usa PRIMARY sui post e announces_actor_id_post_id_unique sui rilanci; il ramo
+di visibilità usa anche follows_follower_id_following_id_unique. Nessun indice
+nuovo necessario. Cache delle route locali aggiornata. Review del diff completo:
+nessun problema aperto individuato; servizi, modelli, UI e Core invariati.
+
+Review finale prima del commit: riletto tutto il diff pendente, compresi il
+nuovo controller e i test. Nessun problema aperto individuato. Rivalidati
+OpenAPI, 264 esempi inline e corrispondenza di tutte le 15 operazioni REST
+con entrambi i README; le operazioni e gli schemi precedenti sono invariati.
+Ripetuti con successo i 139 test mirati (1608 asserzioni), Pint e diff --check.
+La suite completa riportata sopra è stata eseguita sul medesimo codice.
