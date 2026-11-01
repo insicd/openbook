@@ -10,9 +10,9 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Outbox\RemoteOutboxFetcher;
 use App\Http\Controllers\Concerns\RespondsWithConditionalRest;
+use App\Http\Controllers\Concerns\ValidatesRestInput;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Rest\V1\PostResource;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -24,6 +24,7 @@ use Symfony\Component\HttpFoundation\Response;
 final class PersonPostController extends Controller
 {
     use RespondsWithConditionalRest;
+    use ValidatesRestInput;
 
     public function index(Request $request, string $personId, PersonQuery $persons, FeedQuery $feeds, RemoteOutboxFetcher $outbox, FeedImporter $importer): Response
     {
@@ -38,10 +39,7 @@ final class PersonPostController extends Controller
             'page' => ['prohibited'], 'engine' => ['prohibited'],
         ]);
         if ($validator->fails()) {
-            throw new HttpResponseException(response()->json([
-                'type' => 'about:blank', 'title' => 'Unprocessable Content', 'status' => 422,
-                'errors' => (object) $validator->errors()->toArray(),
-            ], 422, ['Content-Type' => 'application/problem+json', 'Cache-Control' => 'no-store']));
+            $this->invalid($validator->errors()->toArray());
         }
         $values = $validator->validated();
         $owner = $persons->findActor($personId);

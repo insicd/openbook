@@ -14,3 +14,15 @@
   procedura e si blocca permanentemente al termine.
 
 Per segnalare vulnerabilita' vedi [`SECURITY.md`](../SECURITY.md).
+
+## API REST sperimentale
+
+Il primo sprint REST/OAuth è disponibile soltanto in local/testing. Le risorse
+richiedono Bearer valido, scope api e account/attore attivi; le credenziali Web
+non autorizzano l’API. OAuth usa Authorization Code con PKCE S256 e consenso
+con CSRF. Gli accessi sono revocabili dalle impostazioni insieme ai refresh
+token. L’API rispetta visibilità, ownership e confini delle community private;
+non espone amministrazione o moderazione. Le cache sono private e il 304 viene
+valutato dopo i controlli di accesso. Nomi, contenuti e URL ricevuti restano dati
+non fidati per il rendering del client. Limiti e preparazione delle chiavi
+sono descritti nella [guida API](api/README.it.md).

@@ -11,7 +11,7 @@ Guides for using Openbook and administering an instance, grouped by topic.
 | Usage, profiles, polls, World and Stats | [`architecture.md`](architecture.md) |
 | Federation, communities, events | [`federation.md`](federation.md) |
 | Security and privacy | [`security.md`](security.md) |
-| REST API draft and local Person prototype | [`api/README.md`](api/README.md) |
+| Experimental REST API, OAuth and first-sprint scope | [`api/README.md`](api/README.md) |
 | Roadmap and known limitations | [`roadmap.md`](roadmap.md) |
 
 Release history stays in [`CHANGELOG.md`](../CHANGELOG.md) (Italian).

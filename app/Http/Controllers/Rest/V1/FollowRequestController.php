@@ -7,9 +7,9 @@ use App\Application\Services\FollowManager;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Http\Controllers\Concerns\RespondsWithConditionalRest;
+use App\Http\Controllers\Concerns\ValidatesRestInput;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Rest\V1\PersonReferenceResource;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -20,6 +20,7 @@ use Symfony\Component\HttpFoundation\Response;
 final class FollowRequestController extends Controller
 {
     use RespondsWithConditionalRest;
+    use ValidatesRestInput;
 
     public function index(Request $request, PersonQuery $persons): Response
     {
@@ -90,12 +91,5 @@ final class FollowRequestController extends Controller
         abort_if($follow === null, 404);
 
         return $follow;
-    }
-
-    private function invalid(array $errors): never
-    {
-        throw new HttpResponseException(response()->json([
-            'type' => 'about:blank', 'title' => 'Unprocessable Content', 'status' => 422, 'errors' => (object) $errors,
-        ], 422, ['Content-Type' => 'application/problem+json', 'Cache-Control' => 'no-store']));
     }
 }

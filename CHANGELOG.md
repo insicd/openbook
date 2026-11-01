@@ -19,51 +19,23 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
-- **Richieste follow REST**: elenco personale dei richiedenti pendenti e
-  accettazione/rifiuto con PATCH/DELETE, senza privilegi su richieste altrui.
-- **Follow persone REST**: GET/PUT/DELETE `/rest/v1/persons/{personId}/follow`
-  leggono, attivano e rimuovono il proprio follow o la richiesta pendente.
-  Entità Follow con followStatus none/pending/accepted, servizi e federazione
-  esistenti e rispetto dei permessi delle community.
-- **Post personali REST**: `GET /rest/v1/me/posts` elenca i propri post
-  pubblicati, senza rilanci o messaggi privati, con paginazione after/limit
-  e cache privata con ETag.
-- **Rilanci REST**: PUT/DELETE `/rest/v1/posts/{postId}/announce` attivano e
-  rimuovono il proprio rilancio manuale, con contatori, notifiche e federazione
-  esistenti. Nuovi rilanci limitati a post public/unlisted fuori da community
-  private; le citazioni rimangono intatte alla rimozione.
-- **Prototipo REST locale**: `GET /rest/v1/instance` restituisce nome, dominio,
-  URL, descrizione e icona personalizzata dell’istanza, senza statistiche.
-  `GET /rest/v1/me` restituisce l’account autenticato
-  nell’entità Me, con proprietà `myPerson`. `GET /rest/v1/posts` espone il feed
-  Mondo con paginazione per ID, media, luogo, CW, contatori e interazioni,
-  riusando il Core. `engine=timeline` riproduce la home personale, con contesto
-  del rilancio e paginazione senza stato tramite `after` e `afterAt`.
-  `postAnnounce` è un campo opzionale comune ai Post di entrambi gli engine,
-  esposto quando il feed fornisce il contesto del rilancio.
-  `POST /rest/v1/posts` crea post testuali da NewPost, con visibilità esplicita,
-  hashtag, menzioni e federazione tramite il flusso di pubblicazione esistente;
-  restituisce Post e Location con stato 201. `PATCH /rest/v1/posts/{postId}`
-  modifica i propri post semplici con campi opzionali (almeno uno richiesto);
-  `DELETE /rest/v1/posts/{postId}` elimina i propri post locali, senza privilegi
-  staff; una DELETE su un post già cancellato restituisce subito 404.
-  Dettaglio Post con aggiornamento remoto come sul Web e Mi piace idempotenti
-  tramite PUT/DELETE; dettaglio Person con aggiornamento dei metadati e
-  conteggi remoti secondo le cache esistenti.
-  `GET /rest/v1/persons/{personId}/posts` espone post e rilanci del profilo,
-  con importazione dei contenuti remoti nel rispetto delle cache esistenti,
-  dimensione pagina del Web e Link con after/afterAt; dettaglio Person invariato.
-  Dettaglio Person e liste followers/following di PersonReference, con tipi Person person/application/feed/group
-  e protezione delle membership delle community private, con autenticazione OAuth 2 Passport, Authorization Code/PKCE
-  S256 e callback. Durata dei nuovi token di accesso e rinnovo configurabile
-  in giorni con `OPENBOOK_OAUTH_TOKEN_DURATION` (default implicito: 365).
-  Login esistente, scope unico api e registrazione automatica
-  dei client pubblici RFC 7591, con metadata OAuth RFC 8414 e CORS per browser.
-  Applicare le migration OAuth, generare una volta le chiavi con passport:keys
-  e aggiornare cache configurazione/route. Disponibile solo in local/testing;
-  nelle impostazioni, «Applicazioni collegate» elenca i singoli accessi e permette
-  di chiuderli, bloccando anche il rinnovo senza uscire dal sito. Integrazione
-  installer/updater produzione rinviata.
+- **API REST sperimentale, primo sprint**: endpoint `/rest/v1` per Instance,
+  Me, Person/PersonReference, Post e Follow. Include Mondo e timeline personale,
+  dettaglio e raccolte dei profili, ownership `/me/posts`, creazione/modifica
+  di post testuali semplici, eliminazione dei propri post locali, Mi piace,
+  rilanci manuali, follow e richieste ricevute con accettazione/rifiuto.
+  Riusa i servizi esistenti e i controlli di visibilità, senza privilegi staff
+  aggiuntivi. Contratto OpenAPI pubblico, paginazione tramite Link e confini
+  ID/data, cache privata con ETag e errori Problem Details.
+- **Accesso delle applicazioni esterne**: OAuth 2 Passport con Authorization
+  Code/PKCE S256, login/consenso Web, client pubblici registrabili tramite
+  RFC 7591 e metadata RFC 8414. Accessi revocabili dalle impostazioni senza
+  chiudere la sessione Web; durata dei nuovi token configurabile in giorni
+  con `OPENBOOK_OAUTH_TOKEN_DURATION` (default 365). Applicare le migrazioni
+  OAuth, generare una volta le chiavi Passport e preservarle negli aggiornamenti.
+  Supporto limitato a local/testing; produzione e integrazione installer/updater
+  rinviate. Commenti, community, eventi, notifiche, hashtag e upload media
+  saranno completati negli sprint successivi.
 - **Segnalazioni federate (#119)**: le attività `Flag`
   vengono elaborate dall'inbox ActivityPub ordinaria e registrate come casi di
   moderazione su persone e contenuti locali, con riferimenti multipli e

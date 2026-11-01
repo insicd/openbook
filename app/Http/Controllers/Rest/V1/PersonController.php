@@ -7,10 +7,10 @@ use App\Application\Queries\PersonQuery;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\SocialGraph\RemoteFollowCollectionsFetcher;
 use App\Http\Controllers\Concerns\RespondsWithConditionalRest;
+use App\Http\Controllers\Concerns\ValidatesRestInput;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Rest\V1\PersonReferenceResource;
 use App\Http\Resources\Rest\V1\PersonResource;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -21,6 +21,7 @@ use Symfony\Component\HttpFoundation\Response;
 final class PersonController extends Controller
 {
     use RespondsWithConditionalRest;
+    use ValidatesRestInput;
 
     public function show(Request $request, string $personId, PersonQuery $persons, RemoteActorResolver $actors, RemoteFollowCollectionsFetcher $collections): Response
     {
@@ -71,12 +72,7 @@ final class PersonController extends Controller
             'direction' => ['sometimes', Rule::in(['asc', 'desc'])],
         ]);
         if ($validator->fails()) {
-            throw new HttpResponseException(response()->json([
-                'type' => 'about:blank',
-                'title' => 'Unprocessable Content',
-                'status' => 422,
-                'errors' => $validator->errors()->toArray(),
-            ], 422, ['Content-Type' => 'application/problem+json', 'Cache-Control' => 'no-store']));
+            $this->invalid($validator->errors()->toArray());
         }
         $values = $validator->validated();
         $owner = $persons->findActor($personId);

@@ -1,362 +1,220 @@
-# REST API draft
+# Experimental REST API — first sprint
 
-> [Italiano](README.it.md) · [OpenAPI specification](openapi.json) · [Client integration](clients.md)
+> [Italiano](README.it.md) · [OpenAPI JSON](openapi.json) · [Client integration](clients.md)
 
-All REST content endpoints require an active user and an OAuth Bearer token,
-including content publicly readable on the website. A website session cookie
-alone does not authorize REST calls. This prototype is limited to local/testing.
+This sprint opens OpenBook to independent applications: native clients,
+specialized frontends and third-party integrations. The native interface
+continues to manage the product and all administrative operations.
 
-- `GET /rest/v1/instance` returns general instance metadata.
-- `POST /rest/v1/posts` creates a text post from NewPost and returns Post.
-- `GET /rest/v1/posts` returns an array of Post objects from World or the home timeline.
-- `GET /rest/v1/posts/{postId}` returns a single Post.
-- `PATCH /rest/v1/posts/{postId}` edits an owned simple post using PatchPost.
-- `DELETE /rest/v1/posts/{postId}` deletes an owned local post.
-- `PUT /rest/v1/posts/{postId}/like` adds your like.
-- `DELETE /rest/v1/posts/{postId}/like` removes your like.
-- `PUT /rest/v1/posts/{postId}/announce` adds your manual announce.
-- `DELETE /rest/v1/posts/{postId}/announce` removes your manual announce.
-- `GET /rest/v1/me` returns Me with myPerson, the authenticated account as a full Person.
-- `GET /rest/v1/me/posts` lists your published posts, excluding announces.
-- `GET /rest/v1/me/follow-requests` lists pending requesters.
-- `PATCH /rest/v1/me/follow-requests/{personId}` accepts a request.
-- `DELETE /rest/v1/me/follow-requests/{personId}` rejects a request.
-- `GET /rest/v1/persons/{personId}` returns a Person object.
-- `GET /rest/v1/persons/{personId}/follow` reads your outgoing follow state.
-- `PUT /rest/v1/persons/{personId}/follow` follows or requests approval.
-- `DELETE /rest/v1/persons/{personId}/follow` unfollows or withdraws the request.
-- `GET /rest/v1/persons/{personId}/posts` returns the profile's posts and announces.
-- `GET /rest/v1/persons/{personId}/followers` returns an array of PersonReference.
-- `GET /rest/v1/persons/{personId}/following` returns an array of PersonReference.
+**Support is experimental and enabled only in local/testing.** REST/OAuth routes
+and connected-app management are unavailable in production, including with
+cached local routes. Normal installer/updater integration and production
+enablement are deferred. This is neither a Mastodon API nor an ActivityPub
+representation.
 
-PersonReference contains personId, personUsername, personDomain, personName and
-an optional personAvatar. Person lists use after, limit (default 20, maximum 100),
-sort=personId and direction=asc (default) or desc. Link with rel="next" supplies
-the next URL. Remote relationship lists may be incomplete; these lists do not
-trigger remote fetches.
-Locally suspended profiles and unavailable resources return 404.
+## Supported operations
 
-Person supports the case-sensitive types `person`, `application`, `feed` and
-`group`. PersonReference uses the same compact fields for every type. Local
-private community profiles remain readable; their relationship collections
-return 403 and private community identities are omitted from relationship lists.
+Entities cover Instance, Me, Person, PersonReference, Follow and Post.
+NewPost and PatchPost define post inputs; PatchFollowRequest accepts incoming
+requests. Media and Location are already embedded in Post, without standalone
+upload or management endpoints.
 
-## Instance metadata
+| Entity | Endpoint | Purpose |
+| --- | --- | --- |
+| Instance | `GET /rest/v1/instance` | Get instance metadata |
+| Me | `GET /rest/v1/me` | Get the authenticated user |
+| Me | `GET /rest/v1/me/posts` | List posts published by the authenticated user |
+| Person | `GET /rest/v1/persons/{personId}` | Get a person |
+| Person | `GET /rest/v1/persons/{personId}/followers` | List a person's followers |
+| Person | `GET /rest/v1/persons/{personId}/following` | List a person's following |
+| Person | `GET /rest/v1/persons/{personId}/posts` | List a person's posts and announces |
+| Follow | `GET /rest/v1/me/follow-requests` | List incoming pending follow requests |
+| Follow | `PATCH /rest/v1/me/follow-requests/{personId}` | Accept an incoming pending follow request |
+| Follow | `DELETE /rest/v1/me/follow-requests/{personId}` | Reject an incoming pending follow request |
+| Follow | `GET /rest/v1/persons/{personId}/follow` | Get your follow state towards a person |
+| Follow | `PUT /rest/v1/persons/{personId}/follow` | Follow a person or request approval |
+| Follow | `DELETE /rest/v1/persons/{personId}/follow` | Stop following a person or withdraw a pending request |
+| Post | `GET /rest/v1/posts` | List posts |
+| Post | `POST /rest/v1/posts` | Create a text post |
+| Post | `GET /rest/v1/posts/{postId}` | Get a post |
+| Post | `PATCH /rest/v1/posts/{postId}` | Edit a simple post |
+| Post | `DELETE /rest/v1/posts/{postId}` | Delete an owned local post |
+| Post | `PUT /rest/v1/posts/{postId}/announce` | Announce a post |
+| Post | `DELETE /rest/v1/posts/{postId}/announce` | Remove a post announce |
+| Post | `PUT /rest/v1/posts/{postId}/like` | Like a post |
+| Post | `DELETE /rest/v1/posts/{postId}/like` | Remove a like |
 
-GET /instance returns a direct Instance object containing instanceName,
-instanceDomain, instanceUrl and instanceDescription. The description is an
-empty string if not configured. instanceIcon is optional and omitted when
-there is no custom icon; otherwise it is an absolute URL for the 512-pixel PNG.
-The base URL and domain identify the configured instance, independently of
-the request Host. Description content is returned without additional rendering.
+Every REST call requires OAuth Bearer credentials, an active user and actor,
+and scope `api`. Website cookies alone do not authorize even public-content
+requests. Admin/moderator roles grant no additional REST privileges.
 
-The endpoint requires the same active Bearer identity as other REST endpoints.
-It includes no statistics, contacts, software details, limits or administrative
-settings. Responses use private caching, Vary: Authorization and ETag with
-If-None-Match; metadata changes invalidate the representation. Access checks
-precede 304. There is no creation or modification operation for Instance.
+## Representations and content
 
-## Creation schemas
+- Direct objects or arrays, without a `data` wrapper. OpenAPI defines fields,
+  required and nullable independently, and examples. Optional is distinct from null.
+- Property names and case-sensitive enum values use lowerCamelCase; OAuth
+  protocol names retain their standard wire format.
+- Person types are `person`, `application`, `feed` and `group`, with the same
+  representation for available local/remote identities. A group Person is the
+  community identity, not the future Community resource. PersonReference is
+  the compact ID, username, domain, name and optional avatar representation.
+- `myPerson` is the complete authenticated Person. `/me/posts` selects ownership;
+  `/persons/{personId}/posts` also includes announces.
+- `personSummary` and `postContent` use the text available in OpenBook without new
+  HTML rendering: Markdown or plain text depending on the source. The original
+  remote document is not promised. Clients handle rendering and sanitization.
+  `personFields` are label/value pairs; values need not be URLs.
+- Instance exposes name, domain, canonical URL, description and an optional icon,
+  without statistics. An unconfigured description is an empty string.
+- Federated data reflects this instance's knowledge. Remote lists and histories
+  may be partial rather than complete global inventories.
 
-Creation inputs use `New<Entity>` schemas, separate from response entities:
-for example, NewPost is the creation counterpart of Post. Field names and
-grouping are preserved where applicable; required and nullable constraints are
-defined independently. Server-generated and read-only fields are not inputs.
+## Reading and pagination
 
-NewPost currently accepts only postContent and postVisibility, both required
-and non-null. postContent must contain non-whitespace text and respect the
-instance's post length limit. postVisibility accepts public, unlisted or
-followers, with no default. Additional fields introduced later will be optional.
-POST /posts accepts NewPost as a JSON object and returns 201 with the full
-Post and a Location header pointing to its REST detail. Creation responses use
-no-store. Unknown properties are rejected with 422, including fields reserved
-for future features. Missing or invalid fields also return 422; malformed JSON
-returns 400 and a non-JSON content type returns 415. Authentication is required
-before validation.
+| Collection | Boundary and size | Order |
+| --- | --- | --- |
+| Followers, following and incoming requests | `after` = last personId; `limit` defaults to 20, maximum 100 | `sort=personId`; `direction=asc` default, or `desc` |
+| `/me/posts` and `/posts?engine=world` | `after` = last postId; `limit` 20/100 | `sort=postPublishedAt`; `direction=desc` |
+| `/posts?engine=timeline` | `after` + `afterAt`; `limit` 20/100 | `sort=postTimelineAt`; `direction=desc` |
+| `/persons/{personId}/posts` | `after` + `afterAt`; configured website page size; `limit` is not accepted | `sort=postTimelineAt`; `direction=desc` |
 
-Hashtags, known mentions, notifications and federation follow website publishing.
-201 confirms local publication; it does not confirm remote delivery. Repeating
-a POST may create another post, and an error does not guarantee that nothing
-was created. The text limit follows the instance configuration, just like the
-website. Media, polls, quotes, communities, location and direct posts are not
-yet supported by this operation.
+Follow the standard `Link: <URL>; rel="next"` header when present. No server-side
+cursor state is stored. These lists do not support `cursor` or `page`.
+For timeline/profile lists, `afterAt` is the returned ISO postTimelineAt; the
+link supplies both parameters even if the reference post is later removed.
+Group profile order uses publication time. World and /me/posts require the
+reference to remain available in the collection; otherwise 422 means restart
+from the first page. Pagination is not an immutable snapshot.
 
-```json
-{
-  "postContent": "Hello from my application! #OpenBook",
-  "postVisibility": "public"
-}
-```
+World is the default engine and follows the website's World selection; timeline
+follows the personal home feed. Optional `postAnnounce` is the context selected
+by the feed, not an arbitrary announce. Details, World and /me/posts do not
+invent it. `postMyInteractions.postDirectAnnounced` is the viewer's manual
+announce state; `postAnnounced` also includes implicit quote shares.
 
-## Your posts
+Person detail refreshes remote metadata/counts using existing cache policy;
+the person's post collection imports content when its TTL expires. Post detail
+uses the website's remote refresh behavior. Remote failures retain cached data
+when still accessible. Authorization is checked again after refresh. Person
+lists and incoming requests do not fetch remote documents.
 
-GET /me/posts returns a direct array of Post objects authored by the Bearer
-user. Deleted posts and private conversation messages are excluded; your
-restricted posts, community posts and quotes are included. Announces of other
-authors' posts are excluded. An authored post that is also announced appears
-once in publication order, without postAnnounce or postTimelineAt.
+## Writes and relationships
 
-Supports limit (default 20, maximum 100), sort=postPublishedAt and direction=desc.
-The next Link includes after, the last received postId, and all other navigation
-parameters. The reference must still belong to this collection: deleted or
-excluded posts and other users' posts return 422; restart from the first page.
-engine, afterAt, cursor and page are not supported. No remote content is fetched.
-Private caching with ETag and Vary Authorization applies, with authentication
-before any 304 response, as with other REST lists.
+POST /posts accepts only NewPost with required `postContent` and `postVisibility`.
+Creation/editing allow public, unlisted and followers. PATCH accepts PatchPost
+with both fields optional but at least one supplied. Text must be nonempty and
+within the instance's configured limit. Unknown fields, nulls and invalid values
+return 422; malformed JSON returns 400 and non-JSON Content-Type returns 415.
 
-## Post list
+Creation returns 201 with Post and Location. Editing returns 200 with Post,
+only for owned, simple local posts. Media, location, polls, communities, quotes
+and direct posts are outside the initial edit scope and return 409. Omitted
+title/CW/language are preserved. DELETE removes only owned local posts: 204;
+already deleted posts return 404. Admins cannot mutate other users' posts.
 
-`GET /rest/v1/posts` returns a direct array of Post objects. `engine=world` is
-the default, using the World section's selection, exclusions and ordering.
-`engine=timeline` uses the authenticated user's home feed, including announces.
-The representation includes text, author PersonReference, content warning, media,
-location, counters and user interactions; polls, quotes and other related objects
-are not yet represented.
+| Relationship | PUT | DELETE |
+| --- | --- | --- |
+| Like | 201 on creation, 204 if already present | 204 even when already absent |
+| Manual announce | 201 on activation, 204 if already active | 204 even when already absent on a visible post |
+| Follow | 201 with Follow on creation, 200 with Follow if existing | 204 even when absent on an available Person |
 
-Both engines accept limit (default 20, maximum 100) and direction=desc. World
-uses sort=postPublishedAt and after (the last postId). Unknown or unreadable
-World reference posts return 422; restart from the first page.
-Timeline uses sort=postTimelineAt and the pair after + afterAt, containing the
-last postId and its postTimelineAt. Follow the next Link, which supplies all
-parameters. No server-side pagination state is retained. cursor and page are
-not supported.
+These operations require no body. Follow contains only `followStatus`:
+none, pending or accepted. GET returns 200 even for none. Direction is always
+authenticated user → Person in the path. Rejection/withdrawal returns to none.
+Open local identities and feeds are accepted immediately; protected locals and
+remote non-feed identities may stay pending until acceptance. PUT may retry
+pending remote delivery without duplicating the relation. Self-follow and
+inactive targets refused by the operation return 422.
 
-Timeline entries preserve the original postAuthor and postPublishedAt.
-postTimelineAt is the date used for ordering; postAnnounce, when present,
-contains announceAuthor (PersonReference) and announcePublishedAt. Each post
-appears once with its latest relevant announce; self-announces and group
-distribution are included. postAnnounce is optional for either engine and is
-omitted when no announce context is selected. World currently lists original
-posts without selecting an announce context and omits postTimelineAt. Pagination is not a snapshot: feed changes can affect
-subsequent pages.
+New announces require public/unlisted posts outside private communities.
+Visible but non-announceable content returns 403. An existing announce can be
+removed after visibility is lost; once removed, further DELETE requests for an
+invisible post return 404. Deleted posts and private messages are always excluded.
+Removing a manual announce preserves published quotes and implicit shares.
+Suspended remote identities refuse new follows/likes/announces with 403, but
+removal remains possible while the identity/resource is available. Community
+groups retain membership permissions; owners cannot leave their community.
 
-Text is not rendered to HTML by this API. Optional fields without values are
-omitted, including title, source and emojis.
+### Incoming requests
 
-## Editing and deleting posts
+GET /me/follow-requests returns PersonReference objects for pending requesters
+to the authenticated account, excluding other accounts' and community requests.
+PATCH requires `{"followStatus":"accepted"}` as PatchFollowRequest and returns
+204. DELETE rejects and returns 204. Missing, handled, withdrawn, foreign or
+unavailable requests return 404. DELETE does not remove an accepted follower.
+Pending requests remain manageable if the receiving profile has since become
+open; pending state determines collection membership.
 
-PATCH /posts/{postId} accepts a PatchPost JSON object. postContent and
-postVisibility are both optional, but at least one must be present. Supplied
-values are non-null and follow NewPost constraints. Omitted properties retain
-their values, including any existing title, content warning and language.
-An empty object or invalid/unknown properties return 422; malformed JSON returns
-400 and a non-JSON content type returns 415.
+## Authentication and connected accesses
 
-This initial editing scope includes owned, published local posts without
-attachments, location, polls, communities or quotes, with a public, unlisted or
-followers audience. Unsupported posts return 409 without changes. Success
-returns 200 with the updated Post; hashtags, mentions, notifications and
-federation use the website editing flow.
+OAuth 2 Authorization Code with PKCE S256, single scope `api` and consent
+through the existing website login. This is not OpenID Connect: no ID token,
+userinfo, password grant, sharing account credentials with clients or polling.
+Protocol endpoints are at the root, outside /rest/v1:
 
-```json
-{
-  "postContent": "An updated message. #OpenBook"
-}
-```
+- `GET /.well-known/oauth-authorization-server`: OAuth metadata.
+- `POST /oauth/register`: RFC 7591 public registration without a client secret.
+- `GET/POST/DELETE /oauth/authorize`: start, consent/denial with session and CSRF.
+- `POST /oauth/token`: code exchange and refresh-token renewal.
 
-DELETE /posts/{postId} deletes an owned local post, including posts outside
-this simple editing scope. It returns 204 with no body on success. An already
-deleted post returns 404 at lookup, before deletion authorization or processing.
-Subsequent GET returns 404. Private messages,
-unknown or unavailable posts, and other users' posts return 404. Admin roles
-do not permit acting on other users' posts through these operations.
-Both mutations require an active Bearer identity and return no-store responses.
+Register once per instance and retain client_id; registrations are not
+deduplicated by name. Registration is distinct from a user access. Supported
+callbacks are HTTPS, HTTP loopback for tests/native apps, or reverse-domain
+private schemes; no fragments or credentials in the URI. Redirects must match
+registration. Token requests use form-urlencoded with standard grant_type,
+client_id, code, redirect_uri and code_verifier names. Client libraries handle
+PKCE and state: see [integration](clients.md).
 
-## Post details and likes
+Access tokens are JWTs with server-side validation and revocation. Both access
+and refresh tokens default to 365 days. `OPENBOOK_OAUTH_TOKEN_DURATION` controls
+new lifetimes in days, without changing already issued tokens. Refresh does
+not require login again. Account availability is checked during authorization,
+issuance, refresh and REST calls.
 
-GET /posts/{postId} returns the same Post representation used by the lists.
-Only published posts visible to the authenticated user are available; private
-messages are excluded. Remote replies and reaction totals are refreshed using
-the website's existing cache policy. Remote failures fall back to cached data.
-Visibility is checked again after refresh, before returning data or 304.
-Details omit postAnnounce and postTimelineAt because no feed context is selected.
+Settings → Connected apps lists individual accesses and closes them with their
+refresh tokens. Other accesses and the website session remain open. Tokens
+are never displayed. If the client has already rotated an access, the list
+reports the change: reload and close the current access. Website logout does
+not revoke OAuth tokens. Password/email changes, account deletion, staff and
+administration remain in the native interface.
 
-PUT /posts/{postId}/like and DELETE /posts/{postId}/like require no body.
-PUT returns 201 with Location on creation, or 204 if already liked. DELETE
-returns 204 even if already absent. Both return an empty body and no-store;
-counts, notifications and federation follow the website behavior. Unavailable
-posts return 404; liking a remotely suspended author returns 403.
+## HTTP, caching and security
 
-## Announces
+Reads use `Cache-Control: private, no-cache`, ETag and Vary Authorization.
+Send If-None-Match for 304 only after authentication and current accessibility
+checks. Key client caches by user and URL; invalidate/revalidate affected
+entries after writes. Writes and errors use no-store.
+Last-Modified/If-Modified-Since are not implemented; use ETag. HTTP status codes
+are authoritative. REST errors use Problem Details, with errors for validation;
+OAuth retains protocol error format. Missing/invalid credentials return 401;
+inactive accounts or insufficient permissions return 403. Operation-specific
+404 responses protect unavailable resources.
 
-PUT /posts/{postId}/announce requires a published, visible public or unlisted
-post outside private communities. It returns 201 with Location when a manual
-announce is activated, including promotion of an implicit quote share, or 204
-if already active. Visible restricted posts and remotely suspended authors
-return 403; unavailable posts and private messages return 404.
+CORS exposes ETag, Link, Location, Retry-After and WWW-Authenticate to Bearer
+clients without website cookies. Per-address minute limits: 60 REST calls,
+30 token exchanges and 10 registrations. Federation services and URL protection
+remain those of OpenBook; local success does not guarantee remote delivery.
+Clients must treat content, names and URLs as untrusted data.
 
-DELETE on the same URL returns 204 when your manual announce is removed or
-already absent on a visible post. An existing manual announce can also be
-removed after the post becomes invisible or restricted, or its remote author
-is suspended. Once removed, repeating DELETE for an invisible post returns
-404. Deleted posts and private messages always return 404. Published quotes
-and their implicit shares are preserved: postMyInteractions.postAnnounced may
-remain true while postDirectAnnounced becomes false. Use the latter for the
-announce button; postAnnounce represents a feed entry's context instead.
+## Local preparation
 
-Both operations require no body, return an empty body and no-store, and act
-only on the Bearer identity. Counts, notifications and federation follow the
-website behavior without duplicates on repeated requests. No new entity is
-required.
-
-## Following people
-
-GET /persons/{personId}/follow returns Follow for the direction
-Bearer user → Person identified in the path:
-
-```json
-{"followStatus": "pending"}
-```
-
-followStatus is required, non-null and one of none, pending or accepted.
-none means no outgoing follow or request; pending means awaiting acceptance;
-accepted means currently followed. Rejection or withdrawal returns to none.
-The reverse relationship and extra preferences are not included. GET returns
-200 even for none, with private caching, ETag and Vary Authorization. It does
-not fetch remote profiles or retry follow requests.
-
-PUT on the same path requires no body and returns Follow: 201 with Location
-on creation, 200 when already present. Open local accounts and feeds are
-accepted immediately; protected local accounts require approval. Remote
-non-feed identities remain pending until acceptance arrives. Repeating PUT
-does not duplicate the relation, but may retry delivery of a pending remote
-request or accept a pending local request if the profile has become open.
-The response body always describes the resulting state.
-
-DELETE withdraws a pending request or removes your outgoing follow: 204 with
-no body even when already absent on an available Person. Both writes use
-no-store. Self-follow and inactive targets refused by the follow operation
-return 422. A suspended remote identity can be read and unfollowed, but PUT
-returns 403. Unavailable identities return 404 for all methods, even if an old
-follow remains. Community identities retain membership permissions: owners
-cannot remove their own membership. Your own relation to a private community
-can be read without disclosing its member list.
-
-## Person posts
-
-GET /persons/{personId}/posts returns an array of Post objects matching the
-profile's Posts tab, including authored posts and announces visible to the
-current user. This is where recent remote content is imported when due under
-the existing cache policy; GET /persons/{personId} remains limited to profile
-metadata and relationship totals. RSS/Atom profiles follow the configured feed
-refresh interval. Remote failures preserve available cached results. Imported
-content is a partial local view, not the complete remote history.
-
-Entries include postTimelineAt and, where applicable, postAnnounce identifying
-the profile's announce. Ordinary profiles order by announce/publication time;
-groups retain original publication order. Use sort=postTimelineAt (default),
-direction=desc and the next Link with after + afterAt. Page size matches the
-website feed configuration; limit is not selectable. limit, cursor, page and
-engine parameters return 422. The client should follow Link without adding them.
-
-Local private community walls require membership or ownership. Account access,
-profile availability and visibility are checked before returning data or 304,
-including after import. Responses use private caching and Vary: Authorization.
-
-## Person detail refresh
-
-GET /persons/{personId} refreshes remote metadata and follower/following totals
-when their caches expire, using the website's refresh policy. Available cached
-data is returned on remote failures. This operation does not import post lists.
-Availability is checked again after refresh, before an eventual 304. Local
-profiles and feeds do not trigger these remote profile fetches. Person-reference
-lists and the world/home feeds remain based on locally available data.
-Conditional reads use ETag/If-None-Match;
-Last-Modified is not emitted by the current REST endpoints.
-
-## OAuth flow
-
-Use OAuth 2 Authorization Code with PKCE S256 and a public client. The client
-library opens OpenBook's existing login page, receives a code at its callback
-and exchanges it for a token. There is no login polling or token in the callback
-URL. The single scope is `api`; the user sees an ordinary application consent
-page, with no granular permissions to select. OpenBook is an OAuth server, not
-an OpenID Connect provider: do not request `openid` or an ID token.
-
-| Operation | Endpoint |
-| --- | --- |
-| OAuth server metadata (RFC 8414) | `GET /.well-known/oauth-authorization-server` |
-| Public client registration (RFC 7591) | `POST /oauth/register` |
-| Browser authorization | `GET /oauth/authorize` |
-| Code exchange and refresh | `POST /oauth/token` |
-
-Registration takes a JSON body. It supports HTTPS redirects, HTTP loopback
-redirects for local applications and reverse-domain private schemes for native
-apps. URL fragments and user information are rejected.
-
-```json
-{
-  "client_name": "Example application",
-  "redirect_uris": ["https://client.example/callback"],
-  "token_endpoint_auth_method": "none",
-  "grant_types": ["authorization_code", "refresh_token"],
-  "response_types": ["code"],
-  "scope": "api"
-}
-```
-
-Store the returned client_id and reuse it on this instance. Registration is not
-part of every login. Each registration call creates a client; the server does
-not deduplicate arbitrary applications by display name or redirect URI. Public
-clients do not receive a secret. The server registers Authorization Code and
-refresh support and returns the effective metadata. Other metadata is ignored;
-confidential client registration and registration management are not exposed.
-
-Token requests use application/x-www-form-urlencoded with standard OAuth names
-such as grant_type, client_id, code, redirect_uri and code_verifier. The response
-uses access_token, token_type, expires_in and refresh_token. Access tokens are
-JWTs with server-side revocation checks. Access and refresh tokens default to
-365 days. Operators can configure new token lifetimes in days using
-`OPENBOOK_OAUTH_TOKEN_DURATION`; existing tokens keep their expiry. Refresh does
-not require another login.
-Account availability is checked at authorization, issuance, refresh and REST
-access. Personal settings include “Connected apps”, listing each separate
-access. “Close this access” revokes both the Bearer and its refresh token while
-keeping other accesses and the website session open. Invalid accesses disappear
-from the list; if an app has just renewed an access, reload the list and close
-the current one. Tokens are never displayed. Website logout does not revoke
-OAuth tokens. Administration and staff operations remain outside the REST API.
-
-## Local setup and testing
-
-Install Composer dependencies and apply the pending OAuth migrations. Generate
-keys once with `php artisan passport:keys`; preserve storage/oauth-*.key and do
-not overwrite existing keys on routine updates. Refresh configuration and route
-caches. Production integration with the web installer/updater is still deferred.
-
-Clients can register automatically through the endpoint above. A developer can
-also create a public client with the standard Passport command:
+Install Composer dependencies and apply OAuth migrations. Generate keys once
+with `php artisan passport:keys` and preserve `storage/oauth-*.key`; do not
+overwrite them on routine updates. Refresh configuration and route caches.
+No new mandatory Redis, permanent worker or external service is introduced.
 
 ```sh
 php artisan passport:client --public --name="Example application" --redirect_uri="https://client.example/callback" --no-interaction
 ```
 
-```sh
-curl -i -H "Authorization: Bearer $OPENBOOK_TOKEN" \
-  'http://127.0.0.1:8000/rest/v1/persons/PERSON_UUID/following?limit=20'
-```
+Paw: OAuth 2 / Authorization Code, registered client_id, empty secret,
+scope api and PKCE S256. Callback must match registration. A client without
+PKCE support cannot complete this flow automatically.
 
-For Paw or another API client, choose OAuth 2 / Authorization Code, supply the
-registered client_id, leave client_secret empty, send client_id in the token
-request body and configure scope `api` plus PKCE S256. The callback must match
-the registered URI exactly. A tool without PKCE support cannot complete this
-flow automatically.
+## Next sprint
 
-CORS allows browser clients to call the Bearer API, metadata, registration and
-token endpoints without website cookies. ETag, Link, Location, Retry-After and
-WWW-Authenticate are exposed to JavaScript. REST errors use Problem Details;
-OAuth errors retain the standard OAuth format. Missing/invalid credentials return
-401 and inactive accounts return 403. ETag/If-None-Match supports 304 after all
-access checks. Last-Modified remains unimplemented. Limits per client address:
-60 REST calls, 30 token exchanges and 10 registrations per minute, independently.
-
-## Incoming requests
-
-GET /me/follow-requests returns PersonReference objects for pending requesters
-to the authenticated user. Supports after, limit (20/100), sort=personId and
-direction=asc/desc; next Link, ETag and private caching match person lists.
-No remote fetch occurs. PATCH on the detail requires {"followStatus":"accepted"}
-as a PatchFollowRequest JSON object and returns 204. DELETE rejects the request
-and returns 204. Missing, already handled or other users' requests return 404;
-DELETE does not remove an accepted follower. Community requests remain in the
-native interface. Writes use no-store and staff roles grant no delegation.
+A second PR is planned to extend Comment, Community, Event, Notification and
+Hashtag resources and their relationships. Media upload and complex post writes
+need dedicated contracts; they are not implemented by this sprint.
+Production enablement, installer/updater, date-based caching, search, polls,
+messaging and further settings remain to be defined.

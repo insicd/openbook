@@ -10,9 +10,9 @@ use App\Application\Services\ReactionManager;
 use App\Domain\Posts\Post;
 use App\Federation\Replies\RemoteRepliesFetcher;
 use App\Http\Controllers\Concerns\RespondsWithConditionalRest;
+use App\Http\Controllers\Concerns\ValidatesRestInput;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Rest\V1\PostResource;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +25,7 @@ use Symfony\Component\HttpFoundation\Response;
 final class PostController extends Controller
 {
     use RespondsWithConditionalRest;
+    use ValidatesRestInput;
 
     public function store(Request $request, PostComposer $composer): Response
     {
@@ -231,12 +232,5 @@ final class PostController extends Controller
         }
 
         return $this->conditionalResponse($request, $response);
-    }
-
-    private function invalid(array $errors): never
-    {
-        throw new HttpResponseException(response()->json([
-            'type' => 'about:blank', 'title' => 'Unprocessable Content', 'status' => 422, 'errors' => (object) $errors,
-        ], 422, ['Content-Type' => 'application/problem+json', 'Cache-Control' => 'no-store']));
     }
 }

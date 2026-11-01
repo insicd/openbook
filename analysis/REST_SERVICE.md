@@ -1,271 +1,95 @@
-# API REST per applicazioni terze
+# API REST per applicazioni indipendenti — sprint 1
 
-Apertura: 25 ottobre 2026 · Revisione: 26 ottobre 2026  
-Ramo: `rest_service` · Commit di partenza: `2ca1788`
+Stato consolidato: 1 novembre 2026 · ramo `rest_service`. Questo documento
+descrive le decisioni e l’implementazione dello sprint nel loro insieme, non
+il diario delle prove. Il contratto pubblico è in [OpenAPI](../docs/api/openapi.json)
+e nelle guide [italiana](../docs/api/README.it.md) / [inglese](../docs/api/README.md).
 
-Stato: canovaccio delle regole generali e prototipo locale REST autenticato: Person, Me, feed e dettaglio Post, Mi piace.
-Le sezioni 1–8 raccolgono decisioni, orientamenti e rappresentazioni in corso
-di definizione; la sezione 9 raccoglie le scelte generali aperte e la sezione 10
-descrive gli agganci della prima implementazione; la sezione 11 documenta gli elenchi.
-La sezione 12 descrive OAuth 2 standard con Passport; la sezione 13 descrive
-la gestione degli accessi nelle impostazioni. Tutte le risorse REST richiedono Bearer; le note sul prototipo anonimo sono storiche.
-L'appendice conserva i percorsi già discussi; l'inventario e il perimetro della
-prima release non sono ancora completi.
+## 1. Obiettivo, disponibilità e confini
 
-## 1. Obiettivo e perimetro
+API di integrazione per client indipendenti, anche sviluppati da terzi:
+app native, frontend specializzati e cataloghi. Non sostituisce la UI nativa,
+non replica l’API Mastodon e non esporta gli oggetti ActivityPub come payload REST.
+Semplicità: risorse esplicite, metodi standard, path prevedibili e rappresentazioni
+comuni a locali/remoti; nomenclatura ActivityPub conservata quando appropriata.
 
-Esporre i servizi Core di OpenBook ad applicazioni indipendenti, anche create
-da terzi: app mobile, frontend specializzati, cataloghi eventi e altre
-integrazioni. Ogni client può usare solo una parte del Core. La UI nativa
-continua a essere un'interfaccia del prodotto.
+Lo sprint è sperimentale e limitato a local/testing. Bootstrap e middleware
+escludono REST/OAuth in produzione anche con cache route proveniente da locale.
+Installer/updater e rollout in produzione sono rinviati. Amministrazione,
+moderazione, staff, credenziali, eliminazione account e gestione degli accessi
+rimangono nella UI nativa. Un account admin non riceve deleghe REST su altri.
 
-**La parola chiave è semplicità:** entità chiare e durevoli, metodi standard,
-path eloquenti, poche convenzioni uniformi e simmetria prevedibile. I concetti
-equivalenti usano gli stessi nomi e metodi, mantenendo le regole del dominio.
-La lungimiranza riguarda i confini delle risorse, non funzionalità ipotetiche.
+Ogni risorsa di contenuto richiede Bearer, scope api, User e Actor attivi.
+Nessun accesso anonimo né autenticazione tramite il solo cookie Web. I controlli
+valgono anche prima del 304. OAuth è naturalmente avviabile senza Bearer.
 
-Le API espongono esclusivamente interazioni utente. Amministrazione,
-moderazione e funzioni staff rimangono nella UI nativa, anche quando
-l'account autenticato possiede quei privilegi. Inviare una segnalazione è
-un'interazione utente; gestirla come staff è fuori perimetro.
+## 2. Convenzioni e inventario corrente
 
-Per ora restano nella UI nativa anche cambio password, cambio email,
-eliminazione dell'account e gestione delle app collegate e delle sessioni
-esterne. Il logout della sessione corrente del client verrà definito insieme
-al protocollo di login.
+Prefisso `/rest/v1`, nomi in inglese, campi prefissati per tipo; enum
+case-sensitive lowerCamelCase. I campi standard OAuth restano invariati.
+Oggetto/array diretto senza wrapper data, riferimenti PersonReference per le
+raccolte. Obbligatorietà e nullabilità sono distinte; nei campi annidati
+l’obbligatorietà vale quando è presente il padre. Date ISO 8601, UUID locali
+come identificatori e URI canonici dove specificati. Nessuna serializzazione
+indiscriminata dei modelli, chiavi o campi privati.
 
-Mastodon è stato un confronto, senza obiettivi di compatibilità con le sue API.
+| Entità | Endpoint | Funzione |
+| --- | --- | --- |
+| Instance | `GET /rest/v1/instance` | Metadati statici dell’istanza |
+| Me | `GET /rest/v1/me` | Identità autenticata |
+| Me | `GET /rest/v1/me/posts` | Propri post, senza rilanci altrui |
+| Person | `GET /rest/v1/persons/{personId}` | Dettaglio del profilo |
+| Person | `GET /rest/v1/persons/{personId}/followers` | Follower del profilo |
+| Person | `GET /rest/v1/persons/{personId}/following` | Persone seguite |
+| Person | `GET /rest/v1/persons/{personId}/posts` | Post e rilanci del profilo |
+| Follow | `GET /rest/v1/me/follow-requests` | Richiedenti in attesa |
+| Follow | `PATCH /rest/v1/me/follow-requests/{personId}` | Accettazione della richiesta |
+| Follow | `DELETE /rest/v1/me/follow-requests/{personId}` | Rifiuto della richiesta |
+| Follow | `GET /rest/v1/persons/{personId}/follow` | Stato del proprio follow |
+| Follow | `PUT /rest/v1/persons/{personId}/follow` | Follow o richiesta |
+| Follow | `DELETE /rest/v1/persons/{personId}/follow` | Rimozione o ritiro del follow |
+| Post | `GET /rest/v1/posts` | Mondo o timeline personale |
+| Post | `POST /rest/v1/posts` | Creazione testuale |
+| Post | `GET /rest/v1/posts/{postId}` | Dettaglio del post |
+| Post | `PATCH /rest/v1/posts/{postId}` | Modifica dei propri post semplici |
+| Post | `DELETE /rest/v1/posts/{postId}` | Eliminazione dei propri post locali |
+| Post | `PUT /rest/v1/posts/{postId}/announce` | Rilancio manuale |
+| Post | `DELETE /rest/v1/posts/{postId}/announce` | Rimozione del proprio rilancio |
+| Post | `PUT /rest/v1/posts/{postId}/like` | Aggiunta del proprio Mi piace |
+| Post | `DELETE /rest/v1/posts/{postId}/like` | Rimozione del proprio Mi piace |
 
-## 2. Risorse, rappresentazioni e percorsi
-
-L'API usa un percorso pubblico versionato, con `/rest/v1/*` come riferimento.
-I nomi plurali in inglese sono la convenzione proposta. I path descrivono il
-dominio, senza riprodurre schermate, tabelle o servizi interni.
-
-È concordato usare oggetti REST propri e semplici, senza adottare la struttura
-ActivityPub. Quando il significato coincide, i nomi di campi e attributi
-riprendono la nomenclatura ActivityPub/ActivityStreams: nessuna rinominazione
-gratuita. Questa coerenza non impone il formato della federazione.
-
-È concordata una regola generale aggiuntiva: i campi referenziano il tipo
-dell'entità mediante prefisso, per esempio `personId`, `personUri`, `personName`.
-La nomenclatura ActivityPub resta un riferimento per il termine dopo il
-prefisso, senza impedire i nomi esplicitamente scelti per il contratto REST.
-
-### Casing degli enum
-
-Nomi dei campi e valori enum REST seguono la stessa convenzione
-**lowerCamelCase**: prima lettera minuscola, iniziali delle parole successive
-maiuscole, senza underscore. I valori sono case-sensitive; non si accettano
-varianti di capitalizzazione.
-Esempi: `person`, `application`, `active`, `pendingApproval` (quest'ultimo
-illustra solo la convenzione, non introduce un nuovo stato).
-
-I nomi delle entità/schema restano PascalCase (`Person`, `Community`);
-questo non cambia la convenzione dei campi (`personType`, `personStatus`)
-e dei valori enum.
-
-### Entità confermate
-
-| Entità | Ruolo e dipendenza |
-| --- | --- |
-| Person | Account di persone o software, locali e remoti, e relativi profili. |
-| Post | Pubblicazioni. |
-| Event | Eventi, distinti dai post. |
-| Community | Community, distinte dalle persone. |
-| Notification | Notifiche appartenenti esclusivamente all'utente corrente, sotto `/me`. |
-| Hashtag | Hashtag e collegamenti ai contenuti. |
-| Comment | Unica entità Comment, sotto il post o l'evento a cui appartiene. Nessun percorso autonomo `/comments/{commentId}`. |
-| Media | Risorse indipendenti collegabili a più entità, anziché figli esclusivi di un contenuto. |
-
-La struttura comune di Comment non impone un'unica tabella o operazioni
-identiche per post ed eventi. Le risposte annidate restano da rappresentare.
-I collegamenti molti-a-molti di Media descrivono il contratto desiderato,
-non lo schema database attuale; riuso e accesso devono rispettare i contenuti
-associati.
-
-### Cataloghi, ownership e contesto personale
-
-- I cataloghi generali includono tutte le risorse consultabili, anche le proprie.
-- `/me/posts`, `/me/events` e `/me/communities` indicano rispettivamente post
-  pubblicati, eventi creati e community create dall'utente corrente.
-- Le risorse seguite o partecipate si selezionano sui cataloghi generali
-  mediante filtri sulle relazioni, non tramite raccolte di seguiti sotto `/me`.
-- `/me` contiene anche ciò che appartiene esclusivamente al contesto personale,
-  come notifiche e richieste di follow ricevute. La risposta principale ha
-  un nodo `myPerson` con la Person autenticata; le raccolte sono separate.
-  L’entità `Me` iniziale contiene soltanto questo nodo.
-
-Una risorsa mantiene la stessa identità nei diversi elenchi. Un proprio post
-può comparire sia in `/posts` sia in `/me/posts`: non sono copie o insiemi
-disgiunti. La presenza in un catalogo dipende sempre dalla sua visibilità.
-
-Le community locali e remote conosciute dall'istanza condividono il catalogo
-`/communities`. Un attributo ne indica l'origine, informazione secondaria per
-l'utente. Nome del campo ed eventuale filtro per origine restano da definire.
-
-## 3. Operazioni e relazioni
-
-| Metodo | Significato generale |
-| --- | --- |
-| GET | Leggere una risorsa o collezione. |
-| POST | Creare una risorsa o richiedere un'operazione di dominio. |
-| PUT | Sostituire lo stato definito dal contratto; per le relazioni concordate, attivarle senza duplicazioni. |
-| PATCH | Applicare una modifica parziale. |
-| DELETE | Rimuovere una risorsa o relazione. |
-
-Ogni risorsa espone solo le operazioni sensate e autorizzate. La simmetria
-non introduce capacità che il Core non possiede.
-
-### Stati HTTP ed errori
-
-È concordato usare sempre lo stato HTTP appropriato come esito autorevole
-della richiesta; il body lo dettaglia senza sostituirlo o contraddirlo.
-Nessun errore applicativo mascherato da `200`.
-
-Successi con `200`, `201` per creazioni, `202` per accettazione di lavoro
-ancora pendente e `204` per successi senza body, quando pertinenti. Errori
-del client con il relativo `4xx`, errori server con il relativo `5xx`;
-`304` rimane riservato alla rivalidazione. Non è una mappatura completa:
-i codici specifici saranno fissati nella specifica delle operazioni.
-
-Gli errori prodotti dall'API usano Problem Details (RFC 9457), con
-`Content-Type: application/problem+json`. Se presente, `status` nel body
-coincide con quello HTTP. I membri standard descrivono il problema; `errors`
-è l'estensione concordata per gli errori di validazione dei campi, il cui
-dettaglio rimane da specificare. Nessuna esposizione di segreti o stack trace.
-Le risposte che per semantica HTTP non ammettono un body restano senza body.
-
-### Relazioni dell'utente corrente
-
-La relazione dell'utente corrente con una risorsa è leggibile esplicitamente:
-il client non deve dedurla dall'assenza in una pagina di risultati.
-
-- `/follow` usa GET/PUT/DELETE per stato, attivazione e rimozione del follow
-  di persone, community e hashtag; negli eventi significa «mi interessa».
-- `/participation` negli eventi usa GET/PUT/DELETE per stato, partecipazione
-  o richiesta e ritiro. È indipendente dall'interesse.
-- Le richieste di follow ricevute sono sotto `/me/follow-requests`, con PATCH
-  per accettare e DELETE per rifiutare.
-
-Seguire una persona distingue non seguita, richiesta pendente e seguita.
-Gli hashtag non richiedono approvazione. I dettagli degli stati delle community
-e delle partecipazioni seguono il Core e saranno specificati successivamente.
-Gli elenchi followers/following delle persone includono relazioni accettate;
-participants degli eventi include soltanto partecipanti confermati.
-
-Il follow di un evento mantiene il significato dell'interesse esistente;
-non introduce una nuova garanzia di notifiche sugli aggiornamenti.
-
-## 4. Entità rappresentate
-
-Questa sezione raccoglie la rappresentazione JSON delle entità, distinta dai
-percorsi e dalle operazioni. I nomi campo referenziano il tipo mediante
-prefisso. Ogni sottosezione descrive significato, struttura e campi progressivamente
-concordati; tipi, formati e nullabilità non ancora decisi restano espliciti.
-Instance, Person, PersonReference, Me, Post, Location e Media hanno una prima
-rappresentazione implementata. Le altre entità conservano il ruolo condiviso,
-senza anticiparne una specifica.
-
-### Convenzione per le entità di creazione
-
-Per ogni entità creabile dal client si definisce una coppia `Entità` /
-`NewEntità`: per esempio `Post` / `NewPost`. L'entità ordinaria rappresenta
-la risposta; `NewEntità` contiene esclusivamente i campi accettati in creazione,
-con gli stessi nomi e raggruppamenti quando applicabili. Non eredita
-automaticamente campi obbligatori, contatori, identità o date della risposta.
-Obbligatorietà e nullabilità sono definite separatamente per la richiesta: un
-campo obbligatorio in lettura non diventa obbligatorio in scrittura.
-
-Per `NewPost` soltanto `postContent` e `postVisibility` sono obbligatori. Gli
-altri campi che verranno introdotti saranno opzionali, con semantica di omissione
-e nullabilità da definire quando vengono aggiunti. Per ora lo schema comprende
-soltanto i due campi concordati; non si anticipano funzionalità non supportate.
+## 3. Entità rappresentate
 
 ### Instance
 
-Metadati generali di sola lettura dell'istanza corrente. GET /instance richiede
-Bearer come gli altri endpoint REST. La rappresentazione espone solo i cinque
-campi concordati, senza statistiche, contatti o configurazioni riservate.
+Metadati statici da InstanceSettings, senza conteggi o statistiche. URL e dominio configurati, non derivati dall’header Host. Icona omessa se assente.
 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
 | `instanceName` | string | Sì | No | Nome configurato dell’istanza; riusa InstanceSettings::siteName. |
 | `instanceDomain` | string | Sì | No | Dominio configurato, come usato dagli indirizzi federati. |
-| `instanceUrl` | string, URI assoluto | Sì | No | URL base configurato dell’istanza, senza slash finale. |
+| `instanceUrl` | string; uri | Sì | No | URL base configurato dell’istanza, senza slash finale. |
 | `instanceDescription` | string | Sì | No | Descrizione configurata, senza rendering aggiuntivo; stringa vuota se assente. |
-| `instanceIcon` | string, URI assoluto | No | No | Icona personalizzata PNG 512; omessa se non configurata. |
-
-Non è prevista una controparte NewInstance: la gestione dell'istanza resta
-nella UI nativa. Vedere la sezione 22 per gli agganci e le verifiche.
+| `instanceIcon` | string; uri | No | No | Icona personalizzata PNG 512; omessa se non configurata. |
 
 ### Person
 
-#### Introduzione
-
-Person rappresenta identità di persone, software, feed e gruppi, locali e remoti, tramite
-`/persons` e nel nodo `myPerson` di `/me`. La fonte interna è il modello Actor
-nella tabella `actors`, con il relativo profilo quando presente. Actor è
-il nome del modello del Core, non un'ulteriore entità REST da specificare.
-
-I tipi Person sono person, application, feed e group. Restano esclusi gli
-attori tecnici locali. La Person di tipo group rappresenta l'identità della
-community; Community resta una risorsa distinta per spazio, regole e contenuti.
-
-La fonte di ogni campo va definita coerentemente con il Core: per le persone
-locali i dati di presentazione possono provenire dal profilo associato;
-per i remoti sono conservati nell'Actor. La forma restituita al client è la
-stessa. Non si esportano automaticamente relazioni interne, credenziali o
-endpoint di federazione.
-
-Sono stati esaminati modello Actor, serializer ActivityPub, Profile, resolver
-remoto e flussi di aggiornamento di profilo e preferenze.
-
-#### Specifica corrente dei campi
-
-Un'unica tabella usa percorsi puntati per i campi annidati e descrive la
-**risposta di lettura**, non campi accettati in scrittura né autorizzazioni
-a modificarli. Gli enum e le revisioni concordate sono fissati; le proposte
-residue sono indicate nelle descrizioni e riepilogate nella sezione 9.
-La presenza di una scelta nella bozza non la rende immutabile.
-
-`docs/api/openapi.json` è la traduzione pubblica corrente: OpenAPI 3.1.1,
-schema Person con strutture annidate inline, schema PersonReference e operazioni
-`GET /persons/{personId}`, `/followers` e `/following`. Vincoli obbligatorio/nullable ed enum sono
-allineati alla tabella. Il prototipo richiede OAuth per tutte le operazioni;
-le sezioni successive riportano lo storico e le estensioni implementate. Descrizioni pubbliche ed esempi sintetici sono separati
-dalle valutazioni interne di questo documento.
-
-- **Obbligatorio**: la proprietà deve essere presente nella risposta; per
-  i campi annidati, se il rispettivo oggetto padre è presente e non nullo.
-- **Nullable**: la proprietà può avere valore JSON `null`.
-- Le raccolte note come vuote sono `[]`; le mappe vuote sono `{}`. `null`
-  indica un dato non disponibile, non un conteggio zero.
-- I campi descrittivi, le immagini e gli attributi non essenziali possono
-  essere omessi come indicato in tabella. Obbligatorietà e nullabilità restano
-  distinte: un campo opzionale può essere assente; solo un campo nullable
-  può contenere esplicitamente null. Conteggi e ruoli rimangono opzionali.
-
-I gruppi sono `personProfile` e `personAttributes`; i prefissi `person`
-rimangono anche nei campi annidati. Identità, stato e personPublishedAt
-restano al primo livello.
-I conteggi restano al primo livello, come negli esempi. Esclusi `personUrl`, `personLocal`, `personRemoteSuspended`,
-`personCreatedAt` e `personUpdatedAt`.
+Identità Person/Application/Feed/Group disponibili, con profili locali e remoti normalizzati nella stessa struttura. I Group sono identità di community: Community sarà una risorsa distinta. La disponibilità usa PersonQuery; attori tecnici, cancellati o profili locali redatti sono esclusi. Conteggi, date e ruoli seguono la UI e non attribuiscono privilegi. personSummary usa il testo disponibile nel Core (locale sorgente, remoto normalizzato), senza promettere l’HTML originale.
 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
-| `personId` | string, UUID | Sì | No | Identificatore nell'istanza OpenBook, corrispondente all'Actor interno. |
-| `personUri` | string, URI assoluto | Sì | No | Identificatore ActivityPub canonico. |
-| `personType` | string, enum `person`, `application`, `feed`, `group` | Sì | No | Natura dell’identità: persona, applicazione, feed o gruppo. Valori case-sensitive. group identifica l’attore della community; Community rimane una risorsa distinta. |
-| `personUsername` | string | Sì | No | Username conservato dal Core; non include il dominio. |
-| `personDomain` | string | Sì | No | Dominio dell'identità federata. |
-| `personStatus` | string, enum `active`, `inactive` | Sì | No | Stato pubblico uniforme per locali e remoti. active indica un account attivo; inactive include account bloccati, disabilitati o sospesi. Le persone cancellate non sono rappresentate: il dettaglio restituisce 404. |
-| `personPublishedAt` | string, date-time | Sì | Sì | Data di iscrizione mostrata nella UI: iscrizione a OpenBook per i locali, data dichiarata dall'origine per i remoti. Null se non disponibile. |
+| `personId` | string; uuid | Sì | No | Identificativo della Person nell'istanza. |
+| `personUri` | string; uri | Sì | No | Identificatore ActivityPub canonico. |
+| `personType` | string; enum person, application, feed, group | Sì | No | Natura dell’identità: persona, applicazione, feed o gruppo. Valori case-sensitive. group identifica l’attore della community; Community rimane una risorsa distinta. |
+| `personUsername` | string | Sì | No | Username senza dominio. |
+| `personDomain` | string | Sì | No | Dominio dell'account. |
+| `personStatus` | string; enum active, inactive | Sì | No | Stato pubblico uniforme per locali e remoti. active indica un account attivo; inactive include account bloccati, disabilitati o sospesi. Le persone cancellate non sono rappresentate: il dettaglio restituisce 404. |
+| `personPublishedAt` | string; date-time | Sì | Sì | Data di iscrizione mostrata nella UI: iscrizione a OpenBook per i locali, data dichiarata dall'origine per i remoti. Null se non disponibile. |
 | `personProfile` | object | Sì | No | Gruppo dei dati di presentazione, con le fonti locali o remote appropriate. |
 | `personProfile.personName` | string | Sì | No | Nome visualizzato, con fallback allo username come nella UI. |
 | `personProfile.personSummary` | string | No | Sì | Testo sorgente della biografia o descrizione, senza rendering HTML; il client ne cura la visualizzazione. È il testo disponibile nel Core, non necessariamente il documento originale remoto. Può contenere Markdown o essere una stringa vuota. |
-| `personProfile.personAvatar` | string, URI assoluto HTTP(S) | No | Sì | URL dell'avatar, quando disponibile; proprietà opzionale, con null ammesso. |
-| `personProfile.personCoverImage` | string, URI assoluto HTTP(S) | No | Sì | URL della copertina, quando disponibile; proprietà opzionale, con null ammesso. |
+| `personProfile.personAvatar` | string; uri | No | Sì | URL dell'avatar, quando disponibile; proprietà opzionale, con null ammesso. |
+| `personProfile.personCoverImage` | string; uri | No | Sì | URL della copertina, quando disponibile; proprietà opzionale, con null ammesso. |
 | `personProfile.personFields` | array di object | No | No | Campi aggiuntivi, in ordine; proprietà opzionale, con `[]` ammesso se presente e vuota. I valori possono essere testo oppure URL. |
 | `personProfile.personFields[].label` | string | Sì | No | Etichetta del campo aggiuntivo, per esempio Lavoro o Website. La coppia usa i nomi label/value già presenti negli esempi. |
 | `personProfile.personFields[].value` | string | Sì | No | Valore del campo, per esempio Operaio o un URL; non vincolato al formato URI. |
@@ -273,1782 +97,329 @@ I conteggi restano al primo livello, come negli esempi. Esclusi `personUrl`, `pe
 | `personAttributes.personDiscoverable` | boolean | Sì | No | Preferenza di reperibilità nei suggerimenti, secondo i valori effettivi del Core. |
 | `personAttributes.personIndexable` | boolean | Sì | No | Preferenza di indicizzazione. |
 | `personAttributes.personFollowApproval` | boolean | Sì | No | Indica se il follow richiede approvazione; true significa richiesta da approvare. |
-| `personAttributes.personCustomEmojis` | object, mappa string → URI HTTP(S) | No | No | Proposta coerente con il Core: shortcode come `:nome:` associato all'URL dell'immagine; `{}` se non ci sono emoji. |
-| `personAttributes.personAlsoKnownAs` | array di string, URI assoluti | No | No | Alias dichiarati; `[]` se assenti. |
-| `personAttributes.personMovedTo` | object, riferimento Person | No | Sì | Destinazione di migrazione come riferimento minimo personId/personUri, senza incorporare ricorsivamente la persona completa. Null se non è presente una destinazione. |
-| `personAttributes.personMovedTo.personId` | string, UUID | Sì | No | Identificatore della persona di destinazione nota all'istanza, quando il riferimento è presente. |
-| `personAttributes.personMovedTo.personUri` | string, URI assoluto | Sì | No | Identificatore ActivityPub canonico della destinazione. |
+| `personAttributes.personCustomEmojis` | object | No | No | shortcode come `:nome:` associato all'URL dell'immagine; `{}` se non ci sono emoji. |
+| `personAttributes.personAlsoKnownAs` | array di string | No | No | Alias dichiarati; `[]` se assenti. |
+| `personAttributes.personMovedTo` | object | No | Sì | Destinazione di migrazione come riferimento minimo personId/personUri, senza incorporare ricorsivamente la persona completa. Il campo viene omesso se non è presente una destinazione; lo schema ammette null. |
+| `personAttributes.personMovedTo.personId` | string; uuid | Sì | No | Identificatore della persona di destinazione nota all'istanza, quando il riferimento è presente. |
+| `personAttributes.personMovedTo.personUri` | string; uri | Sì | No | Identificatore ActivityPub canonico della destinazione. |
 | `personAttributes.personMemorial` | boolean | Sì | No | Indicazione di account commemorativo. |
 | `personAttributes.personSuspended` | boolean | Sì | No | Sospensione effettiva, locale oppure dichiarata dall'origine, senza distinguerle per il client. |
-| `personFollowersCount` | integer, minimo 0 | No | Sì | Conteggio follower mostrato dalla UI, con le stesse regole. Null se non disponibile, mai zero per rappresentare un dato mancante. |
-| `personFollowingCount` | integer, minimo 0 | No | Sì | Conteggio seguiti mostrato dalla UI, con le stesse regole. Null se non disponibile. |
-| `personRoles` | array di string, enum `admin`, `moderator` | No | No | Ruoli descrittivi dell'account, distinti dal tipo. Può contenere entrambi; [] per nessuno dei due, omesso se non disponibile. Non attribuisce funzioni staff alle API. |
-
-`personType` descrive la natura dell'account; `personRoles` indica i ruoli
-admin/moderator. Il client non deve ricavarne capacità amministrative REST.
-I campi aggiuntivi usano coppie label/value; personMovedTo è un riferimento
-personId/personUri. Queste strutture sono già quelle dell'OpenAPI e non
-richiedono la definizione di ulteriori entità.
-
-Per date, nome visualizzato e conteggi vale la parità con la UI. Quali tabelle
-o query usare per ottenere gli stessi valori è un dettaglio implementativo,
-non una decisione del contratto da sottoporre nuovamente a discussione.
-
-Le normalizzazioni di raccolte vuote e nome visualizzato sono espresse nella
-tabella e nell'OpenAPI. I JSON estratti dal DB durante il confronto erano
-esempi esplorativi e non costituiscono il contratto corrente; gli esempi
-sintetici dell'OpenAPI sono invece coerenti con i relativi schemi.
-
-`personStatus` descrive lo stato generale e `personSuspended` la sospensione.
-La corrispondenza concordata è:
-
-- Attore attivo e non sospeso all'origine: `active`, personSuspended false.
-- Attore bloccato o account disabilitato: `inactive`; personSuspended riflette
-  l'eventuale sospensione concomitante, senza essere impostato dal solo blocco.
-- Sospensione locale oppure dichiarata dall'origine: `inactive`, personSuspended true.
-- Persona cancellata: nessuna rappresentazione Person; il dettaglio restituisce
-  HTTP 404 e la persona non compare nelle collezioni di Person.
-
-Quindi personSuspended true implica sempre personStatus inactive, mentre
-inactive non implica necessariamente sospensione. Lo stato active non
-sostituisce le autorizzazioni del Core per le singole operazioni.
-
-Verifica del Core: modello Actor, migrazione
-`0001_01_01_000058_add_deleted_status_to_actors` e definizione della colonna
-nel DB locale ammettono active, suspended, blocked e deleted. StaffUserManager
-traduce la disabilitazione dell'account in blocked; remote_suspended conserva
-separatamente la dichiarazione del server di origine. Questi dettagli interni
-sono normalizzati nel contratto pubblico, senza esporne la provenienza.
-
-#### Dati non inclusi automaticamente e dettagli residui
-
-`user_id` resta un riferimento interno; `is_local` è escluso dal contratto.
-Le date interne personCreatedAt e personUpdatedAt sono escluse dalla
-rappresentazione pubblica: inserimento e aggiornamento locali non sono
-informazioni utili al client. La cache usa i validatori HTTP concordati.
-Non si espongono automaticamente `deleted_at`, date tecniche dei fetch o
-riferimenti dei contenuti in evidenza. La gestione delle persone cancellate
-è definita sopra. Gli altri casi di mancata accessibilità e l'eventuale
-utilità di ulteriori metadati restano da specificare.
-Le chiavi e gli endpoint della federazione sono relazioni separate.
-
-Gli ulteriori dettagli saranno consolidati aggiornando insieme questa
-sezione e la bozza OpenAPI. Nessun nuovo campo interno viene esposto
-implicitamente.
-
-#### Feed, gruppi e autori dei post
-
-Decisione concordata: Person include person, application, feed e group.
-Il contratto e i filtri REST di dettaglio/elenchi vengono adeguati insieme;
-non si modificano i modelli o le query condivise dalla UI. Per gli attori
-locali restano richiesti account, community o sorgente feed corrispondenti,
-con stato attivo; gli attori tecnici locali restano esclusi.
-
-Le community private conservano identità e contatori pubblici come nella UI;
-le loro raccolte followers/following sono protette tramite CommunityPolicy.
-Le identità di community private vengono inoltre escluse dalle liste di
-relazioni, prima di applicare il limite, per non rivelarne la membership.
-
-I Group possono generare Create/Note oltre agli Announce: OpenBook lo fa già
-per gli avvisi della community. postAuthor è sempre un PersonReference,
-indipendentemente dal tipo dell'autore. Nessun tipo alternativo di riferimento.
-
-Verifiche dell'estensione: 46 test REST e 604 asserzioni superati, inclusi
-profili locali senza User, quattro tipi remoti, liste e passaggio di community
-da pubblica a privata con ETag precedente. OpenAPI validato. Su MySQL provati
-dettaglio/lista e filtro membership con dati temporanei in rollback: lookup
-Actor su PK, community/feed source sui rispettivi indici univoci actor_id,
-follows e cache remota indicizzati anche nei due rami della UNION delle liste.
-Nessuna migration o nuovo indice necessario.
+| `personFollowersCount` | integer | No | Sì | Conteggio follower mostrato dalla UI, con le stesse regole. Null se non disponibile, mai zero per rappresentare un dato mancante. |
+| `personFollowingCount` | integer | No | Sì | Conteggio seguiti mostrato dalla UI, con le stesse regole. Null se non disponibile. |
+| `personRoles` | array di string; enum admin, moderator | No | No | Ruoli descrittivi dell'account, distinti dal tipo. Può contenere entrambi; [] per nessuno dei due, omesso se non disponibile. Non attribuisce funzioni staff alle API. |
 
 ### PersonReference
 
-Rappresentazione compatta di Person per gli elenchi di persone. Il nome
-`PersonReference` distingue il riferimento dal profilo completo senza introdurre
-un diverso tipo di account. Struttura piatta, uguale per locali e remoti;
-`personId` permette di ottenere il dettaglio con `GET /persons/{personId}`.
-Non contiene conteggi, attributi o altri sottooggetti del profilo completo.
+Forma compatta per autori, follower, seguiti e richiedenti: nessuna esportazione di profili completi nelle liste.
 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
-| personId | string (UUID) | Sì | No | Identificativo della Person nell'istanza. |
-| personUsername | string | Sì | No | Username senza dominio. |
-| personDomain | string | Sì | No | Dominio dell'account. |
-| personName | string | Sì | No | Nome visualizzato; in assenza, username. |
-| personAvatar | string (URI) | No | No | URL dell'avatar; omesso se assente. |
-
-Le prime operazioni che lo restituiscono sono
-`GET /persons/{personId}/followers` e `GET /persons/{personId}/following`:
-array diretto di PersonReference riferito alla persona nel percorso, anche
-quando diversa dall'utente corrente. Le relazioni pending non compaiono.
-Per i remoti l'elenco può essere parziale: include solo persone già note.
-
-### Follow
-
-Stato della relazione di follow dell'utente autenticato verso la Person nel
-percorso. Rappresentazione comune a GET e PUT /persons/{personId}/follow;
-nessuna informazione implicita sulla direzione inversa. L'assenza è uno stato
-none leggibile; dopo un rifiuto o ritiro torna none. Nessun ID della relazione,
-data o preferenza aggiuntiva in questo primo giro.
-
-| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
-| --- | --- | --- | --- | --- |
-| followStatus | string, enum none/pending/accepted | Sì | No | Stato del follow dell'utente autenticato verso la Person richiesta. none: non seguita e nessuna richiesta pendente; pending: richiesta in attesa; accepted: la segue. |
+| `personId` | string; uuid | Sì | No | Identificativo della Person nell'istanza. |
+| `personUsername` | string | Sì | No | Username senza dominio. |
+| `personDomain` | string | Sì | No | Dominio dell'account. |
+| `personName` | string | Sì | No | Nome visualizzato; in assenza, username. |
+| `personAvatar` | string; uri | No | No | URL dell'avatar; omesso se assente. |
 
 ### Me
 
-Contesto dell'utente autenticato, restituito da `GET /me`.
-Lo schema si chiama `Me`; le sue proprietà usano il prefisso `my`, scelto
-per leggibilità. La prima versione contiene una sola proprietà.
+Contesto del Bearer, inizialmente con il solo myPerson. Nessun myId duplicato e nessuna preferenza/sessione incorporata.
 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
-| myPerson | Person (oggetto) | Sì | No | Account autenticato, con la stessa rappresentazione Person già definita. I campi interni mantengono il prefisso person. |
+| `myPerson` | Person | Sì | No | Account autenticato, con la stessa rappresentazione Person già definita. I campi interni mantengono il prefisso person. |
 
-Non si duplica l'identificativo con `myId`: l'UUID della persona rimane
-`myPerson.personId`. I dati della sessione corrente restano da definire e non
-sono inclusi in questa prima versione. L'endpoint riusa PersonQuery e
-PersonResource: nessuna nuova query, migration o modifica ai modelli.
-L'identità deriva esclusivamente dall'utente autenticato. Stesse regole Bearer,
-account attivo, cache privata ed ETag delle altre risorse REST, tramite logica
-HTTP condivisa. Rimane nel perimetro local/testing.
+### Follow
+
+Relazione diretta dall’utente autenticato verso la Person nel percorso. none include richiesta mai inviata, rifiutata, ritirata o relazione rimossa. Non espone lo stato inverso né cronologia delle decisioni.
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| `followStatus` | string; enum none, pending, accepted | Sì | No | Stato del follow dell'utente autenticato verso la Person richiesta. none: non seguita e nessuna richiesta pendente; pending: richiesta in attesa; accepted: la segue. |
 
 ### Post
 
-La lettura degli elenchi è `GET /posts`. Senza parametri equivale a
-`GET /posts?engine=world` e riproduce il feed della sezione Mondo della UI.
-`engine` seleziona la logica del feed, con valori iniziali `world` e `timeline`:
-
-| engine | Significato |
-| --- | --- |
-| world | Default. Stessi contenuti e ordinamento della sezione Mondo. Attualmente comprende post pubblici di attori remoti già conosciuti dall'istanza, con le esclusioni applicate dal Core. |
-| timeline | Stessi contenuti e ordinamento della home personale dell'utente autenticato. |
-
-Entrambi richiedono autenticazione e restituiscono la stessa entità Post.
-Il parametro sceglie il feed; non cambia la forma della rappresentazione.
-Gli agganci esistenti sono FeedQuery::world() e FeedQuery::forActor(), già
-usati dalla UI, insieme all’annotazione dello stato del lettore. Entrambi gli
-engine sono implementati con paginazione REST; il dettaglio usa la stessa
-entità. I campi opzionali di contesto dipendono dalla voce del feed, come
-specificato nella tabella. Non sono state aggiunte query di dominio.
-
-Pubblicazione. I post mantengono la stessa identità nei cataloghi generali,
-personali e delle community.
-
-#### Ricognizione della rappresentazione
-
-Verificati lo schema MySQL locale di posts, il modello Post, le card Web e
-la serializzazione esistente. La tabella conserva identità/autore, community,
-conversazione, URI e fonte RSS, tre tipi di citazione, titolo, avviso, corpo,
-lingua, visibilità/stato, tre contatori, date ed emoji. Media, hashtag,
-menzioni, luogo e sondaggio sono relazioni separate. Il sottoinsieme esposto
-è descritto nella tabella e nello schema Post dell’OpenAPI; le relazioni non
-ancora rappresentate restano esplicite.
-
-#### Specifica corrente dei campi
-
-Prima rappresentazione basata sulle colonne e sulle relazioni attuali. Obbligatorio indica la presenza della chiave; Nullable indica se il
-valore può essere null. Per i campi annidati l'obbligo vale quando il relativo
-oggetto è presente e non null. Lo schema pubblico corrente descrive questi
-vincoli; estensioni e nuove relazioni vanno concordate separatamente.
+Rappresentazione di lettura comune a feed, dettaglio e ownership. postAnnounce è il contesto selezionato dal feed, non la relazione personale; postDirectAnnounced identifica il rilancio manuale. Messaggi di conversazioni private sempre esclusi. Contenuto testuale senza nuovo rendering HTML. Campi opzionali vuoti omessi secondo lo schema e la risorsa.
 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
-| `postId` | string, UUID | Sì | No | Identificativo nell'istanza; id è non null nel DB. |
-| `postUri` | string, URI assoluto | Sì | No | Identificativo canonico. Anche se uri è nullable nel DB, per i locali il Core lo calcola. |
+| `postId` | string; uuid | Sì | No | Identificativo nell'istanza; id è non null nel DB. |
+| `postUri` | string; uri | Sì | No | Identificativo canonico. Anche se uri è nullable nel DB, per i locali il Core lo calcola. |
 | `postAuthor` | PersonReference | Sì | No | Autore, con personType person/application/feed/group nel dettaglio Person. actor_id è non null. Il riferimento compatto conserva i campi già definiti. |
-| `postName` | string, massimo 255 caratteri | No | No | Titolo. Campo omesso se non valorizzato; non si restituisce null. |
-| `postContent` | string | Sì | No | Testo; body è non null. Può essere vuoto per un post con soli allegati. Sorgente disponibile nel Core, che può contenere Markdown; nessun rendering HTML nell’API. |
+| `postName` | string; max 255 | No | No | Titolo. Campo omesso se non valorizzato; non si restituisce null. |
+| `postContent` | string | Sì | No | Testo non vuoto, con gli stessi vincoli di NewPost. |
 | `postCW` | boolean | Sì | No | Indica il Content Warning effettivo della UI. Campo derivato, non copia nullable di content_warning. |
-| `postCWText` | string | No | Sì | Eventuale testo del Content Warning. content_warning è nullable; eventuali avvisi applicati dal Core vanno rispettati. Il prototipo omette il campo se il testo non è valorizzato. |
-| `postLanguage` | string, massimo 255 caratteri | No | Sì | Facoltativo concordato. language è nullable; formato dei codici da fissare. |
-| `postVisibility` | string, enum public/unlisted/followers/direct | Sì | No | Visibilità, non null nel DB. Il valore direct non autorizza l'esposizione delle conversazioni private. |
-| `postPublishedAt` | string, date-time | Sì | No | Data di pubblicazione; published_at è non null. |
-| `postTimelineAt` | string, date-time | Timeline e post del profilo | No | Data di ordinamento: rilancio selezionato oppure pubblicazione originale; nei Group sempre pubblicazione. Assente in Mondo e nei dettagli. |
-| `postAnnounce` | object | No | No | Contesto del rilancio selezionato dal feed, facoltativo per entrambi gli engine; omesso se il contesto non esiste. Nella timeline è l’ultimo rilancio pertinente. |
-| `postAnnounce.announceAuthor` | PersonReference | Sì | No | Autore del rilancio, anche gruppo o autore originale del post. |
-| `postAnnounce.announcePublishedAt` | string, date-time | Sì | No | Data del rilancio selezionato. |
-| `postEditedAt` | string, date-time | No | Sì | Facoltativo concordato. edited_at è nullable; assente o null se non modificato. |
-| `postSourceUri` | string, massimo 768 caratteri | No | No | Fonte originale, soprattutto per RSS/Atom. Campo omesso se non valorizzato; non si restituisce null. Formato da verificare rispetto agli identificatori dei feed. |
-| `postCustomEmojis` | object, mappa string → URI | No | No | Mappa delle emoji. Campo omesso se non valorizzato o privo di elementi; non si restituisce null. Collocazione finale tra i raggruppamenti ancora da discutere. |
-| `postAttachments` | array di Media | No | No | Facoltativo concordato. Relazione ordinata: [] è una raccolta vuota, non null. Struttura Media definita nella relativa sottosezione. |
+| `postCWText` | string | No | Sì | Eventuale testo del Content Warning. content_warning è nullable; eventuali avvisi applicati dal Core vanno rispettati. La risorsa omette il campo se il testo non è valorizzato. |
+| `postLanguage` | string; max 255 | No | Sì | Lingua fornita dal Core; nessuna normalizzazione aggiuntiva nello sprint. |
+| `postVisibility` | string; enum public, unlisted, followers, direct | Sì | No | Nuova visibilità; se omessa resta quella corrente. |
+| `postPublishedAt` | string; date-time | Sì | No | Data di pubblicazione; published_at è non null. |
+| `postEditedAt` | string; date-time | No | Sì | edited_at è nullable; assente o null se non modificato. |
+| `postSourceUri` | string; max 768 | No | No | Fonte originale, soprattutto per RSS/Atom. Campo omesso se non valorizzato; non si restituisce null.  |
+| `postCustomEmojis` | object | No | No | Mappa delle emoji. Campo omesso se non valorizzato o privo di elementi; non si restituisce null.  |
+| `postAttachments` | array di Media | No | No | Relazione ordinata: [] è una raccolta vuota, non null. Struttura Media definita nella relativa sottosezione. |
 | `postAttributes` | object | Sì | No | Contenitore degli attributi aggiuntivi; oggetto della rappresentazione, non colonna DB. |
-| `postAttributes.postLocation` | Location | Sì | Sì | Relazione opzionale. Null se manca la località associata. |
+| `postAttributes.postLocation` |  | Sì | No | Relazione opzionale. Null se manca la località associata. |
 | `postCounters` | object | Sì | No | Raggruppamento dei contatori esistenti. |
-| `postCounters.postLikesCount` | integer, minimo 0 | Sì | No | likes_count: intero unsigned non null, default 0. |
-| `postCounters.postCommentsCount` | integer, minimo 0 | Sì | No | comments_count: intero unsigned non null, default 0. |
-| `postCounters.postAnnouncesCount` | integer, minimo 0 | Sì | No | announces_count: intero unsigned non null, default 0. |
+| `postCounters.postLikesCount` | integer | Sì | No | likes_count: intero unsigned non null, default 0. |
+| `postCounters.postCommentsCount` | integer | Sì | No | comments_count: intero unsigned non null, default 0. |
+| `postCounters.postAnnouncesCount` | integer | Sì | No | announces_count: intero unsigned non null, default 0. |
 | `postMyInteractions` | object | Sì | No | Nome concordato per le interazioni già compiute dall'utente autenticato. |
 | `postMyInteractions.postLiked` | boolean | Sì | No | Mi piace dell'utente corrente. Calcolato con il flusso Web esistente; false se non presente. |
 | `postMyInteractions.postAnnounced` | boolean | Sì | No | Presenza di una condivisione attribuita all'utente corrente, anche automatica. |
 | `postMyInteractions.postDirectAnnounced` | boolean | Sì | No | Condivisione manuale tramite Condividi, distinta da quelle automatiche collegate per esempio alle citazioni. Non indica una condivisione privata. |
-
-#### Presenza, null e campi calcolati
-
-Confermati facoltativi postLanguage, postEditedAt, postAttachments, postName,
-postSourceUri e postCustomEmojis. Gli ultimi tre sono non nullable e vengono
-omessi quando non valorizzati; la mappa delle emoji è omessa anche se vuota. Il testo
-postCWText è facoltativo perché l’avviso testuale è eventuale. I campi
-facoltativi senza valore sono omessi; postLocation mantiene la chiave con
-valore null se assente. Null e campo omesso hanno significati distinti.
-
-Il flag postCW segue l'avviso effettivo della UI. I contatori e le interazioni
-non richiedono tipi o valori null solo perché alcuni valori sono calcolati:
-contatori a zero e booleani false rappresentano stati conosciuti. Il nome
-postMyInteractions è concordato; non contiene il profilo del lettore.
-
-#### Raggruppamenti concordati
-
-- `postAttachments` raccoglie i media allegati, mantenendo l'ordine degli
-  allegati del post. La rappresentazione incorporata è definita sotto Media.
-- `postAttributes` raccoglie attributi aggiuntivi coerenti. Il primo campo
-  concordato è `postLocation`, con valore di tipo `Location` riutilizzabile.
-  La collocazione degli altri attributi sarà discussa nei prossimi passaggi.
-- La Location non contiene il riferimento al post padre; lo stesso oggetto
-  potrà essere usato come `eventLocation`. La posizione di eventLocation
-  nell'entità Event verrà definita quando si affronterà Event.
-
-Struttura corrente; tipi e vincoli nella tabella sopra:
-
-```text
-Post
-  postAuthor: PersonReference
-  postAttachments: raccolta di Media
-  postAttributes
-    postLocation: Location
-  ...altri campi Post della tabella
-```
-
-Resta da rappresentare hashtag/menzioni, community,
-sondaggio e citazioni (di post, eventi e, nei messaggi, profili). Tipi e
-profondità dei riferimenti annidati sono da discutere, rispettando sempre la
-leggibilità delle risorse collegate. Non confondere il post citato con una
-condivisione: sharedBy/shared_at sono contesto del feed e non colonne di posts.
-
-Esclusioni: created_at/updated_at, remote_updated_at,
-replies_fetched_at e conversation_id come dettagli di persistenza/federazione
-o dell'area messaggi. status non offre uno stato utile nel primo elenco:
-si restituiscono i pubblicati, escludendo i cancellati.
-
-Il corpo remoto viene importato come testo ripulito, mentre quello locale
-supporta Markdown. Il contratto espone il testo disponibile nel Core senza
-rendering HTML, senza promettere il sorgente originale del server remoto.
+| `postTimelineAt` | string; date-time | No | No | Data di ordinamento: rilancio selezionato oppure pubblicazione originale; nei Group sempre pubblicazione. Assente in Mondo e nei dettagli. |
+| `postAnnounce` | object | No | No | Contesto del rilancio selezionato dal feed, facoltativo per entrambi gli engine; omesso se il contesto non esiste. Nella timeline è l’ultimo rilancio pertinente. |
+| `postAnnounce.announceAuthor` | PersonReference | Sì | No | Autore del rilancio, anche gruppo o autore originale del post. |
+| `postAnnounce.announcePublishedAt` | string; date-time | Sì | No | Data del rilancio selezionato. |
 
 ### NewPost
 
-Richiesta di creazione di Post, separata dalla rappresentazione di risposta.
-Prima versione testuale, senza allegati o altre funzionalità avanzate.
-L'autore viene dal contesto autenticato. ID, URI, date, contatori e interazioni
-non sono inviabili dal client. Lo schema è definito nell'OpenAPI;
-`POST /posts` è implementato nel prototipo locale ed è descritto nell’OpenAPI.
+Contiene soltanto campi accettati in creazione, senza ereditare gli obbligatori della risposta. postContent e postVisibility sono obbligatori; future estensioni di creazione dovranno essere opzionali.
 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
-| `postContent` | string | Sì | No | Testo non vuoto né composto soltanto da spazi; limite della stessa configurazione del Web. Supporta il normale testo sorgente del Core, inclusi hashtag e menzioni. |
-| `postVisibility` | string, enum public/unlisted/followers | Sì | No | Visibilità esplicita, senza valore predefinito. direct resta fuori dal primo giro. |
-
-Le proprietà non definite non sono accettate. I futuri campi aggiuntivi saranno
-facoltativi. NewPost è uno schema autonomo: non usa un'ereditarietà da Post che
-trascinerebbe i requisiti della risposta nella richiesta.
+| `postContent` | string | Sì | No | Testo non vuoto, con gli stessi vincoli di NewPost. |
+| `postVisibility` | string; enum public, unlisted, followers | Sì | No | Nuova visibilità; se omessa resta quella corrente. |
 
 ### PatchPost
 
-Richiesta di modifica parziale distinta da NewPost. Tutti i campi sono
-opzionali ma almeno uno deve essere inviato. Le proprietà omesse conservano
-il valore corrente; null non significa rimozione e non è accettato.
+Stessi nomi degli input NewPost, tutti opzionali ma almeno uno presente. Campi sconosciuti e null non ammessi. Solo propri post locali semplici.
 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
 | `postContent` | string | No | No | Testo non vuoto, con gli stessi vincoli di NewPost. |
-| `postVisibility` | string, enum public/unlisted/followers | No | No | Nuova visibilità; se omessa resta quella corrente. |
+| `postVisibility` | string; enum public, unlisted, followers | No | No | Nuova visibilità; se omessa resta quella corrente. |
 
-Schema autonomo con almeno una proprietà e nessuna proprietà aggiuntiva.
-Si applica solo ai propri post semplici pubblicati, come delimitato nella
-sezione 20; non amplia le proprietà modificabili del Core.
+### PatchFollowRequest
 
-### Event
+Documento di accettazione di una richiesta ricevuta: esclusivamente followStatus=accepted. Il rifiuto usa DELETE. Non introduce una nuova entità di risposta: l’elenco restituisce PersonReference.
 
-Evento distinto da Post. Rappresentazione e campi da definire; interesse e
-partecipazione sono relazioni indipendenti, non tipi diversi di evento.
-
-### Community
-
-Community descrive lo spazio della community, distinto dalla sua identità
-Person di tipo group. Campi da definire;
-locali e remote condividono il catalogo, con un attributo di origine.
-
-### Notification
-
-Notifica dell'utente corrente, sotto `/me/notifications`. Campi e stato di
-lettura da definire.
-
-### Hashtag
-
-Hashtag e riferimenti ai contenuti associati. Campi, normalizzazione e
-codifica dell'identificatore da definire.
-
-### Comment
-
-Rappresentazione comune per commenti a post ed eventi, esposti soltanto sotto
-il contenuto padre. Campi e rappresentazione delle risposte annidate da definire.
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| `followStatus` | string; enum accepted | Sì | No | Stato del follow dell'utente autenticato verso la Person richiesta. none: non seguita e nessuna richiesta pendente; pending: richiesta in attesa; accepted: la segue. |
 
 ### Location
 
-Entità geografica generica, riutilizzabile in `postAttributes.postLocation`
-e in futuro in `eventLocation`. La prima rappresentazione usa i dati già
-disponibili per le località di post ed eventi. La tabella definisce i tipi
-e i vincoli del prototipo, allineati all’OpenAPI.
+Oggetto geografico riutilizzabile nei post e in futuro negli eventi. I campi sono presenti con null per valori mancanti. Estensioni di indirizzo e identificativo autonomo restano rinviate.
 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
-| `locationName` | string, massimo 500 caratteri | Sì | Sì | Nome del luogo. post_locations lo richiede non null e massimo 200; event_locations ammette null e massimo 500. Il tipo generico proposto copre entrambi. |
-| `locationRegion` | string, massimo 200 caratteri | Sì | Sì | Area amministrativa: admin1_name nei post e region negli eventi; entrambe nullable. |
-| `locationCountryCode` | string, massimo 8 caratteri | Sì | Sì | Codice del paese. Nei post è char(2), negli eventi string(8); formato/normalizzazione pubblici ancora da concordare. |
-| `locationCountryName` | string, massimo 200 caratteri | Sì | Sì | Nome del paese; nullable in entrambe le tabelle. |
-| `locationLatitude` | number | Sì | Sì | Coordinata; decimal(10,7) nullable nel DB, esposta come numero JSON. Precisione e limiti pubblici da fissare. |
-| `locationLongitude` | number | Sì | Sì | Coordinata; decimal(10,7) nullable nel DB, esposta come numero JSON. Precisione e limiti pubblici da fissare. |
-
-I campi Location sono sempre presenti, con null per i dati mancanti. Si considera già la compatibilità con event_locations per
-non imporre un nome obbligatoriamente valorizzato o codici lunghi solo due
-caratteri che il modello degli eventi attuale non garantisce.
-
-La tabella post_locations conserva anche geo_city_id e source: rimane da
-valutare se abbiano utilità nel contratto pubblico. post_id e i timestamp di
-persistenza non fanno parte della Location generica. Non si fissano ancora
-un identificativo proprio della Location o un endpoint dedicato.
-
-EventLocation dispone inoltre di indirizzo, strada, località, codice postale,
-URI e URL: possibili estensioni dello stesso oggetto, da discutere insieme
-all'entità Event, evitando due strutture geografiche concorrenti.
+| `locationName` | string; max 500 | Sì | Sì | Nome del luogo. post_locations lo richiede non null e massimo 200; event_locations ammette null e massimo 500. Il tipo generico proposto copre entrambi. |
+| `locationRegion` | string; max 200 | Sì | Sì | Area amministrativa: admin1_name nei post e region negli eventi; entrambe nullable. |
+| `locationCountryCode` | string; max 8 | Sì | Sì | Codice del paese. Nei post è char(2), negli eventi string(8);  |
+| `locationCountryName` | string; max 200 | Sì | Sì | Nome del paese; nullable in entrambe le tabelle. |
+| `locationLatitude` | number | Sì | Sì | Coordinata; decimal(10,7) nullable nel DB, esposta come numero JSON. Nessun vincolo numerico aggiuntivo introdotto nello sprint. |
+| `locationLongitude` | number | Sì | Sì | Coordinata; decimal(10,7) nullable nel DB, esposta come numero JSON. Nessun vincolo numerico aggiuntivo introdotto nello sprint. |
 
 ### Media
 
-Risorsa multimediale indipendente, collegabile ad altre entità. La prima
-rappresentazione incorporata in postAttachments espone questi campi; stato
-di elaborazione e ulteriori proprietà restano da definire.
+Rappresentazione incorporata degli allegati già leggibili. Non costituisce ancora un contratto di upload o elaborazione asincrona.
 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
-| mediaId | string, UUID | Sì | No | Identificativo del media. |
-| mediaUrl | string, URI assoluto | Sì | No | URL del contenuto, tramite il metodo esistente. |
-| mediaPreviewUrl | string, URI assoluto | Sì | No | URL di anteprima fornito dal Core; può coincidere con mediaUrl. |
-| mediaMimeType | string | Sì | No | Tipo MIME. |
-| mediaWidth | integer | Sì | Sì | Larghezza in pixel, se nota. |
-| mediaHeight | integer | Sì | Sì | Altezza in pixel, se nota. |
-| mediaAltText | string | Sì | Sì | Testo alternativo, se disponibile. |
-
-## 5. Consultazione degli elenchi
-
-### Filtri
-
-Ogni criterio usa un parametro esplicito. `relationship` seleziona le risorse
-in relazione con l'utente corrente, ad esempio:
-
-```text
-/events?relationship=following,participating
-/communities?relationship=following
-```
-
-- Valori multipli separati da virgola nello stesso criterio sono in **OR**.
-- Criteri diversi sono in **AND**.
-- Ogni risorsa compare una sola volta, anche se soddisfa più relazioni.
-- I filtri personali si riferiscono all’utente autenticato della richiesta REST.
-- Sono validi solo valori pertinenti alla risorsa. Un valore non supportato
-  produce un errore di validazione, senza essere ignorato silenziosamente.
-
-`following` indica follow di persone, iscrizione a community, hashtag seguiti
-e interesse per eventi; `participating` riguarda gli eventi. Gli eventi seguiti
-o partecipati possono quindi formare un'unica raccolta senza duplicati.
-L'inclusione delle richieste pendenti e gli altri filtri restano da definire.
-
-Non sono previsti un filtro universale `filter` né booleani alternativi
-`following=true` e `participating=true`.
-
-### Ordinamento
-
-`sort` indica il criterio. La direzione usa un parametro opzionale separato,
-con `direction=asc|desc` come proposta di nome e valori. Nessun prefisso `-`
-nel campo. Ogni elenco dovrà documentare criteri ammessi e valori predefiniti.
-Nomi dei campi, ordinamento multicampo e dettagli sono ancora aperti.
-
-### Paginazione per ID di riferimento, senza stato server
-
-È concordata una navigazione a cursore semplice: il client prende l'ID
-dell'ultimo elemento della risposta precedente e lo passa alla richiesta
-successiva. Nessun cursore persistito sul server, token di paginazione
-personalizzato o numero di pagina.
-
-Il parametro concordato è `after`, inteso come «dopo questo elemento
-nell'ordine della lista», non come confronto numerico o cronologico fra ID:
-
-```text
-/posts?sort=published&direction=desc&limit=20
-/posts?sort=published&direction=desc&limit=20&after={ultimoPostId}
-```
-
-La prima richiesta omette il riferimento. Le successive mantengono filtri,
-criterio e direzione e restituiscono gli elementi successivi, escludendo
-quello di riferimento. Il client usa l'ID dell'ultimo elemento, non un ID
-della risposta o del pacchetto. La stessa regola vale in ordine crescente
-e decrescente.
-
-Si assume un ordinamento deterministico: criterio scelto e ID come spareggio.
-Il server ricava dall'elemento di riferimento i valori necessari a continuare
-in quell'ordine, senza stato di navigazione persistito. Il confronto riguarda
-la coppia ordinata, non due condizioni indipendenti in AND: in ordine crescente
-per data equivale a `data > dataRiferimento OR (data = dataRiferimento AND
-id > idRiferimento)`; in ordine decrescente si invertono i confronti.
-È una nota di correttezza per l'implementazione, non un nuovo meccanismo API.
-
-Per `engine=timeline` il riferimento comprende anche `afterAt`, uguale al
-`postTimelineAt` ricevuto nell'ultima voce. La coppia `after` + `afterAt` è
-obbligatoria sulle pagine successive; il Link next la contiene già. Si conserva
-così il confine ricevuto anche se il post viene rilanciato nuovamente o rimosso.
-Non è uno snapshot del feed: modifiche alle relazioni o ai contenuti possono
-comunque cambiare le pagine successive. `world` continua a usare il solo `after`.
-
-È concordato anche `limit`, opzionale, con valore predefinito e massimo
-stabiliti dal server. Negli elenchi implementati il default è 20 e il massimo 100.
-
-Restano da definire i valori numerici e il comportamento se l'elemento
-di riferimento è cancellato, non accessibile o non risolvibile. Non introdurre
-un fallback silenzioso alla prima pagina che possa generare duplicati.
-La navigazione inversa, se necessaria, sarà valutata senza cambiare questo
-modello di base.
-
-### Forma delle risposte e navigazione tramite Link
-
-È concordato restituire direttamente l'oggetto per un dettaglio e un array
-di oggetti per una collezione, anche vuoto, senza contenitori `data` o
-`pagination`. I totali dell'intero elenco non sono obbligatori.
-
-La continuazione è indicata dall'header HTTP standard `Link`, con relazione
-`next` e URL già completo di `after`, `limit`, filtri e ordinamento:
-
-```http
-Link: <https://example.org/rest/v1/posts?sort=published&direction=desc&limit=20&after=ultimoId>; rel="next"
-```
-
-Il client può seguire quell'URL anziché ricostruirlo. Quando non ci sono altri
-risultati, la risposta non include un link `next`. Eventuali altre relazioni
-di navigazione restano da valutare; non sono richieste per il modello di base.
-
-## 6. Accesso, login e sessioni
-
-**Decisione aggiornata: tutte le risorse REST richiedono autenticazione**, anche
-per la sola lettura di contenuti pubblici sul Web. Nessun dettaglio, elenco o
-risposta condizionale di contenuto viene restituito a un ospite. Questa decisione
-sostituisce la precedente parità con l'accesso anonimo della UI.
-Gli endpoint del protocollo di login devono naturalmente consentire l'avvio
-dell'autenticazione; non sono API di consultazione dei contenuti.
-
-Dopo l'autenticazione restano le regole del Core sulla visibilità della risorsa:
-essere autenticati non consente di leggere contenuti privati altrui o usare
-funzioni staff tramite REST. Leggibilità tramite link non significa presenza
-in elenchi o ricerca.
-
-Il requisito è applicato nel primo giro Passport descritto nella sezione 12.
-
-Le autorizzazioni restano sul server. Si verificano identità, sessione,
-account e permessi correnti a ogni richiesta, anche prima di un `304`.
-I controlli coprono dettagli, elenchi, ricerca, contatori, media e oggetti
-annidati, rispettando visibilità, destinatari, membership, blocchi e sospensioni.
-
-**Requisito confermato:** credenziale durevole, revocabile, associata a un
-accesso persistito sul server. La soluzione approvata usa i JWT di Passport,
-con revoca verificata sul database e durata predefinita di 365 giorni,
-configurabile (sezione 12). Nessun JWT autosufficiente
-come fonte dei permessi. Restringere l’accesso o revocare la sessione non
-richiede di attendere la scadenza del token. La revoca blocca anche ogni eventuale rinnovo.
-
-Il login deve essere semplice, senza API key manuali o scelta obbligatoria
-di scope tecnici. Il client può specializzarsi sugli eventi senza chiedere
-all'utente un permesso «solo eventi». Le eventuali restrizioni per app sono
-applicate dal server; ampliare il perimetro autorizzato richiede nuovo consenso.
-
-Accessi distinti della stessa app devono essere riconoscibili e revocabili
-separatamente. Utente e staff autorizzato li gestiscono dalla UI nativa.
-Una revoca non annulla operazioni già autorizzate né copie già scaricate.
-
-La soluzione è OAuth 2 Authorization Code con PKCE S256 tramite Passport,
-con registrazione dei client e rinnovo standard: dettagli nella sezione 12.
-Il flusso fa accedere l'utente presso OpenBook senza consegnare la password
-all'app. Gestione degli accessi nella UI descritta nella sezione 13; inattività e
-conseguenze di logout e cambio password restano da raffinare. Nessun registro centrale o servizio
-esterno è presupposto.
-
-## 7. Cache e HTTP standard
-
-La cache locale è un requisito del contratto. Usare header standard;
-header custom solo quando assolutamente necessari e motivati.
-
-| Meccanismo | Regola condivisa |
-| --- | --- |
-| `Cache-Control` | Politica esplicita; cache condivise escluse per dati personali. |
-| `ETag` / `If-None-Match` | Rivalidazione di dettagli e collezioni; `304` per GET/HEAD invariati e ancora autorizzati. |
-| `Last-Modified` / `If-Modified-Since` | Quando esiste una data affidabile della rappresentazione; `If-None-Match` ha precedenza se presente. |
-| `Vary: Authorization` | Separazione delle varianti dipendenti dal token, senza header custom con UUID dell'utente. |
-
-I validatori riflettono l'intera rappresentazione, comprese dipendenze,
-variazioni negli elenchi e contesto autorizzativo. Il solo `updated_at` della
-riga principale può non bastare; la precisione delle date non deve produrre
-falsi `304`. Nessuna rivalidazione può aggirare una revoca di accesso.
-
-Per le risposte personali, `private, no-cache` è la base proposta; `no-store`
-è disponibile dove la conservazione HTTP va vietata. Durate ed eccezioni
-restano da fissare. Cache applicative isolate per istanza, account e contesto
-autorizzativo; nessun riuso di dati privati fra account o dopo logout.
-
-CORS dovrà consentire l'uso degli header necessari ai frontend terzi.
-In particolare dovranno poter leggere `Link` e i validatori di cache.
-Il costo server dei validatori va verificato: meno traffico non implica
-meno query. Il cambio di token può creare una nuova variante di cache.
-
-## 8. Riuso del Core, federazione e sostenibilità
-
-Web e REST riusano servizi applicativi, query e regole del Core. Controller
-sottili: validazione, autorizzazione, invocazione e rappresentazione. Vanno
-verificati anche i controlli oggi presenti nei controller e middleware.
-
-Le app operano tramite l'account locale; ActivityPub resta il flusso fra
-server. Successo locale e accettazione o consegna remota sono distinti.
-I dati remoti dipendono da ciò che l'istanza conosce e conserva, senza promesse
-di ricerca, conteggi o cronologie globali complete. Risoluzioni remote e
-interazioni riusano i controlli esistenti.
-
-Restano shared hosting, assenza di nuovi servizi esterni, Redis o worker
-permanenti obbligatori e limiti sostenibili per richieste, elenchi e upload.
-Streaming, push native e sincronizzazione offline non sono prerequisiti.
-
-Base esaminata: `CONTRIBUTING.md`, `development/architecture.it.md`,
-`app/Application/Services/`, `app/Application/Queries/`, `app/Policies/`,
-`routes/web.php`, `bootstrap/app.php`. Interesse e partecipazione agli eventi
-sono già distinti in `EventInteractionController`: rispettivamente reazioni
-like/unlike e `EventParticipationManager` join/leave. La REST API non deve
-trasformare questi concetti interni in un unico tipo di relazione federata.
-
-## 9. Decisioni generali ancora aperte
-
-Il canovaccio copre obiettivo, confini, entità, percorsi, relazioni, filtri,
-ordinamento, accesso, sessioni e cache. Mancano alcune convenzioni trasversali.
-Le voci seguenti sono temi da discutere, non scelte già approvate.
-
-| Tema | Decisione generale da prendere |
-| --- | --- |
-| Paginazione: estensioni future | Negli elenchi implementati: default 20, massimo 100; persone per ID, World con ancora disponibile o 422, timeline con after + afterAt senza dipendere dalla permanenza dell’ancora. Restano da fissare le convenzioni per le altre entità. |
-| Contenuto delle rappresentazioni | Oggetto o array diretti già concordati; riferimenti rispetto a oggetti incorporati ancora da decidere. |
-| Convenzioni dei dati | Prefissi e casing enum fissati, obbligatorietà/nullabilità di Person definite in tabella; restano ambito degli identificatori, formati delle date e convenzioni residue. |
-| Errori: dettagli residui | Stati HTTP autorevoli e Problem Details concordati; dettaglio di `errors` e mappatura dei casi, compresa la riservatezza delle risorse non accessibili, da specificare. |
-| Scritture | Campi modificabili, comportamento dei retry e duplicati, conflitti fra modifiche concorrenti e significato delle cancellazioni. |
-| Operazioni differite | Come rappresentare elaborazione media, successo locale e lavoro ancora pendente; nessun obbligo di streaming. |
-| Evoluzione e documentazione | Cambi compatibili/incompatibili, dismissioni, descrizione del contratto e capacità/limiti dell'istanza rilevabili dai client. |
-| Gestione degli accessi | OAuth 2/PKCE con Passport, registrazione app, rinnovo, limiti e CORS definiti nella sezione 12. Gestione delle revoche nella UI descritta nella sezione 13; restano politiche di inattività, logout e cambio password. |
-
-### Stato della rappresentazione Person
-
-Il formato di personSummary è concordato: testo sorgente, senza rendering
-HTML lato API. Può contenere Markdown e il rendering è responsabilità del
-client, secondo i propri vincoli tecnologici. Per i remoti si usa il testo
-disponibile nel Core dopo i normali flussi di importazione, senza promettere
-l'HTML originale del server di origine o introdurre nuovi fetch.
-
-Date, conteggi, ruoli, account software e riferimenti annidati seguono le
-regole definite nella sezione 4; non sono decisioni da riaprire.
-
-### Ownership e operazioni dell'autore
-
-Restano due punti da chiarire senza cambiare le decisioni già prese:
-
-- `/me/communities` significa «create da me», non «che modero». L'eventuale
-  differenza fra creatore e proprietario attuale richiederà una definizione.
-  Il percorso di lettura non autorizza creazione o gestione di community se
-  il Core riserva quelle operazioni allo staff.
-- L'accettazione delle richieste di partecipazione da parte dell'organizzatore
-  di un evento va classificata: funzione ordinaria dell'autore oppure funzione
-  esclusa dal perimetro. Non equipararla implicitamente alla moderazione staff.
-
-### Concetti di dominio ancora da collocare
-
-Impostazioni e campi privati non esclusi dal perimetro; ruoli nelle community;
-reazioni e condivisioni; sondaggi, voti e risultati; conversazioni e messaggi;
-segnalazioni utente; informazioni dell'istanza; feed e ricerca. Questi ultimi
-sono viste sulle risorse, senza presumere un ciclo CRUD proprio.
-
-Anche stati pendenti, risposte annidate dei commenti e dettagli dei media
-andranno precisati nella specifica, senza anticiparne ora schema o algoritmi.
-
-### Passaggi successivi
-
-È concordato passare dal canovaccio a una prima fetta concreta, usando Person
-come entità di partenza:
-
-1. Definire significato, campi e rappresentazione JSON di Person.
-2. Consolidare la bozza OpenAPI JSON già presente, aggiungendo le prime
-   operazioni scelte per rendere Person consultabile.
-3. Realizzare una prima implementazione di base coerente con quel contratto.
-
-I campi e le operazioni devono essere prima concordati; questa sequenza non
-autorizza a riempire in anticipo tutte le questioni aperte né ad avviare ora
-l'implementazione. Le convenzioni generali residue saranno affrontate quando
-servono per questa prima entità, senza prolungare il catalogo astratto.
-Registrazione utenti e integrazioni automatiche non sono ancora incluse.
-
-La verifica operativa riguarderà riuso del Core, autorizzazioni, query,
-test e documentazione, secondo le regole del progetto.
-
-## 10. Ricognizione: GET /persons/{personId}
-
-### Prototipo locale implementato
-
-Il primo giro realizzato espone GET non autenticati anche per i remoti,
-esclusivamente in ambienti local/testing. È uno stato tecnico provvisorio,
-precedente alla decisione di richiedere autenticazione per tutte le API REST. La route non viene
-registrata negli altri ambienti e il middleware ricontrolla l'ambiente anche
-in presenza di una cache route già generata. Nessuna modifica a schema,
-modelli, servizi di scrittura o query web esistenti.
-
-File aggiunti: routes/rest.php, Rest/V1/PersonController, PersonQuery,
-Rest/V1/PersonResource e RestPersonRequest. Il caricamento per UUID e i due
-conteggi separati riprendono le forme di query verificate; non è stato
-introdotto withCount né estratta logica dai controller web.
-
-Il prototipo restituisce la rappresentazione corrente, conteggi come la UI,
-ruoli locali, dati remoti già noti e Problem Details per gli errori. Usa
-ETag del JSON completo, Cache-Control private/no-cache e Vary Authorization,
-con 304 se invariato e ancora disponibile. Throttle limitato alla route:
-60 richieste al minuto per client. Non effettua richieste HTTP remote.
-
-**Limiti espliciti di questo giro:**
-
-- Autenticazione e guard Bearer rinviati; l'apertura dei remoti è una deroga
-  locale temporanea, da chiudere per tutte le risorse REST secondo la sezione 6.
-- CORS dedicato non implementato: la prova di base è via HTTP diretto.
-- Last-Modified non emesso; If-Modified-Since non produce 304 senza una data
-  completa affidabile. If-None-Match ed ETag sono operativi.
-- Locali sospesi non restituiti (404), senza provare a risolvere qui il
-  conflitto fra dati oscurati dalla UI e campi obbligatori della rappresentazione.
-  Locali blocked, cancellati, Group, Feed e Application infrastrutturali locali
-  sono esclusi. Application remote leggibili come nella UI sono rappresentate.
-
-Le sezioni seguenti conservano la ricognizione e i criteri di completamento;
-non descrivono tutti componenti già implementati.
-
-### Verifiche del primo giro
-
-- 33 test e 252 asserzioni superati: Rest/PersonTest, ProfileTest e ActorProfileTest.
-- Pint e git diff --check superati.
-- OpenAPI valido; JSON reali dei due profili skeyby@punk.kitchen e
-  Skeybu@mastodon.uno validati sullo schema Person.
-- Richieste attraverso il kernel HTTP con cache route attiva: 200 e successivo
-  304 per entrambi i profili, senza fetch remoti.
-- Cache route locale rigenerata per includere il nuovo GET. La configurazione
-  attiva non è stata cancellata: i test usano APP_CONFIG_CACHE su un percorso
-  temporaneo per evitare la configurazione MySQL in cache. Il primo tentativo
-  dei test era stato fermato dalla protezione SQLite del TestCase; dopo tale
-  tentativo il marker installed.lock risultava assente ed è stato ripristinato
-  per l'istanza locale configurata prima della verifica HTTP.
-- Suite completa non eseguita in questo giro; nessuna PR proposta.
-
-### Obiettivo e contratto
-
-Primo endpoint descritto in `docs/api/openapi.json`: GET su
-`/rest/v1/persons/{personId}`, con UUID dell'Actor corrispondente e risposta
-Person diretta. La bozza documenta 200, 304, 404, 429, 500 e 503, richieste condizionali
-e Problem Details. Questo primo checkpoint era privo di autenticazione;
-la sezione 12 descrive la successiva protezione OAuth di tutte le risorse REST.
-
-**Accesso verificato nella UI:** `/@{username}` è pubblico; le route
-`/attori/{actor}` sono invece nel gruppo auth in `routes/web.php`. È una
-constatazione sul Web, non la regola di autenticazione REST: le API richiederanno
-sempre login. L'OpenAPI corrente descrive lo schema OAuth implementato
-nel successivo giro della sezione 12.
-Un profilo non esistente, cancellato o estraneo alla risorsa Person dà 404.
-
-### Flusso e componenti del prototipo
-
-```text
-bootstrap/app.php → routes/rest.php → Rest/V1/PersonController
-                                      │
-                                      ├─ caricamento Actor e relazioni esistenti
-                                      ├─ accesso secondo le regole del profilo
-                                      └─ Rest/V1/PersonResource → JSON + cache HTTP
-```
-
-I nuovi file sotto sono implementati; nessuna nuova logica di modellazione
-è stata introdotta. Il caricamento e la rappresentazione rimangono separati.
-
-| Punto di aggancio | Riuso e intervento |
-| --- | --- |
-| `bootstrap/app.php` | Registrare un file route REST separato con prefisso rest/v1. Conservare route web e ActivityPub. |
-| `routes/rest.php` — nuovo | Dichiarare solo la prima route, con personId come UUID; non usare il binding User, che identifica per username. |
-| `app/Http/Controllers/Rest/V1/PersonController.php` — nuovo | Coordinare caricamento, accesso, rappresentazione e risposta, senza chiamare i controller HTML. |
-| `app/Federation/Actors/Actor.php` | Riusare chiave primaria, relazioni user/profile/settings/movedTo e helper activityPubId, displayName, avatarUrl, coverUrl, isSuspended, isRemotelySuspended. |
-| `app/Http/Resources/Rest/V1/PersonResource.php` — nuovo | Mappare esplicitamente i campi del contratto. JsonResource con wrapping disabilitato solo per questa risorsa, non globalmente; nessun toArray indiscriminato dei modelli. |
-| `app/Http/Middleware/RestPersonRequest.php` — nuovo | Limite local/testing, verifica InstallationLock ed errori Problem Details senza redirect HTML. Throttling del framework sulla route; CORS dedicato rinviato. |
-| `app/Application/Queries/PersonQuery.php` — nuovo | Caricamento per UUID e conteggi come nei controller UI, senza cambiarli. |
-
-### Dati: riuso effettivo
-
-| Dati richiesti | Punto esistente da riusare |
-| --- | --- |
-| Identità, dominio, tipo e stato | Actor; esclusione di Group, Feed e attori infrastrutturali. InstanceRelayActor rappresenta il relay tecnico: non invocare getOrCreate durante una lettura. |
-| Nome e immagini | Helper Actor già uniformi fra locale e remoto; per i locali usano il Profile associato. |
-| Biografia | Profile.bio locale; testo dell'Actor remoto normalizzato con RemoteContentSanitizer::toPlainText come nella UI, senza PostBodyRenderer e senza HTML renderizzato. |
-| Campi aggiuntivi | Profile.links locale oppure Actor.links remoto; ProfileFields::value gestisce anche il precedente formato url dei campi locali. |
-| Data di iscrizione | User.created_at per i locali e Actor.published_at per i remoti, come nelle viste dei profili. |
-| Preferenze pubbliche | Lettura dei valori correnti con gli stessi criteri di ActorSerializer; user.settings dove pertinente, Actor per i remoti. Non invocare servizi di aggiornamento. |
-| Alias, migrazione, emoji, memorial e sospensione | Attributi e relazione movedTo già presenti. Normalizzazione di stato e sospensione soltanto nella rappresentazione REST. |
-| Ruoli | User.is_admin e is_moderator per i locali; non inventare ruoli per i remoti. Nessun dato dell'account viene serializzato oltre i campi selezionati. |
-| Conteggi | Stessi conteggi accepted della UI per i locali; valori Actor remoti con il fallback locale che già usa ActorProfileController. |
-
-ActorSerializer è un riferimento per le fonti, non il serializer da esporre:
-produce ActivityPub, carica chiavi ed endpoint e aggiunge campi esclusi dal
-contratto. FollowListQuery restituisce elenchi paginati: non va invocata per
-ottenere due numeri. QuotedActorResolver riguarda la condivisione privata
-fra utenti e ammette solo Person attive; non è un resolver pubblico generico.
-
-### Query e modifiche al Core: evidenza esplicita
-
-**Non è emersa la necessità di cambiare modelli, schema, indici o SQL esistente
-per leggere Person. Non esiste però un servizio che restituisca già il profilo
-completo per UUID:** composizione e conteggi sono nei controller web.
-
-Il nuovo ingresso REST usa un caricamento Eloquent per chiave
-primaria, con eager loading delle relazioni necessarie, e gli stessi due
-conteggi già eseguiti dalla UI. È una nuova chiamata di lettura, non una
-riscrittura delle query del Core. Non si possono riusare direttamente i
-resolver locali per username o il controller remoto con tutte le sue
-operazioni collaterali.
-
-Per tenere il controller sottile, il caricamento sta in PersonQuery,
-un piccolo adattatore di lettura, senza nuovo modello di dominio. Un'eventuale
-estrazione condivisa dei conteggi dai controller web sarebbe un refactor
-aggiuntivo: va segnalato prima e non è necessario per avviare l'endpoint.
-
-EXPLAIN FORMAT=TRADITIONAL eseguito sul MySQL locale per le forme di query
-esistenti, con un Actor locale reale:
-
-- Lookup Actor per ID: PRIMARY, accesso const, stima 1 riga.
-- Count follower accepted: follows_following_id_status_index, accesso ref,
-  Using index, stima 92 righe per il campione.
-- Count following accepted: follows_export_index, accesso ref, Using index,
-  stima 437 righe per il campione.
-
-Non sono misure di latenza né una validazione di tutte le cardinalità.
-I piani della query effettivamente implementata andranno ricontrollati se
-cambia la forma di caricamento; nessun hint o indice nuovo è proposto qui.
-
-### Agganci e vincoli da non nascondere
-
-- **Autenticazione:** il guard Bearer/sessione REST non esiste ancora. Il
-  guard sarà obbligatorio anche per il dettaglio locale pubblico, gli elenchi
-  e le risposte 304; l'apertura anonima del prototipo deve essere chiusa.
-  L'eventuale persistenza del login è un tema distinto dalla lettura Person
-  e non è inclusa nella conclusione «nessuna modifica schema» sopra.
-- **Profili oscurati:** LocalActorResolver esclude i locali blocked e ammette
-  suspended; la vista locale sospesa nasconde bio, fields, conteggi e data.
-  Il JSON non deve reintrodurre campi oscurati: quelli opzionali possono
-  essere omessi, personPublishedAt può essere null nel contesto non visibile.
-  La resa dei campi obbligatori va verificata prima dell'implementazione.
-- **Lettura remota:** ActorProfileController avvia refresh del profilo,
-  outbox, collezioni e contenuti in evidenza. Non richiamarlo dall'API.
-  Per questa prima implementazione si propone di leggere i dati già noti,
-  senza fetch o import impliciti; il refresh non è necessario per formare Person.
-- **Cache:** ETag derivato dalla rappresentazione effettiva, dopo i controlli,
-  usando le risposte condizionali del framework. Actor.updated_at da solo
-  non copre profilo, ruoli e conteggi; Last-Modified va emesso solo se è
-  disponibile una data affidabile per la risposta completa. Nessuna tabella
-  di revisioni o scrittura obbligatoria è proposta per calcolare il validatore.
-
-La prima implementazione dovrà verificare con test mirati forma JSON,
-locali/remoti, rifiuto delle richieste anonime e accesso autenticato, cancellati e attori tecnici,
-profili sospesi/oscurati, conteggi, assenza di dati privati, ETag e 304 dopo
-revoca dell'accesso. L'OpenAPI aggiornato rimane documentazione del contratto,
-non sostituisce i test del prototipo e dei successivi completamenti.
-
-## 11. Primo giro degli elenchi followers/following
-
-Gli endpoint restituiscono PersonReference, senza wrapper o totale. Il primo
-ordinamento supportato è `sort=personId`, con `direction=asc` predefinita o
-`desc`. `limit` vale 20 se omesso, minimo 1 e massimo 100; query non valide
-restituiscono 422 con Problem Details e messaggi per parametro.
-`after` è un UUID esclusivo confrontato secondo la direzione: non richiede
-che la persona di riferimento sia ancora nell'elenco. Le altre convenzioni
-di ordinamento generali restano da specificare per le altre risorse.
-
-Il server carica al massimo `limit + 1` profili ammissibili, restituisce fino a
-`limit` elementi e aggiunge `Link` con `rel="next"` soltanto se esiste un'altra
-pagina. Filtri di disponibilità e deduplicazione precedono il limite.
-ETag copre JSON e Link: anche un cambiamento della navigazione invalida la
-risposta precedente. Disponibilità del titolare verificata prima di ogni 304.
-
-**Selezione condivisa con il Web:** `FollowListQuery` costruisce le query dei
-Follow accettati in entrambe le direzioni e dei membri risolti della cache
-remota. Queste basi alimentano gli elenchi Web, la preview remota e il ramo
-Web che mescola Actor e hashtag. Un metodo della stessa classe compone gli
-identificativi dei membri noti, deduplicando grafo e cache per i remoti.
-
-`PersonFollowQuery` è soltanto l'adattatore di consultazione REST: usa questi
-identificativi, applica la disponibilità Person e la paginazione per ID. Non
-conosce colonne o stati di Follow e RemoteCollectionMember. Il Web conserva
-pagine numerate, ordinamento cronologico e preview separata; il REST conserva
-elenco unico, `after`, `limit` e ordinamento per ID. I tipi Actor ammessi nelle
-liste Web restano più ampi di Person; l'aggiornamento remoto resta nel flusso
-Web e non viene invocato dalle query condivise.
-
-Questa estrazione sostituisce la prima selezione duplicata del prototipo.
-Una modifica ai predicati condivisi delle relazioni si applica a entrambi i
-canali; modifiche di presentazione o ai filtri specifici Person restano
-separate. Nessuna modifica a servizi di scrittura, schema o migrazioni.
-Autenticazione, CORS e Last-Modified conservano i limiti del prototipo locale.
-
-### Verifiche degli elenchi
-
-- Dopo l’estrazione condivisa: 70 test e 452 asserzioni superati su Rest,
-  FollowListTest, ProfileTest, ActorProfileTest, RemoteFollowCollectionsFetcherTest
-  e HashtagFollowTest; include i precedenti test del dettaglio Person.
-- Verificati array compatti, titolare diverso dall'utente autenticato,
-  relazioni accettate, unione e deduplicazione della cache remota, assenza
-  di fetch, esclusioni prima del limite, pagine asc/desc, riferimento rimosso,
-  limite predefinito/massimo, 422, ETag e Link anche su 304.
-- EXPLAIN sul MySQL locale per followers e following, sia di skeyby locale
-  sia di Skeybu remoto: segue follows_following_id_status_index per followers
-  e follows_export_index per following; nei due rami della UNION remota la
-  cache usa remote_collection_members_actor_id_collection_member_uri_unique
-  sul prefisso actor_id/collection. I profili sono raggiunti tramite PRIMARY.
-  Il piano ordina i membri della persona, senza scansione globale degli Actor;
-  per la persona locale le stime dei rami Follow sono 92 e 437 righe.
-  La UNION materializza il risultato deduplicato. Questi sono piani sul campione,
-  non una misura di latenza o una prova su tutte le cardinalità.
-- OpenAPI e relativo esempio PersonReference validati. Quattro risposte reali
-  ottenute attraverso il kernel HTTP locale (followers/following dei due
-  account) validate sullo schema PersonReference; cache route rigenerata.
-- Verificato il confronto tra liste Web e REST per le stesse relazioni remote:
-  la preview Web esclude i duplicati e conserva i Group; il REST restituisce
-  il corrispondente sottoinsieme Person. Il ramo misto Web continua a escludere
-  i Follow pending anche in presenza di hashtag.
-- Confrontato l'SQL Web generato prima e dopo l'estrazione: identico per
-  followers, following, following con hashtag e preview nelle due direzioni,
-  sia sul campione locale sia remoto. EXPLAIN ricontrollato su query effettive
-  Web, entrambi i rami della UNION ALL con hashtag e query REST con after in
-  asc/desc. Nessun nuovo indice: i rami hashtag usano PRIMARY su actor_id;
-  le preview remote usano l'indice actor_id/collection/position. Per after il
-  piano può scegliere range su follows_export_index o PRIMARY degli Actor,
-  in funzione del campione; i rami della UNION REST restano indicizzati.
-- Pint e git diff --check superati. Test eseguiti con APP_CONFIG_CACHE su
-  percorso temporaneo, senza utilizzare il database locale per le fixture.
-
-## 12. OAuth 2 standard con Passport: decisione corrente
-
-Si riparte dal checkpoint pulito `939c1e8`. Sono approvati OAuth 2,
-Authorization Code con PKCE S256, registrazione dei client e callback.
-Il protocollo temporaneo con polling è scartato. Nessun ulteriore tentativo
-Sanctum o protocollo alternativo: priorità alla compatibilità delle librerie.
-
-### Perimetro del primo giro
-
-- Laravel Passport standard per emissione/scambio/rinnovo/verifica dei token,
-  codici monouso e controlli client/redirect. Guard REST sul modello User esistente.
-- Client pubblici per mobile e SPA: nessun secret statico distribuito. Login
-  Web esistente e semplice conferma dell'app; callback con codice, mai Bearer.
-- PKCE S256 obbligatorio nelle richieste di autorizzazione. Lo generano le
-  librerie client, senza passaggi manuali per l'utente o polling.
-- Client registrabili con comando Passport e con endpoint pubblico RFC 7591,
-  limitato ai client pubblici Authorization Code/refresh. Il pacchetto non offre
-  questo endpoint di serie: piccolo adattatore di validazione/persistenza sui
-  suoi modelli, senza implementare un altro motore di autenticazione.
-- Metadata OAuth RFC 8414: endpoint, capacità e registrazione pubblicati.
-  Non si dichiara supporto OpenID Connect o ID token non implementati.
-- CORS per le API Bearer e gli endpoint pubblici necessari ai client browser;
-  nessun accesso REST tramite cookie o credenziali browser condivise.
-- Tutte le risorse REST richiedono Bearer e account attivo prima anche dei 304.
-  Le autorizzazioni correnti del Core restano sul server. Nessuna funzione staff.
-- Durata di access token e refresh token configurabile con
-  OPENBOOK_OAUTH_TOKEN_DURATION in giorni interi positivi; assente, vuota o
-  non valida usa 365 giorni. Si applica solo ai nuovi token, inclusi quelli
-  emessi al rinnovo; quelli esistenti mantengono la scadenza. Configurazione
-  letta tramite config/openbook.php, compatibile con config:cache.
-  Unico scope fisso api, nessun selettore di scope granulari. Gestione degli accessi
-  nel profilo descritta nella sezione 13;
-  revoca sul DB già verificata dal pacchetto. Logout Web distinto da OAuth.
-- Migration standard OAuth con riferimenti User e owner UUID compatibili con
-  OpenBook. Nessuna modifica a tabelle dei contenuti. Chiavi OAuth distinte da
-  ActivityPub; setup locale con comandi standard. Local/testing finché il giro
-  di prova non è completato; integrazione installer/updater produzione rinviata.
-
-### Registrazione e client
-
-Un client_id identifica una registrazione, non un account utente o un telefono.
-Può essere condiviso da più installazioni se lo sviluppatore lo distribuisce;
-la registrazione dinamica indipendente crea invece un client per registrazione.
-Non si promette deduplicazione automatica per nome o URL: non identificano
-in modo affidabile la stessa applicazione. Le app conservano il client_id e
-lo riusano; non si registrano a ogni login. Endpoint di registrazione con rate
-limit, redirect validati, nessun fetch di URL o metadati remoti.
-
-### Librerie e criterio di verifica
-
-AppAuth-iOS e AppAuth-Android gestiscono Authorization Code/PKCE e registrazione
-dinamica. oidc-client-ts supporta OAuth 2 senza obbligo di OIDC; per registrare
-il client React serve prima un normale POST. Configurare endpoint OAuth e scope
-api, senza richiedere openid o ID token. La prova con oidc-client-ts ha mostrato
-che la libreria richiede uno scope non vuoto; api indica l’accesso ordinario
-alle API, senza una nuova scelta o suddivisione dei permessi per l’utente.
-Il flusso effettivo è verificato con questa libreria JavaScript, oltre ai test HTTP.
-Non si dichiara test su dispositivo iOS/Android se non eseguito.
-
-Test: login esistente, consenso/annullamento, PKCE, callback/state, codice
-monouso, refresh, credenziali invalide/scadute/revocate, account non attivo,
-protezione dei 304, registrazione RFC 7591, metadata, CORS e UUID/indici MySQL.
-
-### Verifiche eseguite
-
-- Suite completa: 2.116 test, 15.547 asserzioni, nessun fallimento; 130 test
-  saltati. Dopo l'aggiunta del controllo sull'ordine dei middleware, suite REST
-  mirata: 28 test e 419 asserzioni superati.
-- Flusso HTTP completo con oidc-client-ts 3.5.0: registrazione dinamica,
-  PKCE/state generati dalla libreria, login e consenso con CSRF, callback,
-  scambio tramite SDK e letture REST 200/304/401. Browser simulato tramite
-  HTTP, non test grafico o su dispositivo iOS/Android.
-- Migration OAuth applicate sul MySQL locale; UUID verificati. EXPLAIN dei
-  lookup di token/client/utente/codice usa le chiavi primarie; la ricerca dei
-  token autorizzati per utente/client usa oauth_access_tokens_user_id_index.
-  Prova HTTP MySQL 200/304/401 con dati OAuth temporanei in rollback.
-- OpenAPI validato, Composer validate, Pint e git diff --check superati.
-  Nessun aggiornamento di dipendenze preesistenti: aggiunti Passport e le sue
-  dipendenze. Chiavi locali generate senza sovrascrivere chiavi esistenti;
-  cache configurazione e route aggiornate.
-
-## Appendice A. Percorsi già concordati
-
-Percorsi relativi a `/rest/v1`; non sono un inventario completo. Gli elenchi
-rispettano sempre visibilità e limiti dei dati conosciuti dall'istanza.
-Tutti i percorsi REST di contenuto richiedono login, inclusi cataloghi e stato
-delle relazioni. I nomi definitivi dei campi restano da definire.
-
-| Area | Percorsi e metodi |
-| --- | --- |
-| Contesto personale | `GET /me`, con entità Me e nodo `myPerson`; `GET /me/notifications`, array di Notification con la paginazione comune. |
-| Ownership | `GET /me/posts`, `GET /me/events`, `GET /me/communities`: pubblicati/creati dall'utente. |
-| Commenti | Sotto `/posts/{postId}/comments` e `/events/{eventId}/comments`, con dettaglio `/{commentId}`; metodi specifici da completare. |
-| Media | Risorsa indipendente `/media/{mediaId}`; operazioni da completare. |
-| Persone | `/persons/{personId}`; GET su `/persons/{personId}/followers` e `/following`, collezioni di PersonReference. |
-| Follow persone | GET/PUT/DELETE su `/persons/{personId}/follow`: stato, follow/richiesta e rimozione/ritiro. |
-| Richieste ricevute | `GET /me/follow-requests`; PATCH/DELETE su `/me/follow-requests/{personId}` per accettare/rifiutare. |
-| Community | GET su `/communities`, `/communities/{communityId}`, `/communities/{communityId}/posts` e `/communities/{communityId}/followers`; iscritti come Person. |
-| Follow community | GET/PUT/DELETE su `/communities/{communityId}/follow`: stato, iscrizione/richiesta e rimozione/ritiro. |
-| Eventi | Catalogo `/events` e dettaglio `/events/{eventId}`, operazioni da completare. |
-| Interesse eventi | GET/PUT/DELETE su `/events/{eventId}/follow`: stato, «mi interessa», rimozione. |
-| Partecipazione eventi | GET/PUT/DELETE su `/events/{eventId}/participation`: stato, «parteciperò» o richiesta, ritiro. |
-| Persone degli eventi | GET su `/events/{eventId}/followers` per gli interessati e `/participants` per i confermati, entrambi collezioni di Person. |
-| Hashtag | GET su `/hashtags`, `/hashtags/{tag}` e `/hashtags/{tag}/posts`; GET/PUT/DELETE su `/hashtags/{tag}/follow`. |
-
-Le raccolte di seguiti si ottengono tramite `relationship` sui cataloghi.
-Non sono previsti `/me/hashtags`, `/me/following` o `/me/followers` come alias.
-Un follow non esistente ha uno stato leggibile esplicitamente. PUT restituisce
-lo stato risultante, senza implicare approvazione immediata. Payload ed esiti
-nei casi già gestiti o concorrenti saranno specificati successivamente.
-
-## Appendice B. Riferimenti tecnici
-
-Fonti di approfondimento, senza obbligo di adottare ogni meccanismo:
-
-- [HTTP Semantics — RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html),
-  [PATCH — RFC 5789](https://www.rfc-editor.org/rfc/rfc5789.html),
-  [HTTP Caching — RFC 9111](https://www.rfc-editor.org/rfc/rfc9111.html).
-- [Web Linking — RFC 8288](https://www.rfc-editor.org/rfc/rfc8288.html).
-- [Problem Details — RFC 9457](https://www.rfc-editor.org/rfc/rfc9457.html).
-- [OAuth 2.0 — RFC 6749](https://www.rfc-editor.org/rfc/rfc6749.html),
-  [Native Apps — RFC 8252](https://www.rfc-editor.org/rfc/rfc8252.html),
-  [Security Best Practice — RFC 9700](https://www.rfc-editor.org/rfc/rfc9700.html).
-- [Token Revocation — RFC 7009](https://www.rfc-editor.org/rfc/rfc7009.html),
-  [Token Introspection — RFC 7662](https://www.rfc-editor.org/rfc/rfc7662.html),
-  [OpenID Connect Core](https://openid.net/specs/openid-connect-core-1_0.html).
-
-## 13. Applicazioni collegate nelle impostazioni
-
-Intervento approvato: una scheda «Applicazioni collegate» nelle impostazioni
-personali, con accessi aperti e comando «Chiudi questo accesso». Nessun token,
-client_id, scope o altro dettaglio di protocollo nell'interfaccia.
-
-Si riusano i modelli Passport, senza nuove tabelle o modifiche alle query dei
-contenuti. Ogni coppia corrente access token/refresh token è un accesso distinto;
-il rinnovo standard sostituisce la coppia precedente. Si mostrano nome dell'app,
-data di creazione dell'accesso corrente e scadenza, nel fuso dell'utente. Non si
-inventano dispositivo o ultimo utilizzo: non sono registrati dal prototipo.
-
-Sono inclusi accessi utilizzabili o ancora rinnovabili; quelli chiusi, scaduti
-o appartenenti a client revocati sono esclusi. Chiusura limitata all'utente
-corrente e alla singola coppia, con revoca di entrambi i token nella stessa
-transazione. Il rinnovo standard viene eseguito in transazione e blocca la
-coppia corrente nello stesso ordine della chiusura, prima della verifica del
-refresh: una chiusura concorrente non deve lasciar creare nuovi token. Non si
-modifica il protocollo o la logica di emissione Passport. Se nel frattempo il rinnovo ha sostituito l'accesso visualizzato,
-si aggiorna l'elenco e si chiede di ricontrollarlo: non si dichiara chiusa una
-coppia differente. Gli altri accessi e la sessione Web rimangono indipendenti.
-
-La scheda segue il perimetro local/testing di OAuth: non deve interrogare
-le tabelle OAuth in produzione. Form Web con CSRF, paginazione e nomi app
-sottoposti a escaping. Nessuna cancellazione di registrazioni o dati utente.
-
-Verifiche previste: isolamento tra utenti, più accessi della stessa app,
-revoca di accesso e rinnovo, esclusione delle coppie non più valide,
-paginazione, date, ambiente di produzione e piani MySQL reali.
-
-### Esito delle verifiche della sezione 13
-
-- Suite completa: 2.127 test, 15.624 asserzioni, nessun fallimento; 130 test
-  saltati. Suite mirata con impostazioni, gestione accessi, migrazione account,
-  import/export e REST: 66 test e 700 asserzioni superati.
-- Prova SDK con HTTP e CSRF reali estesa alla pagina: chiusura accesso,
-  Bearer rifiutato, refresh rifiutato e sessione Web ancora aperta.
-- MySQL: lista, revoca di entrambe le credenziali e gestione della ripetizione
-  verificate con dati in rollback. EXPLAIN usa user_id per limitare gli accessi,
-  access_token_id per i refresh associati e le PK per i lock; sui due client
-  della fixture l'optimizer sceglie una scansione della minuscola tabella client.
-  Nessun nuovo indice giustificato su questo access pattern per utente.
-- La suite completa ha rilevato il riuso della barra delle schede nelle pagine
-  di migrazione/import: corretto il passaggio della nuova scheda affinché non
-  richieda variabili aggiuntive a quelle pagine. Test di regressione superati.
-- Pint e git diff --check superati. Cache delle route locali aggiornata.
-  Nessuna nuova migration per la gestione degli accessi. Accesso Paw esistente
-  lasciato invariato. Nessun test grafico o su dispositivo nativo eseguito.
-
-### Durata configurabile dei token
-
-OPENBOOK_OAUTH_TOKEN_DURATION controlla in giorni la durata dei nuovi access
-e refresh token. Default implicito: 365; valori vuoti, non interi o non
-positivi usano il default. Nessuna modifica alle scadenze già persistite.
-Verificati emissione, rinnovo e fallback con 45 test REST/gestione accessi
-(572 asserzioni), oltre al caricamento effettivo da ENV con config:cache e
-valore personalizzato di 7 giorni. Cache locale rigenerata con default 365.
-
-### Review prima del commit
-
-Riviste tutte le modifiche del giro OAuth e della gestione accessi. Corrette
-la validazione delle liste JSON nella registrazione e la gestione dei valori
-booleani nella durata configurata; allineati testi e traduzioni del consenso.
-Nessuna raccolta IP o GeoIP introdotta.
-
-Suite completa: 2.137 test e 15.733 asserzioni, nessun fallimento, 130 saltati.
-Superati SDK OAuth reale con chiusura accesso/CSRF, controlli MySQL con rollback
-e EXPLAIN, validazione OpenAPI/Composer, Pint e git diff --check. Le chiavi e
-le credenziali di prova rimangono fuori dal repository. Il perimetro rimane
-local/testing; integrazione con installer/updater di produzione ancora esclusa.
-
-## 14. Prima implementazione di GET /me
-
-GET /rest/v1/me restituisce Me con la sola myPerson. MeController identifica
-la persona dal Bearer autenticato e riusa PersonQuery; MeResource riusa
-PersonResource. Nessuna nuova query, tabella o logica di dominio. La logica
-HTTP di cache privata/ETag è condivisa con PersonController nel concern
-RespondsWithConditionalRest, mantenendo invariato il comportamento esistente.
-
-Verifiche: 42 test REST e 583 asserzioni superati; SDK OAuth reale con /me,
-login, cache e revoca. Sull'istanza MySQL locale: 200 con corpo validato contro
-lo schema Me, 304 con ETag e 401 senza Bearer. OpenAPI, Pint e diff --check
-superati. Cache route locale aggiornata. Il perimetro resta local/testing.
-
-### Review di GET /me prima del commit
-
-Review completata su controller, risorsa, autenticazione, cache condivisa,
-specifica e documentazione; nessun problema funzionale residuo rilevato.
-Suite completa: 2.140 test, 15.766 asserzioni, nessun fallimento e 130 saltati.
-Verificati anche lo schema OpenAPI e i controlli Pint/diff; nessuna nuova query
-o migration. Inclusi nel commit i precedenti affinamenti della specifica
-sulla registrazione dei client.
-
-## 15. Prima implementazione di GET /posts: world
-
-Perimetro mirato: GET /rest/v1/posts, engine=world implicito o esplicito.
-engine=timeline resta previsto nel disegno ma non implementato in questo giro:
-richiederlo restituisce 422. Stessa selezione e stesso ordinamento della UI
-Mondo tramite FeedQuery::world(), con annotazione delle interazioni tramite
-Post::annotateViewerState(). Nessuna modifica a FeedQuery, Post, Media,
-Location, servizi del Core o controller Web.
-
-L'adattamento è nel controller REST: after è l'ID dell'ultimo post. Il
-riferimento viene risolto con lo scope di visibilità esistente, escludendo
-conversazioni private e contenuti non pubblicati, poi trasformato nel FeedCursor
-interno. Nessun cursore persistito o esposto; un ID ignoto/non leggibile dà 422.
-Il filtro finale rimane sempre quello di world. Limit 20, massimo 100; sort
-supporta postPublishedAt e direction desc, coerentemente con Mondo. Link next
-contiene solo parametri REST. La scadenza/retention del riferimento può rendere
-non più utilizzabile un after precedente: il client riparte dalla prima pagina.
-
-PostResource espone i campi della tabella corrente, senza HTML renderizzato.
-postName, postSourceUri, postCustomEmojis e le altre proprietà facoltative
-non valorizzate vengono omessi. postCW deriva dall'avviso effettivo del Core.
-postAttributes.postLocation è null oppure Location. Le date sono date-time.
-Il testo è il sorgente disponibile al Core, potenzialmente con sintassi Markdown,
-senza promettere un originale remoto HTML/Markdown non conservato.
-
-Prima rappresentazione Media per gli allegati: mediaId, mediaUrl,
-mediaPreviewUrl, mediaMimeType, mediaWidth, mediaHeight, mediaAltText. URL
-assoluti tramite i metodi esistenti; dimensioni/alt nullable. Nessun disk,
-path o altro dato di memorizzazione esposto. Non si aggiunge un endpoint Media.
-LocationResource mantiene i sei campi definiti e supporta la regione di
-PostLocation o EventLocation, senza modificare i modelli.
-
-Sondaggi, citazioni, hashtag/menzioni e dettaglio community non sono ancora
-serializzati come strutture: restano da definire nei passaggi successivi.
-Autenticazione, Problem Details, ETag/Vary e limite richieste restano quelli
-comuni REST. Nessuna migration o cambiamento esterno alla parte REST.
-
-### Verifiche del primo GET /posts
-
-68 test REST/Mondo, 749 asserzioni superati. Verificate parità con world,
-esclusioni pubblico/privato e moderazione CW, campi opzionali omessi,
-ordine media, coordinate numeriche, interazioni, pagination after/Link,
-riferimenti non leggibili e 200/304/401/422.
-
-Su MySQL due pagine HTTP reali restituite correttamente; EXPLAIN usa
-posts_visibility_status_published_at_index nel feed iniziale e nel seguito,
-PK per il riferimento after e join puntuali per attori/community. Nessun
-nuovo indice necessario. Sul server locale validati 20 Post reali contro
-OpenAPI, oltre a 304 con ETag e 401 senza Bearer. Pint e diff --check superati.
-Confermato il diff vuoto su FeedQuery, Post, Media, località e controller Mondo.
-
-## 16. Review prima del commit: Post e tipi Person
-
-Rivisti tutti i file non committati: endpoint world, risorse Post/Media/Location,
-estensione Person a feed/group, privacy delle relazioni, test e documentazione.
-OpenAPI allineato anche a risposte 403 per le community private, significato
-dei riferimenti e date delle identità non personali, proprietà facoltative e
-supporto ETag effettivo di /posts (senza Last-Modified in questo giro).
-Il riferimento after legge soltanto ID e data necessari alla paginazione.
-
-Suite completa superata: 2.149 test, 15.860 asserzioni, 130 saltati.
-Dopo le rifiniture: 68 test REST/Mondo, 756 asserzioni superate. Controllati
-nuovamente EXPLAIN e risposte su MySQL, incluse le due branche delle liste
-remote Person; fixture in rollback. Validati 20 Post reali contro l'OpenAPI
-finale e verificati 200/304/401. Superati validazione OpenAPI e Composer,
-Pint e diff --check. Nessuna modifica a Core, modelli o UI del feed.
-Rimangono espliciti i limiti del primo giro: local/testing, engine world,
-sondaggi/citazioni e altre relazioni ancora da rappresentare.
-
-## 17. Timeline REST e contesto dei rilanci
-
-`GET /rest/v1/posts?engine=timeline` usa direttamente `FeedQuery::forActor`,
-come la home Web. Nessuna modifica a Core, query, model o UI. Restano le
-stesse regole di visibilità, moderazione, selezione, deduplicazione e ordinamento.
-Le esclusioni e limitazioni della prima rappresentazione Post restano valide.
-Questa fase supera la limitazione a world descritta nello storico della fase 15.
-
-`postAuthor` e `postPublishedAt` descrivono sempre l'originale. `postTimelineAt` espone la data di ordinamento solo nella timeline;
-`postAnnounce`, opzionale indipendentemente dall’engine, espone
-l'autore e la data dell'ultimo rilancio pertinente scelto dal Core, senza
-trasformare la risposta in un elenco di attività. Un post compare una volta.
-Sono pertinenti i rilanci propri o degli attori seguiti, compresi i Group;
-le condivisioni automatiche legate alle citazioni di Person non rilanciano
-l'originale. Anche un rilancio del proprio post mantiene il contesto, pur
-potendo il client evitare un banner ridondante. Mondo resta una raccolta di
-post originali: il Core attuale non seleziona un rilancio, quindi postAnnounce
-resta assente nei suoi risultati. La serializzazione supporta il campo anche
-per Mondo quando il contesto è presente; non cerca un rilancio arbitrario.
-
-Parametri: `engine=timeline`, `sort=postTimelineAt` (implicito),
-`direction=desc`, `limit` predefinito 20 e massimo 100. La continuazione usa
-`after` + `afterAt` RFC 3339 dal Link next; il controller adatta questa coppia
-al FeedCursor esistente. Nessuno stato persistito né cursore opaco per il client.
-Parametri incompleti, date non valide o ordinamenti incompatibili danno 422.
-Autenticazione obbligatoria e cache privata con ETag restano invariate.
-
-Verifiche: suite completa con 2155 test, 15932 asserzioni e 130 skip, senza
-errori; dopo gli ultimi casi aggiunti, test mirati REST Post/Timeline con
-11 test e 157 asserzioni. Coperti parità con il Core, selezione dell'ultimo
-rilancio pertinente, privacy, distribuzione Group, citazioni Person, rilanci
-propri, parità di date, cambiamento/rimozione dell'ancora, offset delle date,
-validazione, autenticazione e 304. OpenAPI ed esempi validati; 40 post di due
-pagine MySQL validati contro lo schema. EXPLAIN di entrambe le pagine verificato
-su tutti i rami: indici personali/community dei post, indici degli announce per
-attore/post/data, follows e hashtag; nessun indice o query aggiunto. Pint e
-diff --check superati.
-
-Aggiornamento del contratto: postAnnounce è facoltativo nell’entità Post e
-la sua esposizione non dipende dall’engine; solo postTimelineAt resta specifico
-della timeline. Nessuna query aggiunta per attribuire un rilancio ai post di
-Mondo. Verifica mirata aggiornata: 12 test, 165 asserzioni; OpenAPI valido.
-
-## 18. Dettaglio Post, Mi piace e aggiornamento dei dettagli remoti
-
-Nuovi endpoint: GET /posts/{postId}, PUT e DELETE /posts/{postId}/like.
-Il dettaglio usa Post e la visibilità esistenti, esclude conversazioni private
-e post non pubblicati, richiama RemoteRepliesFetcher per i remoti come il Web,
-poi rilegge e ricontrolla disponibilità e visibilità prima di serializzare e
-valutare ETag. Nessun contesto announce viene inventato per un dettaglio.
-Errori di aggiornamento remoto vengono segnalati internamente e consentono
-il fallback ai dati disponibili, come nella pagina Web.
-
-Le scritture usano ReactionManager, con verifica preventiva di visibilità,
-stato pubblicato ed esclusione messaggi privati. PUT senza body restituisce
-201 e Location alla prima creazione, 204 se il Mi piace esiste già; DELETE
-restituisce 204 anche se già assente. Cache-Control no-store sulle scritture;
-nessun 304. Il servizio mantiene contatori, notifiche e consegna federata.
-
-Per GET /persons/{personId} si riusano i servizi della pagina profilo per
-aggiornare metadati e conteggi remoti (RemoteActorResolver e
-RemoteFollowCollectionsFetcher), rispettandone TTL e fallback. Non si importa
-la lista di post, i post fissati o il feed RSS: non fanno parte del dettaglio
-Person. Dopo l'aggiornamento si rilegge Person tramite la query esistente,
-ricontrollando la disponibilità prima dell'eventuale 304. Nessuna modifica a
-Core, model o query di dominio; gli elenchi di quella fase restano privi di
-refresh remoto. La sezione 21 aggiunge il recupero dei contenuti all’elenco
-dei post di una Person.
-
-
-### Review e verifiche prima del commit
-
-Review dell’intero diff, comprese timeline e postAnnounce già presenti nel
-working tree. Nessuna modifica a query/servizi/modelli del Core o UI.
-La gestione errori REST riconosce AuthorizationException come 403, mantenendo
-Problem Details; Location è esposto via CORS per la creazione del Mi piace.
-Documentazione pubblica inglese/italiana allineata, vecchie note di proposta
-Post aggiornate al contratto implementato. Rimossi i riferimenti operativi a
-Last-Modified/If-Modified-Since dall’OpenAPI: gli endpoint attuali usano ETag.
-
-Suite completa: 2167 test, 16042 asserzioni, 130 skip e nessun errore. Verifica
-mirata finale PostDetail: 8 test, 76 asserzioni, compreso CORS Location. Client
-OAuth reale (oidc-client-ts) verificato con registrazione, PKCE, login,
-scambio codice, REST 200/304/401, chiusura accesso e rifiuto Bearer/refresh.
-OpenAPI valido, 55 esempi di risposta validati e copertura di tutte le route
-REST verificata. Sul MySQL locale: dettaglio Post 200/304 e Person 200, corpi
-validati contro gli schemi; EXPLAIN della lettura Post usa PRIMARY con una
-riga e il vincolo univoco del grafo follow. Cache route/config locali aggiornate.
-Pint e diff --check superati. Non sono state introdotte migration.
-
-## 19. Ricognizione POST /posts: primo caso testuale
-
-NewPost e la convenzione Entità/NewEntità sono concordati e definiti nella
-sezione 4. L’implementazione del primo caso testuale è descritta sotto.
-L'aggancio è PostComposer::compose(Actor $author, array $data), già usato da
-PostController::store. Il ramo senza video del Web lo chiama direttamente;
-PostPublicationStager non serve nel caso senza allegati.
-
-Il servizio esistente crea il post pubblicato con ID e data server-side,
-collega hashtag e menzioni, genera le notifiche e attiva la consegna Create
-secondo l'audience. I passaggi non applicabili (media, sondaggi, community,
-citazioni e posizione) rimangono inattivi se non vengono passati i relativi
-input. Non sono necessarie modifiche a servizi, modelli o query del Core.
-I test PostComposerTest coprono già il post testuale e le sue conseguenze.
-
-Perimetro concordato di NewPost:
-
-| Campo di richiesta | Vincolo | Adattamento verso il servizio |
+| `mediaId` | string; uuid | Sì | No | Identificativo del media. |
+| `mediaUrl` | string; uri | Sì | No | URL del contenuto, tramite il metodo esistente. |
+| `mediaPreviewUrl` | string; uri | Sì | No | URL di anteprima fornito dal Core; può coincidere con mediaUrl. |
+| `mediaMimeType` | string | Sì | No | Tipo MIME. |
+| `mediaWidth` | integer | Sì | Sì | Larghezza in pixel, se nota. |
+| `mediaHeight` | integer | Sì | Sì | Altezza in pixel, se nota. |
+| `mediaAltText` | string | Sì | Sì | Testo alternativo, se disponibile. |
+
+## 4. Letture, selezione e paginazione
+
+| Vista | Riuso | Navigazione e contesto |
 | --- | --- | --- |
-| postContent | Testo obbligatorio, non vuoto, con lo stesso limite configurato per il Web (openbook.posts.max_length, default 5000). | body |
-| postVisibility | Obbligatorio come nella form Web; public, unlisted o followers. | visibility |
-
-L'autore viene esclusivamente dall'utente autenticato, senza personId fornito
-dal client. direct rimane fuori dal primo giro, insieme a
-messaggi privati, allegati, località, community, citazioni e sondaggi. Titolo,
-lingua e CW sono già gestibili dal servizio ma possono essere aggiunti al
-contratto in un passaggio successivo. Non si inoltra il JSON integrale al
-composer: una whitelist esplicita impedisce di abilitare funzioni fuori scope.
-
-La validazione REST è specifica per i nomi pubblici, con enum/limiti
-presi dagli stessi riferimenti del Web. StorePostRequest è una FormRequest
-per il composer Web completo, inclusi upload e poll: riusarla integralmente
-non semplifica il caso REST minimo. Non si replica la logica di pubblicazione.
-
-Hashtag e menzioni testuali mantengono il comportamento attuale: ContentParser
-risolve i contatti locali e i remoti già noti; non introduce WebFinger per
-indirizzi sconosciuti. Il testo resta sorgente per il normale rendering del
-Core, non HTML prodotto dall'API.
-
-Flusso REST: autenticazione esistente, validazione e adattamento,
-compose, rilettura del post e caricamento CARD_RELATIONS/annotazione dello
-stato del lettore, PostResource. La rilettura include anche i valori iniziali
-dei contatori definiti dal database. Risposta 201 con entità Post diretta e
-Location verso GET /posts/{postId}, Cache-Control no-store; input non valido
-422 Problem Details. La risposta descrive la creazione locale, non conferma
-la ricezione su tutti i server federati. Un normale POST ripetuto crea un
-altro post: eventuali garanzie aggiuntive sui retry sono un tema separato.
-Come nel Web, il servizio salva prima della consegna federata: non presumere
-che un errore successivo alla creazione equivalga a nessun post salvato.
-
-L’implementazione è coperta da test REST per identità dell’autore,
-validazione, visibilità, hashtag/menzioni/notifiche, consegna federata e forma
-201/Location/Post, senza aprire gli input delle funzionalità rinviate.
-
-
-### Implementazione del primo POST /posts
-
-Controller REST: validazione di un oggetto JSON NewPost, rifiuto di proprietà
-non supportate anche se null, mappatura esplicita di postContent/body e
-postVisibility/visibility, chiamata a PostComposer::compose con autore dal
-Bearer. Il limite usa openbook.posts.max_length. I soli valori ammessi sono
-public/unlisted/followers; non c'è una visibilità implicita.
-
-Dopo compose, refresh del Post per includere i default dei contatori,
-CARD_RELATIONS e annotateViewerState, poi PostResource. Risposta 201 con
-Location REST e Cache-Control no-store, senza condizionale 304. JSON malformato
-restituisce 400, Content-Type non JSON 415, corpo non oggetto o campi non validi
-422 Problem Details. L'autenticazione precede la validazione e la scrittura.
-Nessuna modifica a servizi, modelli, query o flussi Web del Core.
-
-Verifiche dell’implementazione: suite completa con 2173 test, 16231 asserzioni,
-130 skip e nessun errore; suite REST finale con 75 test e 1051 asserzioni.
-I casi di creazione coprono risposta Post completa e Location/CORS, valori
-iniziali dei contatori, lettura del nuovo dettaglio, visibilità delle tre
-audience, testo obbligatorio/limite configurato, campi sconosciuti anche null,
-JSON malformato o non oggetto, Content-Type, autenticazione/account inattivo,
-hashtag, menzioni/notifiche e consegna Create attraverso il servizio esistente.
-OpenAPI e 66 esempi di richiesta/risposta validati; route REST coperte dalla
-specifica. Pint e diff --check superati. Cache route locale aggiornata.
-Nessuna migration o nuova query di dominio; Core e UI invariati.
-
-Review prima del commit: verificato l'intero diff, inclusi NewPost, convenzione
-New<Entity> in AGENTS.md, controller/route REST, test, changelog, documentazione
-bilingue e OpenAPI. Nessun problema aperto individuato. Confermati autore dal
-Bearer, whitelist degli input, limiti configurati, risposta 201/Location e
-assenza di modifiche al Core. Confermate le verifiche complete e REST riportate
-sopra sul codice corrente; rivalidati OpenAPI/66 esempi, Pint e diff --check.
-
-## 20. PATCH e DELETE /posts/{postId}
-
-Implementazione locale con servizi esistenti; operazioni e schema PatchPost
-descritti nell’OpenAPI. Nessuna modifica al Core.
-
-DELETE riusa LocalContentDeleter::delete, già chiamato dal controller Web:
-marca il post cancellato, svuota i dati previsti dal flusso esistente e
-consegna Delete tramite ActivityDelivery. Il servizio gestisce la transazione,
-il lock e il caso già cancellato. Risposta HTTP: 204 senza body; GET successivo
-404. Per le API va verificata esplicitamente la proprietà del post locale:
-PostPolicy::delete permette anche agli amministratori di cancellare post
-altrui, mentre la moderazione REST è fuori perimetro. L'ownership REST si
-aggiunge al controllo esistente senza modificare la policy del Core.
-Messaggi privati e contenuti remoti rimangono fuori da questi endpoint.
-Una DELETE ripetuta sul proprio post già cancellato restituisce 404: il lookup
-ammette solo pubblicati, prima di policy e servizio di cancellazione.
-
-PATCH chiama PostComposer::update, già usato dal Web con autorizzazione
-PostPolicy::update. Il servizio verifica autore locale e stato pubblicato,
-ricalcola hashtag/menzioni, aggiorna edited_at e consegna Update, inclusa la
-gestione dei relay al cambio di visibilità. Per il primo caso testuale si
-possono modificare postContent e/o postVisibility; soltanto i campi presenti
-vengono applicati, con almeno un campo presente e gli stessi vincoli del POST.
-Risposta: 200 con Post aggiornato, Cache-Control no-store.
-
-Il servizio riceve però i dati di una form completa, non un aggiornamento
-parziale: body è richiesto, title e content_warning mancanti vengono azzerati,
-location_id mancante rimuove la località. L'adattatore REST deve riempire body,
-titolo, CW, lingua e visibilità con i valori esistenti per i campi omessi.
-Allegati già presenti non vengono rimossi omettendo nuovi upload.
-
-Limite evidente per un PATCH generico senza modifiche al Core: la località
-non ha un'opzione «mantieni il valore attuale». Passare il geo_city_id la
-ricostruisce dall'anagrafica corrente e non conserva necessariamente la
-fotografia esistente; se manca l'ID o la città non esiste più non basta.
-Non chiamare update omettendo location_id su un post geolocalizzato.
-I sondaggi hanno ulteriori vincoli nel servizio LocalPollPublisher, fra cui
-visibilità e nuove menzioni, da affrontare separatamente.
-
-Il primo perimetro è quello dei post semplici specificato sotto. I casi non
-gestiti vengono rifiutati esplicitamente. DELETE usa il servizio esistente
-per i propri post locali. Nessuna modifica a servizi, modelli o UI del Core.
-
-### Implementazione concordata
-
-PATCH accetta un oggetto PatchPost con postContent e postVisibility opzionali,
-non null, e almeno una proprietà. Valori e limite testo restano quelli di
-NewPost. Si rifiutano campi sconosciuti; il cambio riguarda soltanto i campi
-presenti. Per questo primo giro sono semplici i post senza media, località,
-sondaggi, community o citazioni, con visibilità public/unlisted/followers.
-I post fuori da questo perimetro danno 409, senza modifiche. Titolo, CW e
-lingua già esistenti vengono conservati. Il controllo del perimetro e la
-lettura dei valori da preservare avvengono sotto lock del post in una
-transazione REST, prima di chiamare il composer esistente, evitando un merge
-su una fotografia precedente a una modifica concorrente.
-
-DELETE ammette i propri post locali anche se non semplici; conversazioni
-private escluse. Un post già cancellato restituisce 404 alla ricerca iniziale,
-prima di policy e servizio di cancellazione. Post non propri,
-inesistenti o non disponibili danno 404; nessuna eccezione per gli admin.
-La policy esistente viene comunque applicata dopo il controllo di ownership.
-PATCH restituisce Post aggiornato con 200; DELETE 204 senza body. Entrambe
-le risposte usano no-store. Nessuna modifica al Core o migrazione richiesta.
-
-
-### Verifiche di PATCH e DELETE
-
-Suite completa: 2181 test, 16399 asserzioni, 130 skip, nessun errore. Test
-mirati Mutation/Create: 14 test e 356 asserzioni. Coperti PATCH di solo testo,
-sola visibilità e combinato, conservazione di titolo/CW/lingua e data originale,
-input vuoti/null/non validi, proprietà sconosciute, JSON e Content-Type,
-perimetro semplice (inclusa località senza geo_city_id conservata al rifiuto),
-ownership anche per admin, messaggi privati, remoto, account inattivo,
-cancellazione ripetuta e mancato ripristino via PATCH. Verificati ricalcolo
-hashtag/menzioni/notifiche e Update/Delete federati senza doppia cancellazione.
-OpenAPI valido, 84 esempi di richiesta/risposta validati e tutte le route REST
-coperte. EXPLAIN MySQL: lookup pubblicato/cancellato su PRIMARY (una riga),
-allegati su post_attachments_post_id_position_index e media PRIMARY; località
-e poll assenti risolti dall'ottimizzatore senza scansione. Nessuna modifica a
-indici o migrazioni. Cache route locale aggiornata, Pint e diff --check passati.
-Core, policy e UI invariati.
-
-Revisione concordata: DELETE cerca soltanto post pubblicati, come PATCH.
-La risorsa già cancellata dà 404 dopo autenticazione e lookup, senza passare
-dalla policy né dal servizio. Rimossa l’opzione includeDeleted dall’adattatore
-REST; il comportamento interno di LocalContentDeleter resta invariato.
-Verifica della revisione: 8 test Mutation, 164 asserzioni, nessun errore;
-regressione esplicita con policy configurata per fallire se invocata sul post
-già cancellato. Verificata assenza di una seconda consegna Delete. OpenAPI,
-Pint e diff --check superati.
-
-### Review complessiva prima del commit
-
-Riletto tutto il diff pendente: controller/route REST, schema PatchPost,
-operazioni OpenAPI, test, analisi, README inglese/italiano e changelog.
-Confermati ownership senza privilegi staff, campi omessi preservati sotto lock,
-409 sui post non semplici e DELETE 404 sul già cancellato prima della policy.
-Nessun problema aperto individuato, Core/policy/UI invariati. Suite completa
-rieseguita dopo la revisione del 404: 2181 test, 16398 asserzioni, 130 skip,
-nessun errore. OpenAPI e 84 esempi validati; copertura delle 11 operazioni REST
-verificata rispetto alle route. Pint e diff --check superati.
-
-## 21. GET /persons/{personId}/posts
-
-Decisioni concordate: dettaglio Person invariato; recupero dei contenuti
-sull'elenco dei post. L'elenco replica il tab Post del profilo Web, inclusi
-post propri e rilanci, tramite FeedQuery::forProfile senza modificarlo.
-La dimensione pagina resta quella configurata per il feed Web, perché il
-metodo non espone un parametro per richiesta; limit non è selezionabile.
-Nessuna modifica temporanea della configurazione e nessuna query parallela.
-
-I remoti ActivityPub usano RemoteOutboxFetcher::fetchRecentContent: TTL,
-importazione recente e fallback sono quelli del servizio esistente. I feed
-RSS/Atom usano FeedImporter quando scade l'intervallo minimo già configurato
-per il recupero feed; ETag/Last-Modified restano gestiti dal servizio. I normali
-profili locali non richiedono recuperi remoti. Gli errori remoti consentono
-la lettura della cache disponibile, come nel Web. La presenza di contenuti
-in cache non implica una cronologia remota completa.
-
-Restituisce un array diretto di Post con postAnnounce quando il Core seleziona
-un rilancio. postTimelineAt espone sempre la data effettiva di ordinamento:
-rilancio o pubblicazione per Person/Application/Feed, pubblicazione per Group,
-come il Core. Link next usa after + afterAt, senza stato server. sort ammesso
-postTimelineAt, direction desc; limit, cursor, page ed engine non supportati.
-Per le community locali private si applica viewWall prima del recupero e della
-lettura. Disponibilità e autorizzazione vengono ricontrollate dopo il recupero,
-prima della risposta o dell'eventuale 304. Cache privata con Vary Authorization.
-
-Verifiche: suite completa con 2189 test, 16476 asserzioni e 130 skip, nessun
-errore; dopo l'estensione del caso di paginazione con rilanci e date pari,
-suite REST finale con 91 test e 1300 asserzioni. Coperti parità col profilo Web,
-rilanci, ordinamento Group, link e dimensione pagina, importazione remota,
-TTL, aggiornamento dopo scadenza anche con ETag precedente, dettaglio Person
-senza import, fallback, profilo cancellato durante il recupero, community
-private prima del 304, RSS con TTL/ETag, autenticazione e validazione.
-OpenAPI e 92 esempi validati; 41 Post reali di profili Person/Group su MySQL
-validati contro lo schema. EXPLAIN per entrambe le pagine Person e la bacheca
-Group: index_merge su posts_actor_id_published_at_index/PRIMARY, lookup su
-announces_actor_id_post_id_unique, PK e indici del grafo per i controlli di
-visibilità; nessuna nuova query di dominio o indice. Le importazioni remote
-sono simulate nei test, senza pubblicare dati di prova nell'istanza locale.
-Cache route aggiornata, copertura OpenAPI di tutte le route verificata,
-Pint e diff --check superati. Core, UI e dettaglio Person invariati.
-
-Review prima del commit: riletto l'intero diff, inclusi controller e test nuovi,
-risorsa Post, route, changelog, documentazione bilingue e OpenAPI. Nessun
-problema aperto individuato. Confermati refresh sul solo elenco contenuti,
-TTL, permessi prima del 304, dimensione pagina Web e ordinamento Group.
-Confermate le verifiche completa/REST riportate sopra sul codice corrente;
-rivalidati OpenAPI e 92 esempi, copertura delle 12 operazioni REST, Pint e
-diff --check. Nessuna modifica al Core o al dettaglio Person.
-
-## 22. Informazioni statiche dell’istanza
-
-Obiettivo: permettere al client di mostrare il nome e le informazioni generali
-dell'istanza autenticata, senza statistiche o conteggi. Percorso concordato:
-GET /instance, entità di risposta Instance. «Instance» riprende il termine
-usato dal prodotto e dagli endpoint di compatibilità; host è prevalentemente
-tecnico e node richiama il documento NodeInfo più che l'identità del servizio.
-
-Prima rappresentazione concordata: instanceName, instanceDomain, instanceUrl,
-instanceDescription e instanceIcon. Contatti, link a regole/privacy e limiti
-configurati sono possibili estensioni da concordare; non sono statistiche.
-Eventuali gruppi instanceContact/instanceLinks/instanceLimits andranno definiti
-prima di moltiplicare le proprietà di primo livello. Nessun NewInstance:
-l'endpoint è di sola lettura e l'amministrazione rimane nella UI nativa.
-
-Fonte già esistente: InstanceSettings espone nome, descrizione, email,
-registrazioni, regole/privacy, icone e limiti. Dominio/URL vengono dai riferimenti
-configurati dell’istanza. Si usa direttamente questo servizio, non le risposte
-dei controller Mastodon/NodeInfo, che calcolano anche statistiche. Non sono
-necessarie modifiche al Core. Bearer obbligatorio e caching privato con ETag
-seguono il contratto REST corrente. I primi quattro campi sono sempre presenti
-e non null; la descrizione può essere vuota. instanceIcon è opzionale e
-non null: omesso senza icona personalizzata. Si usa la variante PNG 512 già
-prodotta dal servizio, con URL assoluto. URL base e dominio vengono dalla
-configurazione dell’istanza, non dall’header Host della richiesta. Nessuna
-statistica o impostazione aggiuntiva viene letta dalla rappresentazione.
-
-Verifiche: 6 test Instance e 43 asserzioni; suite completa con 2195 test,
-16526 asserzioni e 130 skip, nessun errore. Coperti valori configurati e
-fallback, descrizione vuota, icona omessa/assoluta/CDN, URL canonico indipendente
-da Host, assenza di statistiche e campi riservati, ETag modificato al cambio
-dei cinque dati, 304, scope, autenticazione/account inattivo e guard ambiente.
-OpenAPI e 100 esempi di richiesta/risposta validati; tutte le 13 operazioni
-REST coperte. Sul MySQL locale: 200/304/401, corpo validato contro Instance,
-nessuna query aggregata; EXPLAIN delle letture impostazioni usa
-system_settings_key_unique con una riga. Cache route aggiornata, Pint e
-diff --check superati. Core e UI invariati; nessuna migrazione o nuova dipendenza.
-
-
-Review prima del commit: riletto l'intero diff pendente, inclusi controller,
-risorsa Instance, test, route, changelog e documentazione bilingue. Nessun
-problema aperto individuato. Confermati whitelist dei cinque campi, icona
-opzionale, URL configurati, assenza di statistiche e autenticazione prima del
-304. Confermate le verifiche completa e mirata riportate sopra sul codice
-corrente; rivalidati OpenAPI/100 esempi, copertura delle 13 operazioni REST,
-Pint e diff --check. Core e UI invariati.
-
-## 23. PUT/DELETE /posts/{postId}/announce
-
-Decisione approvata: rilanci manuali dell'identità Bearer, senza body né nuova
-entità. PUT è idempotente e identifica la relazione personale sul post;
-201 con Location quando attiva il rilancio manuale (anche promuovendo una
-condivisione implicita di citazione), 204 se già attivo. DELETE restituisce
-204 se rimosso o già assente su un post leggibile. Risposte vuote no-store.
-
-PUT richiede un originale pubblicato e leggibile, public/unlisted, fuori da
-community private. Risorse invisibili, cancellate o messaggi privati: 404.
-Post leggibili con visibilità non ammessa o in community private: 403.
-RemoteInteractionGuard rifiuta nuovi rilanci di autori sospesi da remoto.
-DELETE permette la rimozione di un proprio rilancio manuale già esistente
-anche se l'originale è diventato invisibile, riservato o l'autore remoto è
-sospeso. Dopo la rimozione, ulteriori DELETE su un originale invisibile danno
-404. Post cancellati e messaggi privati restano sempre esclusi con 404.
-
-PostAnnounceController usa AnnounceManager::announce con direct=true e
-AnnounceManager::unannounce, come il Web. Il servizio conserva gestione di
-contatori, notifiche, federazione Announce/Undo, originali locali/remoti e
-rilanci dei propri post. Nessun actorId o flag direct viene letto dal body.
-Non è richiesta ownership dell'originale: si agisce solo sul proprio rilancio.
-Il lock REST sul post serializza queste mutazioni API; non estende la garanzia
-alle chiamate Web che non acquisiscono lo stesso lock preventivo.
-
-Il controllo REST sulla visibilità è necessario perché AnnounceManager non
-valida lo stato o la visibilità dell'originale e il serializer ordinario usa
-as:Public; quello delle community private usa destinatari differenti, ma non
-rende sicura una condivisione manuale ai follower del condivisore.
-Nessun cambiamento a Core, servizi, query condivise, serializer o UI.
-
-DELETE conserva la citazione pubblicata e la sua condivisione implicita:
-postMyInteractions.postAnnounced può rimanere true, postDirectAnnounced diventa
-false e il contatore può restare invariato. Il flag del pulsante rilancio è
-postDirectAnnounced; postAnnounce è invece il contesto di una voce del feed.
-
-Verifiche: 139 test REST/rilanci/citazioni, 1608 asserzioni; suite completa
-con 2206 test, 16645 asserzioni e 130 skip, nessun errore. Coperti idempotenza,
-contatori, notifiche, Announce/Undo federati, promozione e conservazione delle
-citazioni, isolamento dell'identità Bearer, visibilità e rimozione dopo cambio
-di visibilità/sospensione, esclusione di post cancellati e messaggi privati,
-scopo api e account attivo. OpenAPI validato con 264 esempi inline e copertura
-di tutte le 15 operazioni REST implementate; Pint e diff --check superati.
-Prova sul MySQL locale con Bearer reale: PUT 201/204 e DELETE 204/204 su post
-temporaneo, rollback finale e consegne simulate. EXPLAIN delle SELECT effettive
-usa PRIMARY sui post e announces_actor_id_post_id_unique sui rilanci; il ramo
-di visibilità usa anche follows_follower_id_following_id_unique. Nessun indice
-nuovo necessario. Cache delle route locali aggiornata. Review del diff completo:
-nessun problema aperto individuato; servizi, modelli, UI e Core invariati.
-
-Review finale prima del commit: riletto tutto il diff pendente, compresi il
-nuovo controller e i test. Nessun problema aperto individuato. Rivalidati
-OpenAPI, 264 esempi inline e corrispondenza di tutte le 15 operazioni REST
-con entrambi i README; le operazioni e gli schemi precedenti sono invariati.
-Ripetuti con successo i 139 test mirati (1608 asserzioni), Pint e diff --check.
-La suite completa riportata sopra è stata eseguita sul medesimo codice.
-
-## 24. GET /me/posts
-
-Collezione dei soli post pubblicati dall'attore associato al Bearer corrente,
-coerente con ownership. Esclusi rilanci di post altrui, post cancellati/non
-pubblicati e messaggi di conversazioni private. Restano inclusi i propri post
-followers/direct non appartenenti a conversazioni, quelli nelle community e
-le citazioni pubblicate come propri post. Un proprio post rilanciato resta
-presente una sola volta, ordinato per pubblicazione, senza contesto Announce.
-
-Riuso senza modifiche al Core: relazione Actor::posts(), scope Post esistenti,
-FeedQuery::paginatePublishedQuery() (già usato dal Web per hashtag),
-Post::annotateViewerState e PostResource. Non usare forProfile(), perché
-comprende rilanci e ordina anche per data di condivisione.
-
-Array diretto di Post, senza postAnnounce né postTimelineAt. Parametri after
-(UUID dell'ultimo post), limit (default 20, massimo 100), sort=postPublishedAt
-e direction=desc. Ordinamento deterministico pubblicazione/ID tramite il
-paginatore esistente. L'ancora deve appartenere alla stessa collezione, anche
-in presenza di un ID di altri utenti noto al client: altrimenti 422. Link
-rel="next" completo, nessun cursore opaco o stato server. afterAt, engine,
-cursor e page non supportati. Cache privata con ETag, Vary Authorization e
-controlli di autenticazione/account prima dell'eventuale 304. Nessun fetch
-remoto, nuova entità, migrazione o modifica a servizi/modelli condivisi.
-
-Verifiche completate: suite REST iniziale con 116 test/1568 asserzioni;
-aggiunto poi il caso esplicito di rilancio del proprio post senza riordino.
-Suite completa finale: 2215 test, 16757 asserzioni, 130 skip, nessun errore.
-Coperti ownership, esclusione rilanci/cancellati/messaggi privati, propri post
-riservati/community/citazioni, ordine e parità di date, nuovi inserimenti tra
-pagine, ancore estranee/non disponibili, limiti, parametri, cache e identità.
-OpenAPI e 288 esempi validati, incluse le raccolte vuote e la risposta reale;
-16 operazioni REST allineate ai README bilingui. Pint e diff --check superati.
-Sul MySQL locale: 200/304/200 per prima pagina, ETag e pagina successiva,
-nessun fetch remoto. EXPLAIN delle SELECT effettive usa
-posts_actor_id_published_at_index (ref/range, Backward index scan, senza
-filesort) e PRIMARY per l'ancora; controlli correlati sulle chiavi esistenti
-di community, follow e menzioni. Nessuna migrazione o indice nuovo necessario.
-Cache route locale aggiornata. Review del diff: nessuna modifica al Core,
-nessun problema aperto individuato.
-
-Review finale prima del commit: riletto il diff completo, inclusi controller,
-test e contratto pubblico. Nessun problema aperto individuato. Confermati
-isolamento dell'ownership, esclusione dei messaggi privati e dei rilanci altrui,
-ordinamento per pubblicazione, vincoli delle ancore e cache autenticata.
-Rivalidati OpenAPI/288 esempi e corrispondenza delle 16 operazioni REST nei
-README bilingui; endpoint e schemi precedenti invariati. Ripetuti i 9 test
-specifici (112 asserzioni), Pint e diff --check. Suite completa sopra eseguita
-sullo stesso codice; nessuna modifica al Core.
-
-## 25. Follow delle persone
-
-Contratto approvato e implementazione di GET/PUT/DELETE /persons/{personId}/follow.
-
-### Punti di aggancio verificati
-
-FollowController usa FollowManager::follow() e unfollow() per account locali
-e identità Actor; il servizio gestisce richieste, notifiche e Follow/Undo
-federati. Per leggere lo stato si può riusare statusMapFor(viewer, [target]),
-che distingue accepted/pending e assenza senza aggregati o nuove query condivise.
-PersonQuery::available() risolve le identità già disponibili come Person;
-nessun fetch remoto necessario per leggere la relazione. Stato sempre relativo al
-Bearer verso la Person nel percorso, mai alla direzione inversa.
-
-Account locale aperto: accettazione immediata. Account locale protetto: pending.
-Target remoto non Feed: pending fino a conferma remota, anche quando dichiara
-approvazione automatica. I Feed sono accettati subito, senza ActivityPub.
-Il servizio gestisce anche i Group; l'adattatore deve rispettare le policy
-specifiche delle community quando l'identità ne rappresenta una, senza aprire
-percorsi alternativi che eludano join/leave. Non introdurre filtri sui tipi
-Person solo per comodità dell'implementazione.
-
-PUT ripetuti riusano la relazione esistente. Possono confermare una richiesta
-pending verso un locale nel frattempo aperto, oppure ritentare l'invio di un
-Follow remoto ancora pending. L'idempotenza riguarda la relazione: non va
-promessa l'assenza assoluta di nuove consegne federate. DELETE rimuove sia
-accepted sia pending e invia l'Undo dove previsto; relazione assente: nessun
-intervento. Il servizio non applica RemoteInteractionGuard alla rimozione,
-consentendo di smettere di seguire un remoto diventato sospeso.
-
-FollowManager rifiuta self-follow, target non attivi e Person locali con User
-non attivo. Rifiuta nuovi follow di remoti sospesi tramite AuthorizationException.
-L'adattatore traduce i vincoli di dominio in errori HTTP, senza esporre
-messaggi tecnici o trasformare InvalidArgumentException in un 500. Identità
-inesistente/cancellata o non disponibile secondo la lettura REST: 404;
-autenticazione e scope seguono gli endpoint esistenti. Le identità locali
-non più disponibili rimangono escluse anche dalla rimozione REST.
-
-### Entità Follow
-
-Oggetto minimo per GET e PUT; niente identità duplicate rispetto al percorso,
-ID della relazione, flag in direzione inversa, date o preferenze auto_announce
-/notify in questo giro. Eventuali estensioni verranno discusse separatamente.
-
-La tabella dei campi è nella sezione Entità rappresentate, sotto Follow.
-
-Esempio: {"followStatus":"pending"}. GET torna sempre lo stato noto
-localmente: nessuna chiamata remota per chiedere l'accettazione. Dopo Accept
-il normale flusso federato aggiorna la relazione e GET restituisce accepted.
-Dopo rifiuto, annullamento o rimozione torna none; non si distingue un rifiuto
-storico dalla mancata richiesta, perché il Core non conserva uno stato rejected.
-
-### Contratto HTTP
-
-- GET: 200 con Follow anche se followStatus=none; 404 riservato all'identità
-  non disponibile. Cache privata con ETag e Vary Authorization, dopo i controlli
-  di accesso; GET non muta né ritenta il follow.
-- PUT: nessun body richiesto, 201 con Follow e Location quando crea la relazione,
-  200 con Follow quando esiste già, anche se ancora pending. Il body è lo stato
-  effettivo restituito dal servizio, non un'ipotesi ricavata dagli attributi
-  della Person. no-store. Nessun 202 necessario per una relazione già creata.
-- DELETE: nessun body richiesto, 204 senza corpo dopo rimozione/ritiro o se già
-  assente su una Person disponibile; no-store.
-
-Core, modelli, servizi, database e query condivise rimangono invariati.
-Test e verifica degli indici delle letture effettive sono riportati a fine
-sezione dopo il completamento delle verifiche.
-
-
-Implementazione mirata: PersonFollowController e FollowResource. Risoluzione
-con PersonQuery::available() e relazioni user/community, nessun refresh remoto.
-PUT/DELETE acquisiscono un lock sull'Actor destinatario, serializzando queste
-mutazioni REST senza modificare il servizio; nessuna garanzia aggiuntiva per
-scritture Web o federate che non acquisiscono lo stesso lock. Per community
-locali si riusano Gate join/leave e CommunityMembershipService, che delega a
-FollowManager: il proprietario non può alterare la propria membership. DELETE
-su relazione assente resta 204 anche per una community. Non si applica
-viewMembers per leggere esclusivamente la propria relazione con una privata.
-Self-follow e altri vincoli di dominio rifiutati dal servizio: 422 Problem
-Details. Sospensione remota: PUT 403, GET e DELETE ancora consentiti per una
-Person disponibile. Identità locali escluse da PersonQuery (o cancellate):
-404 per tutti i metodi, anche in presenza di una relazione preesistente.
-
-Verifiche completate: 16 test specifici/186 asserzioni; gruppo REST, follow,
-community e conferme remote con 191 test/2042 asserzioni. Suite completa finale:
-2231 test, 16943 asserzioni, 130 skip, nessun errore. Coperti assenza, pending,
-accepted, accettazione/rifiuto, ritiro, healing locale, retry remoto, Undo,
-notifiche, self-follow, sospensione e indisponibilità, tipi Person/Application/
-Feed/Group, policy e contatori community, identità Bearer, scope, cache e guard
-ambiente. OpenAPI validato con 345 esempi di risposte/header e i tre esempi
-Follow; tutte le 19 operazioni REST allineate ai README bilingui. Schema
-verificato anche sulla risposta MySQL reale. Endpoint e schemi precedenti
-invariati. Pint e diff --check superati.
-
-Prova sul MySQL locale con Bearer esistente e destinatario remoto temporaneo:
-GET 200 none/304, PUT 201 pending/200 pending, GET pending, DELETE 204/204,
-GET none; rollback delle identità e relazioni di prova, consegne simulate e
-nessun fetch remoto. EXPLAIN delle SELECT effettive usa PRIMARY per il target
-Actor, actors_user_id_unique per l'attore autenticato e
-follows_follower_id_following_id_unique per la relazione e la sua lettura.
-Nessuna migrazione o modifica agli indici richiesta; cache route aggiornata.
-Review del diff completo: nessun problema aperto individuato; Core, servizi,
-modelli, serializer federati e UI invariati.
-
-## 26. Richieste di follow ricevute
-
-Ricognizione: ProfileController seleziona Follow con following_id dell'utente
-corrente e status pending. FollowManager::accept e reject gestiscono già
-transizione, notifiche e Accept/Reject verso i richiedenti remoti. L'adattatore
-REST riusa questi metodi e i modelli/query di disponibilità esistenti, senza
-modifiche al Core. Nessuna gestione di richieste per conto di altri account o
-community, indipendentemente dai ruoli staff.
-
-Contratto del primo sprint: GET /me/follow-requests restituisce un array diretto
-di PersonReference dei richiedenti ancora disponibili, ordinato per personId,
-con after, limit (20/100), sort=personId e direction=asc/desc. Nessuna nuova
-entità di risposta o data richiesta in questo giro; nessun fetch remoto. Link
-next e cache privata ETag/Vary Authorization seguono le liste di persone.
-
-PATCH /me/follow-requests/{personId} accetta solo l'oggetto JSON
-{"followStatus":"accepted"}, descritto da PatchFollowRequest. Nessun altro
-campo ammesso. Successo 204 senza corpo; formato JSON malformato 400, tipo non
-JSON 415, contenuto/campi non validi 422. DELETE sullo stesso percorso rifiuta
-la richiesta pendente e restituisce 204 senza corpo. Entrambe le scritture
-usano no-store e agiscono soltanto su pending verso l'attore del Bearer:
-richiesta assente, già accettata/rifiutata, appartenente ad altri o identità
-non disponibile danno 404. La rimozione di una richiesta non è un unfollow di
-una relazione già accettata. Lock REST dell'attore destinatario e della riga
-pending prima del servizio per serializzare le decisioni REST concorrenti;
-nessuna nuova garanzia sulle scritture Web/inbox che non usano questi lock.
-
-Verifiche della prima fase: 26 test follow/richieste e 286 asserzioni;
-suite completa 2241 test, 17043 asserzioni e 130 skip, nessun errore.
-OpenAPI con 406 esempi validati e 22 operazioni REST allineate ai README.
-MySQL: GET 200 e PATCH/DELETE 204, dati temporanei in rollback e consegne
-simulate. EXPLAIN: lista da follows_following_id_status_index, lookup della
-richiesta da follows_follower_id_following_id_unique, identità dalla PK;
-ordinamento temporaneo limitato alla coda pending dell'utente (32 fixture),
-non scansione globale degli attori. Nessun indice/migrazione del Core aggiunto.
-Review del diff completo pendente: ownership, scope, JSON rigoroso, fail-fast
-sulle richieste non pendenti e coerenza documentazione verificati; nessun
-problema bloccante rilevato. Pint e diff --check superati.
+| Person, Me | PersonQuery, resolver/refresh conteggi esistenti per il dettaglio remoto | Per Me nessun nuovo fetch; Person non importa i post. |
+| Follower/seguiti | PersonFollowQuery sopra FollowListQuery | Solo relazioni accettate, inclusa cache di membri remoti noti; filtri di disponibilità e membership privata. after/personId, limit 20/100, asc/desc. |
+| World | FeedQuery::world | Engine predefinito, after/postId, limit 20/100, pubblicazione discendente. |
+| Timeline | FeedQuery::forActor | after + afterAt, limit 20/100, postTimelineAt. Include rilanci pertinenti. |
+| Post del profilo | FeedQuery::forProfile, RemoteOutboxFetcher e FeedImporter | Propri post più rilanci, TTL del Web, pagina del Web senza parametro limit. after + afterAt. Nei Group la data di ordine è la pubblicazione. |
+| Me/posts | Actor::posts, scope Post, paginatePublishedQuery | Solo ownership, no rilanci altrui. after/postId, limit 20/100. |
+| Richieste ricevute | Modello Follow pending verso il Bearer e PersonQuery::available | PersonReference dei richiedenti disponibili; after/personId, limit 20/100, asc/desc. Nessun fetch. |
+
+Link next standard completo, senza cursori server e senza page/cursor opachi.
+Per World e Me/posts un’ancora non più disponibile nella raccolta dà 422;
+per timeline/profilo la coppia data/ID resta un confine anche se il post sparisce.
+I limiti per ID sono deterministici, con spareggio per ID a parità di data;
+la navigazione non è uno snapshot. Il filtro ownership è applicato anche alle
+ancore di Me/posts. Dati federati potenzialmente parziali, mai una vista globale.
+
+Il dettaglio Post usa RemoteRepliesFetcher con TTL e fallisce verso i dati
+disponibili in cache; il profilo usa i resolver esistenti. La disponibilità
+viene riletta dopo il refresh prima di esporre dati o 304. I fetch riusano
+SafeHttpClient, controlli SSRF e limitazioni del Core. Non si introducono query
+o resolver federati paralleli.
+
+## 5. Scritture e confini di autorizzazione
+
+PostComposer crea i post testuali e modifica quelli semplici; validazione
+REST limita gli input ai campi supportati. Modifica/rimozione usano ownership
+prima di PostPolicy: anche un admin non può agire su post di altri o su copie
+remote. Esclusi conversazioni, stato non pubblicato e, per PATCH, media,
+posizione, sondaggi, community, citazioni e direct. I campi omessi di titolo,
+CW e lingua sono conservati dal mapping al servizio. LocalContentDeleter
+gestisce eliminazione e federazione. DELETE di un post già cancellato dà 404.
+
+ReactionManager e AnnounceManager gestiscono interazioni, notifiche, contatori
+e Like/Announce/Undo. PUT Mi piace/rilancio restituisce 201 alla prima attivazione
+e 204 se già attivo; DELETE 204 anche se assente su una risorsa disponibile.
+PUT rilancio richiede public/unlisted fuori da community private: il serializer
+del Core produce attività pubbliche e non basta poter leggere l’originale.
+DELETE può rimuovere un rilancio preesistente diventato invisibile; dopo la
+rimozione un originale ancora invisibile dà 404. Citazioni e condivisioni
+implicite rimangono intatte, con postAnnounced eventualmente ancora true.
+
+FollowManager::statusMapFor/follow/unfollow fornisce none/pending/accepted.
+Locali aperti/Feed accettati subito, locali protetti e remoti non Feed pending
+finché confermati. PUT crea con 201 o aggiorna/riusa con 200 e restituisce Follow;
+può ritentare la consegna pending o sanare un locale diventato aperto.
+DELETE 204 ritira anche una richiesta. Self-follow e vincoli di dominio sono
+422; nuove interazioni verso remoti sospesi sono 403. Le rimozioni non applicano
+il blocco delle nuove interazioni. Identità escluse da PersonQuery danno 404
+per tutti i metodi, anche con vecchie relazioni. I Group locali usano le policy
+join/leave e CommunityMembershipService, evitando bypass della membership.
+
+Richieste ricevute: solo following_id del Bearer, status pending e richiedente
+disponibile. PATCH accetta PatchFollowRequest e invoca FollowManager::accept;
+DELETE invoca reject. Successo 204, richiesta non pendente/assente/altrui 404.
+Non rimuove relazioni accepted, non gestisce richieste di Group e non aggiunge
+delega staff. Le decisioni restano possibili se nel frattempo il profilo è aperto.
+
+Le mutazioni REST che richiedono precondizioni acquisiscono lock locali su
+Post, Actor o richiesta prima dei servizi. Sono protezioni fra quelle richieste
+REST, non una nuova garanzia per scritture Web o federate che non acquisiscono
+gli stessi lock. Successo locale non significa consegna remota completata.
+
+## 6. OAuth e gestione accessi
+
+Passport, OAuth 2 Authorization Code/PKCE S256, scope api. Registrazione pubblica
+RFC 7591, metadata RFC 8414; niente OIDC, grant password, credenziali utente al
+client o polling. Client pubblici senza secret, registrati una volta per istanza;
+registrazione non deduplicata per nome. Callback HTTPS, HTTP loopback o schema
+privato con dominio invertito, senza frammenti/credenziali e con confronto del
+redirect gestito dal protocollo. State/PKCE affidati alle librerie client.
+
+Login e consenso riusano la sessione Web e CSRF. Bearer JWT validato e revocabile
+lato server; account/Actor attivi in autorizzazione, emissione, refresh e REST.
+Solo grant authorization_code/refresh_token esposti. OPENBOOK_OAUTH_TOKEN_DURATION
+in giorni, default implicito 365 se assente/non valido; accesso e refresh con
+la stessa durata, token già emessi invariati. Chiavi Passport preservate fra
+gli aggiornamenti, mai generate a ogni richiesta.
+
+ConnectedApplications elenca accessi dell’utente e revoca accesso/refresh senza
+chiudere altri accessi o sessione Web. Lookup sempre per proprietario, revoca
+e rinnovo con ordine coerente dei lock. Se la rotazione è già avvenuta,
+l’accesso precedente non chiude il sostituto: messaggio di elenco cambiato e
+ricaricamento, senza affermare una chiusura avvenuta. Nessuna promessa di
+lineage persistente delle sessioni, IP/GeoIP, revoca su logout Web o nuova API
+di gestione delle app in questo sprint.
+
+## 7. HTTP, errori e sicurezza
+
+Cache privata/no-cache con ETag sul corpo e Link, Vary Authorization,
+If-None-Match/304 dopo autenticazione e autorizzazione. Non elimina il costo
+di interrogazione/refresh server. Scritture/errori no-store. Last-Modified e
+If-Modified-Since rinviati. Problem Details condivisi per REST e validazione;
+OAuth conserva i propri errori. Stati HTTP autorevoli, nessun header custom.
+CORS per client Bearer senza cookie, esposizione dei soli header standard
+ETag/Link/Location/Retry-After/WWW-Authenticate. Throttle distinti per indirizzo:
+60 REST, 30 token, 10 registrazioni al minuto.
+
+Review di sicurezza dell’intero ramo:
+- isolamento Bearer da sessione, scopi e account attivi prima dei dati/304;
+- IDOR su post, follow, richieste e chiusura accessi; nessuna delega admin;
+- selezione whitelist delle risorse, nessun token, email o chiave esposta;
+- visibilità followers/direct e membership privata nei feed/dettagli, esclusione
+  delle conversazioni e ricontrollo dopo refresh;
+- consenso CSRF, redirect e PKCE, revoca/refresh, fallback dati federati;
+- escaping dei nomi app nella UI e JSON come dato, senza HTML eseguito;
+- assenza di credenziali, token di prova, screenshot o dump DB nei file versionati.
+
+## 8. Integrazioni e impatto sul progetto
+
+Nuovi controller/risorse REST e adapter di protocollo, senza nuove regole nel
+dominio o nei serializer federati. Riuso dei servizi e scope elencati sopra.
+Le sole integrazioni condivise già introdotte dal ramo sono: trait/contratto
+Passport su User; estrazione dei selettori equivalenti di FollowListQuery
+per evitare duplicazione Web/REST; registrazione route/provider e guard,
+impostazioni e UI per gli accessi. Non vengono cambiate le regole Web del
+grafo o dei post. Le nuove tabelle sono quelle OAuth di Passport, con UUID
+compatibili con gli account; nessuna migrazione del modello sociale.
+
+Restano shared hosting e i normali flussi di consegna, senza nuovi obblighi di
+Redis, worker permanenti o servizi esterni. Installer/updater di produzione,
+attivazione delle route e politica operativa di rilascio sono rinviati.
+
+## 9. Verifiche e riproducibilità
+
+La suite PHPUnit copre risorse, filtri e ancore, riservatezza, proprietà dei post,
+richieste ricevute, interazioni/federazione, OAuth/PKCE, chiusura accessi e UI.
+Esecuzione con configurazione di test isolata, per non usare il MySQL locale:
+
+```sh
+APP_CONFIG_CACHE=/tmp/openbook-rest-tests-config.php php vendor/bin/phpunit
+php vendor/bin/pint --dirty
+```
+
+OpenAPI validato con esempi e confronto route/README; schemi errore condivisi
+senza cambiamento del contratto. Il test SDK reale descritto in
+[clients.md](../docs/api/clients.md) usa SQLite e loopback, PKCE/state, login
+con CSRF, scambio, REST 200/304/401 e chiusura/revoca di entrambi i token.
+Non è un test grafico o su device iOS/Android e va eseguito separatamente dai
+test che rimuovono il marker installato.
+
+Verifiche MySQL eseguite sul ramo con dati temporanei in rollback: lookup e
+paginazione dei post, tutti i rami delle query condivise di liste/feed,
+interazioni e richieste, token/client e accessi. I piani effettivi usano PK
+e indici del grafo; nelle richieste ricevute l’indice following/status limita
+la coda prima dell’ordinamento temporaneo per personId. Nessuna pretesa che
+gli esiti SQLite provino da soli migrazioni o prestazioni MySQL. Il test finale
+e gli eventuali limiti rimasti sono registrati nell’esito seguente.
+
+### Esito della review dello sprint
+
+Review rispetto a upstream/main aggiornato, base comune 2ca1788: nessun problema
+critico o bloccante individuato. Consolidate le risposte 422 nei soli controller
+REST; estratti tre schemi Problem Details identici nell'OpenAPI senza variazione
+del contratto. Corrette le descrizioni 403/404 della lista personale di richieste,
+che non rappresenta un elenco di membri di community. Confronto semantico degli
+schemi e delle operazioni precedenti superato. Nessuna nuova logica del Core.
+
+| Verifica | Esito finale |
+| --- | --- |
+| Suite completa PHPUnit, codice finale | 2241 test, 17043 asserzioni, 130 skipped, nessun errore/fallimento. |
+| REST, accessi collegati, elenchi condivisi | 167 test, 1963 asserzioni superati dopo la pulizia del codice. |
+| Follow/richieste personali | 26 test, 286 asserzioni; inclusi admin senza delega, richieste di community escluse, payload rigorosi e richieste già gestite. |
+| OpenAPI e inventario | Specifica valida, 406 esempi validi, tutte le 22 operazioni REST presenti nelle guide italiana e inglese. |
+| SDK OAuth reale | Registrazione, PKCE/state, login/consenso con CSRF, callback, scambio, REST 200/304/401, revoca accesso/refresh e sessione Web conservata: superati con SQLite/loopback isolati. |
+| MySQL richieste ricevute | 32 fixture in rollback, GET 200 e PATCH/DELETE 204; indice following/status per la coda, unico follower/following e PK per decisioni/identità. Consegne simulate, nessun fetch remoto. |
+| Controlli statici | Composer validate, Pint, diff --check, link relativi delle guide e ricerca di segreti nei file modificati: superati. |
+
+Le 130 esclusioni restano visibili nel risultato PHPUnit: non si dichiara che
+ogni test condizionale sia stato eseguito. Nessuna istanza MariaDB dedicata o
+prova su dispositivo iOS/Android in questa sessione. Le verifiche SDK via HTTP
+non sono un test grafico del browser. Questi limiti non abilitano implicitamente
+il prototipo in produzione.
+
+## 10. Roadmap successiva e questioni aperte
+
+| Area | Percorsi/decisioni successive |
+| --- | --- |
+| Comment | /posts/{postId}/comments e /events/{eventId}/comments, con dettaglio figlio. Definire Comment, NewComment, risposte annidate e autorizzazioni. |
+| Community | Catalogo/dettaglio, posts/followers, follow e /me/communities (ownership, non moderazione). |
+| Event | Catalogo/dettaglio, /me/events; follow «mi interessa» separato da participation «parteciperò», followers e participants. Definire Event e Location estesa. |
+| Notification | /me/notifications, stato lettura e riferimenti ai contenuti. |
+| Hashtag | Catalogo/dettaglio/posts e follow, normalizzazione del tag. |
+| Media e post complessi | Upload indipendente /media, elaborazione, NewPost/PatchPost estesi, sondaggi/citazioni e altri oggetti. |
+| Ricerca/impostazioni | Contratti ancora da discutere; nessuna nuova API implicita in questo sprint. |
+
+Le liste generali future useranno relationship con valori multipli in OR e
+filtri diversi in AND; sort e direction separati. /me raccoglie ownership e
+contesto esclusivo del Bearer, non tutto ciò che segue. Cataloghi includeranno
+anche risorse proprie. Community/Event non diventano sottotipi di Post, e non
+si introducono alias /me/following o /me/followers. La gestione delle richieste
+di partecipazione dell’organizzatore dovrà essere delimitata rispetto allo staff.
+
+Prima della produzione: integrazione installer/updater, abilitazione esplicita,
+politica di evoluzione/versionamento e compatibilità, ulteriori test operativi.
+La seconda PR estenderà le entità mancanti sopra; questo sprint non le dichiara
+già supportate né promette parità funzionale completa con il Web.

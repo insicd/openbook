@@ -52,6 +52,7 @@ Requisiti, installazione git/Composer, server web e aggiornamenti:
 - [Statistiche dell’istanza](docs/architecture.it.md#stats)
 - [Federazione](docs/federation.it.md)
 - [Sicurezza](docs/security.it.md)
+- [API REST sperimentale e OAuth — solo local/testing](docs/api/README.it.md)
 - [Roadmap](docs/roadmap.it.md)
 - Indice completo: [`docs/README.it.md`](docs/README.it.md)
 
