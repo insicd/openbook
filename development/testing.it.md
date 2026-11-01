@@ -5,7 +5,7 @@
 ### API REST e OAuth sperimentali
 
 La suite REST verifica visibilità, ownership, relazioni e richieste, cache,
-OAuth/PKCE e disponibilità locale. Gli accessi collegati hanno test di isolamento
+OAuth/PKCE e disponibilità nei diversi ambienti. Gli accessi collegati hanno test di isolamento
 e revoca separati. Usare una cache di configurazione di test dedicata per non
 caricare la configurazione MySQL locale:
 
@@ -15,7 +15,7 @@ APP_CONFIG_CACHE=/tmp/openbook-rest-tests-config.php php vendor/bin/phpunit
 ```
 
 La prova con SDK reale, SQLite isolato e server loopback è descritta nella
-[guida client](../docs/api/clients.it.md). Eseguirla separatamente dai test
+[guida client](../docs/api/clients.it.md). È eseguibile anche con APP_ENV=production. Eseguirla separatamente dai test
 installer che rimuovono il marker installato. Le verifiche MySQL dei piani
 sono documentate nell’[analisi REST](../analysis/REST_SERVICE.md); SQLite non
 sostituisce EXPLAIN sui piani reali. Dispositivi iOS/Android e interoperabilità

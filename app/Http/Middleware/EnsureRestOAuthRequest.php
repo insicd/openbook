@@ -12,7 +12,6 @@ final class EnsureRestOAuthRequest
 {
     public function handle(Request $request, Closure $next): Response
     {
-        abort_unless(app()->environment('local', 'testing'), 404);
         abort_unless(InstallationLock::isInstalled(), 503);
 
         if ($request->routeIs('passport.token')) {

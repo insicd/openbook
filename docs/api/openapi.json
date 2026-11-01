@@ -3,7 +3,7 @@
   "info": {
     "title": "OpenBook REST API",
     "version": "0.1.0-draft",
-    "description": "Experimental first-sprint API for authenticated independent OpenBook applications, available only in local/testing. Covers instance metadata, current user, persons, posts and follow relationships. Property names and case-sensitive enum values use lowerCamelCase; OAuth protocol fields retain their standard wire names. Creation inputs use separate New<Entity> schemas with independently defined required and nullable fields. Further resources and production enablement are planned for later sprints."
+    "description": "Experimental first-sprint API for authenticated independent OpenBook applications. Covers instance metadata, current user, persons, posts and follow relationships, including production installations. Property names and case-sensitive enum values use lowerCamelCase; OAuth protocol fields retain their standard wire names. Creation inputs use separate New<Entity> schemas with independently defined required and nullable fields. Further resources are planned for later sprints."
   },
   "paths": {
     "/.well-known/oauth-authorization-server": {
@@ -18,7 +18,7 @@
           "OAuth"
         ],
         "summary": "Get OAuth authorization server metadata",
-        "description": "RFC 8414 metadata. This is an OAuth 2 authorization server, not an OpenID Connect provider. Available only for local development.",
+        "description": "RFC 8414 metadata. This is an OAuth 2 authorization server, not an OpenID Connect provider.",
         "security": [],
         "responses": {
           "200": {
@@ -96,7 +96,7 @@
       "get": {
         "operationId": "getInstance",
         "summary": "Get instance metadata",
-        "description": "Returns general metadata for the OpenBook instance serving this API. The name, description and custom icon reflect the instance settings; domain and base URL identify the configured instance. No usage statistics, contact information, limits or administrative settings are included. Requires an authenticated active account and a Bearer token, even though the metadata is not specific to a user. Uses private caching with ETag and If-None-Match. Authentication and access checks precede HTTP 304. Last-Modified is not emitted. Available only for local development.",
+        "description": "Returns general metadata for the OpenBook instance serving this API. The name, description and custom icon reflect the instance settings; domain and base URL identify the configured instance. No usage statistics, contact information, limits or administrative settings are included. Requires an authenticated active account and a Bearer token, even though the metadata is not specific to a user. Uses private caching with ETag and If-None-Match. Authentication and access checks precede HTTP 304. Last-Modified is not emitted.",
         "tags": [
           "Instance"
         ],
@@ -187,31 +187,6 @@
                   "type": "string"
                 },
                 "example": "Authorization"
-              }
-            }
-          },
-          "404": {
-            "description": "The experimental REST API is unavailable in this environment.",
-            "headers": {
-              "Cache-Control": {
-                "description": "Errors are not stored.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "no-store"
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "type": "about:blank",
-                  "title": "Not Found",
-                  "status": 404,
-                  "detail": "The person was not found or is not available through this endpoint."
-                }
               }
             }
           },
@@ -364,7 +339,7 @@
       "get": {
         "operationId": "getMe",
         "summary": "Get the authenticated user",
-        "description": "Returns the current authenticated user as a Me object containing myPerson. The identity is determined by the Bearer token. myPerson uses the same full Person representation returned by the person detail endpoint. This experimental operation is available only for local development. Conditional requests are evaluated only after authentication, current account status and availability checks.",
+        "description": "Returns the current authenticated user as a Me object containing myPerson. The identity is determined by the Bearer token. myPerson uses the same full Person representation returned by the person detail endpoint. Conditional requests are evaluated only after authentication, current account status and availability checks.",
         "tags": [
           "Me"
         ],
@@ -611,7 +586,7 @@
       "get": {
         "operationId": "getMyFollowRequests",
         "summary": "List incoming pending follow requests",
-        "description": "Returns a direct array of PersonReference objects for available people with a pending request to follow the authenticated user. Accepted, rejected and withdrawn requests are excluded. Requests addressed to community identities or other accounts are not included, regardless of staff roles. Reads only the state known by this instance; no remote fetch is performed. Supports after, limit (default 20, maximum 100), sort=personId and direction=asc or desc. cursor and page are not supported. Authentication and availability checks precede conditional responses. Available only for local development.",
+        "description": "Returns a direct array of PersonReference objects for available people with a pending request to follow the authenticated user. Accepted, rejected and withdrawn requests are excluded. Requests addressed to community identities or other accounts are not included, regardless of staff roles. Reads only the state known by this instance; no remote fetch is performed. Supports after, limit (default 20, maximum 100), sort=personId and direction=asc or desc. cursor and page are not supported. Authentication and availability checks precede conditional responses.",
         "tags": [
           "Persons"
         ],
@@ -751,30 +726,6 @@
                 "description": "The next page URL with rel=\"next\", when another page is available. Absent on the last page.",
                 "schema": {
                   "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "This experimental operation is unavailable in the current environment.",
-            "headers": {
-              "Cache-Control": {
-                "description": "Errors are not stored.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "no-store"
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "type": "about:blank",
-                  "title": "Not Found",
-                  "status": 404
                 }
               }
             }
@@ -957,7 +908,7 @@
       "patch": {
         "operationId": "acceptMyFollowRequest",
         "summary": "Accept an incoming pending follow request",
-        "description": "Accepts a pending request from personId addressed exclusively to the authenticated user. Requires a JSON PatchFollowRequest object containing only followStatus=accepted. Returns 204 with no body. Unknown, unavailable, withdrawn, already handled or other users' requests return 404. Staff roles do not permit acting on other accounts' requests. Requests addressed to community identities remain in the native interface. Responses use no-store. Available only for local development.",
+        "description": "Accepts a pending request from personId addressed exclusively to the authenticated user. Requires a JSON PatchFollowRequest object containing only followStatus=accepted. Returns 204 with no body. Unknown, unavailable, withdrawn, already handled or other users' requests return 404. Staff roles do not permit acting on other accounts' requests. Requests addressed to community identities remain in the native interface. Responses use no-store.",
         "tags": [
           "Persons"
         ],
@@ -1247,7 +1198,7 @@
       "delete": {
         "operationId": "rejectMyFollowRequest",
         "summary": "Reject an incoming pending follow request",
-        "description": "Rejects a pending request from personId addressed exclusively to the authenticated user. Returns 204 without a body. Unknown, unavailable, withdrawn, already handled or other users' requests return 404. This does not remove an accepted follower. Requests addressed to community identities are managed through the native interface. No request body is required. Authentication is required and responses use no-store. Available only for local development.",
+        "description": "Rejects a pending request from personId addressed exclusively to the authenticated user. Returns 204 without a body. Unknown, unavailable, withdrawn, already handled or other users' requests return 404. This does not remove an accepted follower. Requests addressed to community identities are managed through the native interface. No request body is required. Authentication is required and responses use no-store.",
         "tags": [
           "Persons"
         ],
@@ -1449,7 +1400,7 @@
       "get": {
         "operationId": "getMyPosts",
         "summary": "List posts published by the authenticated user",
-        "description": "Returns a direct array of Post objects authored by the authenticated user. Only published posts are included; deleted posts and private conversation messages are excluded. Includes the user's own restricted posts, community posts and quotes. Announces of other authors' posts are excluded. An authored post that has also been announced appears once in publication order, without postAnnounce or postTimelineAt. Uses newest-first publication order, with postId as the tie-breaker. Supports after, limit, sort and direction. engine, afterAt, cursor and page are not supported. No remote content is fetched. Requires an active authenticated account. Available only for local development. Conditional requests are evaluated after authentication and current account checks.",
+        "description": "Returns a direct array of Post objects authored by the authenticated user. Only published posts are included; deleted posts and private conversation messages are excluded. Includes the user's own restricted posts, community posts and quotes. Announces of other authors' posts are excluded. An authored post that has also been announced appears once in publication order, without postAnnounce or postTimelineAt. Uses newest-first publication order, with postId as the tie-breaker. Supports after, limit, sort and direction. engine, afterAt, cursor and page are not supported. No remote content is fetched. Requires an active authenticated account. Conditional requests are evaluated after authentication and current account checks.",
         "tags": [
           "Posts"
         ],
@@ -1807,7 +1758,7 @@
           "OAuth"
         ],
         "summary": "Register a public OAuth client",
-        "description": "Dynamic Client Registration using RFC 7591 metadata. No initial access token is required. Register once and retain client_id; each call creates a new registration. Public native and browser clients do not receive a client secret. Available only for local development.",
+        "description": "Dynamic Client Registration using RFC 7591 metadata. No initial access token is required. Register once and retain client_id; each call creates a new registration. Public native and browser clients do not receive a client secret.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -2003,7 +1954,7 @@
           "OAuth"
         ],
         "summary": "Exchange an authorization code or refresh token",
-        "description": "Standard OAuth 2 token exchange. Public clients send client_id in the form body without a client secret. PKCE S256 is required for authorization code exchange. Available only for local development.",
+        "description": "Standard OAuth 2 token exchange. Public clients send client_id in the form body without a client secret. PKCE S256 is required for authorization code exchange.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -2154,7 +2105,7 @@
       "get": {
         "operationId": "getPerson",
         "summary": "Get a person",
-        "description": "Returns the person identified by personId. Requires an authenticated active account with a Bearer token. Local and remote accounts use the same Person representation. Remote profile metadata and follower/following totals are refreshed when their caches expire, as on the website. If the remote server is unavailable, available cached data is returned. Remote content lists are not imported by this operation. Deleted accounts, unavailable profiles and resources not represented as Person return HTTP 404. Locally suspended profiles are not available in this initial version. Conditional requests are evaluated only after authentication, remote refresh and availability checks. Uses ETag and If-None-Match; Last-Modified is not emitted. Available only for local development.",
+        "description": "Returns the person identified by personId. Requires an authenticated active account with a Bearer token. Local and remote accounts use the same Person representation. Remote profile metadata and follower/following totals are refreshed when their caches expire, as on the website. If the remote server is unavailable, available cached data is returned. Remote content lists are not imported by this operation. Deleted accounts, unavailable profiles and resources not represented as Person return HTTP 404. Locally suspended profiles are not available in this initial version. Conditional requests are evaluated only after authentication, remote refresh and availability checks. Uses ETag and If-None-Match; Last-Modified is not emitted.",
         "tags": [
           "Persons"
         ],
@@ -2411,7 +2362,7 @@
       "get": {
         "operationId": "getPersonFollow",
         "summary": "Get your follow state towards a person",
-        "description": "Returns the authenticated user's outgoing Follow state towards this person. An available person with no outgoing follow returns 200 with followStatus=none, not 404. Reads the state currently known by this instance without fetching remote profiles or retrying follow requests. Local open accounts are normally accepted immediately; protected local accounts require approval. Remote non-feed identities remain pending until acceptance is received. A rejected or withdrawn request returns to none. The reverse relationship is not included. The current user's own relation can be read even for a private community identity; other members are not disclosed. Requires an authenticated active account. Available only for local development. Authentication and availability checks precede conditional responses.",
+        "description": "Returns the authenticated user's outgoing Follow state towards this person. An available person with no outgoing follow returns 200 with followStatus=none, not 404. Reads the state currently known by this instance without fetching remote profiles or retrying follow requests. Local open accounts are normally accepted immediately; protected local accounts require approval. Remote non-feed identities remain pending until acceptance is received. A rejected or withdrawn request returns to none. The reverse relationship is not included. The current user's own relation can be read even for a private community identity; other members are not disclosed. Requires an authenticated active account. Authentication and availability checks precede conditional responses.",
         "tags": [
           "Persons"
         ],
@@ -2685,7 +2636,7 @@
       "put": {
         "operationId": "followPerson",
         "summary": "Follow a person or request approval",
-        "description": "Creates or maintains the authenticated user's outgoing follow. No request body is required; the acting identity comes only from the Bearer token. Returns Follow with the resulting state: accepted for open local accounts and feeds, pending for protected local accounts and remote non-feed identities until acceptance arrives. Repeated requests reuse the relationship, but pending remote requests may be sent again. A pending local request may become accepted if the target has opened their account. Self-follow and inactive target accounts are refused with 422. New follows of remotely suspended identities return 403. Community identities follow their membership permissions, including the owner's membership protection. No response caching. Requires an authenticated active account. Available only for local development.",
+        "description": "Creates or maintains the authenticated user's outgoing follow. No request body is required; the acting identity comes only from the Bearer token. Returns Follow with the resulting state: accepted for open local accounts and feeds, pending for protected local accounts and remote non-feed identities until acceptance arrives. Repeated requests reuse the relationship, but pending remote requests may be sent again. A pending local request may become accepted if the target has opened their account. Self-follow and inactive target accounts are refused with 422. New follows of remotely suspended identities return 403. Community identities follow their membership permissions, including the owner's membership protection. No response caching. Requires an authenticated active account.",
         "tags": [
           "Persons"
         ],
@@ -2970,7 +2921,7 @@
       "delete": {
         "operationId": "unfollowPerson",
         "summary": "Stop following a person or withdraw a pending request",
-        "description": "Removes only the authenticated user's outgoing follow or withdraws their pending request. Returns 204 with no body even if the relation is already absent on an available person. Uses the normal unfollow behavior, including remote Undo delivery where applicable. A remotely suspended identity that remains available can still be unfollowed. Community owners cannot remove their own membership. An unavailable person returns 404 even if an old relation remains. No request body is required and no response caching is allowed. Requires an authenticated active account. Available only for local development.",
+        "description": "Removes only the authenticated user's outgoing follow or withdraws their pending request. Returns 204 with no body even if the relation is already absent on an available person. Uses the normal unfollow behavior, including remote Undo delivery where applicable. A remotely suspended identity that remains available can still be unfollowed. Community owners cannot remove their own membership. An unavailable person returns 404 even if an old relation remains. No request body is required and no response caching is allowed. Requires an authenticated active account.",
         "tags": [
           "Persons"
         ],
@@ -3196,7 +3147,7 @@
       "get": {
         "operationId": "getPersonFollowers",
         "summary": "List a person's followers",
-        "description": "Returns a paginated array of PersonReference objects for the specified person's followers. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This experimental operation is available only for local development and requires an authenticated user with a Bearer token. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after authentication and availability checks. PersonReference entries may identify individuals, applications, feeds or groups. Local private community membership is not exposed: their relationship collections return HTTP 403, and private community identities are omitted from relationship lists.",
+        "description": "Returns a paginated array of PersonReference objects for the specified person's followers. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This operation requires an authenticated user with a Bearer token. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after authentication and availability checks. PersonReference entries may identify individuals, applications, feeds or groups. Local private community membership is not exposed: their relationship collections return HTTP 403, and private community identities are omitted from relationship lists.",
         "tags": [
           "Persons"
         ],
@@ -3555,7 +3506,7 @@
       "get": {
         "operationId": "getPersonFollowing",
         "summary": "List a person's following",
-        "description": "Returns a paginated array of PersonReference objects for the specified person's following. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This experimental operation is available only for local development and requires an authenticated user with a Bearer token. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after authentication and availability checks. PersonReference entries may identify individuals, applications, feeds or groups. Local private community membership is not exposed: their relationship collections return HTTP 403, and private community identities are omitted from relationship lists.",
+        "description": "Returns a paginated array of PersonReference objects for the specified person's following. Only accepted follows are included. Remote lists contain only people already known to this instance and may be incomplete. This operation requires an authenticated user with a Bearer token. Profiles unavailable through the Person endpoint are excluded. Conditional requests are evaluated after authentication and availability checks. PersonReference entries may identify individuals, applications, feeds or groups. Local private community membership is not exposed: their relationship collections return HTTP 403, and private community identities are omitted from relationship lists.",
         "tags": [
           "Persons"
         ],
@@ -3914,7 +3865,7 @@
       "get": {
         "operationId": "listPersonPosts",
         "summary": "List a person's posts and announces",
-        "description": "Returns a direct array of Post objects matching the Posts tab of the specified profile: authored posts and selected announces, filtered by the authenticated user's visibility. Recent remote content is imported when due under the existing cache policy; unavailable remote servers fall back to locally available content. RSS/Atom profiles follow the configured feed refresh interval. Results are a partial local view, not a complete remote archive. The person detail operation does not perform this content import. Each entry includes postTimelineAt for ordering and, when applicable, postAnnounce identifying the profile's announce. Ordinary profiles order by the selected announce or publication time; groups use original publication time. The page size follows the website feed configuration and cannot be selected per request. Follow the next Link using after plus afterAt. limit, cursor, page and engine are not accepted. Revalidation is performed after refresh, availability and access checks. Local private community walls require membership or ownership. Requires an authenticated active account and a Bearer token. Available only for local development.",
+        "description": "Returns a direct array of Post objects matching the Posts tab of the specified profile: authored posts and selected announces, filtered by the authenticated user's visibility. Recent remote content is imported when due under the existing cache policy; unavailable remote servers fall back to locally available content. RSS/Atom profiles follow the configured feed refresh interval. Results are a partial local view, not a complete remote archive. The person detail operation does not perform this content import. Each entry includes postTimelineAt for ordering and, when applicable, postAnnounce identifying the profile's announce. Ordinary profiles order by the selected announce or publication time; groups use original publication time. The page size follows the website feed configuration and cannot be selected per request. Follow the next Link using after plus afterAt. limit, cursor, page and engine are not accepted. Revalidation is performed after refresh, availability and access checks. Local private community walls require membership or ownership. Requires an authenticated active account and a Bearer token.",
         "tags": [
           "Posts"
         ],
@@ -4300,7 +4251,7 @@
       "get": {
         "operationId": "listPosts",
         "summary": "List posts",
-        "description": "Returns a direct array of posts. The default world engine matches the World section: cached public remote posts with its visibility and content-warning exclusions. The timeline engine matches the authenticated user's home feed, including relevant announces. Each post appears once; postAuthor and postPublishedAt always describe the original post. postAnnounce is an optional Post property for either engine, present when the entry has a selected announce context. The timeline selects the latest relevant announce and also includes postTimelineAt. World lists original posts without selecting an announce context. No remote fetch is triggered. Polls, quotes and community details are not yet represented. Requires an authenticated active account. Available only for local development. Revalidation uses ETag and If-None-Match; Last-Modified is not emitted in this version.",
+        "description": "Returns a direct array of posts. The default world engine matches the World section: cached public remote posts with its visibility and content-warning exclusions. The timeline engine matches the authenticated user's home feed, including relevant announces. Each post appears once; postAuthor and postPublishedAt always describe the original post. postAnnounce is an optional Post property for either engine, present when the entry has a selected announce context. The timeline selects the latest relevant announce and also includes postTimelineAt. World lists original posts without selecting an announce context. No remote fetch is triggered. Polls, quotes and community details are not yet represented. Requires an authenticated active account. Revalidation uses ETag and If-None-Match; Last-Modified is not emitted in this version.",
         "tags": [
           "Posts"
         ],
@@ -4710,7 +4661,7 @@
       "post": {
         "operationId": "createPost",
         "summary": "Create a text post",
-        "description": "Creates a text post as the authenticated user. The body is a NewPost object with explicit text and audience; all other properties are rejected in this initial version. Text length follows the instance's configured limit. Hashtags and mentions use the same behavior as website publishing; only local accounts and remote accounts already known to the instance are resolved as mentions. The response is the full Post representation without feed context. HTTP 201 confirms local publication, not delivery to every remote server. Repeating POST may create another post; an error does not guarantee that no post was created. Requires an authenticated active account and a Bearer token. Available only for local development.",
+        "description": "Creates a text post as the authenticated user. The body is a NewPost object with explicit text and audience; all other properties are rejected in this initial version. Text length follows the instance's configured limit. Hashtags and mentions use the same behavior as website publishing; only local accounts and remote accounts already known to the instance are resolved as mentions. The response is the full Post representation without feed context. HTTP 201 confirms local publication, not delivery to every remote server. Repeating POST may create another post; an error does not guarantee that no post was created. Requires an authenticated active account and a Bearer token.",
         "tags": [
           "Posts"
         ],
@@ -5009,7 +4960,7 @@
       "get": {
         "operationId": "getPost",
         "summary": "Get a post",
-        "description": "Returns a single published Post visible to the authenticated user. Private messages are excluded. Remote posts use the same refresh policy as their website detail page: replies and reaction totals are refreshed when due. If the remote server is unavailable, available cached data is returned. Availability and visibility are checked again after refresh, before returning data or HTTP 304. The detail has no selected announce context and omits postAnnounce and postTimelineAt. Polls, quotes and community details are not yet represented. Uses ETag and If-None-Match; Last-Modified is not emitted. Requires an authenticated active account. Available only for local development.",
+        "description": "Returns a single published Post visible to the authenticated user. Private messages are excluded. Remote posts use the same refresh policy as their website detail page: replies and reaction totals are refreshed when due. If the remote server is unavailable, available cached data is returned. Availability and visibility are checked again after refresh, before returning data or HTTP 304. The detail has no selected announce context and omits postAnnounce and postTimelineAt. Polls, quotes and community details are not yet represented. Uses ETag and If-None-Match; Last-Modified is not emitted. Requires an authenticated active account.",
         "tags": [
           "Posts"
         ],
@@ -5292,7 +5243,7 @@
       "patch": {
         "operationId": "patchPost",
         "summary": "Edit a simple post",
-        "description": "Partially edits a published local post owned by the authenticated user. Send a PatchPost JSON object containing postContent, postVisibility, or both. Supplied values follow the same constraints as NewPost. Omitted properties are preserved, including any existing title, content warning and language. This initial version supports only posts without attachments, location, polls, communities or quotes, and with a public, unlisted or followers audience. Unsupported posts return 409 without changes. The response is the updated Post without feed context. Hashtags, mentions, notifications and federation follow website editing. Staff privileges do not permit editing other users' posts through this API. Requires an authenticated active account. Available only for local development.",
+        "description": "Partially edits a published local post owned by the authenticated user. Send a PatchPost JSON object containing postContent, postVisibility, or both. Supplied values follow the same constraints as NewPost. Omitted properties are preserved, including any existing title, content warning and language. This initial version supports only posts without attachments, location, polls, communities or quotes, and with a public, unlisted or followers audience. Unsupported posts return 409 without changes. The response is the updated Post without feed context. Hashtags, mentions, notifications and federation follow website editing. Staff privileges do not permit editing other users' posts through this API. Requires an authenticated active account.",
         "tags": [
           "Posts"
         ],
@@ -5643,7 +5594,7 @@
       "delete": {
         "operationId": "deletePost",
         "summary": "Delete an owned local post",
-        "description": "Deletes a local post owned by the authenticated user, using the same deletion and federation behavior as the website. This operation also supports posts outside the simple editing scope. Private messages are excluded. Already deleted posts return 404 immediately after authentication and the initial resource lookup, before deletion authorization or deletion processing. Unknown or unavailable posts, including other users' posts, also return 404. Staff privileges do not grant access to other users' posts through this API. A subsequent GET of the deleted post returns 404. No request or response body is required. Requires an authenticated active account. Available only for local development.",
+        "description": "Deletes a local post owned by the authenticated user, using the same deletion and federation behavior as the website. This operation also supports posts outside the simple editing scope. Private messages are excluded. Already deleted posts return 404 immediately after authentication and the initial resource lookup, before deletion authorization or deletion processing. Unknown or unavailable posts, including other users' posts, also return 404. Staff privileges do not grant access to other users' posts through this API. A subsequent GET of the deleted post returns 404. No request or response body is required. Requires an authenticated active account.",
         "tags": [
           "Posts"
         ],
@@ -5846,7 +5797,7 @@
       "put": {
         "operationId": "announcePost",
         "summary": "Announce a post",
-        "description": "Adds the authenticated user's manual announce to a published, visible public or unlisted post outside private communities. No request body is required. Repeated requests do not create duplicate announces or repeat notifications and deliveries. An implicit share associated with a quote is promoted to a manual announce without counting it twice. Read postMyInteractions.postDirectAnnounced for the current user's manual announce state; postAnnounce represents feed context instead. Private messages and unavailable posts return 404. Visible posts with restricted visibility or in private communities, and remotely suspended authors, return 403. Returns no response body. Requires an authenticated active account. Available only for local development.",
+        "description": "Adds the authenticated user's manual announce to a published, visible public or unlisted post outside private communities. No request body is required. Repeated requests do not create duplicate announces or repeat notifications and deliveries. An implicit share associated with a quote is promoted to a manual announce without counting it twice. Read postMyInteractions.postDirectAnnounced for the current user's manual announce state; postAnnounce represents feed context instead. Private messages and unavailable posts return 404. Visible posts with restricted visibility or in private communities, and remotely suspended authors, return 403. Returns no response body. Requires an authenticated active account.",
         "tags": [
           "Posts"
         ],
@@ -6065,7 +6016,7 @@
       "delete": {
         "operationId": "unannouncePost",
         "summary": "Remove a post announce",
-        "description": "Removes only the authenticated user's manual announce. Returns 204 if removed or already absent on a visible published post. An existing manual announce can also be removed if the original has become invisible, restricted, or its remote author is suspended. Once removed, further requests for an invisible post return 404. Published quotes and their implicit shares are preserved, so postMyInteractions.postAnnounced may remain true while postDirectAnnounced becomes false. Deleted posts and private messages always return 404. No request or response body. Requires an authenticated active account. Available only for local development.",
+        "description": "Removes only the authenticated user's manual announce. Returns 204 if removed or already absent on a visible published post. An existing manual announce can also be removed if the original has become invisible, restricted, or its remote author is suspended. Once removed, further requests for an invisible post return 404. Published quotes and their implicit shares are preserved, so postMyInteractions.postAnnounced may remain true while postDirectAnnounced becomes false. Deleted posts and private messages always return 404. No request or response body. Requires an authenticated active account.",
         "tags": [
           "Posts"
         ],
@@ -6267,7 +6218,7 @@
       "put": {
         "operationId": "likePost",
         "summary": "Like a post",
-        "description": "Adds the authenticated user's like to a published, visible post. No request body is required. Repeated requests do not create duplicate likes, increment counts again, or repeat notifications. Private messages and unavailable posts return 404. Interactions with remotely suspended authors are refused with 403. Uses the same reaction behavior as the website. Returns no response body. Requires an authenticated active account. Available only for local development.",
+        "description": "Adds the authenticated user's like to a published, visible post. No request body is required. Repeated requests do not create duplicate likes, increment counts again, or repeat notifications. Private messages and unavailable posts return 404. Interactions with remotely suspended authors are refused with 403. Uses the same reaction behavior as the website. Returns no response body. Requires an authenticated active account.",
         "tags": [
           "Posts"
         ],
@@ -6487,7 +6438,7 @@
       "delete": {
         "operationId": "unlikePost",
         "summary": "Remove a like",
-        "description": "Removes the authenticated user's like from a published, visible post. No request body is required. Returns 204 even if the like is already absent. Private messages and unavailable posts return 404. Uses the same reaction behavior as the website. Returns no response body. Requires an authenticated active account. Available only for local development.",
+        "description": "Removes the authenticated user's like from a published, visible post. No request body is required. Returns 204 even if the like is already absent. Private messages and unavailable posts return 404. Uses the same reaction behavior as the website. Returns no response body. Requires an authenticated active account.",
         "tags": [
           "Posts"
         ],

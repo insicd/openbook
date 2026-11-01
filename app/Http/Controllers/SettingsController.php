@@ -28,10 +28,8 @@ class SettingsController extends Controller
 
     public function edit(Request $request, ConnectedApplications $applications): View
     {
-        $applicationsEnabled = app()->environment('local', 'testing');
         $activeTab = $request->query('tab', 'profile');
-        if (! in_array($activeTab, ['profile', 'account', 'notifications', 'migration', 'import_export'], true)
-            && ! ($applicationsEnabled && $activeTab === 'applications')) {
+        if (! in_array($activeTab, ['profile', 'account', 'notifications', 'migration', 'import_export', 'applications'], true)) {
             $activeTab = 'profile';
         }
         $user = $request->user();

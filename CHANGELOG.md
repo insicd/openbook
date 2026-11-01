@@ -33,8 +33,9 @@ la [roadmap](docs/roadmap.md).
   chiudere la sessione Web; durata dei nuovi token configurabile in giorni
   con `OPENBOOK_OAUTH_TOKEN_DURATION` (default 365). Applicare le migrazioni
   OAuth, generare una volta le chiavi Passport e preservarle negli aggiornamenti.
-  Supporto limitato a local/testing; produzione e integrazione installer/updater
-  rinviate. Commenti, community, eventi, notifiche, hashtag e upload media
+  Supporto autenticato disponibile anche in produzione, con migrazioni OAuth,
+  chiavi Passport predisposte e cache aggiornate. Commenti, community, eventi,
+  notifiche, hashtag e upload media
   saranno completati negli sprint successivi.
 - **Segnalazioni federate (#119)**: le attività `Flag`
   vengono elaborate dall'inbox ActivityPub ordinaria e registrate come casi di

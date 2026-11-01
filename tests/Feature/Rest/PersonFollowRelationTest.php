@@ -257,7 +257,7 @@ class PersonFollowRelationTest extends TestCase
         $this->assertTrue(app(FollowManager::class)->isFollowing($target, $this->viewer->actor));
     }
 
-    public function test_authentication_scope_account_and_environment_are_checked_before_cache(): void
+    public function test_authentication_and_scope_are_checked_before_cache_and_production_writes_are_available(): void
     {
         $target = $this->createFullAccount('authfollow')->actor;
         $etag = $this->getJson($this->url($target))->headers->get('ETag');
@@ -277,8 +277,8 @@ class PersonFollowRelationTest extends TestCase
         $this->delete($this->url($target))->assertForbidden();
         $this->viewer->actor->update(['status' => Actor::STATUS_ACTIVE]);
         $this->app->detectEnvironment(fn () => 'production');
-        $this->getJson($this->url($target))->assertNotFound();
-        $this->put($this->url($target))->assertNotFound();
-        $this->delete($this->url($target))->assertNotFound();
+        $this->getJson($this->url($target))->assertStatus(304);
+        $this->put($this->url($target))->assertCreated()->assertExactJson(['followStatus' => 'accepted']);
+        $this->delete($this->url($target))->assertNoContent();
     }
 }

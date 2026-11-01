@@ -181,6 +181,18 @@ php artisan view:cache
 ```
 
 
+## REST/OAuth preparation
+
+The authenticated REST API is available in production as well as development.
+Apply the normal database migrations after installing Composer dependencies.
+Provision the Passport key pair once with `php artisan passport:keys` and
+preserve `storage/oauth-*.key` on subsequent deployments; do not regenerate
+existing keys as part of routine updates. Keep APP_ENV=production,
+APP_DEBUG=false, HTTPS APP_URL and Secure session cookies in production.
+Refresh configuration and route caches after deployment. The
+[API guide](api/README.md) documents the supported first-sprint operations,
+token lifetime and connected-access management.
+
 ## Web server configuration
 
 Openbook is a Laravel application: the web server **document root must point

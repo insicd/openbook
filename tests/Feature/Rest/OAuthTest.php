@@ -320,12 +320,34 @@ class OAuthTest extends TestCase
         $this->assertDatabaseCount('oauth_clients', 1);
     }
 
-    public function test_environment_guards_apply_even_with_cached_routes(): void
+    public function test_production_login_exchange_refresh_rest_and_revocation(): void
     {
         $this->app->instance('env', 'production');
-        $this->get('/oauth/authorize?'.http_build_query($this->authorizationParameters()))->assertNotFound();
-        $this->post('/oauth/token', ['grant_type' => 'authorization_code'])->assertNotFound();
-        $this->postJson('/oauth/register', [])->assertNotFound();
-        $this->get('/.well-known/oauth-authorization-server')->assertNotFound();
+        $this->get('/.well-known/oauth-authorization-server')->assertOk();
+        $this->postJson('/oauth/register', [])->assertStatus(400);
+        $this->post('/oauth/token', ['grant_type' => 'password'])->assertStatus(400);
+        $this->getJson('/rest/v1/me')->assertUnauthorized();
+        $this->get('/oauth/authorize?'.http_build_query($this->authorizationParameters(['code_challenge_method' => 'plain'])))->assertStatus(400);
+        $user = $this->createFullAccount('productionoauth');
+        $this->withSession(['_token' => 'production-csrf'])->withHeader('X-CSRF-TOKEN', 'production-csrf');
+        $this->login($user);
+        $this->withHeader('X-CSRF-TOKEN', $this->app['session']->token());
+        $page = $this->get('/oauth/authorize?'.http_build_query($this->authorizationParameters()))->assertOk();
+        $response = $this->post('/oauth/authorize', [
+            'state' => $this->state, 'client_id' => $this->client->id, 'auth_token' => $page->viewData('authToken'),
+        ])->assertRedirect();
+        parse_str(parse_url($response->headers->get('Location'), PHP_URL_QUERY), $query);
+        $tokens = $this->exchange($query['code'])->assertOk()->json();
+        $renewed = $this->post('/oauth/token', ['grant_type' => 'refresh_token', 'client_id' => $this->client->id,
+            'refresh_token' => $tokens['refresh_token']])->assertOk()->json();
+        $this->withToken($renewed['access_token']);
+        $first = $this->getJson('/rest/v1/me')->assertOk()->assertJsonPath('myPerson.personId', $user->actor->id);
+        $this->withHeader('If-None-Match', $first->headers->get('ETag'))->getJson('/rest/v1/me')->assertStatus(304);
+        $active = Token::query()->where('user_id', $user->id)->where('revoked', false)->firstOrFail();
+        $this->delete(route('settings.applications.destroy', ['access' => $active->id]))->assertRedirect();
+        $this->getJson('/rest/v1/me')->assertUnauthorized();
+        $this->post('/oauth/token', ['grant_type' => 'refresh_token', 'client_id' => $this->client->id,
+            'refresh_token' => $renewed['refresh_token']])->assertStatus(400);
+        $this->get(route('settings.edit', ['tab' => 'applications']))->assertOk()->assertViewHas('activeTab', 'applications');
     }
 }

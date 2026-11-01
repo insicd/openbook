@@ -4,9 +4,7 @@
            class="ob-profile-tabs__tab {{ $activeTab === $tab ? 'is-active' : '' }}"
            @if ($activeTab === $tab) aria-current="page" @endif>{{ __('openbook.settings.'.$label) }}</a>
     @endforeach
-    @if (app()->environment('local', 'testing'))
-        <a href="{{ route('settings.edit', ['tab' => 'applications']) }}"
-           class="ob-profile-tabs__tab {{ $activeTab === 'applications' ? 'is-active' : '' }}"
-           @if ($activeTab === 'applications') aria-current="page" @endif>{{ __('oauth.applications') }}</a>
-    @endif
+    <a href="{{ route('settings.edit', ['tab' => 'applications']) }}"
+       class="ob-profile-tabs__tab {{ $activeTab === 'applications' ? 'is-active' : '' }}"
+       @if ($activeTab === 'applications') aria-current="page" @endif>{{ __('oauth.applications') }}</a>
 </nav>

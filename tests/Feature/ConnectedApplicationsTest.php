@@ -139,15 +139,19 @@ class ConnectedApplicationsTest extends TestCase
         $this->assertCount(1, $second->items());
     }
 
-    public function test_production_does_not_expose_the_prototype_settings_even_with_cached_routes(): void
+    public function test_production_lists_and_revokes_connected_accesses_with_csrf(): void
     {
         $user = $this->createFullAccount('productionowner');
         $token = $this->access($user, $this->client());
         $this->app->instance('env', 'production');
         $this->actingAs($user)->get(route('settings.edit', ['tab' => 'applications']))
-            ->assertOk()->assertViewHas('activeTab', 'profile')->assertDontSee(__('oauth.applications'));
+            ->assertOk()->assertViewHas('activeTab', 'applications')->assertSee(__('oauth.applications'));
         $this->withSession(['_token' => 'production-csrf'])
-            ->delete(route('settings.applications.destroy', ['access' => $token->id]), ['_token' => 'production-csrf'])->assertNotFound();
+            ->delete(route('settings.applications.destroy', ['access' => $token->id]))->assertStatus(419);
         $this->assertFalse($token->fresh()->revoked);
+        $this->withSession(['_token' => 'production-csrf'])
+            ->delete(route('settings.applications.destroy', ['access' => $token->id]), ['_token' => 'production-csrf'])->assertRedirect(route('settings.edit', ['tab' => 'applications']));
+        $this->assertTrue($token->fresh()->revoked);
+        $this->assertTrue($token->refreshToken->revoked);
     }
 }

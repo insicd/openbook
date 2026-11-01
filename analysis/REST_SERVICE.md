@@ -13,9 +13,11 @@ non replica l’API Mastodon e non esporta gli oggetti ActivityPub come payload 
 Semplicità: risorse esplicite, metodi standard, path prevedibili e rappresentazioni
 comuni a locali/remoti; nomenclatura ActivityPub conservata quando appropriata.
 
-Lo sprint è sperimentale e limitato a local/testing. Bootstrap e middleware
-escludono REST/OAuth in produzione anche con cache route proveniente da locale.
-Installer/updater e rollout in produzione sono rinviati. Amministrazione,
+Lo sprint è sperimentale per copertura e contratto, ma disponibile anche in
+produzione. Bootstrap registra REST/OAuth in ogni ambiente; middleware e
+impostazioni non applicano filtri su APP_ENV. Restano i controlli di installazione,
+autenticazione e autorizzazione. Migrazioni OAuth e chiavi Passport devono essere
+predisposte; config/route cache aggiornate dopo il deploy. Amministrazione,
 moderazione, staff, credenziali, eliminazione account e gestione degli accessi
 rimangono nella UI nativa. Un account admin non riceve deleghe REST su altri.
 
@@ -346,8 +348,9 @@ grafo o dei post. Le nuove tabelle sono quelle OAuth di Passport, con UUID
 compatibili con gli account; nessuna migrazione del modello sociale.
 
 Restano shared hosting e i normali flussi di consegna, senza nuovi obblighi di
-Redis, worker permanenti o servizi esterni. Installer/updater di produzione,
-attivazione delle route e politica operativa di rilascio sono rinviati.
+Redis, worker permanenti o servizi esterni. Le normali migrazioni installano le
+tabelle OAuth; le chiavi Passport si predispongono una volta, conservandole negli
+aggiornamenti. Ulteriori automatismi di provisioning rimangono separati.
 
 ## 9. Verifiche e riproducibilità
 
@@ -380,25 +383,34 @@ e gli eventuali limiti rimasti sono registrati nell’esito seguente.
 Review rispetto a upstream/main aggiornato, base comune 2ca1788: nessun problema
 critico o bloccante individuato. Consolidate le risposte 422 nei soli controller
 REST; estratti tre schemi Problem Details identici nell'OpenAPI senza variazione
-del contratto. Corrette le descrizioni 403/404 della lista personale di richieste,
-che non rappresenta un elenco di membri di community. Confronto semantico degli
+del contratto. La lista personale di richieste non rappresenta un elenco di membri di
+community; le risposte 404 dovute solo al precedente filtro di ambiente sono
+state rimosse dalla specifica di questa lista e del dettaglio Instance. Confronto semantico degli
 schemi e delle operazioni precedenti superato. Nessuna nuova logica del Core.
 
 | Verifica | Esito finale |
 | --- | --- |
-| Suite completa PHPUnit, codice finale | 2241 test, 17043 asserzioni, 130 skipped, nessun errore/fallimento. |
-| REST, accessi collegati, elenchi condivisi | 167 test, 1963 asserzioni superati dopo la pulizia del codice. |
-| Follow/richieste personali | 26 test, 286 asserzioni; inclusi admin senza delega, richieste di community escluse, payload rigorosi e richieste già gestite. |
-| OpenAPI e inventario | Specifica valida, 406 esempi validi, tutte le 22 operazioni REST presenti nelle guide italiana e inglese. |
-| SDK OAuth reale | Registrazione, PKCE/state, login/consenso con CSRF, callback, scambio, REST 200/304/401, revoca accesso/refresh e sessione Web conservata: superati con SQLite/loopback isolati. |
+| Suite completa PHPUnit, codice finale | 2243 test, 17099 asserzioni, 130 skipped, nessun errore/fallimento. |
+| REST e accessi collegati | 152 test, 1932 asserzioni, inclusi i flussi con ambiente production; ulteriori due test production coprono post e richieste (34 asserzioni). |
+| Autorizzazioni | Coperti admin senza delega, richieste di community escluse, payload rigorosi, richieste già gestite, credenziali assenti, PKCE obbligatorio e CSRF sulla revoca in produzione. |
+| OpenAPI e inventario | Specifica valida, 402 esempi validi, tutte le 22 operazioni REST presenti nelle guide italiana e inglese. |
+| SDK OAuth reale | Registrazione, PKCE/state, login/consenso con CSRF, callback, scambio, REST 200/304/401, revoca accesso/refresh e sessione Web conservata: superati anche con APP_ENV=production e SQLite/loopback isolati. |
 | MySQL richieste ricevute | 32 fixture in rollback, GET 200 e PATCH/DELETE 204; indice following/status per la coda, unico follower/following e PK per decisioni/identità. Consegne simulate, nessun fetch remoto. |
 | Controlli statici | Composer validate, Pint, diff --check, link relativi delle guide e ricerca di segreti nei file modificati: superati. |
+
+Il bootstrap con APP_ENV=production e cache route separata registra tutte le
+22 operazioni REST, gli endpoint OAuth e la revoca accessi. I vecchi test di
+inaccessibilità sono sostituiti da test dei flussi autenticati; nessun guard
+su installazione, Bearer, scope, account o CSRF è stato rimosso. La fixture SDK
+verifica che il bootstrap produzione forzi HTTPS, poi adatta soltanto URL e
+cookie al trasporto HTTP del proprio server loopback. Non è una prova di TLS
+del deploy e non modifica il comportamento HTTPS dell'applicazione.
 
 Le 130 esclusioni restano visibili nel risultato PHPUnit: non si dichiara che
 ogni test condizionale sia stato eseguito. Nessuna istanza MariaDB dedicata o
 prova su dispositivo iOS/Android in questa sessione. Le verifiche SDK via HTTP
-non sono un test grafico del browser. Questi limiti non abilitano implicitamente
-il prototipo in produzione.
+non sono un test grafico del browser. Questi limiti non introducono restrizioni
+di ambiente per il supporto autenticato.
 
 ## 10. Roadmap successiva e questioni aperte
 
@@ -419,7 +431,7 @@ anche risorse proprie. Community/Event non diventano sottotipi di Post, e non
 si introducono alias /me/following o /me/followers. La gestione delle richieste
 di partecipazione dell’organizzatore dovrà essere delimitata rispetto allo staff.
 
-Prima della produzione: integrazione installer/updater, abilitazione esplicita,
-politica di evoluzione/versionamento e compatibilità, ulteriori test operativi.
+Per le evoluzioni successive: automatismi di provisioning, politica di
+versionamento e compatibilità e ulteriori test operativi.
 La seconda PR estenderà le entità mancanti sopra; questo sprint non le dichiara
 già supportate né promette parità funzionale completa con il Web.

@@ -6,11 +6,11 @@ This sprint opens OpenBook to independent applications: native clients,
 specialized frontends and third-party integrations. The native interface
 continues to manage the product and all administrative operations.
 
-**Support is experimental and enabled only in local/testing.** REST/OAuth routes
-and connected-app management are unavailable in production, including with
-cached local routes. Normal installer/updater integration and production
-enablement are deferred. This is neither a Mastodon API nor an ActivityPub
-representation.
+**Support is experimental in coverage and contract, and is available in
+production too.** REST/OAuth and connected accesses do not depend on APP_ENV.
+A completed installation, OAuth migrations, Passport keys and secure instance
+configuration remain required. This is neither a Mastodon API nor an ActivityPub
+representation. Deployment preparation is described below.
 
 ## Supported operations
 
@@ -196,11 +196,16 @@ clients without website cookies. Per-address minute limits: 60 REST calls,
 remain those of OpenBook; local success does not guarantee remote delivery.
 Clients must treat content, names and URLs as untrusted data.
 
-## Local preparation
+## Deployment preparation
 
 Install Composer dependencies and apply OAuth migrations. Generate keys once
 with `php artisan passport:keys` and preserve `storage/oauth-*.key`; do not
-overwrite them on routine updates. Refresh configuration and route caches.
+overwrite them on routine updates. For production, use APP_ENV=production,
+APP_DEBUG=false, an HTTPS APP_URL and secure session cookies
+(SESSION_SECURE_COOKIE=true). Apply migrations using php artisan migrate --force
+after installing dependencies. Refresh configuration and route caches after
+deployment: an old route cache may still omit the REST routes. Automatic key
+generation by the web installer is not required; provision the keys once as above.
 No new mandatory Redis, permanent worker or external service is introduced.
 
 ```sh
@@ -216,5 +221,5 @@ PKCE support cannot complete this flow automatically.
 A second PR is planned to extend Comment, Community, Event, Notification and
 Hashtag resources and their relationships. Media upload and complex post writes
 need dedicated contracts; they are not implemented by this sprint.
-Production enablement, installer/updater, date-based caching, search, polls,
+Further key-provisioning automation, date-based caching, search, polls,
 messaging and further settings remain to be defined.

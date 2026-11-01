@@ -6,11 +6,11 @@ Questo sprint apre OpenBook alle applicazioni indipendenti: app native,
 frontend specializzati e integrazioni di terzi. La UI nativa continua a
 gestire il prodotto e tutte le operazioni amministrative.
 
-**Il supporto è sperimentale e attivo soltanto in local/testing.** In produzione
-le route REST/OAuth e la gestione delle app collegate non sono disponibili,
-anche se vengono riutilizzate cache di route locali. L’integrazione nel normale
-installer/updater e l’abilitazione in produzione sono rinviate. Non è un’API
-Mastodon né una rappresentazione ActivityPub.
+**Il supporto è sperimentale per copertura e contratto, ed è utilizzabile anche
+in produzione.** REST/OAuth e gestione degli accessi non dipendono da APP_ENV.
+Restano obbligatori installazione completata, migrazioni OAuth, chiavi Passport
+e configurazione sicura dell’istanza. Non è un’API Mastodon né una rappresentazione
+ActivityPub. La preparazione operativa è descritta sotto.
 
 ## Funzionalità disponibili
 
@@ -199,12 +199,18 @@ e 10 registrazioni al minuto. Servizi di federazione e protezioni degli URL
 restano quelli di OpenBook; successo locale non garantisce consegna remota.
 I client devono trattare contenuti, nomi e URL come dati non fidati.
 
-## Preparazione locale
+## Preparazione e produzione
 
 Installare le dipendenze Composer e applicare le migrazioni OAuth. Generare
 le chiavi una sola volta con `php artisan passport:keys` e preservare i file
 `storage/oauth-*.key`; non sovrascriverli negli aggiornamenti ordinari.
-Aggiornare cache di configurazione e route. Nessun Redis, worker permanente
+Per la produzione usare APP_ENV=production, APP_DEBUG=false, APP_URL HTTPS e
+cookie di sessione sicuri (SESSION_SECURE_COOKIE=true). Applicare le migrazioni
+con php artisan migrate --force dopo aver installato le dipendenze. Aggiornare
+cache di configurazione e route dopo il deploy; una vecchia cache può conservare
+l’assenza delle route REST. L’eventuale generazione automatica delle chiavi dal
+Web installer non è richiesta: predisporle una volta come sopra.
+Nessun Redis, worker permanente
 o servizio esterno nuovo è richiesto.
 
 ```sh
@@ -220,5 +226,5 @@ Se il client non supporta PKCE, non completa il flusso automaticamente.
 La seconda PR è prevista per ampliare le entità Comment, Community, Event,
 Notification e Hashtag e le loro relazioni. Upload Media e post complessi
 richiedono contratti dedicati. Non sono già implementati da questo sprint.
-Attivazione in produzione, installer/updater, cache basata sulle date,
+Ulteriori automatismi di provisioning delle chiavi, cache basata sulle date,
 ricerca, sondaggi, messaggistica e ulteriori impostazioni restano da definire.

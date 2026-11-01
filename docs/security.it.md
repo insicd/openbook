@@ -17,7 +17,7 @@ Per segnalare vulnerabilita' vedi [`SECURITY.md`](../SECURITY.md).
 
 ## API REST sperimentale
 
-Il primo sprint REST/OAuth è disponibile soltanto in local/testing. Le risorse
+Il primo sprint REST/OAuth è disponibile anche in produzione. Le risorse
 richiedono Bearer valido, scope api e account/attore attivi; le credenziali Web
 non autorizzano l’API. OAuth usa Authorization Code con PKCE S256 e consenso
 con CSRF. Gli accessi sono revocabili dalle impostazioni insieme ai refresh

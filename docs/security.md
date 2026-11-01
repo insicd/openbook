@@ -17,7 +17,7 @@ To report vulnerabilities see [`SECURITY.md`](../SECURITY.md).
 
 ## Experimental REST API
 
-The first REST/OAuth sprint is available only in local/testing. Resources
+The first REST/OAuth sprint is available in production as well. Resources
 require a valid Bearer, scope api and active user/actor; website credentials
 do not authorize API calls. OAuth uses Authorization Code with PKCE S256 and
 CSRF-protected consent. Settings can revoke accesses together with refresh

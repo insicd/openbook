@@ -455,8 +455,8 @@ selectors with the website instead of duplicating graph logic. User gains only
 the Passport authentication contract/trait; existing domain flows remain intact.
 OAuth and connected-access management have dedicated integration points.
 
-REST/OAuth routes and the access panel are restricted to local/testing, with
-runtime guards for cached routes as well. The public contract is in
+REST/OAuth routes and the access panel are registered in every environment,
+including production; installed-state, authentication and authorization guards remain. The public contract is in
 [docs/api](../docs/api/README.md); consolidated boundaries, decisions and roadmap
 are in [REST_SERVICE](../analysis/REST_SERVICE.md). Compare new entities and writes
 with existing website flows first, including checks in controllers as well as

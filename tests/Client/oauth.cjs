@@ -116,7 +116,7 @@ let server;
         const afterClose = await browser(`${base}/impostazioni?tab=applications`);
         assert.equal(afterClose.status, 200);
         assert((await afterClose.text()).includes('There are no apps connected to your account.'));
-        console.log('PASS: dynamic registration, SDK PKCE/state, existing login, callback, SDK exchange, REST 200/304/401, settings close with CSRF, revoked Bearer/refresh, website session preserved');
+        console.log('PASS ['+(process.env.OPENBOOK_OAUTH_TEST_ENV || 'local')+']: dynamic registration, SDK PKCE/state, existing login, callback, SDK exchange, REST 200/304/401, settings close with CSRF, revoked Bearer/refresh, website session preserved');
     } finally {
         if (server && server.exitCode === null) { server.kill(); await once(server, 'exit'); }
         fs.rmSync(directory, { recursive: true, force: true });

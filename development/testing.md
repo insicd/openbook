@@ -5,8 +5,8 @@
 ### Experimental REST and OAuth
 
 REST tests cover visibility, ownership, relationships and requests, caching,
-OAuth/PKCE and local availability. Connected accesses have separate isolation
-and revocation tests. Use a dedicated test configuration-cache path to avoid
+OAuth/PKCE and availability across environments. Connected accesses have separate
+isolation and revocation tests. Use a dedicated test configuration-cache path to avoid
 loading the local MySQL configuration:
 
 ```sh
@@ -15,8 +15,8 @@ APP_CONFIG_CACHE=/tmp/openbook-rest-tests-config.php php vendor/bin/phpunit
 ```
 
 The real-SDK check with isolated SQLite and a loopback server is described in
-the [client guide](../docs/api/clients.md). Run it separately from installer
-tests that remove the installed marker. MySQL query-plan checks are recorded in
+the [client guide](../docs/api/clients.md). It can also boot with APP_ENV=production.
+Run it separately from installer tests that remove the installed marker. MySQL query-plan checks are recorded in
 the [REST analysis](../analysis/REST_SERVICE.md); SQLite does not replace EXPLAIN
 on real plans. iOS/Android devices and interoperability with actual external
 apps remain subsequent validation work.

@@ -117,9 +117,9 @@ class InstanceTest extends TestCase
         $this->getJson('/rest/v1/instance')->assertForbidden()->assertJsonPath('status', 403);
     }
 
-    public function test_the_endpoint_is_not_available_outside_local_and_testing(): void
+    public function test_authenticated_instance_metadata_is_available_in_production(): void
     {
         $this->app->instance('env', 'production');
-        $this->getJson('/rest/v1/instance')->assertNotFound()->assertJsonPath('status', 404);
+        $this->getJson('/rest/v1/instance')->assertOk()->assertJsonStructure(['instanceName', 'instanceDomain', 'instanceUrl']);
     }
 }

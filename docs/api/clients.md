@@ -68,6 +68,19 @@ npm install --prefix /tmp/openbook-oauth-sdk oidc-client-ts@^3 --ignore-scripts 
 NODE_PATH=/tmp/openbook-oauth-sdk/node_modules node tests/Client/oauth.cjs
 ```
 
-An installed local instance marker is required, as with the other application
+An installed-instance marker is required, as with the other application
 tests. Run this check separately from the installer tests that temporarily remove
 that marker. A loopback listening port and Node.js with fetch/Web Crypto are needed.
+
+## Production-environment check
+
+The same check can boot the application in production:
+
+```sh
+APP_ENV=production OPENBOOK_OAUTH_TEST_ENV=production NODE_PATH=/tmp/openbook-oauth-sdk/node_modules node tests/Client/oauth.cjs
+```
+
+SQLite, keys, sessions and the loopback server remain isolated. The fixture
+verifies that production forces HTTPS, then overrides URL generation and Secure
+cookies only for its HTTP loopback transport. CSRF, PKCE/state and revocation
+are real; this is not a TLS deployment test. Deployments use HTTPS and Secure cookies.

@@ -168,11 +168,11 @@ class PersonTest extends TestCase
             ->get($this->url($actor))->assertOk();
     }
 
-    public function test_the_prototype_is_unavailable_outside_local_and_testing_even_with_a_cached_route(): void
+    public function test_authenticated_profiles_are_available_in_production(): void
     {
         $actor = $this->remote('production');
         $this->app->instance('env', 'production');
-        $this->get($this->url($actor))->assertNotFound()->assertJsonPath('status', 404);
+        $this->get($this->url($actor))->assertOk()->assertJsonPath('personId', $actor->id);
     }
 
     public function test_an_uninstalled_instance_returns_a_problem_instead_of_redirecting(): void

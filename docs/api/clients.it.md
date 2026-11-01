@@ -71,3 +71,16 @@ NODE_PATH=/tmp/openbook-oauth-sdk/node_modules node tests/Client/oauth.cjs
 Serve il marker dell'istanza locale installata, come per gli altri test.
 Eseguire questa prova separatamente dai test installer, che rimuovono il marker
 temporaneamente. Servono una porta loopback e Node.js con fetch/Web Crypto.
+
+## Verifica con ambiente production
+
+La stessa prova è eseguibile con bootstrap in produzione:
+
+```sh
+APP_ENV=production OPENBOOK_OAUTH_TEST_ENV=production NODE_PATH=/tmp/openbook-oauth-sdk/node_modules node tests/Client/oauth.cjs
+```
+
+SQLite, chiavi, sessioni e server loopback restano isolati. La fixture verifica
+che la produzione forzi HTTPS, poi usa URL HTTP e cookie non Secure soltanto
+nel trasporto loopback isolato. CSRF, PKCE/state e revoca sono reali; non è una
+verifica del deploy TLS. Nel deploy usare HTTPS e cookie Secure.

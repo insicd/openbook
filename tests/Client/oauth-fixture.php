@@ -15,13 +15,17 @@ if (! $directory || ! is_dir($directory) || ! str_starts_with(realpath($director
 }
 putenv('APP_CONFIG_CACHE='.$directory.'/config.php');
 putenv('APP_ROUTES_CACHE='.$directory.'/routes.php');
-putenv('APP_ENV=local');
+$environment = getenv('OPENBOOK_OAUTH_TEST_ENV') ?: 'local';
+if (! in_array($environment, ['local', 'production'], true)) {
+    throw new RuntimeException('Only local or production test environments are supported.');
+}
+putenv('APP_ENV='.$environment);
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
 $app->make(ConsoleKernel::class)->bootstrap();
 $kernel = $app->make(Kernel::class);
 config([
-    'app.env' => 'local', 'app.url' => getenv('OPENBOOK_OAUTH_TEST_URL'), 'app.locale' => 'en',
+    'app.env' => $environment, 'app.url' => getenv('OPENBOOK_OAUTH_TEST_URL'), 'app.locale' => 'en',
     'app.key' => 'base64:'.base64_encode(str_repeat('t', 32)),
     'database.default' => 'sqlite', 'database.connections.sqlite.database' => $directory.'/database.sqlite',
     'session.driver' => 'file', 'session.files' => $directory.'/sessions', 'session.secure' => false,
@@ -32,6 +36,11 @@ config([
 ]);
 $app->setLocale('en');
 URL::forceRootUrl(getenv('OPENBOOK_OAUTH_TEST_URL'));
+if ($environment === 'production' && parse_url(URL::to('/'), PHP_URL_SCHEME) !== 'https') {
+    throw new RuntimeException('The production bootstrap must force HTTPS.');
+}
+// Only this isolated loopback fixture uses HTTP; production HTTPS behavior is verified above.
+URL::forceScheme('http');
 if (PHP_SAPI !== 'cli-server') {
     Artisan::call('migrate', ['--database' => 'sqlite', '--force' => true]);
     $user = app(AccountRegistrar::class)->register([

@@ -51,7 +51,7 @@ Requirements, git/Composer install, web server layouts, and updates:
 - [Instance statistics](docs/architecture.md#stats)
 - [Federation](docs/federation.md)
 - [Security](docs/security.md)
-- [Experimental REST API and OAuth — local/testing only](docs/api/README.md)
+- [Experimental REST API and OAuth](docs/api/README.md)
 - [Roadmap](docs/roadmap.md)
 - Full index: [`docs/README.md`](docs/README.md)
 

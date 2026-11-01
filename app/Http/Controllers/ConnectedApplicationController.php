@@ -10,7 +10,6 @@ final class ConnectedApplicationController extends Controller
 {
     public function destroy(Request $request, string $access, ConnectedApplications $applications): RedirectResponse
     {
-        abort_unless(app()->environment('local', 'testing'), 404);
         $closed = $applications->close($request->user(), $access);
 
         return redirect()->route('settings.edit', ['tab' => 'applications'])

@@ -226,10 +226,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/messaggi/{conversation}', [ConversationController::class, 'store'])->name('messages.store');
 
     Route::get('/impostazioni', [SettingsController::class, 'edit'])->name('settings.edit');
-    if (app()->environment('local', 'testing')) {
-        Route::delete('/impostazioni/applicazioni/{access}', [ConnectedApplicationController::class, 'destroy'])
-            ->middleware('throttle:20,1,connected-applications:')->name('settings.applications.destroy');
-    }
+    Route::delete('/impostazioni/applicazioni/{access}', [ConnectedApplicationController::class, 'destroy'])
+        ->middleware('throttle:20,1,connected-applications:')->name('settings.applications.destroy');
     Route::get('/impostazioni/dati/seguiti.csv', [FollowingCsvController::class, 'export'])
         ->middleware('throttle:10,1')->name('settings.following.export');
     Route::post('/impostazioni/dati/seguiti/importa', [FollowingCsvController::class, 'import'])

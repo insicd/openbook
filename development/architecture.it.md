@@ -473,8 +473,8 @@ selettori equivalenti con il Web per non duplicare il grafo. User acquisisce il
 solo contratto/trait di autenticazione Passport; i flussi del dominio restano
 quelli esistenti. OAuth e gestione degli accessi sono integrazioni dedicate.
 
-Route REST/OAuth e pannello accessi sono limitati a local/testing, con guard
-anche a runtime per le route in cache. Il contratto pubblico è in
+Route REST/OAuth e pannello accessi sono registrati in ogni ambiente, inclusa
+la produzione; restano i guard di installazione, autenticazione e autorizzazione. Il contratto pubblico è in
 [docs/api](../docs/api/README.it.md); la descrizione consolidata di confini,
 scelte e roadmap è in [REST_SERVICE](../analysis/REST_SERVICE.md). Nuove entità
 o scritture vanno prima confrontate con i flussi Web, includendo i controlli
