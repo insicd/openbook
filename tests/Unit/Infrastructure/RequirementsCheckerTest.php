@@ -23,7 +23,7 @@ class RequirementsCheckerTest extends TestCase
     {
         $checks = (new RequirementsChecker)->check();
 
-        foreach (['curl', 'openssl', 'json', 'pdo', 'mbstring', 'fileinfo'] as $extension) {
+        foreach (['curl', 'openssl', 'sodium', 'json', 'pdo', 'mbstring', 'fileinfo'] as $extension) {
             $check = collect($checks)->firstWhere('label', 'Estensione PHP: '.$extension);
 
             $this->assertNotNull($check, "Nessun controllo trovato per l'estensione {$extension}");
@@ -45,7 +45,7 @@ class RequirementsCheckerTest extends TestCase
     {
         $checks = (new RequirementsChecker)->check();
 
-        foreach (['curl', 'openssl', 'json', 'pdo', 'mbstring', 'fileinfo'] as $extension) {
+        foreach (['curl', 'openssl', 'sodium', 'json', 'pdo', 'mbstring', 'fileinfo'] as $extension) {
             $check = collect($checks)->firstWhere('label', 'Estensione PHP: '.$extension);
 
             $this->assertNotNull($check);

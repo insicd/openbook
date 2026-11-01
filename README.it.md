@@ -41,7 +41,8 @@ Il percorso piu' semplice non richiede Composer ne' SSH. Usa il bootstrap
 3. Completa `/install` (database, nome istanza, amministratore).
 4. Configura il cron: vedi [Configurazione](docs/configuration.it.md#cron-e-attivita-periodiche).
 
-Requisiti, installazione git/Composer, server web e aggiornamenti:
+PHP deve avere l’estensione Sodium abilitata. Requisiti completi, installazione
+git/Composer, server web e aggiornamenti:
 **[Guida all'installazione](docs/install.it.md)**.
 
 ## Documentazione

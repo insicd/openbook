@@ -369,6 +369,9 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Requisiti PHP per OAuth**: Sodium dichiarato esplicitamente in Composer,
+  nel controllo bloccante dell’installer e nelle guide di installazione.
+  Abilitare l’estensione sia per PHP CLI sia per il sito prima del deploy.
 - **Statistiche**: rimosso il filtro che escludeva gli attori `Application`
   dai conteggi degli account per istanza e dei contenuti pubblici. Restano
   applicati i controlli di visibilità e moderazione.

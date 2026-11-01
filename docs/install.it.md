@@ -5,7 +5,7 @@
 Openbook e' progettato per funzionare anche su un normale **shared hosting**, senza
 accesso SSH continuo, senza Docker e senza processi permanenti:
 
-- PHP **8.4.1** o superiore, con estensioni: `curl`, `openssl`, `json`, `pdo`,
+- PHP **8.4.1** o superiore, con estensioni: `curl`, `openssl`, `sodium`, `json`, `pdo`,
   `pdo_mysql`, `mbstring`, `fileinfo`;
 - estensione `gd` **consigliata** per miniature e rimozione dei metadati dalle
   immagini compatibili. Senza GD il caricamento resta disponibile, ma queste
@@ -26,6 +26,12 @@ base usa esclusivamente MySQL, cron PHP e filesystem locale.
 PHP **8.4.1 o superiore** deve essere attivo sia per il sito web sia per i comandi
 CLI e il cron. Prima di aggiornare un’istanza esistente, verificare la versione
 selezionata nel pannello hosting e quella restituita da `php -v`.
+
+Sodium è richiesto dalle dipendenze OAuth/JWT. Abilitarlo sia nel PHP CLI usato
+da Composer sia nel PHP che serve il sito. Verificare la CLI con `php --ri sodium`
+e `composer check-platform-reqs --lock --no-dev`; se manca, installare o abilitare
+l’estensione prima di eseguire `composer install`. Non aggirare il requisito con
+`--ignore-platform-req=ext-sodium`.
 
 ## Installazione guidata (consigliata su shared hosting)
 
