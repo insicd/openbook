@@ -383,6 +383,18 @@ array diretto di PersonReference riferito alla persona nel percorso, anche
 quando diversa dall'utente corrente. Le relazioni pending non compaiono.
 Per i remoti l'elenco può essere parziale: include solo persone già note.
 
+### Follow
+
+Stato della relazione di follow dell'utente autenticato verso la Person nel
+percorso. Rappresentazione comune a GET e PUT /persons/{personId}/follow;
+nessuna informazione implicita sulla direzione inversa. L'assenza è uno stato
+none leggibile; dopo un rifiuto o ritiro torna none. Nessun ID della relazione,
+data o preferenza aggiuntiva in questo primo giro.
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| followStatus | string, enum none/pending/accepted | Sì | No | Stato del follow dell'utente autenticato verso la Person richiesta. none: non seguita e nessuna richiesta pendente; pending: richiesta in attesa; accepted: la segue. |
+
 ### Me
 
 Contesto dell'utente autenticato, restituito da `GET /me`.
@@ -1897,3 +1909,146 @@ Rivalidati OpenAPI/288 esempi e corrispondenza delle 16 operazioni REST nei
 README bilingui; endpoint e schemi precedenti invariati. Ripetuti i 9 test
 specifici (112 asserzioni), Pint e diff --check. Suite completa sopra eseguita
 sullo stesso codice; nessuna modifica al Core.
+
+## 25. Follow delle persone
+
+Contratto approvato e implementazione di GET/PUT/DELETE /persons/{personId}/follow.
+
+### Punti di aggancio verificati
+
+FollowController usa FollowManager::follow() e unfollow() per account locali
+e identità Actor; il servizio gestisce richieste, notifiche e Follow/Undo
+federati. Per leggere lo stato si può riusare statusMapFor(viewer, [target]),
+che distingue accepted/pending e assenza senza aggregati o nuove query condivise.
+PersonQuery::available() risolve le identità già disponibili come Person;
+nessun fetch remoto necessario per leggere la relazione. Stato sempre relativo al
+Bearer verso la Person nel percorso, mai alla direzione inversa.
+
+Account locale aperto: accettazione immediata. Account locale protetto: pending.
+Target remoto non Feed: pending fino a conferma remota, anche quando dichiara
+approvazione automatica. I Feed sono accettati subito, senza ActivityPub.
+Il servizio gestisce anche i Group; l'adattatore deve rispettare le policy
+specifiche delle community quando l'identità ne rappresenta una, senza aprire
+percorsi alternativi che eludano join/leave. Non introdurre filtri sui tipi
+Person solo per comodità dell'implementazione.
+
+PUT ripetuti riusano la relazione esistente. Possono confermare una richiesta
+pending verso un locale nel frattempo aperto, oppure ritentare l'invio di un
+Follow remoto ancora pending. L'idempotenza riguarda la relazione: non va
+promessa l'assenza assoluta di nuove consegne federate. DELETE rimuove sia
+accepted sia pending e invia l'Undo dove previsto; relazione assente: nessun
+intervento. Il servizio non applica RemoteInteractionGuard alla rimozione,
+consentendo di smettere di seguire un remoto diventato sospeso.
+
+FollowManager rifiuta self-follow, target non attivi e Person locali con User
+non attivo. Rifiuta nuovi follow di remoti sospesi tramite AuthorizationException.
+L'adattatore traduce i vincoli di dominio in errori HTTP, senza esporre
+messaggi tecnici o trasformare InvalidArgumentException in un 500. Identità
+inesistente/cancellata o non disponibile secondo la lettura REST: 404;
+autenticazione e scope seguono gli endpoint esistenti. Le identità locali
+non più disponibili rimangono escluse anche dalla rimozione REST.
+
+### Entità Follow
+
+Oggetto minimo per GET e PUT; niente identità duplicate rispetto al percorso,
+ID della relazione, flag in direzione inversa, date o preferenze auto_announce
+/notify in questo giro. Eventuali estensioni verranno discusse separatamente.
+
+La tabella dei campi è nella sezione Entità rappresentate, sotto Follow.
+
+Esempio: {"followStatus":"pending"}. GET torna sempre lo stato noto
+localmente: nessuna chiamata remota per chiedere l'accettazione. Dopo Accept
+il normale flusso federato aggiorna la relazione e GET restituisce accepted.
+Dopo rifiuto, annullamento o rimozione torna none; non si distingue un rifiuto
+storico dalla mancata richiesta, perché il Core non conserva uno stato rejected.
+
+### Contratto HTTP
+
+- GET: 200 con Follow anche se followStatus=none; 404 riservato all'identità
+  non disponibile. Cache privata con ETag e Vary Authorization, dopo i controlli
+  di accesso; GET non muta né ritenta il follow.
+- PUT: nessun body richiesto, 201 con Follow e Location quando crea la relazione,
+  200 con Follow quando esiste già, anche se ancora pending. Il body è lo stato
+  effettivo restituito dal servizio, non un'ipotesi ricavata dagli attributi
+  della Person. no-store. Nessun 202 necessario per una relazione già creata.
+- DELETE: nessun body richiesto, 204 senza corpo dopo rimozione/ritiro o se già
+  assente su una Person disponibile; no-store.
+
+Core, modelli, servizi, database e query condivise rimangono invariati.
+Test e verifica degli indici delle letture effettive sono riportati a fine
+sezione dopo il completamento delle verifiche.
+
+
+Implementazione mirata: PersonFollowController e FollowResource. Risoluzione
+con PersonQuery::available() e relazioni user/community, nessun refresh remoto.
+PUT/DELETE acquisiscono un lock sull'Actor destinatario, serializzando queste
+mutazioni REST senza modificare il servizio; nessuna garanzia aggiuntiva per
+scritture Web o federate che non acquisiscono lo stesso lock. Per community
+locali si riusano Gate join/leave e CommunityMembershipService, che delega a
+FollowManager: il proprietario non può alterare la propria membership. DELETE
+su relazione assente resta 204 anche per una community. Non si applica
+viewMembers per leggere esclusivamente la propria relazione con una privata.
+Self-follow e altri vincoli di dominio rifiutati dal servizio: 422 Problem
+Details. Sospensione remota: PUT 403, GET e DELETE ancora consentiti per una
+Person disponibile. Identità locali escluse da PersonQuery (o cancellate):
+404 per tutti i metodi, anche in presenza di una relazione preesistente.
+
+Verifiche completate: 16 test specifici/186 asserzioni; gruppo REST, follow,
+community e conferme remote con 191 test/2042 asserzioni. Suite completa finale:
+2231 test, 16943 asserzioni, 130 skip, nessun errore. Coperti assenza, pending,
+accepted, accettazione/rifiuto, ritiro, healing locale, retry remoto, Undo,
+notifiche, self-follow, sospensione e indisponibilità, tipi Person/Application/
+Feed/Group, policy e contatori community, identità Bearer, scope, cache e guard
+ambiente. OpenAPI validato con 345 esempi di risposte/header e i tre esempi
+Follow; tutte le 19 operazioni REST allineate ai README bilingui. Schema
+verificato anche sulla risposta MySQL reale. Endpoint e schemi precedenti
+invariati. Pint e diff --check superati.
+
+Prova sul MySQL locale con Bearer esistente e destinatario remoto temporaneo:
+GET 200 none/304, PUT 201 pending/200 pending, GET pending, DELETE 204/204,
+GET none; rollback delle identità e relazioni di prova, consegne simulate e
+nessun fetch remoto. EXPLAIN delle SELECT effettive usa PRIMARY per il target
+Actor, actors_user_id_unique per l'attore autenticato e
+follows_follower_id_following_id_unique per la relazione e la sua lettura.
+Nessuna migrazione o modifica agli indici richiesta; cache route aggiornata.
+Review del diff completo: nessun problema aperto individuato; Core, servizi,
+modelli, serializer federati e UI invariati.
+
+## 26. Richieste di follow ricevute
+
+Ricognizione: ProfileController seleziona Follow con following_id dell'utente
+corrente e status pending. FollowManager::accept e reject gestiscono già
+transizione, notifiche e Accept/Reject verso i richiedenti remoti. L'adattatore
+REST riusa questi metodi e i modelli/query di disponibilità esistenti, senza
+modifiche al Core. Nessuna gestione di richieste per conto di altri account o
+community, indipendentemente dai ruoli staff.
+
+Contratto del primo sprint: GET /me/follow-requests restituisce un array diretto
+di PersonReference dei richiedenti ancora disponibili, ordinato per personId,
+con after, limit (20/100), sort=personId e direction=asc/desc. Nessuna nuova
+entità di risposta o data richiesta in questo giro; nessun fetch remoto. Link
+next e cache privata ETag/Vary Authorization seguono le liste di persone.
+
+PATCH /me/follow-requests/{personId} accetta solo l'oggetto JSON
+{"followStatus":"accepted"}, descritto da PatchFollowRequest. Nessun altro
+campo ammesso. Successo 204 senza corpo; formato JSON malformato 400, tipo non
+JSON 415, contenuto/campi non validi 422. DELETE sullo stesso percorso rifiuta
+la richiesta pendente e restituisce 204 senza corpo. Entrambe le scritture
+usano no-store e agiscono soltanto su pending verso l'attore del Bearer:
+richiesta assente, già accettata/rifiutata, appartenente ad altri o identità
+non disponibile danno 404. La rimozione di una richiesta non è un unfollow di
+una relazione già accettata. Lock REST dell'attore destinatario e della riga
+pending prima del servizio per serializzare le decisioni REST concorrenti;
+nessuna nuova garanzia sulle scritture Web/inbox che non usano questi lock.
+
+Verifiche della prima fase: 26 test follow/richieste e 286 asserzioni;
+suite completa 2241 test, 17043 asserzioni e 130 skip, nessun errore.
+OpenAPI con 406 esempi validati e 22 operazioni REST allineate ai README.
+MySQL: GET 200 e PATCH/DELETE 204, dati temporanei in rollback e consegne
+simulate. EXPLAIN: lista da follows_following_id_status_index, lookup della
+richiesta da follows_follower_id_following_id_unique, identità dalla PK;
+ordinamento temporaneo limitato alla coda pending dell'utente (32 fixture),
+non scansione globale degli attori. Nessun indice/migrazione del Core aggiunto.
+Review del diff completo pendente: ownership, scope, JSON rigoroso, fail-fast
+sulle richieste non pendenti e coerenza documentazione verificati; nessun
+problema bloccante rilevato. Pint e diff --check superati.

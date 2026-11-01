@@ -18,7 +18,13 @@ le chiamate REST. Questo prototipo è limitato a local/testing.
 - `DELETE /rest/v1/posts/{postId}/announce` rimuove il proprio rilancio manuale.
 - `GET /rest/v1/me` restituisce Me con myPerson, l’account autenticato come Person completa.
 - `GET /rest/v1/me/posts` restituisce solo i propri post pubblicati, senza rilanci.
+- `GET /rest/v1/me/follow-requests` elenca i richiedenti in attesa.
+- `PATCH /rest/v1/me/follow-requests/{personId}` accetta una richiesta.
+- `DELETE /rest/v1/me/follow-requests/{personId}` rifiuta una richiesta.
 - `GET /rest/v1/persons/{personId}` restituisce un oggetto Person.
+- `GET /rest/v1/persons/{personId}/follow` legge lo stato del proprio follow.
+- `PUT /rest/v1/persons/{personId}/follow` segue o invia una richiesta.
+- `DELETE /rest/v1/persons/{personId}/follow` smette di seguire o ritira la richiesta.
 - `GET /rest/v1/persons/{personId}/posts` restituisce post e rilanci del profilo.
 - `GET /rest/v1/persons/{personId}/followers` restituisce un array di PersonReference.
 - `GET /rest/v1/persons/{personId}/following` restituisce un array di PersonReference.
@@ -195,6 +201,39 @@ no-store e agiscono solo sull'identità del Bearer. Contatori, notifiche e
 federazione seguono il comportamento del sito senza duplicazioni alle richieste
 ripetute. Nessuna nuova entità è necessaria.
 
+## Follow delle persone
+
+GET /persons/{personId}/follow restituisce Follow, relativo solo alla direzione
+utente del Bearer → Person nel percorso:
+
+```json
+{"followStatus": "pending"}
+```
+
+followStatus è obbligatorio, non null e vale none, pending o accepted. none
+significa nessuna relazione/richiesta; pending indica attesa di accettazione;
+accepted significa che la persona è seguita. Un rifiuto o ritiro torna a none.
+La relazione inversa e preferenze aggiuntive non sono incluse. GET restituisce
+200 anche per none, con cache privata, ETag e Vary Authorization. Non avvia
+fetch remoti e non ritenta richieste di follow.
+
+PUT sullo stesso percorso non richiede body e restituisce Follow: 201 con
+Location alla creazione, 200 se già esistente. I locali aperti e i Feed sono
+accettati subito; i locali protetti richiedono approvazione. Verso identità
+remote diverse dai Feed lo stato resta pending fino alla conferma. Ripetere
+PUT non duplica la relazione, ma può ritentare la consegna di una richiesta
+remota pendente o confermare una richiesta locale se il profilo è diventato
+aperto. Il body descrive sempre lo stato risultante.
+
+DELETE ritira la richiesta o rimuove il proprio follow: 204 senza body anche
+se già assente su una Person disponibile. PUT e DELETE usano no-store.
+Self-follow e target non attivi rifiutati dal servizio danno 422. Un remoto
+sospeso può essere letto e smesso di seguire, ma PUT dà 403. Le identità non
+disponibili danno 404 per tutti i metodi, anche con un vecchio follow ancora
+presente. Le identità di community rispettano i permessi di iscrizione/uscita:
+il proprietario non può rimuovere la propria membership. Si può leggere la
+propria relazione con una community privata senza esporne l'elenco dei membri.
+
 ## Post di una Person
 
 GET /persons/{personId}/posts restituisce un array di Post come il tab Post
@@ -314,3 +353,14 @@ formato standard. Credenziali mancanti/non valide danno 401; account inattivo d�
 403. ETag/If-None-Match consente 304 dopo tutti i controlli di accesso.
 Last-Modified resta da implementare. Limiti indipendenti per indirizzo client:
 60 chiamate REST, 30 scambi token e 10 registrazioni al minuto.
+
+## Richieste ricevute
+
+GET /me/follow-requests restituisce un array di PersonReference dei richiedenti
+pendenti verso l'utente autenticato. Usa after, limit (20/100), sort=personId
+e direction=asc/desc; Link next, ETag e cache privata come le liste di persone.
+Nessun fetch remoto. PATCH sul dettaglio richiede {"followStatus":"accepted"}
+come oggetto JSON PatchFollowRequest e restituisce 204. DELETE rifiuta la
+richiesta e restituisce 204. Richieste assenti, già gestite o altrui danno 404;
+DELETE non rimuove un follower già accettato. Le richieste delle community
+restano nella UI nativa. Scritture no-store e nessuna delega ai ruoli staff.

@@ -7967,6 +7967,2784 @@
           }
         }
       }
+    },
+    "/persons/{personId}/follow": {
+      "get": {
+        "operationId": "getPersonFollow",
+        "summary": "Get your follow state towards a person",
+        "description": "Returns the authenticated user's outgoing Follow state towards this person. An available person with no outgoing follow returns 200 with followStatus=none, not 404. Reads the state currently known by this instance without fetching remote profiles or retrying follow requests. Local open accounts are normally accepted immediately; protected local accounts require approval. Remote non-feed identities remain pending until acceptance is received. A rejected or withdrawn request returns to none. The reverse relationship is not included. The current user's own relation can be read even for a private community identity; other members are not disclosed. Requires an authenticated active account. Available only for local development. Authentication and availability checks precede conditional responses.",
+        "tags": [
+          "Persons"
+        ],
+        "parameters": [
+          {
+            "name": "personId",
+            "in": "path",
+            "required": true,
+            "description": "The person identifier within this OpenBook instance.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "description": "An entity tag from a previous response. Send it to revalidate a cached representation.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Your outgoing follow state, including none when no relation exists.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Follow"
+                },
+                "examples": {
+                  "none": {
+                    "summary": "Not followed",
+                    "value": {
+                      "followStatus": "none"
+                    }
+                  },
+                  "pending": {
+                    "summary": "Awaiting acceptance",
+                    "value": {
+                      "followStatus": "pending"
+                    }
+                  },
+                  "accepted": {
+                    "summary": "Currently followed",
+                    "value": {
+                      "followStatus": "accepted"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The representation has not changed and remains accessible. No response body is returned.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              }
+            }
+          },
+          "404": {
+            "description": "The person does not exist, was deleted, or is unavailable through this API. Unavailable local identities return 404 even if an outgoing follow still exists.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "followPerson",
+        "summary": "Follow a person or request approval",
+        "description": "Creates or maintains the authenticated user's outgoing follow. No request body is required; the acting identity comes only from the Bearer token. Returns Follow with the resulting state: accepted for open local accounts and feeds, pending for protected local accounts and remote non-feed identities until acceptance arrives. Repeated requests reuse the relationship, but pending remote requests may be sent again. A pending local request may become accepted if the target has opened their account. Self-follow and inactive target accounts are refused with 422. New follows of remotely suspended identities return 403. Community identities follow their membership permissions, including the owner's membership protection. No response caching. Requires an authenticated active account. Available only for local development.",
+        "tags": [
+          "Persons"
+        ],
+        "parameters": [
+          {
+            "name": "personId",
+            "in": "path",
+            "required": true,
+            "description": "The person identifier within this OpenBook instance.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The outgoing follow was created. The returned state may be pending or accepted.",
+            "headers": {
+              "Location": {
+                "description": "The URL of your outgoing follow resource.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "Cache-Control": {
+                "description": "The response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store, private"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Follow"
+                },
+                "examples": {
+                  "pending": {
+                    "summary": "Awaiting acceptance",
+                    "value": {
+                      "followStatus": "pending"
+                    }
+                  },
+                  "accepted": {
+                    "summary": "Currently followed",
+                    "value": {
+                      "followStatus": "accepted"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account lacks permission, the remote target is suspended, or community membership permissions refuse this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The person does not exist, was deleted, or is unavailable through this API. Unavailable local identities return 404 even if an outgoing follow still exists.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The follow operation is not permitted, such as a self-follow or an unavailable target account.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unprocessable Content",
+                  "status": 422
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "The outgoing follow already exists. Returns its resulting state.",
+            "headers": {
+              "Cache-Control": {
+                "description": "The response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store, private"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Follow"
+                },
+                "examples": {
+                  "pending": {
+                    "summary": "Awaiting acceptance",
+                    "value": {
+                      "followStatus": "pending"
+                    }
+                  },
+                  "accepted": {
+                    "summary": "Currently followed",
+                    "value": {
+                      "followStatus": "accepted"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "unfollowPerson",
+        "summary": "Stop following a person or withdraw a pending request",
+        "description": "Removes only the authenticated user's outgoing follow or withdraws their pending request. Returns 204 with no body even if the relation is already absent on an available person. Uses the normal unfollow behavior, including remote Undo delivery where applicable. A remotely suspended identity that remains available can still be unfollowed. Community owners cannot remove their own membership. An unavailable person returns 404 even if an old relation remains. No request body is required and no response caching is allowed. Requires an authenticated active account. Available only for local development.",
+        "tags": [
+          "Persons"
+        ],
+        "parameters": [
+          {
+            "name": "personId",
+            "in": "path",
+            "required": true,
+            "description": "The person identifier within this OpenBook instance.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The outgoing follow or request was removed, or is already absent. No response body.",
+            "headers": {
+              "Cache-Control": {
+                "description": "The response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store, private"
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The person does not exist, was deleted, or is unavailable through this API. Unavailable local identities return 404 even if an outgoing follow still exists.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The follow cannot be removed because of a domain constraint.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unprocessable Content",
+                  "status": 422
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/follow-requests": {
+      "get": {
+        "operationId": "getMyFollowRequests",
+        "summary": "List incoming pending follow requests",
+        "description": "Returns a direct array of PersonReference objects for available people with a pending request to follow the authenticated user. Accepted, rejected and withdrawn requests are excluded. Community requests and requests addressed to other accounts are not included, regardless of staff roles. Reads only the state known by this instance; no remote fetch is performed. Supports after, limit (default 20, maximum 100), sort=personId and direction=asc or desc. cursor and page are not supported. Authentication and availability checks precede conditional responses. Available only for local development.",
+        "tags": [
+          "Persons"
+        ],
+        "parameters": [
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "description": "An entity tag from a previous response. Send it to revalidate a cached representation.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "description": "Return items after this personId in the selected direction, excluding the reference itself. Keep the same sort and direction between requests. The reference does not need to remain in the list.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of people returned.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "The ordering criterion supported by this endpoint.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "personId"
+              ],
+              "default": "personId"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "description": "The ordering direction.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending requesters as PersonReference objects. An empty collection is an empty array.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              },
+              "Link": {
+                "description": "The next page URL with rel=\"next\", when another page is available. Absent on the last page.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "<https://example.org/rest/v1/me/follow-requests?after=01900000-0000-7000-8000-000000000001&limit=20&sort=personId&direction=asc>; rel=\"next\""
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PersonReference"
+                  }
+                },
+                "examples": {
+                  "empty": {
+                    "summary": "No pending requests",
+                    "value": []
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The representation has not changed and remains accessible. No response body is returned.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              },
+              "Link": {
+                "description": "The next page URL with rel=\"next\", when another page is available. Absent on the last page.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The person was not found or is not available through this endpoint.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404,
+                  "detail": "The person was not found or is not available through this endpoint."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "One or more query parameters are invalid.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    },
+                    "errors": {
+                      "type": "object",
+                      "description": "Validation messages keyed by query parameter.",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unprocessable Content",
+                  "status": 422,
+                  "errors": {
+                    "limit": [
+                      "The limit field must not be greater than 100."
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive, or access to this relationship collection is not allowed. Local private community membership is not exposed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/follow-requests/{personId}": {
+      "patch": {
+        "operationId": "acceptMyFollowRequest",
+        "summary": "Accept an incoming pending follow request",
+        "description": "Accepts a pending request from personId addressed exclusively to the authenticated user. Requires a JSON PatchFollowRequest object containing only followStatus=accepted. Returns 204 with no body. Unknown, unavailable, withdrawn, already handled or other users' requests return 404. Staff roles do not permit acting on other accounts' requests. Community requests remain in the native interface. Responses use no-store. Available only for local development.",
+        "tags": [
+          "Persons"
+        ],
+        "parameters": [
+          {
+            "name": "personId",
+            "in": "path",
+            "required": true,
+            "description": "The person identifier within this OpenBook instance.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The pending request was accepted. No response body.",
+            "headers": {
+              "Cache-Control": {
+                "description": "The response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store, private"
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No available pending request from this person is addressed to the authenticated user.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Bad Request",
+                  "status": 400
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "A JSON content type is required.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unsupported Media Type",
+                  "status": 415
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Supply only followStatus with the value accepted.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    },
+                    "errors": {
+                      "type": "object",
+                      "description": "Validation messages keyed by request property, or body for an invalid top-level JSON value.",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unprocessable Content",
+                  "status": 422,
+                  "errors": {
+                    "followStatus": [
+                      "Supply only followStatus with the value accepted."
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchFollowRequest"
+              },
+              "example": {
+                "followStatus": "accepted"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "rejectMyFollowRequest",
+        "summary": "Reject an incoming pending follow request",
+        "description": "Rejects a pending request from personId addressed exclusively to the authenticated user. Returns 204 without a body. Unknown, unavailable, withdrawn, already handled or other users' requests return 404. This does not remove an accepted follower. Community requests are managed through the native interface. No request body is required. Authentication is required and responses use no-store. Available only for local development.",
+        "tags": [
+          "Persons"
+        ],
+        "parameters": [
+          {
+            "name": "personId",
+            "in": "path",
+            "required": true,
+            "description": "The person identifier within this OpenBook instance.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The pending request was rejected. No response body.",
+            "headers": {
+              "Cache-Control": {
+                "description": "The response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store, private"
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No available pending request from this person is addressed to the authenticated user.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Problem Details as defined by RFC 9457.",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "The URI identifying the problem type."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "A short description of the problem type."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599,
+                      "description": "The HTTP status code of this response."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "An explanation specific to this occurrence."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "A URI identifying this occurrence, when available."
+                    }
+                  }
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -8702,6 +11480,58 @@
           "instanceDescription": "A friendly OpenBook instance.",
           "instanceIcon": "https://social.example/storage/instance-icons/00000000-0000-0000-0000-000000000001/icon-512.png"
         }
+      },
+      "Follow": {
+        "type": "object",
+        "description": "The authenticated user's outgoing follow state towards the person identified in the request path. This does not describe the reverse relationship.",
+        "required": [
+          "followStatus"
+        ],
+        "properties": {
+          "followStatus": {
+            "type": "string",
+            "enum": [
+              "none",
+              "pending",
+              "accepted"
+            ],
+            "description": "none: not followed and no request is pending. pending: awaiting acceptance. accepted: currently followed. Rejected or withdrawn requests return to none."
+          }
+        },
+        "additionalProperties": false,
+        "examples": [
+          {
+            "followStatus": "none"
+          },
+          {
+            "followStatus": "pending"
+          },
+          {
+            "followStatus": "accepted"
+          }
+        ]
+      },
+      "PatchFollowRequest": {
+        "type": "object",
+        "description": "Accepts a pending request addressed to the authenticated user.",
+        "required": [
+          "followStatus"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "followStatus": {
+            "type": "string",
+            "enum": [
+              "accepted"
+            ],
+            "description": "Accept this incoming request."
+          }
+        },
+        "examples": [
+          {
+            "followStatus": "accepted"
+          }
+        ]
       }
     },
     "securitySchemes": {

@@ -18,7 +18,13 @@ alone does not authorize REST calls. This prototype is limited to local/testing.
 - `DELETE /rest/v1/posts/{postId}/announce` removes your manual announce.
 - `GET /rest/v1/me` returns Me with myPerson, the authenticated account as a full Person.
 - `GET /rest/v1/me/posts` lists your published posts, excluding announces.
+- `GET /rest/v1/me/follow-requests` lists pending requesters.
+- `PATCH /rest/v1/me/follow-requests/{personId}` accepts a request.
+- `DELETE /rest/v1/me/follow-requests/{personId}` rejects a request.
 - `GET /rest/v1/persons/{personId}` returns a Person object.
+- `GET /rest/v1/persons/{personId}/follow` reads your outgoing follow state.
+- `PUT /rest/v1/persons/{personId}/follow` follows or requests approval.
+- `DELETE /rest/v1/persons/{personId}/follow` unfollows or withdraws the request.
 - `GET /rest/v1/persons/{personId}/posts` returns the profile's posts and announces.
 - `GET /rest/v1/persons/{personId}/followers` returns an array of PersonReference.
 - `GET /rest/v1/persons/{personId}/following` returns an array of PersonReference.
@@ -193,6 +199,39 @@ only on the Bearer identity. Counts, notifications and federation follow the
 website behavior without duplicates on repeated requests. No new entity is
 required.
 
+## Following people
+
+GET /persons/{personId}/follow returns Follow for the direction
+Bearer user → Person identified in the path:
+
+```json
+{"followStatus": "pending"}
+```
+
+followStatus is required, non-null and one of none, pending or accepted.
+none means no outgoing follow or request; pending means awaiting acceptance;
+accepted means currently followed. Rejection or withdrawal returns to none.
+The reverse relationship and extra preferences are not included. GET returns
+200 even for none, with private caching, ETag and Vary Authorization. It does
+not fetch remote profiles or retry follow requests.
+
+PUT on the same path requires no body and returns Follow: 201 with Location
+on creation, 200 when already present. Open local accounts and feeds are
+accepted immediately; protected local accounts require approval. Remote
+non-feed identities remain pending until acceptance arrives. Repeating PUT
+does not duplicate the relation, but may retry delivery of a pending remote
+request or accept a pending local request if the profile has become open.
+The response body always describes the resulting state.
+
+DELETE withdraws a pending request or removes your outgoing follow: 204 with
+no body even when already absent on an available Person. Both writes use
+no-store. Self-follow and inactive targets refused by the follow operation
+return 422. A suspended remote identity can be read and unfollowed, but PUT
+returns 403. Unavailable identities return 404 for all methods, even if an old
+follow remains. Community identities retain membership permissions: owners
+cannot remove their own membership. Your own relation to a private community
+can be read without disclosing its member list.
+
 ## Person posts
 
 GET /persons/{personId}/posts returns an array of Post objects matching the
@@ -310,3 +349,14 @@ OAuth errors retain the standard OAuth format. Missing/invalid credentials retur
 401 and inactive accounts return 403. ETag/If-None-Match supports 304 after all
 access checks. Last-Modified remains unimplemented. Limits per client address:
 60 REST calls, 30 token exchanges and 10 registrations per minute, independently.
+
+## Incoming requests
+
+GET /me/follow-requests returns PersonReference objects for pending requesters
+to the authenticated user. Supports after, limit (20/100), sort=personId and
+direction=asc/desc; next Link, ETag and private caching match person lists.
+No remote fetch occurs. PATCH on the detail requires {"followStatus":"accepted"}
+as a PatchFollowRequest JSON object and returns 204. DELETE rejects the request
+and returns 204. Missing, already handled or other users' requests return 404;
+DELETE does not remove an accepted follower. Community requests remain in the
+native interface. Writes use no-store and staff roles grant no delegation.

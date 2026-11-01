@@ -19,6 +19,12 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Richieste follow REST**: elenco personale dei richiedenti pendenti e
+  accettazione/rifiuto con PATCH/DELETE, senza privilegi su richieste altrui.
+- **Follow persone REST**: GET/PUT/DELETE `/rest/v1/persons/{personId}/follow`
+  leggono, attivano e rimuovono il proprio follow o la richiesta pendente.
+  Entità Follow con followStatus none/pending/accepted, servizi e federazione
+  esistenti e rispetto dei permessi delle community.
 - **Post personali REST**: `GET /rest/v1/me/posts` elenca i propri post
   pubblicati, senza rilanci o messaggi privati, con paginazione after/limit
   e cache privata con ETag.
