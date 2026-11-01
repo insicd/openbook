@@ -185,11 +185,13 @@ php artisan view:cache
 ## Preparazione REST/OAuth
 
 L’API REST autenticata è disponibile anche in produzione. Applicare le normali
-migrazioni dopo l’installazione delle dipendenze Composer. Predisporre una sola
-volta le chiavi Passport con `php artisan passport:keys` e preservare
-`storage/oauth-*.key` nei deploy successivi, senza rigenerare chiavi esistenti
-durante gli aggiornamenti ordinari. In produzione usare APP_ENV=production,
-APP_DEBUG=false, APP_URL HTTPS e cookie di sessione Secure. Aggiornare cache di
+migrazioni dopo l’installazione delle dipendenze Composer. Le chiavi di firma
+vengono generate automaticamente al primo utilizzo OAuth e salvate nel database
+cifrate con APP_KEY; non servono comandi manuali né file OAuth. Conservare e
+includere nei backup sia il database sia APP_KEY per mantenere gli accessi nei
+deploy successivi. Chiavi non leggibili non vengono sostituite automaticamente.
+In produzione usare APP_ENV=production, APP_DEBUG=false, APP_URL HTTPS e cookie
+di sessione Secure. Aggiornare cache di
 configurazione e route dopo il deploy. La [guida API](api/README.it.md) descrive
 le funzionalità del primo sprint, la durata dei token e gli accessi collegati.
 

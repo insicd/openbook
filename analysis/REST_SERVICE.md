@@ -16,8 +16,9 @@ comuni a locali/remoti; nomenclatura ActivityPub conservata quando appropriata.
 Lo sprint è sperimentale per copertura e contratto, ma disponibile anche in
 produzione. Bootstrap registra REST/OAuth in ogni ambiente; middleware e
 impostazioni non applicano filtri su APP_ENV. Restano i controlli di installazione,
-autenticazione e autorizzazione. Migrazioni OAuth e chiavi Passport devono essere
-predisposte; config/route cache aggiornate dopo il deploy. Amministrazione,
+autenticazione e autorizzazione. Le chiavi OAuth sono generate automaticamente
+al primo utilizzo e salvate cifrate in system_settings; migrazioni e config/route
+cache seguono il normale deploy. Amministrazione,
 moderazione, staff, credenziali, eliminazione account e gestione degli accessi
 rimangono nella UI nativa. Un account admin non riceve deleghe REST su altri.
 
@@ -304,8 +305,16 @@ Login e consenso riusano la sessione Web e CSRF. Bearer JWT validato e revocabil
 lato server; account/Actor attivi in autorizzazione, emissione, refresh e REST.
 Solo grant authorization_code/refresh_token esposti. OPENBOOK_OAUTH_TOKEN_DURATION
 in giorni, default implicito 365 se assente/non valido; accesso e refresh con
-la stessa durata, token già emessi invariati. Chiavi Passport preservate fra
-gli aggiornamenti, mai generate a ogni richiesta.
+la stessa durata, token già emessi invariati.
+
+Coppia RSA OAuth generata una volta al primo utilizzo e conservata in
+system_settings come singolo valore cifrato con APP_KEY. OAuthSigningKeys usa
+il generatore RSA esistente e putIfAbsent; dopo un inserimento concorrente
+rilegge la coppia vincente. Valori presenti ma non decifrabili, malformati o
+non corrispondenti producono un errore senza rigenerazione. La coppia viene
+caricata in memoria soltanto prima della risoluzione dei server Passport: niente
+accesso DB al boot generale o durante config:cache. Nessun file OAuth o variabile
+PEM richiesto, nessun percorso di importazione delle vecchie chiavi nel prodotto.
 
 ConnectedApplications elenca accessi dell’utente e revoca accesso/refresh senza
 chiudere altri accessi o sessione Web. Lookup sempre per proprietario, revoca
@@ -349,8 +358,9 @@ compatibili con gli account; nessuna migrazione del modello sociale.
 
 Restano shared hosting e i normali flussi di consegna, senza nuovi obblighi di
 Redis, worker permanenti o servizi esterni. Le normali migrazioni installano le
-tabelle OAuth; le chiavi Passport si predispongono una volta, conservandole negli
-aggiornamenti. Ulteriori automatismi di provisioning rimangono separati.
+tabelle OAuth; la coppia di firma viene inizializzata automaticamente. Backup
+del database e APP_KEY devono essere conservati insieme, come per gli altri
+segreti cifrati dell’istanza.
 
 ## 9. Verifiche e riproducibilità
 
@@ -390,12 +400,13 @@ schemi e delle operazioni precedenti superato. Nessuna nuova logica del Core.
 
 | Verifica | Esito finale |
 | --- | --- |
-| Suite completa PHPUnit, codice finale | 2243 test, 17099 asserzioni, 130 skipped, nessun errore/fallimento. |
-| REST e accessi collegati | 152 test, 1932 asserzioni, inclusi i flussi con ambiente production; ulteriori due test production coprono post e richieste (34 asserzioni). |
+| Suite completa PHPUnit, codice finale | 2254 test, 17135 asserzioni, 130 skipped, nessun errore/fallimento. |
+| REST, accessi collegati e notifiche push | 171 test, 2033 asserzioni, inclusi i flussi con ambiente production e i controlli sulle chiavi di firma. |
 | Autorizzazioni | Coperti admin senza delega, richieste di community escluse, payload rigorosi, richieste già gestite, credenziali assenti, PKCE obbligatorio e CSRF sulla revoca in produzione. |
 | OpenAPI e inventario | Specifica valida, 402 esempi validi, tutte le 22 operazioni REST presenti nelle guide italiana e inglese. |
-| SDK OAuth reale | Registrazione, PKCE/state, login/consenso con CSRF, callback, scambio, REST 200/304/401, revoca accesso/refresh e sessione Web conservata: superati anche con APP_ENV=production e SQLite/loopback isolati. |
+| SDK OAuth reale | Registrazione, PKCE/state, login/consenso con CSRF, callback, scambio, REST 200/304/401, revoca accesso/refresh, sessione Web conservata e generazione automatica delle chiavi cifrate nel DB: superati anche con APP_ENV=production e SQLite/loopback isolati. |
 | MySQL richieste ricevute | 32 fixture in rollback, GET 200 e PATCH/DELETE 204; indice following/status per la coda, unico follower/following e PK per decisioni/identità. Consegne simulate, nessun fetch remoto. |
+| Chiavi OAuth | Inizializzazione atomica concorrente, cifratura, riuso e rifiuto di valori invalidi o cifrati con un altro APP_KEY senza rotazione; config:cache production non contiene PEM. Coppia locale preesistente importata una tantum fuori dal prodotto: identica e verificata su due record di accesso esistenti, senza modificarli. |
 | Controlli statici | Composer validate, Pint, diff --check, link relativi delle guide e ricerca di segreti nei file modificati: superati. |
 
 Il bootstrap con APP_ENV=production e cache route separata registra tutte le
@@ -431,7 +442,7 @@ anche risorse proprie. Community/Event non diventano sottotipi di Post, e non
 si introducono alias /me/following o /me/followers. La gestione delle richieste
 di partecipazione dell’organizzatore dovrà essere delimitata rispetto allo staff.
 
-Per le evoluzioni successive: automatismi di provisioning, politica di
-versionamento e compatibilità e ulteriori test operativi.
+Per le evoluzioni successive: politica di versionamento e compatibilità e
+ulteriori test operativi.
 La seconda PR estenderà le entità mancanti sopra; questo sprint non le dichiara
 già supportate né promette parità funzionale completa con il Web.

@@ -19,18 +19,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Encryption Keys
+    | Signing Keys
     |--------------------------------------------------------------------------
     |
-    | Passport uses encryption keys while generating secure access tokens for
-    | your application. By default, the keys are stored as local files but
-    | can be set via environment variables when that is more convenient.
+    | OpenBook initializes the signing pair automatically in system_settings.
+    | RestAuthServiceProvider supplies these values lazily, in memory, only
+    | when Passport's authorization or resource server is resolved.
     |
     */
 
-    'private_key' => env('PASSPORT_PRIVATE_KEY'),
+    'private_key' => null,
 
-    'public_key' => env('PASSPORT_PUBLIC_KEY'),
+    'public_key' => null,
 
     /*
     |--------------------------------------------------------------------------

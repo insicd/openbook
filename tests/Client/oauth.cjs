@@ -4,7 +4,6 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
-const crypto = require('node:crypto');
 const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { OidcClient, WebStorageStateStore, InMemoryWebStorage } = require('oidc-client-ts');
@@ -19,12 +18,6 @@ let server;
         const port = listener.address().port;
         await new Promise(resolve => listener.close(resolve));
         const base = `http://127.0.0.1:${port}`;
-        const keys = crypto.generateKeyPairSync('rsa', {
-            modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-            publicKeyEncoding: { type: 'spki', format: 'pem' },
-        });
-        fs.writeFileSync(path.join(directory, 'private.key'), keys.privateKey, { mode: 0o600 });
-        fs.writeFileSync(path.join(directory, 'public.key'), keys.publicKey);
         fs.writeFileSync(path.join(directory, 'database.sqlite'), '');
         fs.mkdirSync(path.join(directory, 'sessions'));
         const environment = { ...process.env, OPENBOOK_OAUTH_TEST_DIR: directory, OPENBOOK_OAUTH_TEST_URL: base };
@@ -32,6 +25,7 @@ let server;
         const setup = execFileSync('php', [fixture], { cwd: root, env: environment, encoding: 'utf8' });
         let data;
         try { data = JSON.parse(setup); } catch { throw new Error('Fixture setup failed: '+setup); }
+        assert.equal(data.signingKeysInitialized, false);
         server = spawn('php', ['-S', `127.0.0.1:${port}`, fixture], { cwd: root, env: environment, stdio: 'ignore' });
         let ready = false;
         for (let attempt = 0; attempt < 50; attempt++) {
@@ -113,10 +107,13 @@ let server;
             body: new URLSearchParams({ grant_type: 'refresh_token', client_id: registration.client_id, refresh_token: result.refresh_token }),
         });
         assert.equal(refresh.status, 400);
+        const signing = JSON.parse(execFileSync('php', [fixture, '--inspect-keys'], { cwd: root, env: environment, encoding: 'utf8' }));
+        assert.equal(signing.count, 1);
+        assert.equal(signing.encrypted, true);
         const afterClose = await browser(`${base}/impostazioni?tab=applications`);
         assert.equal(afterClose.status, 200);
         assert((await afterClose.text()).includes('There are no apps connected to your account.'));
-        console.log('PASS ['+(process.env.OPENBOOK_OAUTH_TEST_ENV || 'local')+']: dynamic registration, SDK PKCE/state, existing login, callback, SDK exchange, REST 200/304/401, settings close with CSRF, revoked Bearer/refresh, website session preserved');
+        console.log('PASS ['+(process.env.OPENBOOK_OAUTH_TEST_ENV || 'local')+']: dynamic registration, SDK PKCE/state, existing login, callback, SDK exchange, automatic encrypted DB signing keys, REST 200/304/401, settings close with CSRF, revoked Bearer/refresh, website session preserved');
     } finally {
         if (server && server.exitCode === null) { server.kill(); await once(server, 'exit'); }
         fs.rmSync(directory, { recursive: true, force: true });

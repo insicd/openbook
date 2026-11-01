@@ -59,7 +59,9 @@ server PHP su loopback. Login e consenso browser sono simulati tramite HTTP,
 cookie jar e controlli CSRF reali; l'SDK genera PKCE/state, verifica la callback
 e scambia il codice. Poi legge `/me` con la Person autenticata, verifica
 200/304/401 e chiude l’accesso dalla pagina delle impostazioni con CSRF reale. Verifica che Bearer
-e rinnovo siano rifiutati e che il sito resti aperto. I dati
+e rinnovo siano rifiutati e che il sito resti aperto. Le chiavi sono generate
+automaticamente durante il flusso: il test verifica che siano cifrate nel database,
+senza predisporre file di chiavi. I dati
 temporanei vengono eliminati; non viene usato il database OpenBook locale.
 Non è una prova di rendering React o su dispositivi iOS/Android.
 

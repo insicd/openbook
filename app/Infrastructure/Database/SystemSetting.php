@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Crypt;
  * Archivio chiave/valore per la configurazione dell'istanza (nome, stato di
  * installazione, token cron, ecc.), gestito dall'installer e dal pannello di
  * amministrazione. Le chiavi elencate in {@see self::ENCRYPTED_KEYS} vengono
- * cifrate a riposo perche' rappresentano segreti condivisi (non password):
- * l'amministratore deve poterle recuperare per configurare il cron esterno.
+ * cifrate a riposo perche' contengono segreti recuperabili, come il token cron
+ * e le chiavi private dei servizi dell'istanza.
  *
  * @property int $id
  * @property string $key
@@ -32,6 +32,7 @@ class SystemSetting extends Model
     private const ENCRYPTED_KEYS = [
         'cron_token',
         'push_vapid_keys',
+        'oauth_signing_keys',
     ];
 
     public static function get(string $key, ?string $default = null): ?string

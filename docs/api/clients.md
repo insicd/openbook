@@ -60,7 +60,9 @@ through HTTP with a cookie jar and real CSRF checks; the SDK generates PKCE/stat
 validates the callback and performs token exchange itself. It then reads `/me`
 with the authenticated Person and checks 200/304/401, then closes the access from settings with real CSRF
 validation. It checks that the Bearer and refresh token are rejected while the
-website session stays open. The test deletes temporary data and does not use the local
+website session stays open. Signing keys are generated automatically during the
+flow; the test verifies encrypted database storage without provisioning key files.
+The test deletes temporary data and does not use the local
 OpenBook database. It is not a React rendering test or an iOS/Android device test.
 
 ```sh

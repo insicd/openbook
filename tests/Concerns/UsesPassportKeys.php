@@ -2,6 +2,9 @@
 
 namespace Tests\Concerns;
 
+use App\Infrastructure\Auth\OAuthSigningKeys;
+use App\Infrastructure\Database\SystemSetting;
+
 trait UsesPassportKeys
 {
     private static ?array $passportKeys = null;
@@ -13,6 +16,6 @@ trait UsesPassportKeys
             openssl_pkey_export($key, $private);
             self::$passportKeys = ['private' => $private, 'public' => openssl_pkey_get_details($key)['key']];
         }
-        config(['passport.private_key' => self::$passportKeys['private'], 'passport.public_key' => self::$passportKeys['public']]);
+        SystemSetting::put(OAuthSigningKeys::SETTING_KEY, json_encode(['privateKey' => self::$passportKeys['private'], 'publicKey' => self::$passportKeys['public']], JSON_THROW_ON_ERROR));
     }
 }

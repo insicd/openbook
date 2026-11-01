@@ -2,6 +2,8 @@
 
 // Isolated fixture for the JavaScript OAuth integration test; never use the local DB.
 use App\Application\Services\AccountRegistrar;
+use App\Infrastructure\Auth\OAuthSigningKeys;
+use App\Infrastructure\Database\SystemSetting;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
@@ -31,8 +33,6 @@ config([
     'session.driver' => 'file', 'session.files' => $directory.'/sessions', 'session.secure' => false,
     'session.cookie' => 'openbook_oauth_test', 'session.domain' => null,
     'cache.default' => 'array', 'openbook.domain' => 'oauth.example', 'openbook.actor_key_bits' => 2048,
-    'passport.private_key' => file_get_contents($directory.'/private.key'),
-    'passport.public_key' => file_get_contents($directory.'/public.key'),
 ]);
 $app->setLocale('en');
 URL::forceRootUrl(getenv('OPENBOOK_OAUTH_TEST_URL'));
@@ -42,13 +42,26 @@ if ($environment === 'production' && parse_url(URL::to('/'), PHP_URL_SCHEME) !==
 // Only this isolated loopback fixture uses HTTP; production HTTPS behavior is verified above.
 URL::forceScheme('http');
 if (PHP_SAPI !== 'cli-server') {
+    if (in_array('--inspect-keys', $argv ?? [], true)) {
+        $raw = SystemSetting::query()->where('key', OAuthSigningKeys::SETTING_KEY)->value('value');
+        if ($raw === null) {
+            throw new RuntimeException('OAuth did not initialize its signing keys.');
+        }
+        $keys = app(OAuthSigningKeys::class)->getOrCreate();
+        echo json_encode([
+            'count' => SystemSetting::query()->where('key', 'oauth_signing_keys')->count(),
+            'encrypted' => ! str_contains($raw, $keys->privateKey) && ! str_contains($raw, 'PRIVATE KEY'),
+        ]);
+
+        return;
+    }
     Artisan::call('migrate', ['--database' => 'sqlite', '--force' => true]);
     $user = app(AccountRegistrar::class)->register([
         'username' => 'oauthclient', 'email' => 'oauthclient@example.test',
         'password' => Hash::make('OAuthClientTest123'),
     ]);
     $user->forceFill(['email_verified_at' => now()])->save();
-    echo json_encode(['personId' => $user->actor->id]);
+    echo json_encode(['personId' => $user->actor->id, 'signingKeysInitialized' => SystemSetting::query()->where('key', 'oauth_signing_keys')->exists()]);
 
     return;
 }

@@ -8,9 +8,9 @@ gestire il prodotto e tutte le operazioni amministrative.
 
 **Il supporto è sperimentale per copertura e contratto, ed è utilizzabile anche
 in produzione.** REST/OAuth e gestione degli accessi non dipendono da APP_ENV.
-Restano obbligatori installazione completata, migrazioni OAuth, chiavi Passport
-e configurazione sicura dell’istanza. Non è un’API Mastodon né una rappresentazione
-ActivityPub. La preparazione operativa è descritta sotto.
+Restano obbligatori installazione completata, migrazioni OAuth e configurazione
+sicura dell’istanza. Le chiavi di firma vengono inizializzate automaticamente.
+Non è un’API Mastodon né una rappresentazione ActivityPub. La preparazione operativa è descritta sotto.
 
 ## Funzionalità disponibili
 
@@ -201,17 +201,18 @@ I client devono trattare contenuti, nomi e URL come dati non fidati.
 
 ## Preparazione e produzione
 
-Installare le dipendenze Composer e applicare le migrazioni OAuth. Generare
-le chiavi una sola volta con `php artisan passport:keys` e preservare i file
-`storage/oauth-*.key`; non sovrascriverli negli aggiornamenti ordinari.
+Installare le dipendenze Composer e applicare le migrazioni OAuth con
+`php artisan migrate --force`. Le chiavi di firma vengono generate automaticamente
+al primo utilizzo OAuth e salvate nel database cifrate con APP_KEY. Non servono
+comandi manuali né file OAuth da conservare. Includere nei backup il database e
+APP_KEY e mantenerli nei deploy: cambiare o perdere la coppia invalida i token
+esistenti; perdere APP_KEY impedisce di decifrarla. Chiavi esistenti non leggibili
+producono un errore, senza essere sostituite automaticamente.
 Per la produzione usare APP_ENV=production, APP_DEBUG=false, APP_URL HTTPS e
-cookie di sessione sicuri (SESSION_SECURE_COOKIE=true). Applicare le migrazioni
-con php artisan migrate --force dopo aver installato le dipendenze. Aggiornare
-cache di configurazione e route dopo il deploy; una vecchia cache può conservare
-l’assenza delle route REST. L’eventuale generazione automatica delle chiavi dal
-Web installer non è richiesta: predisporle una volta come sopra.
-Nessun Redis, worker permanente
-o servizio esterno nuovo è richiesto.
+cookie di sessione sicuri (SESSION_SECURE_COOKIE=true). Aggiornare cache di
+configurazione e route dopo il deploy; una vecchia cache può conservare
+l’assenza delle route REST. Nessun Redis, worker permanente o servizio esterno
+nuovo è richiesto.
 
 ```sh
 php artisan passport:client --public --name="Example application" --redirect_uri="https://client.example/callback" --no-interaction
@@ -226,5 +227,5 @@ Se il client non supporta PKCE, non completa il flusso automaticamente.
 La seconda PR è prevista per ampliare le entità Comment, Community, Event,
 Notification e Hashtag e le loro relazioni. Upload Media e post complessi
 richiedono contratti dedicati. Non sono già implementati da questo sprint.
-Ulteriori automatismi di provisioning delle chiavi, cache basata sulle date,
-ricerca, sondaggi, messaggistica e ulteriori impostazioni restano da definire.
+Cache basata sulle date, ricerca, sondaggi, messaggistica e ulteriori impostazioni
+restano da definire.

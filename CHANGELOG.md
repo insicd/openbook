@@ -32,9 +32,10 @@ la [roadmap](docs/roadmap.md).
   RFC 7591 e metadata RFC 8414. Accessi revocabili dalle impostazioni senza
   chiudere la sessione Web; durata dei nuovi token configurabile in giorni
   con `OPENBOOK_OAUTH_TOKEN_DURATION` (default 365). Applicare le migrazioni
-  OAuth, generare una volta le chiavi Passport e preservarle negli aggiornamenti.
-  Supporto autenticato disponibile anche in produzione, con migrazioni OAuth,
-  chiavi Passport predisposte e cache aggiornate. Commenti, community, eventi,
+  OAuth e aggiornare le cache. Chiavi di firma generate automaticamente e
+  conservate nel database cifrate con APP_KEY, senza comandi o file da gestire;
+  includere database e APP_KEY nei backup. Supporto autenticato disponibile
+  anche in produzione. Commenti, community, eventi,
   notifiche, hashtag e upload media
   saranno completati negli sprint successivi.
 - **Segnalazioni federate (#119)**: le attività `Flag`

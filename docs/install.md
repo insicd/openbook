@@ -185,10 +185,12 @@ php artisan view:cache
 
 The authenticated REST API is available in production as well as development.
 Apply the normal database migrations after installing Composer dependencies.
-Provision the Passport key pair once with `php artisan passport:keys` and
-preserve `storage/oauth-*.key` on subsequent deployments; do not regenerate
-existing keys as part of routine updates. Keep APP_ENV=production,
-APP_DEBUG=false, HTTPS APP_URL and Secure session cookies in production.
+Signing keys are generated automatically on first OAuth use and stored encrypted
+in the database with APP_KEY; no manual key command or OAuth key files are needed.
+Preserve and back up both the database and APP_KEY across deployments to keep
+existing accesses working. Unreadable keys are never replaced automatically.
+Keep APP_ENV=production, APP_DEBUG=false, HTTPS APP_URL and Secure session
+cookies in production.
 Refresh configuration and route caches after deployment. The
 [API guide](api/README.md) documents the supported first-sprint operations,
 token lifetime and connected-access management.
