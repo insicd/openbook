@@ -19,6 +19,12 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Ricerca profili e post noti**: suggerimenti e pagina `/cerca` includono
+  anche bot, feed RSS/Atom e community pubbliche gia' conosciuti
+  dall'istanza, oltre alle persone. L'invio dalla pagina cerca nel testo
+  dei post pubblici in cache (locali e remoti); i post dei Person locali
+  restano subordinati al consenso `indexable`. I suggerimenti mentre si
+  digita restano su profili e hashtag.
 - **API REST sperimentale, primo sprint**: endpoint `/rest/v1` per Instance,
   Me, Person/PersonReference, Post e Follow. Include Mondo e timeline personale,
   dettaglio e raccolte dei profili, ownership `/me/posts`, creazione/modifica

@@ -105,11 +105,14 @@ and trending topics appear after the staff and before the suggested people;
 The “From the fediverse” list appears only while you follow zero people and
 hashtags; after your first follow, the button at the bottom lets you keep exploring.
 
-Search finds people, hashtags and visible events; keyword search for posts and
-comments covers local content. To find a remote account,
-use its full address `user@domain`. Mentions while writing recognize local and
-already-known remote accounts: search for a new remote address first. Inclusion
-of other authors’ public posts in search also depends on their indexing consent.
+Search finds known profiles (people, bots, RSS feeds and public communities),
+hashtags and visible events. Typing suggestions stay on those profiles and
+hashtags. Submitting a keyword also searches the text of public posts already
+known to the instance (local and cached remote), plus local comments. Local
+people’s public posts still require their indexing consent. To find a remote
+account not yet cached, use its full address `user@domain`. Mentions while
+writing recognize local and already-known remote accounts: search for a new
+remote address first.
 
 Trending shows hashtags recently used in local public or unlisted content.
 Home and World require JavaScript to load their feeds. Profiles, communities

@@ -451,9 +451,12 @@ return [
     'search' => [
         'title' => 'Cerca',
         'placeholder' => 'Parola chiave, utente@dominio, oppure URL di un sito/feed',
-        'help' => 'Cerca persone locali e remote gia\' note, oltre a post, commenti, eventi e hashtag; inserisci un indirizzo federato (es. persona@altraistanza.social), oppure l\'URL di un sito o di un feed RSS/Atom per seguirlo come contatto.',
+        'help' => 'Cerca profili gia\' noti all\'istanza (persone, bot, feed RSS, community), post pubblici in cache, commenti, eventi e hashtag. Inserisci un indirizzo federato (es. persona@altraistanza.social), oppure l\'URL di un sito o di un feed RSS/Atom per seguirlo come contatto. I suggerimenti mentre digiti restano su profili e hashtag; Invio cerca anche nel testo dei post.',
         'submit' => 'Cerca',
         'people' => 'Persone',
+        'applications' => 'Account automatici',
+        'feeds' => 'Feed',
+        'communities' => 'Community',
         'posts' => 'Post',
         'comments' => 'Commenti',
         'hashtags' => 'Hashtag',

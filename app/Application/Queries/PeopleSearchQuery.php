@@ -8,8 +8,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
- * Persone conosciute dall'istanza, con le stesse regole per ricerca e
- * suggerimenti. Nessun recupero federato avviene mentre si digita.
+ * Profili conosciuti dall'istanza (persone, bot, feed RSS e community),
+ * con le stesse regole per ricerca e suggerimenti. Nessun recupero
+ * federato avviene mentre si digita.
  */
 final class PeopleSearchQuery
 {
@@ -29,18 +30,43 @@ final class PeopleSearchQuery
             ->leftJoin('users', 'users.id', '=', 'actors.user_id')
             ->leftJoin('user_settings', 'user_settings.user_id', '=', 'users.id')
             ->leftJoin('profiles', 'profiles.user_id', '=', 'users.id')
-            ->where('actors.type', Actor::TYPE_PERSON)
+            ->leftJoin('communities', 'communities.actor_id', '=', 'actors.id')
+            ->whereIn('actors.type', [
+                Actor::TYPE_PERSON,
+                Actor::TYPE_APPLICATION,
+                Actor::TYPE_FEED,
+                Actor::TYPE_GROUP,
+            ])
             ->where('actors.status', Actor::STATUS_ACTIVE)
             ->where(function (Builder $query): void {
+                $query->where('actors.is_local', true)
+                    ->orWhere('actors.remote_suspended', false);
+            })
+            ->where(function (Builder $query): void {
                 $query->where(function (Builder $query): void {
-                    $query->where('actors.is_local', true)
+                    $query->where('actors.type', Actor::TYPE_PERSON)
+                        ->where('actors.is_local', true)
                         ->where('users.status', User::STATUS_ACTIVE)
                         ->where('user_settings.discoverable', true);
                 })->orWhere(function (Builder $query): void {
-                    $query->where('actors.is_local', false)
+                    $query->where('actors.type', Actor::TYPE_PERSON)
+                        ->where('actors.is_local', false)
                         ->where('actors.discoverable', true);
+                })->orWhere(function (Builder $query): void {
+                    $query->where('actors.type', Actor::TYPE_APPLICATION)
+                        ->where('actors.is_local', false);
+                })->orWhere(function (Builder $query): void {
+                    $query->where('actors.type', Actor::TYPE_FEED);
+                })->orWhere(function (Builder $query): void {
+                    $query->where('actors.type', Actor::TYPE_GROUP)
+                        ->where(function (Builder $query): void {
+                            $query->where('actors.is_local', false)
+                                ->orWhere('communities.is_private', false);
+                        });
                 });
             });
+
+        $displayName = "case when actors.is_local = 1 and actors.type = '".Actor::TYPE_PERSON."' then profiles.display_name else actors.name end";
 
         if (preg_match('/^([^@\s]+)@([^@\s]*)$/u', $term, $handle) === 1) {
             $username = mb_strtolower($handle[1]);
@@ -54,12 +80,15 @@ final class PeopleSearchQuery
             $usernameContains = $this->contains($username);
             $namePrefix = $this->prefix($term);
             $nameContains = $this->contains($term);
-            $displayName = 'case when actors.is_local = 1 then profiles.display_name else actors.name end';
 
             $query->where(function (Builder $query) use ($usernameContains, $nameContains, $displayName): void {
                 $query->whereRaw("actors.preferred_username LIKE ? ESCAPE '!'", [$usernameContains])
                     ->orWhereRaw("{$displayName} LIKE ? ESCAPE '!'", [$nameContains])
-                    ->orWhereRaw("profiles.bio LIKE ? ESCAPE '!'", [$nameContains]);
+                    ->orWhereRaw("profiles.bio LIKE ? ESCAPE '!'", [$nameContains])
+                    ->orWhere(function (Builder $query) use ($nameContains): void {
+                        $query->where('actors.type', Actor::TYPE_FEED)
+                            ->whereRaw("actors.summary LIKE ? ESCAPE '!'", [$nameContains]);
+                    });
             })->orderByRaw(
                 "case when actors.preferred_username = ? then 0
                     when actors.preferred_username LIKE ? ESCAPE '!' then 1

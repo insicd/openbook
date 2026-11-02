@@ -1,8 +1,9 @@
 /**
  * Autocomplete per i campi di ricerca (navbar e pagina /cerca): mentre si
- * digita vengono proposti persone (locali discoverable e remoti in cache)
- * e hashtag. Stesso pannello visuale delle menzioni; Enter sul suggerimento
- * apre il profilo/tag, Enter senza selezione invia la ricerca completa.
+ * digita vengono proposti profili gia' noti (persone, bot, feed RSS,
+ * community) e hashtag. Stesso pannello visuale delle menzioni; Enter sul
+ * suggerimento apre il profilo/tag, Enter senza selezione invia la ricerca
+ * completa.
  */
 (function () {
     'use strict';
@@ -18,6 +19,9 @@
     var listLabel = config.getAttribute('data-label') || '';
     var emptyLabel = config.getAttribute('data-empty') || '';
     var peopleLabel = config.getAttribute('data-people') || '';
+    var applicationsLabel = config.getAttribute('data-applications') || '';
+    var feedsLabel = config.getAttribute('data-feeds') || '';
+    var communitiesLabel = config.getAttribute('data-communities') || '';
     var hashtagsLabel = config.getAttribute('data-hashtags') || '';
     var debounceMs = 180;
     var minLength = parseInt(config.getAttribute('data-min-length') || '2', 10);
@@ -85,6 +89,18 @@
     function typeLabel(type) {
         if (type === 'hashtag') {
             return hashtagsLabel;
+        }
+
+        if (type === 'application') {
+            return applicationsLabel;
+        }
+
+        if (type === 'feed') {
+            return feedsLabel;
+        }
+
+        if (type === 'group') {
+            return communitiesLabel;
         }
 
         if (type === 'person') {

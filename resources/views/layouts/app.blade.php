@@ -236,6 +236,9 @@
             data-label="{{ __('openbook.search.suggest_label') }}"
             data-empty="{{ __('openbook.search.suggest_empty') }}"
             data-people="{{ __('openbook.search.people') }}"
+            data-applications="{{ __('openbook.search.applications') }}"
+            data-feeds="{{ __('openbook.search.feeds') }}"
+            data-communities="{{ __('openbook.search.communities') }}"
             data-hashtags="{{ __('openbook.search.hashtags') }}"
             data-min-length="{{ (int) config('openbook.search.suggest_min_length', 2) }}"
         ></div>

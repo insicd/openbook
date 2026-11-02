@@ -491,12 +491,15 @@ finalmente bidirezionale.
   del documento Actor (`RemoteActorResolver::resolveByHandle()`), poi
   reindirizza al profilo. Per una parola chiave, frase o username senza
   dominio, `PeopleSearchQuery` cerca le persone locali e remote gia' note
-  all'istanza per username o nome visualizzato; cerca anche nelle bio locali.
-  I risultati persona rispettano `discoverable`. Separatamente,
-  `LocalSearchQuery` cerca post e commenti di Actor locali (visibilita' e
-  `indexable` FEP-5feb rispettati), eventi visibili locali o remoti gia'
-  memorizzati e hashtag. L'autocompletamento della lente suggerisce persone
-  discoverable e hashtag, senza recuperare Actor sconosciuti ne' proporre
+  all'istanza per username o nome visualizzato, oltre a bot, feed RSS/Atom
+  e community pubbliche gia' conosciuti; cerca anche nelle bio locali.
+  I risultati persona rispettano `discoverable`; feed e bot compaiono perche'
+  sono gia' contatti di questa istanza. Separatamente,
+  `LocalSearchQuery` cerca i post pubblici gia' in cache (locali e remoti; i
+  Person locali restano subordinati a `indexable` FEP-5feb), i commenti di
+  Actor locali, eventi visibili locali o remoti gia' memorizzati e hashtag.
+  L'autocompletamento della lente suggerisce quei profili noti e gli hashtag,
+  senza recuperare Actor sconosciuti, cercare nel corpo dei post ne' proporre
   eventi. La `@` iniziale e' facoltativa per le query persone; le query sui
   contenuti conservano il testo originale. Nessun Elasticsearch: LIKE
   case-insensitive con jolly escapati, limiti configurabili (`OPENBOOK_SEARCH_MIN_LENGTH`,

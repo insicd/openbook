@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Application\Services\CommentComposer;
+use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\PostComposer;
+use App\Federation\Actors\Actor;
 use App\Domain\Events\Event;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
@@ -93,7 +95,7 @@ class LocalSearchTest extends TestCase
             ->assertDontSee('Solo zeldaz senza chiocciola.', false);
     }
 
-    public function test_a_keyword_search_finds_local_posts_and_comments_but_not_remote_ones(): void
+    public function test_a_keyword_search_finds_local_and_known_public_posts(): void
     {
         $viewer = $this->createFullAccount('cercacontenuti');
         $author = $this->createFullAccount('autorelocale');
@@ -111,11 +113,34 @@ class LocalSearchTest extends TestCase
         ]);
         app(CommentComposer::class)->compose($author->actor, $post, 'Commento sulla nebulosa e sull astronomia.');
 
-        $remote = $this->createRemoteActor('remotoastro');
+        $remote = $this->createRemoteActor('remotoastro', 'remoto.example', [
+            'indexable' => false,
+        ]);
         Post::query()->create([
             'actor_id' => $remote->id,
             'uri' => 'https://remoto.example/users/remotoastro/statuses/1',
             'body' => 'Post remoto di astronomia.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        $feed = Actor::query()->create([
+            'type' => Actor::TYPE_FEED,
+            'is_local' => false,
+            'preferred_username' => 'osservatoriofeed',
+            'domain' => (string) config('openbook.domain'),
+            'uri' => 'https://osservatorio.example/feed.xml',
+            'name' => 'Osservatorio',
+            'discoverable' => false,
+            'indexable' => false,
+            'status' => Actor::STATUS_ACTIVE,
+        ]);
+        Post::query()->create([
+            'actor_id' => $feed->id,
+            'uri' => 'https://osservatorio.example/posts/astro',
+            'title' => 'Bollettino',
+            'body' => 'Voce feed sull astronomia.',
             'visibility' => Post::VISIBILITY_PUBLIC,
             'status' => Post::STATUS_PUBLISHED,
             'published_at' => now(),
@@ -126,7 +151,50 @@ class LocalSearchTest extends TestCase
         $response->assertOk();
         $response->assertSee('Oggi parliamo di astronomia amatoriale.', false);
         $response->assertSee('Commento sulla nebulosa e sull astronomia.', false);
-        $response->assertDontSee('Post remoto di astronomia.', false);
+        $response->assertSee('Post remoto di astronomia.', false);
+        $response->assertSee('Voce feed sull astronomia.', false);
+    }
+
+    public function test_a_keyword_search_finds_bots_feeds_and_public_communities(): void
+    {
+        $viewer = $this->createFullAccount('cercaprofili');
+        $this->createRemoteActor('followback', 'tags.pub', [
+            'type' => Actor::TYPE_APPLICATION,
+            'name' => 'Follow Back Bot',
+        ]);
+        Actor::query()->create([
+            'type' => Actor::TYPE_FEED,
+            'is_local' => false,
+            'preferred_username' => 'giornalequartiere',
+            'domain' => (string) config('openbook.domain'),
+            'uri' => 'https://quartiere.example/rss.xml',
+            'name' => 'Giornale di quartiere',
+            'discoverable' => false,
+            'indexable' => false,
+            'status' => Actor::STATUS_ACTIVE,
+        ]);
+        app(CommunityRegistrar::class)->register($viewer, [
+            'slug' => 'astronomiaclub',
+            'name' => 'Club di astronomia',
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('search.create', ['q' => 'astronomia']));
+
+        $response->assertOk();
+        $response->assertSee(__('openbook.search.communities'), false);
+        $response->assertSee('Club di astronomia', false);
+
+        $this->actingAs($viewer)
+            ->get(route('search.create', ['q' => 'Follow Back']))
+            ->assertOk()
+            ->assertSee(__('openbook.search.applications'), false)
+            ->assertSee('Follow Back Bot', false);
+
+        $this->actingAs($viewer)
+            ->get(route('search.create', ['q' => 'quartiere']))
+            ->assertOk()
+            ->assertSee(__('openbook.search.feeds'), false)
+            ->assertSee('Giornale di quartiere', false);
     }
 
     public function test_a_single_hashtag_match_with_hash_prefix_opens_the_tag_page(): void

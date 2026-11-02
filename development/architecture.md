@@ -311,8 +311,9 @@ and "Edit profile" button on your own profile) makes them editable:
   instead of going straight to `/cerca` (submitting the form still uses the
   same local/federated search). Dedicated script:
   `public/assets/js/header-panels.js`. Its autocomplete lists known
-  discoverable local and remote people plus hashtags; the full search also
-  searches visible posts, comments, and events. On desktop, after scrolling
+  profiles (discoverable people, bots, RSS feeds, public communities) plus
+  hashtags; the full search also searches public posts already known to the
+  instance, comments, and events. On desktop, after scrolling
   past the composer, a **+** button appears in the center of the header that
   returns focus to the composer (or to Home if you are elsewhere); on mobile the same
   control is a discreet FAB at the bottom right (`compose-shortcut.js`).

@@ -107,12 +107,15 @@ argomenti in tendenza compaiono dopo lo staff e prima delle persone suggerite;
 La lista «Dal fediverso» compare soltanto finché segui zero persone e hashtag;
 dopo il primo follow puoi continuare la scoperta dal pulsante in fondo.
 
-La ricerca trova persone, hashtag ed eventi visibili; per post e commenti
-la ricerca per parole chiave riguarda i contenuti locali. Per trovare un account
-remoto usa l’indirizzo completo `utente@dominio`. Le menzioni durante la scrittura
-riconoscono account locali e remoti già conosciuti: cerca prima un indirizzo
-remoto nuovo. L’inclusione dei post pubblici altrui nella ricerca dipende anche
-dal consenso all’indicizzazione dell’autore.
+La ricerca trova i profili già noti (persone, bot, feed RSS e community
+pubbliche), hashtag ed eventi visibili. I suggerimenti mentre si digita restano
+su quei profili e sugli hashtag. L’invio di una parola chiave cerca anche nel
+testo dei post pubblici già noti all’istanza (locali e remoti in cache), oltre
+ai commenti locali. I post pubblici delle persone locali restano subordinati
+al consenso all’indicizzazione. Per trovare un account remoto non ancora in
+cache usa l’indirizzo completo `utente@dominio`. Le menzioni durante la
+scrittura riconoscono account locali e remoti già conosciuti: cerca prima un
+indirizzo remoto nuovo.
 
 Il riquadro delle tendenze mostra hashtag usati di recente nei contenuti locali
 pubblici o non elencati. La Home e Mondo richiedono JavaScript per caricare i feed.

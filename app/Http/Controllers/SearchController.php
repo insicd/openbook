@@ -30,7 +30,8 @@ use Throwable;
  *    solo se non e' un profilo AP si passa al feed RSS/Atom (Friendica).
  * 2. Indirizzo federato (`utente@dominio`, `acct:...`): risoluzione locale
  *    o via WebFinger + {@see RemoteActorResolver}.
- * 3. Parola chiave: persone note e contenuti locali.
+ * 3. Parola chiave: profili noti (persone, bot, feed, community) e
+ *    contenuti gia' visibili all'istanza.
  *
  * Se la query inizia con "#" e gli hashtag trovati sono esattamente uno,
  * si va direttamente alla pagina di quel tag.
@@ -80,11 +81,15 @@ class SearchController extends Controller
 
         $viewer = $request->user()?->actor;
         $results = $this->localSearch->search($query, $viewer);
-        $results['people'] = $this->peopleSearch->search(
+        $actors = $this->peopleSearch->search(
             $query,
             (int) config('openbook.search.per_section', 10),
             (int) config('openbook.search.min_length', 2),
         );
+        $results['people'] = $actors->where('type', Actor::TYPE_PERSON)->values();
+        $results['applications'] = $actors->where('type', Actor::TYPE_APPLICATION)->values();
+        $results['feeds'] = $actors->where('type', Actor::TYPE_FEED)->values();
+        $results['communities'] = $actors->where('type', Actor::TYPE_GROUP)->values();
 
         if ($this->shouldOpenSoleHashtag($query, $results['hashtags'])) {
             return redirect()->route('hashtags.show', $results['hashtags']->first()->name);

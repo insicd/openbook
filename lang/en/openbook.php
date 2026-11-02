@@ -451,9 +451,12 @@ return [
     'search' => [
         'title' => 'Search',
         'placeholder' => 'Keyword, user@domain, or site/feed URL',
-        'help' => 'Find known local and remote people, plus posts, comments, events, and hashtags; enter a federated address (e.g. person@otherinstance.social), or a site/RSS/Atom feed URL to follow it as a contact.',
+        'help' => 'Find profiles already known to this instance (people, bots, RSS feeds, communities), cached public posts, comments, events, and hashtags. Enter a federated address (e.g. person@otherinstance.social), or a site/RSS/Atom feed URL to follow it as a contact. Typing suggestions stay on profiles and hashtags; submitting also searches post text.',
         'submit' => 'Search',
         'people' => 'People',
+        'applications' => 'Automated accounts',
+        'feeds' => 'Feeds',
+        'communities' => 'Communities',
         'posts' => 'Posts',
         'comments' => 'Comments',
         'hashtags' => 'Hashtags',

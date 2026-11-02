@@ -302,7 +302,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Limiti della ricerca per parole chiave su contenuti di questa istanza
-    | (persone, post, commenti, hashtag). La risoluzione federata
+    | (profili, post, commenti, hashtag). La risoluzione federata
     | utente@dominio non usa questi valori.
     */
     'search' => [

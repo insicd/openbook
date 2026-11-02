@@ -10,9 +10,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Autocomplete della ricerca (navbar e pagina /cerca): persone discoverable
- * gia' note all'istanza e hashtag. Nessuna chiamata
- * WebFinger: la risoluzione federata resta sul submit della ricerca.
+ * Autocomplete della ricerca (navbar e pagina /cerca): profili gia' noti
+ * all'istanza (persone discoverable, bot, feed RSS, community pubbliche)
+ * e hashtag. Nessuna chiamata WebFinger: la risoluzione federata resta
+ * sul submit della ricerca.
  */
 class SearchSuggestController extends Controller
 {
@@ -32,7 +33,15 @@ class SearchSuggestController extends Controller
             ? []
             : $this->peopleSearch
                 ->search($term, $peopleLimit, (int) config('openbook.search.suggest_min_length', 2))
-                ->map(fn (Actor $actor) => $this->personFromActor($actor))
+                ->sortBy(fn (Actor $actor) => match ($actor->type) {
+                    Actor::TYPE_PERSON => 0,
+                    Actor::TYPE_APPLICATION => 1,
+                    Actor::TYPE_FEED => 2,
+                    Actor::TYPE_GROUP => 3,
+                    default => 4,
+                })
+                ->map(fn (Actor $actor) => $this->suggestionFromActor($actor))
+                ->values()
                 ->all();
 
         $hashtags = $this->localSearch->suggestHashtags(
@@ -52,10 +61,10 @@ class SearchSuggestController extends Controller
     /**
      * @return array{type: string, url: string, handle: string, display_name: string, avatar_url: ?string, is_local: bool}
      */
-    private function personFromActor(Actor $actor): array
+    private function suggestionFromActor(Actor $actor): array
     {
         return [
-            'type' => 'person',
+            'type' => $actor->type,
             'url' => $actor->profileUrl(),
             'handle' => $actor->isLocal() ? $actor->preferred_username : $actor->handle(),
             'display_name' => $actor->displayNameForText(),

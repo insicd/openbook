@@ -490,12 +490,15 @@ finally bidirectional.
   document (`RemoteActorResolver::resolveByHandle()`), then redirected to the
   profile. For a keyword, phrase, or username without domain,
   `PeopleSearchQuery` finds known local and cached remote people by username
-  or display name; local biographies are also searchable. People results
-  respect each account's `discoverable` setting. `LocalSearchQuery` separately
-  finds posts and comments of local Actors (visibility and FEP-5feb
-  `indexable` respected), visible local or cached remote events, and hashtags.
-  The header autocomplete suggests discoverable people and hashtags, but does
-  not fetch unknown Actors or suggest events. A leading `@` is optional for
+  or display name, plus bots, RSS/Atom feeds and public communities already
+  known to the instance; local biographies are also searchable. Person results
+  respect each account's `discoverable` setting; feeds and bots are listed
+  because they are already contacts of this instance. `LocalSearchQuery`
+  separately finds public posts already cached (local and remote; local Person
+  authors still require FEP-5feb `indexable`), comments of local Actors,
+  visible local or cached remote events, and hashtags.
+  The header autocomplete suggests those known profiles and hashtags, but does
+  not fetch unknown Actors, search post bodies, or suggest events. A leading `@` is optional for
   people queries; content queries retain the original text.
   No Elasticsearch: case-insensitive LIKE with escaped wildcards, configurable
   limits (`OPENBOOK_SEARCH_MIN_LENGTH`, `OPENBOOK_SEARCH_PER_SECTION`). A

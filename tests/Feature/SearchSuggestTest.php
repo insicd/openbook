@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\PostComposer;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Hashtag;
 use App\Domain\Posts\Post;
+use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
@@ -139,6 +141,90 @@ class SearchSuggestTest extends TestCase
         $response->assertOk()
             ->assertJsonCount(5, 'suggestions')
             ->assertJsonPath('suggestions.0.handle', 'nuke@openb.app');
+    }
+
+    public function test_search_suggestions_include_bots_feeds_and_public_communities(): void
+    {
+        $viewer = $this->createFullAccount('ricercaprofili');
+        $this->createRemoteActor('followback', 'tags.pub', [
+            'type' => Actor::TYPE_APPLICATION,
+            'name' => 'Follow Back Bot',
+        ]);
+        Actor::query()->create([
+            'type' => Actor::TYPE_FEED,
+            'is_local' => false,
+            'preferred_username' => 'notiziekucina',
+            'domain' => (string) config('openbook.domain'),
+            'uri' => 'https://cucina.example/feed.xml',
+            'name' => 'Notizie in cucina',
+            'summary' => 'Ricette dal blog',
+            'discoverable' => false,
+            'indexable' => false,
+            'status' => Actor::STATUS_ACTIVE,
+        ]);
+        app(CommunityRegistrar::class)->register($viewer, [
+            'slug' => 'fotoclub',
+            'name' => 'Foto Club Pubblico',
+        ]);
+        app(CommunityRegistrar::class)->register($viewer, [
+            'slug' => 'fotointerna',
+            'name' => 'Foto Club Privato',
+            'is_private' => true,
+        ]);
+        Actor::query()->create([
+            'type' => Actor::TYPE_APPLICATION,
+            'is_local' => true,
+            'preferred_username' => 'relaybotlocale',
+            'domain' => (string) config('openbook.domain'),
+            'uri' => url('/relay-test'),
+            'name' => 'Relay locale',
+            'status' => Actor::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($viewer)
+            ->getJson(route('search.suggest', ['q' => 'follow']))
+            ->assertOk()
+            ->assertJsonFragment([
+                'type' => 'application',
+                'handle' => 'followback@tags.pub',
+                'display_name' => 'Follow Back Bot',
+            ]);
+
+        $this->actingAs($viewer)
+            ->getJson(route('search.suggest', ['q' => 'cucina']))
+            ->assertOk()
+            ->assertJsonFragment([
+                'type' => 'feed',
+                'display_name' => 'Notizie in cucina',
+            ]);
+
+        $this->actingAs($viewer)
+            ->getJson(route('search.suggest', ['q' => 'Foto Club']))
+            ->assertOk()
+            ->assertJsonFragment([
+                'type' => 'group',
+                'handle' => 'fotoclub',
+                'display_name' => 'Foto Club Pubblico',
+            ])
+            ->assertJsonMissing(['handle' => 'fotointerna'])
+            ->assertJsonMissing(['handle' => 'relaybotlocale']);
+    }
+
+    public function test_search_suggestions_do_not_search_post_bodies(): void
+    {
+        $viewer = $this->createFullAccount('lentesenzapost');
+        $author = $this->createFullAccount('autorelente');
+        $author->settings->forceFill(['indexable' => true])->save();
+        $author->actor->update(['indexable' => true]);
+        app(PostComposer::class)->compose($author->actor, [
+            'body' => 'Un trattato unico di xenobotanica.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        $this->actingAs($viewer)
+            ->getJson(route('search.suggest', ['q' => 'xenobotanica']))
+            ->assertOk()
+            ->assertJsonCount(0, 'suggestions');
     }
 
     public function test_hash_prefixed_suggestions_return_only_hashtags(): void

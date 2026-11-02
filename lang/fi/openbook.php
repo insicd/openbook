@@ -431,9 +431,12 @@ return [
     'search' => [
         'title' => 'Haku',
         'placeholder' => 'Hakusana, käyttäjä@palvelin tai sivuston/syötteen URL',
-        'help' => 'Hae tunnettuja paikallisia ja etäpalvelinten käyttäjiä sekä julkaisuja, kommentteja, tapahtumia ja aihetunnisteita. Anna federoitu osoite (esim. käyttäjä@toinen.palvelin) tai sivuston/RSS-/Atom-syötteen URL seurataksesi sitä kontaktina.',
+        'help' => 'Hae tälle palvelimelle jo tuttuja profiileja (ihmiset, botit, RSS-syötteet, yhteisöt), välimuistissa olevia julkisia julkaisuja, kommentteja, tapahtumia ja aihetunnisteita. Anna federoitu osoite (esim. käyttäjä@toinen.palvelin) tai sivuston/RSS-/Atom-syötteen URL seurataksesi sitä kontaktina. Kirjoittaessa ehdotetaan profiileja ja aihetunnisteita; lähettäminen hakee myös julkaisujen tekstistä.',
         'submit' => 'Hae',
         'people' => 'Ihmiset',
+        'applications' => 'Automaattiset tilit',
+        'feeds' => 'Syötteet',
+        'communities' => 'Yhteisöt',
         'posts' => 'Julkaisut',
         'comments' => 'Kommentit',
         'hashtags' => 'Aihetunnisteet',
