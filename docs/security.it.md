@@ -14,3 +14,18 @@
   procedura e si blocca permanentemente al termine.
 
 Per segnalare vulnerabilita' vedi [`SECURITY.md`](../SECURITY.md).
+
+## API REST sperimentale
+
+Il primo sprint REST/OAuth è disponibile anche in produzione. Le risorse
+richiedono Bearer valido, scope api e account/attore attivi; le credenziali Web
+non autorizzano l’API. OAuth usa Authorization Code con PKCE S256 e consenso
+con CSRF. Gli accessi sono revocabili dalle impostazioni insieme ai refresh
+token. L’API rispetta visibilità, ownership e confini delle community private;
+non espone amministrazione o moderazione. Le cache sono private e il 304 viene
+valutato dopo i controlli di accesso. Nomi, contenuti e URL ricevuti restano dati
+non fidati per il rendering del client. Le chiavi di firma OAuth sono generate
+automaticamente e conservate nel database cifrate con APP_KEY. Mantenere entrambi
+nei backup e nei deploy; chiavi esistenti non leggibili producono un errore senza
+sostituzione automatica. Limiti e istruzioni operative sono descritti nella
+[guida API](api/README.it.md).

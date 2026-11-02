@@ -14,3 +14,18 @@
   completes and locks itself permanently at the end.
 
 To report vulnerabilities see [`SECURITY.md`](../SECURITY.md).
+
+## Experimental REST API
+
+The first REST/OAuth sprint is available in production as well. Resources
+require a valid Bearer, scope api and active user/actor; website credentials
+do not authorize API calls. OAuth uses Authorization Code with PKCE S256 and
+CSRF-protected consent. Settings can revoke accesses together with refresh
+tokens. The API preserves visibility, ownership and private-community boundaries
+and exposes no administration or moderation operations. Caches are private and
+304 is evaluated after access checks. Names, content and URLs remain untrusted
+data for client rendering. OAuth signing keys are generated automatically and
+stored encrypted in the database with APP_KEY. Preserve both in backups and
+across deployments; unreadable existing keys fail without automatic replacement.
+Limits and deployment guidance are documented in the
+[API guide](api/README.md).

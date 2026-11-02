@@ -19,6 +19,25 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **API REST sperimentale, primo sprint**: endpoint `/rest/v1` per Instance,
+  Me, Person/PersonReference, Post e Follow. Include Mondo e timeline personale,
+  dettaglio e raccolte dei profili, ownership `/me/posts`, creazione/modifica
+  di post testuali semplici, eliminazione dei propri post locali, Mi piace,
+  rilanci manuali, follow e richieste ricevute con accettazione/rifiuto.
+  Riusa i servizi esistenti e i controlli di visibilità, senza privilegi staff
+  aggiuntivi. Contratto OpenAPI pubblico, paginazione tramite Link e confini
+  ID/data, cache privata con ETag e errori Problem Details.
+- **Accesso delle applicazioni esterne**: OAuth 2 Passport con Authorization
+  Code/PKCE S256, login/consenso Web, client pubblici registrabili tramite
+  RFC 7591 e metadata RFC 8414. Accessi revocabili dalle impostazioni senza
+  chiudere la sessione Web; durata dei nuovi token configurabile in giorni
+  con `OPENBOOK_OAUTH_TOKEN_DURATION` (default 365). Applicare le migrazioni
+  OAuth e aggiornare le cache. Chiavi di firma generate automaticamente e
+  conservate nel database cifrate con APP_KEY, senza comandi o file da gestire;
+  includere database e APP_KEY nei backup. Supporto autenticato disponibile
+  anche in produzione. Commenti, community, eventi,
+  notifiche, hashtag e upload media
+  saranno completati negli sprint successivi.
 - **Segnalazioni federate (#119)**: le attività `Flag`
   vengono elaborate dall'inbox ActivityPub ordinaria e registrate come casi di
   moderazione su persone e contenuti locali, con riferimenti multipli e
@@ -350,6 +369,9 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Requisiti PHP per OAuth**: Sodium dichiarato esplicitamente in Composer,
+  nel controllo bloccante dell’installer e nelle guide di installazione.
+  Abilitare l’estensione sia per PHP CLI sia per il sito prima del deploy.
 - **Statistiche**: rimosso il filtro che escludeva gli attori `Application`
   dai conteggi degli account per istanza e dei contenuti pubblici. Restano
   applicati i controlli di visibilità e moderazione.

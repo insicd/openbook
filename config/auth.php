@@ -38,6 +38,10 @@ return [
     */
 
     'guards' => [
+        'rest' => [
+            'driver' => 'passport',
+            'provider' => 'users',
+        ],
         'web' => [
             'driver' => 'session',
             'provider' => 'users',

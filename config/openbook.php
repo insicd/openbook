@@ -110,6 +110,9 @@ return [
         'requires_approval' => (bool) env('OPENBOOK_REGISTRATION_REQUIRES_APPROVAL', false),
     ],
 
+    // Durata in giorni dei nuovi access token OAuth e dei relativi refresh token.
+    'oauth_token_duration' => env('OPENBOOK_OAUTH_TOKEN_DURATION', 365),
+
     /*
     |--------------------------------------------------------------------------
     | Lingue dell'interfaccia

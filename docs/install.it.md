@@ -5,7 +5,7 @@
 Openbook e' progettato per funzionare anche su un normale **shared hosting**, senza
 accesso SSH continuo, senza Docker e senza processi permanenti:
 
-- PHP **8.4.1** o superiore, con estensioni: `curl`, `openssl`, `json`, `pdo`,
+- PHP **8.4.1** o superiore, con estensioni: `curl`, `openssl`, `sodium`, `json`, `pdo`,
   `pdo_mysql`, `mbstring`, `fileinfo`;
 - estensione `gd` **consigliata** per miniature e rimozione dei metadati dalle
   immagini compatibili. Senza GD il caricamento resta disponibile, ma queste
@@ -26,6 +26,12 @@ base usa esclusivamente MySQL, cron PHP e filesystem locale.
 PHP **8.4.1 o superiore** deve essere attivo sia per il sito web sia per i comandi
 CLI e il cron. Prima di aggiornare un’istanza esistente, verificare la versione
 selezionata nel pannello hosting e quella restituita da `php -v`.
+
+Sodium è richiesto dalle dipendenze OAuth/JWT. Abilitarlo sia nel PHP CLI usato
+da Composer sia nel PHP che serve il sito. Verificare la CLI con `php --ri sodium`
+e `composer check-platform-reqs --lock --no-dev`; se manca, installare o abilitare
+l’estensione prima di eseguire `composer install`. Non aggirare il requisito con
+`--ignore-platform-req=ext-sodium`.
 
 ## Installazione guidata (consigliata su shared hosting)
 
@@ -181,6 +187,19 @@ php artisan route:cache
 php artisan view:cache
 ```
 
+
+## Preparazione REST/OAuth
+
+L’API REST autenticata è disponibile anche in produzione. Applicare le normali
+migrazioni dopo l’installazione delle dipendenze Composer. Le chiavi di firma
+vengono generate automaticamente al primo utilizzo OAuth e salvate nel database
+cifrate con APP_KEY; non servono comandi manuali né file OAuth. Conservare e
+includere nei backup sia il database sia APP_KEY per mantenere gli accessi nei
+deploy successivi. Chiavi non leggibili non vengono sostituite automaticamente.
+In produzione usare APP_ENV=production, APP_DEBUG=false, APP_URL HTTPS e cookie
+di sessione Secure. Aggiornare cache di
+configurazione e route dopo il deploy. La [guida API](api/README.it.md) descrive
+le funzionalità del primo sprint, la durata dei token e gli accessi collegati.
 
 ## Configurazione del server web
 

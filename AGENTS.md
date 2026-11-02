@@ -27,6 +27,27 @@ unrelated refactors.
 
 ## Analysis and documentation
 
+- OpenAPI specifications in `docs/api/` are public documentation for external
+  API consumers. Describe only the public contract: resources, fields, types,
+  constraints, behavior and examples. Never include database tables or columns,
+  internal models, implementation details, design discussions, unresolved
+  internal reasoning or references to internal analysis. Keep that material in
+  `analysis/`. Use synthetic examples without credentials or private data.
+- For client-created REST resources, define a separate `New<Entity>` schema
+  (for example `NewPost`) containing only accepted creation inputs. Preserve
+  the response entity's field names and grouping where applicable, but define
+  required and nullable independently; do not inherit response requirements.
+  `NewPost` requires only `postContent` and `postVisibility`; future creation
+  fields added to this schema must be optional.
+- Write all OpenAPI property and schema names, endpoint paths, operation names,
+  parameters, enum values, summaries, descriptions, tags and other authored
+  documentation in English. Use English for explanatory example content too;
+  this does not restrict the language of actual user-generated API data.
+- REST API enum values use case-sensitive `lowerCamelCase` consistently in
+  specifications, examples and implementation. This rule applies to enum
+  values, not to property names or schema names. Protocol-defined OAuth names
+  and values retain their standard wire format (for example grant_type and
+  authorization_code); never rename protocol fields to match REST entity casing.
 - For a major feature or architectural change, use `analysis/` to record the
   problem, constraints, decisions, open questions, and implementation stages
   before substantial coding. Keep the relevant analysis current as decisions

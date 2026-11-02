@@ -16,6 +16,8 @@
     @elseif ($activeTab === 'migration')
         @include('settings._account_aliases')
         @include('settings._account_migration')
+    @elseif ($activeTab === 'applications')
+        @include('settings._applications')
     @else
         @include('settings._profile')
     @endif

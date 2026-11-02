@@ -462,3 +462,20 @@ Le metriche non devono far fallire il salvataggio. Le query di lettura non
 riutilizzano la logica delle timeline: mantengono soltanto i filtri statistici
 approvati. Definizioni e gestione operativa: [Stats](../docs/architecture.it.md#stats)
 e [cache](../docs/configuration.it.md#statistiche-dellistanza-e-cache).
+
+## Adattatore REST sperimentale
+
+Il primo sprint REST vive in Http/Controllers/Rest/V1 e Http/Resources/Rest/V1:
+validazione, autorizzazione e mapping esplicito, con riuso dei servizi applicativi,
+query, scope e policy del Web. Nessuna nuova regola di dominio per i client REST.
+PersonQuery/PersonFollowQuery sono adapter di lettura; FollowListQuery condivide
+selettori equivalenti con il Web per non duplicare il grafo. User acquisisce il
+solo contratto/trait di autenticazione Passport; i flussi del dominio restano
+quelli esistenti. OAuth e gestione degli accessi sono integrazioni dedicate.
+
+Route REST/OAuth e pannello accessi sono registrati in ogni ambiente, inclusa
+la produzione; restano i guard di installazione, autenticazione e autorizzazione. Il contratto pubblico è in
+[docs/api](../docs/api/README.it.md); la descrizione consolidata di confini,
+scelte e roadmap è in [REST_SERVICE](../analysis/REST_SERVICE.md). Nuove entità
+o scritture vanno prima confrontate con i flussi Web, includendo i controlli
+oggi presenti nei controller oltre a quelli dei servizi.

@@ -444,3 +444,20 @@ generate another delivery. Metrics must not fail content persistence. Read
 queries do not reuse timeline logic; they retain only the approved statistics
 filters. Definitions and operations: [Stats](../docs/architecture.md#stats)
 and [cache](../docs/configuration.md#instance-statistics-and-cache).
+
+## Experimental REST adapter
+
+The first REST sprint lives in Http/Controllers/Rest/V1 and Http/Resources/Rest/V1:
+validation, authorization and explicit mapping reuse website application services,
+queries, scopes and policies. No parallel domain rules are introduced for REST.
+PersonQuery/PersonFollowQuery are read adapters; FollowListQuery shares equivalent
+selectors with the website instead of duplicating graph logic. User gains only
+the Passport authentication contract/trait; existing domain flows remain intact.
+OAuth and connected-access management have dedicated integration points.
+
+REST/OAuth routes and the access panel are registered in every environment,
+including production; installed-state, authentication and authorization guards remain. The public contract is in
+[docs/api](../docs/api/README.md); consolidated boundaries, decisions and roadmap
+are in [REST_SERVICE](../analysis/REST_SERVICE.md). Compare new entities and writes
+with existing website flows first, including checks in controllers as well as
+services.

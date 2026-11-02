@@ -5,7 +5,7 @@
 Openbook is designed to run even on ordinary **shared hosting**, without
 continuous SSH access, without Docker, and without long-running processes:
 
-- PHP **8.4.1** or later, with extensions: `curl`, `openssl`, `json`, `pdo`,
+- PHP **8.4.1** or later, with extensions: `curl`, `openssl`, `sodium`, `json`, `pdo`,
   `pdo_mysql`, `mbstring`, `fileinfo`;
 - `gd` extension **recommended** for thumbnails and metadata removal from
   supported images. Without GD, uploads remain available but these processing
@@ -26,6 +26,12 @@ base mode uses only MySQL, PHP cron, and the local filesystem.
 PHP **8.4.1 or later** must be enabled for both the website and CLI/cron
 commands. Before updating an existing instance, check the version selected in
 the hosting panel and the version reported by `php -v`.
+
+Sodium is required by the OAuth/JWT dependencies. Enable it in both the PHP CLI
+used by Composer and the PHP runtime serving the website. Check the CLI with
+`php --ri sodium` and `composer check-platform-reqs --lock --no-dev`; if the extension is
+missing, install or enable it before running `composer install`. Do not bypass
+the requirement with `--ignore-platform-req=ext-sodium`.
 
 ## Guided installation (recommended on shared hosting)
 
@@ -180,6 +186,20 @@ php artisan route:cache
 php artisan view:cache
 ```
 
+
+## REST/OAuth preparation
+
+The authenticated REST API is available in production as well as development.
+Apply the normal database migrations after installing Composer dependencies.
+Signing keys are generated automatically on first OAuth use and stored encrypted
+in the database with APP_KEY; no manual key command or OAuth key files are needed.
+Preserve and back up both the database and APP_KEY across deployments to keep
+existing accesses working. Unreadable keys are never replaced automatically.
+Keep APP_ENV=production, APP_DEBUG=false, HTTPS APP_URL and Secure session
+cookies in production.
+Refresh configuration and route caches after deployment. The
+[API guide](api/README.md) documents the supported first-sprint operations,
+token lifetime and connected-access management.
 
 ## Web server configuration
 
