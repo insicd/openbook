@@ -4,6 +4,7 @@ namespace Tests\Feature\Console;
 
 use App\Application\Services\PostPublicationStager;
 use App\Domain\Posts\PendingPostPublication;
+use App\Infrastructure\Database\SystemSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -78,6 +79,37 @@ class ProcessVideosCommandTest extends TestCase
         $this->assertSame(2, $publication->attempts);
     }
 
+    public function test_worker_reloads_object_storage_configuration_between_publications(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        $this->enableVideo($this->fakeTools());
+        SystemSetting::putBool('object_storage_enabled', true);
+        SystemSetting::put('object_storage_access_key', 'key-a');
+        $resolvedKeys = [];
+        $root = storage_path('framework/testing/video-worker-storage-'.uniqid());
+        Storage::extend('objectStorage', function () use (&$resolvedKeys, $root) {
+            $key = SystemSetting::get('object_storage_access_key');
+            $resolvedKeys[] = $key;
+
+            return Storage::build(['driver' => 'local', 'root' => $root]);
+        });
+        $first = $this->stage('worker-storage-first');
+        $first->forceFill(['created_at' => now()->subMinute()])->save();
+        $second = $this->stage('worker-storage-second');
+        $this->artisan('openbook:process-videos', ['--once' => true])->assertSuccessful();
+        $firstMedia = $first->fresh()->post->media()->first();
+        $this->assertFileExists($root.'/'.$firstMedia->path);
+
+        // Simulate an admin update from another PHP process: invalidate no
+        // disks in this worker, only change the persisted configuration.
+        SystemSetting::put('object_storage_access_key', 'key-b');
+        $this->artisan('openbook:process-videos', ['--once' => true])->assertSuccessful();
+        $secondMedia = $second->fresh()->post->media()->first();
+        $this->assertFileExists($root.'/'.$secondMedia->path);
+        $this->assertSame(['key-a', 'key-b'], $resolvedKeys);
+    }
+
     public function test_disabled_video_support_does_not_claim_work(): void
     {
         config(['openbook.video.enabled' => false]);
@@ -128,9 +160,15 @@ class ProcessVideosCommandTest extends TestCase
         chmod($ffprobe, 0755);
 
         $ffmpeg = $directory.'/ffmpeg';
-        $processing = $failProcessing
-            ? "exit 1\n"
-            : "for argument in \"\$@\"; do destination=\"\$argument\"; done\nprintf 'generated-media' > \"\$destination\"\n";
+        $success = <<<'SH'
+for argument in "$@"; do destination="$argument"; done
+case "$destination" in
+    *.jpg) php -r 'imagejpeg(imagecreatetruecolor(2, 2), $argv[1]);' "$destination" ;;
+    *) printf 'generated-media' > "$destination" ;;
+esac
+
+SH;
+        $processing = $failProcessing ? "exit 1\n" : $success;
         file_put_contents($ffmpeg, "#!/bin/sh\nif [ \"\$1\" = \"-version\" ]; then printf 'ffmpeg version test-1.0\\n'; exit 0; fi\n{$processing}");
         chmod($ffmpeg, 0755);
 

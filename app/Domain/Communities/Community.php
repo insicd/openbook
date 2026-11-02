@@ -6,6 +6,7 @@ use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
+use App\Infrastructure\Media\AssetStorage;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,10 @@ use Illuminate\Support\Carbon;
  * @property string $actor_id
  * @property string $owner_user_id
  * @property string $slug
+ * @property string|null $avatar_path
+ * @property string $avatar_disk
+ * @property string|null $cover_path
+ * @property string $cover_disk
  * @property bool $is_private
  * @property int $members_count
  * @property int $posts_count
@@ -39,6 +44,10 @@ class Community extends Model
         'actor_id',
         'owner_user_id',
         'slug',
+        'avatar_path',
+        'avatar_disk',
+        'cover_path',
+        'cover_disk',
         'is_private',
         'members_count',
         'posts_count',
@@ -108,5 +117,19 @@ class Community extends Model
     public function url(): string
     {
         return route('communities.show', $this);
+    }
+
+    public function avatarUrl(): ?string
+    {
+        return $this->avatar_path
+            ? app(AssetStorage::class)->url($this->avatar_disk ?? 'public', $this->avatar_path, 'community', $this->id, 'avatar')
+            : $this->actor?->icon_url;
+    }
+
+    public function coverUrl(): ?string
+    {
+        return $this->cover_path
+            ? app(AssetStorage::class)->url($this->cover_disk ?? 'public', $this->cover_path, 'community', $this->id, 'cover')
+            : $this->actor?->image_url;
     }
 }

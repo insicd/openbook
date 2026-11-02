@@ -3,7 +3,7 @@
 @section('title', __('openbook.communities.edit_title').' - '.config('app.name'))
 
 @section('content')
-    <div class="ob-card ob-narrow">
+    <div class="ob-card">
         <p class="ob-field__help" style="margin-bottom:0.5rem">
             <a href="{{ route('communities.show', $community) }}">&larr; {{ __('openbook.communities.back_to_community') }}</a>
         </p>

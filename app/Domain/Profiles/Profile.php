@@ -3,11 +3,11 @@
 namespace App\Domain\Profiles;
 
 use App\Domain\Accounts\User;
+use App\Infrastructure\Media\AssetStorage;
 use App\Infrastructure\Media\Media;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Dati di presentazione pubblica di un account locale.
@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Storage;
  * @property string $user_id
  * @property string|null $display_name
  * @property string|null $bio
+ * @property string $avatar_disk
+ * @property string $cover_disk
  * @property string|null $avatar_path
  * @property string|null $cover_path
  * @property array<int, array{label: string, value?: string, url?: string}>|null $links
@@ -32,7 +34,9 @@ class Profile extends Model
         'display_name',
         'bio',
         'avatar_path',
+        'avatar_disk',
         'cover_path',
+        'cover_disk',
         'links',
     ];
 
@@ -51,20 +55,14 @@ class Profile extends Model
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Stessa logica di {@see Media::url()}: l'URL
-     * viene composto dal disco "public" ("filesystems.disks.public.url",
-     * basato su APP_URL), non dall'helper asset(), cosi' da restare coerente
-     * con lo schema/host configurati anche dietro proxy o reverse proxy che
-     * non riportano correttamente lo schema originale della richiesta.
-     */
+    /** URL coerenti con Media e con il disco registrato sul singolo asset. */
     public function avatarUrl(): ?string
     {
-        return $this->avatar_path ? Storage::disk('public')->url($this->avatar_path) : null;
+        return $this->avatar_path ? app(AssetStorage::class)->url($this->avatar_disk ?? 'public', $this->avatar_path, 'profile', $this->id, 'avatar') : null;
     }
 
     public function coverUrl(): ?string
     {
-        return $this->cover_path ? Storage::disk('public')->url($this->cover_path) : null;
+        return $this->cover_path ? app(AssetStorage::class)->url($this->cover_disk ?? 'public', $this->cover_path, 'profile', $this->id, 'cover') : null;
     }
 }

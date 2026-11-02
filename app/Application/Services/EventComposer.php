@@ -13,15 +13,14 @@ use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Serialization\ActivitySerializer;
 use App\Infrastructure\Media\Media;
+use App\Infrastructure\Media\MediaStorage;
 use App\Infrastructure\Media\MediaUploader;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
-use Throwable;
 
-/** Crea un Event locale senza ancora consegnarlo in federazione. */
+/** Gestisce gli eventi locali e la consegna federata dopo il salvataggio. */
 final class EventComposer
 {
     public function __construct(
@@ -35,72 +34,61 @@ final class EventComposer
      */
     public function compose(Actor $author, array $data): Event
     {
-        $storedFiles = [];
+        $event = DB::transaction(function () use ($author, $data): Event {
+            $timezone = (string) $data['timezone'];
+            $startsAt = Carbon::createFromFormat('Y-m-d\TH:i', (string) $data['start_at'], $timezone);
+            $endsAt = filled($data['end_at'] ?? null)
+                ? Carbon::createFromFormat('Y-m-d\TH:i', (string) $data['end_at'], $timezone)
+                : null;
+            $applicationTimezone = (string) config('app.timezone', 'UTC');
+            $event = new Event;
+            $event->id = $event->newUniqueId();
+            $event->forceFill([
+                'actor_id' => $author->id,
+                'uri' => route('events.show', $event->id),
+                'url' => route('events.show', $event->id),
+                'name' => trim((string) $data['name']),
+                'content' => trim((string) $data['content']),
+                'visibility' => $data['visibility'],
+                'status' => Event::STATUS_SCHEDULED,
+                'join_mode' => $data['join_mode'],
+                'sensitive' => (bool) ($data['sensitive'] ?? false),
+                'is_online' => in_array($data['mode'], ['online', 'hybrid'], true),
+                'external_participation_url' => filled($data['participation_url'] ?? null)
+                    ? trim((string) $data['participation_url'])
+                    : null,
+                'start_at' => $startsAt->copy()->setTimezone($applicationTimezone),
+                'end_at' => $endsAt?->copy()->setTimezone($applicationTimezone),
+                'timezone' => $timezone,
+                'utc_offset_minutes' => (int) ($startsAt->getOffset() / 60),
+                'participant_count' => 0,
+                'likes_count' => 0,
+                'published_at' => now(),
+            ])->save();
 
-        try {
-            $event = DB::transaction(function () use ($author, $data, &$storedFiles): Event {
-                $timezone = (string) $data['timezone'];
-                $startsAt = Carbon::createFromFormat('Y-m-d\TH:i', (string) $data['start_at'], $timezone);
-                $endsAt = filled($data['end_at'] ?? null)
-                    ? Carbon::createFromFormat('Y-m-d\TH:i', (string) $data['end_at'], $timezone)
-                    : null;
-                $applicationTimezone = (string) config('app.timezone', 'UTC');
-                $event = new Event;
-                $event->id = $event->newUniqueId();
-                $event->forceFill([
-                    'actor_id' => $author->id,
-                    'uri' => route('events.show', $event->id),
-                    'url' => route('events.show', $event->id),
-                    'name' => trim((string) $data['name']),
-                    'content' => trim((string) $data['content']),
-                    'visibility' => $data['visibility'],
-                    'status' => Event::STATUS_SCHEDULED,
-                    'join_mode' => $data['join_mode'],
-                    'sensitive' => (bool) ($data['sensitive'] ?? false),
-                    'is_online' => in_array($data['mode'], ['online', 'hybrid'], true),
-                    'external_participation_url' => filled($data['participation_url'] ?? null)
-                        ? trim((string) $data['participation_url'])
-                        : null,
-                    'start_at' => $startsAt->copy()->setTimezone($applicationTimezone),
-                    'end_at' => $endsAt?->copy()->setTimezone($applicationTimezone),
-                    'timezone' => $timezone,
-                    'utc_offset_minutes' => (int) ($startsAt->getOffset() / 60),
-                    'participant_count' => 0,
-                    'likes_count' => 0,
-                    'published_at' => now(),
-                ])->save();
+            $this->syncLocation($event, $data);
+            $this->syncHashtags($event);
+            $this->syncMentions($event, $author);
 
-                $this->syncLocation($event, $data);
-                $this->syncHashtags($event);
-                $this->syncMentions($event, $author);
+            $cover = $data['cover'] ?? null;
 
-                $cover = $data['cover'] ?? null;
-
-                if ($cover instanceof UploadedFile) {
-                    $media = $this->mediaUploader->store($cover, $author, $data['cover_alt'] ?? null);
-                    $this->rememberFiles($media, $storedFiles);
-                    EventAttachment::query()->create([
-                        'event_id' => $event->id,
-                        'media_id' => $media->id,
-                        'position' => 0,
-                    ]);
-                }
-
-                return $event->fresh(['actor', 'location', 'hashtags', 'mentions.actor', 'media.thumbnail']) ?? $event;
-            });
-
-            if ($author->isLocal()) {
-                $this->delivery->deliverContent($event, ActivitySerializer::create($event));
+            if ($cover instanceof UploadedFile) {
+                $media = $this->mediaUploader->store($cover, $author, $data['cover_alt'] ?? null);
+                EventAttachment::query()->create([
+                    'event_id' => $event->id,
+                    'media_id' => $media->id,
+                    'position' => 0,
+                ]);
             }
 
-            return $event;
-        } catch (Throwable $exception) {
-            foreach ($storedFiles as [$disk, $path]) {
-                Storage::disk($disk)->delete($path);
-            }
+            return $event->fresh(['actor', 'location', 'hashtags', 'mentions.actor', 'media.thumbnail']) ?? $event;
+        });
 
-            throw $exception;
+        if ($author->isLocal()) {
+            $this->delivery->deliverContent($event, ActivitySerializer::create($event));
         }
+
+        return $event;
     }
 
     /** @param array<string, mixed> $data */
@@ -110,58 +98,48 @@ final class EventComposer
         $event->loadMissing('mentions.actor');
         $previousVisibility = $event->visibility;
         $previousMentionTargets = $event->mentions->pluck('actor')->filter()->values()->all();
-        $storedFiles = [];
         $replacedMedia = collect();
 
-        try {
-            $event = DB::transaction(function () use ($author, $event, $data, &$storedFiles, &$replacedMedia): Event {
-                [$startsAt, $endsAt, $timezone] = $this->dates($data);
-                $event->update([
-                    'name' => trim((string) $data['name']),
-                    'content' => trim((string) $data['content']),
-                    'visibility' => $data['visibility'],
-                    'join_mode' => $data['join_mode'],
-                    'sensitive' => (bool) ($data['sensitive'] ?? false),
-                    'is_online' => in_array($data['mode'], ['online', 'hybrid'], true),
-                    'external_participation_url' => filled($data['participation_url'] ?? null)
-                        ? trim((string) $data['participation_url'])
-                        : null,
-                    'start_at' => $startsAt,
-                    'end_at' => $endsAt,
-                    'timezone' => $timezone,
-                    'utc_offset_minutes' => (int) (Carbon::createFromFormat('Y-m-d\TH:i', (string) $data['start_at'], $timezone)->getOffset() / 60),
+        $event = DB::transaction(function () use ($author, $event, $data, &$replacedMedia): Event {
+            [$startsAt, $endsAt, $timezone] = $this->dates($data);
+            $event->update([
+                'name' => trim((string) $data['name']),
+                'content' => trim((string) $data['content']),
+                'visibility' => $data['visibility'],
+                'join_mode' => $data['join_mode'],
+                'sensitive' => (bool) ($data['sensitive'] ?? false),
+                'is_online' => in_array($data['mode'], ['online', 'hybrid'], true),
+                'external_participation_url' => filled($data['participation_url'] ?? null)
+                    ? trim((string) $data['participation_url'])
+                    : null,
+                'start_at' => $startsAt,
+                'end_at' => $endsAt,
+                'timezone' => $timezone,
+                'utc_offset_minutes' => (int) (Carbon::createFromFormat('Y-m-d\TH:i', (string) $data['start_at'], $timezone)->getOffset() / 60),
+            ]);
+
+            $this->syncLocation($event, $data);
+            $this->syncHashtags($event);
+            $event->mentions()->delete();
+            $this->syncMentions($event, $author);
+
+            $cover = $data['cover'] ?? null;
+
+            if ($cover instanceof UploadedFile) {
+                $replacedMedia = $event->media()->get();
+                $event->attachments()->delete();
+                $media = $this->mediaUploader->store($cover, $author, $data['cover_alt'] ?? null);
+                EventAttachment::query()->create([
+                    'event_id' => $event->id,
+                    'media_id' => $media->id,
+                    'position' => 0,
                 ]);
-
-                $this->syncLocation($event, $data);
-                $this->syncHashtags($event);
-                $event->mentions()->delete();
-                $this->syncMentions($event, $author);
-
-                $cover = $data['cover'] ?? null;
-
-                if ($cover instanceof UploadedFile) {
-                    $replacedMedia = $event->media()->get();
-                    $event->attachments()->delete();
-                    $media = $this->mediaUploader->store($cover, $author, $data['cover_alt'] ?? null);
-                    $this->rememberFiles($media, $storedFiles);
-                    EventAttachment::query()->create([
-                        'event_id' => $event->id,
-                        'media_id' => $media->id,
-                        'position' => 0,
-                    ]);
-                } elseif (array_key_exists('cover_alt', $data)) {
-                    $event->media()->update(['alt_text' => $data['cover_alt'] ?: null]);
-                }
-
-                return $event->fresh(['actor', 'location', 'hashtags', 'mentions.actor', 'media.thumbnail']) ?? $event;
-            });
-        } catch (Throwable $exception) {
-            foreach ($storedFiles as [$disk, $path]) {
-                Storage::disk($disk)->delete($path);
+            } elseif (array_key_exists('cover_alt', $data)) {
+                $event->media()->update(['alt_text' => $data['cover_alt'] ?: null]);
             }
 
-            throw $exception;
-        }
+            return $event->fresh(['actor', 'location', 'hashtags', 'mentions.actor', 'media.thumbnail']) ?? $event;
+        });
 
         $replacedMedia->each(fn (Media $media) => $this->deleteMediaIfOrphaned($media));
         $relayActivity = match (true) {
@@ -301,17 +279,6 @@ final class EventComposer
         }
     }
 
-    /** @param list<array{0: string, 1: string}> $storedFiles */
-    private function rememberFiles(Media $media, array &$storedFiles): void
-    {
-        $storedFiles[] = [$media->disk, $media->path];
-        $thumbnail = $media->thumbnail()->first();
-
-        if ($thumbnail !== null) {
-            $storedFiles[] = [$thumbnail->disk, $thumbnail->path];
-        }
-    }
-
     /** @param array<string, mixed> $data @return array{0: Carbon, 1: ?Carbon, 2: string} */
     private function dates(array $data): array
     {
@@ -354,15 +321,21 @@ final class EventComposer
             $paths[] = [$media->thumbnail->disk, $media->thumbnail->path];
         }
 
-        $media->delete();
+        if ($media->isRemote()) {
+            $media->delete();
 
-        if (! $media->isRemote()) {
-            // Keep files intact if an outer moderation transaction rolls back.
-            DB::afterCommit(function () use ($paths): void {
-                foreach ($paths as [$disk, $path]) {
-                    Storage::disk($disk)->delete($path);
-                }
-            });
+            return;
         }
+
+        // Retain the orphan's paths if remote deletion fails, and defer any
+        // irreversible operation until an enclosing transaction has committed.
+        DB::afterCommit(function () use ($media, $paths): void {
+            foreach ($paths as [$disk, $path]) {
+                if (! app(MediaStorage::class)->cleanup($disk, [$path])) {
+                    return;
+                }
+            }
+            $media->delete();
+        });
     }
 }

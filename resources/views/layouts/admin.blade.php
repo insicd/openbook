@@ -39,6 +39,9 @@
                 <a href="{{ route('admin.settings.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.settings.*') ? 'is-active' : '' }}">
                     <x-icon name="settings" /> {{ __('openbook.admin.nav.settings') }}
                 </a>
+                <a href="{{ route('admin.object_storage.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.object_storage.*') ? 'is-active' : '' }}">
+                    <x-icon name="cloud" /> {{ __('object_storage.title') }}
+                </a>
                 <a href="{{ route('admin.appearance.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.appearance.*') ? 'is-active' : '' }}">
                     <x-icon name="image" /> {{ __('openbook.admin.nav.appearance') }}
                 </a>

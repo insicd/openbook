@@ -72,74 +72,49 @@ final class MediaUploader
             throw new InvalidArgumentException('Il file video preparato non esiste.');
         }
 
+        $disk = app(MediaStorage::class)->uploadDisk();
         $directory = 'media/'.date('Y/m');
         $path = $directory.'/'.Str::uuid().'.mp4';
-        $thumbnailPath = null;
-        $readStream = $source->readStream($prepared->path);
+        $thumbnailPath = $prepared->thumbnailPath === null ? null : $directory.'/'.Str::uuid().'_thumb.jpg';
 
-        if ($readStream === false || ! Storage::disk('public')->put($path, $readStream)) {
-            if (is_resource($readStream)) {
-                fclose($readStream);
+        return $this->storeFiles($disk, array_values(array_filter([$path, $thumbnailPath])), function () use ($source, $prepared, $actor, $disk, $directory, $path, $thumbnailPath): Media {
+            $this->copyFile($prepared->disk, $prepared->path, $disk, $path);
+            if ($disk === 'public') {
+                $this->ensurePublicDirectoryIsTraversable($directory);
+                $this->ensurePublicFileIsReadable($path);
             }
-
-            throw new \RuntimeException('Impossibile importare il video preparato.');
-        }
-
-        if (is_resource($readStream)) {
-            fclose($readStream);
-        }
-
-        try {
-            $this->ensurePublicDirectoryIsTraversable($directory);
-            $this->ensurePublicFileIsReadable($path);
-
             $media = Media::query()->create([
                 'actor_id' => $actor->id,
-                'disk' => 'public',
+                'disk' => $disk,
                 'path' => $path,
                 'original_name' => $prepared->originalName,
                 'mime_type' => 'video/mp4',
-                'byte_size' => $prepared->byteSize,
+                'byte_size' => $source->size($prepared->path),
                 'width' => $prepared->width,
                 'height' => $prepared->height,
                 'alt_text' => $prepared->altText,
             ]);
-
-            if ($prepared->thumbnailPath !== null && $source->exists($prepared->thumbnailPath)) {
-                $thumbnailPath = $directory.'/'.Str::uuid().'_thumb.jpg';
-                $thumbnailDimensions = @getimagesize($source->path($prepared->thumbnailPath));
-                $thumbnailStream = $source->readStream($prepared->thumbnailPath);
-
-                if ($thumbnailStream === false || ! Storage::disk('public')->put($thumbnailPath, $thumbnailStream)) {
-                    if (is_resource($thumbnailStream)) {
-                        fclose($thumbnailStream);
-                    }
-
-                    throw new \RuntimeException('Impossibile importare l\'anteprima del video.');
+            if ($thumbnailPath !== null) {
+                $dimensions = @getimagesize($source->path($prepared->thumbnailPath));
+                if ($dimensions === false) {
+                    throw new \RuntimeException;
                 }
-
-                if (is_resource($thumbnailStream)) {
-                    fclose($thumbnailStream);
+                $this->copyFile($prepared->disk, $prepared->thumbnailPath, $disk, $thumbnailPath);
+                if ($disk === 'public') {
+                    $this->ensurePublicFileIsReadable($thumbnailPath);
                 }
-
-                $this->ensurePublicFileIsReadable($thumbnailPath);
-
                 MediaVariant::query()->create([
                     'media_id' => $media->id,
                     'type' => MediaVariant::TYPE_THUMBNAIL,
-                    'disk' => 'public',
+                    'disk' => $disk,
                     'path' => $thumbnailPath,
-                    'width' => is_array($thumbnailDimensions) ? $thumbnailDimensions[0] : null,
-                    'height' => is_array($thumbnailDimensions) ? $thumbnailDimensions[1] : null,
+                    'width' => $dimensions[0],
+                    'height' => $dimensions[1],
                 ]);
             }
 
             return $media;
-        } catch (\Throwable $exception) {
-            Storage::disk('public')->delete(array_values(array_filter([$path, $thumbnailPath])));
-
-            throw $exception;
-        }
+        });
     }
 
     private function storeImage(UploadedFile $file, Actor $actor, string $mimeType, ?string $altText): Media
@@ -171,25 +146,36 @@ final class MediaUploader
 
         $contents = $this->stripMetadataIfPossible($file->getRealPath(), $mimeType) ?? file_get_contents($file->getRealPath());
 
-        Storage::disk('public')->put($path, $contents);
-        $this->ensurePublicDirectoryIsTraversable($directory);
-        $this->ensurePublicFileIsReadable($path);
+        if ($contents === false) {
+            throw new InvalidArgumentException('Impossibile leggere il file immagine.');
+        }
+        $disk = app(MediaStorage::class)->uploadDisk();
+        $thumbnailPath = preg_replace('/(\.[a-z0-9]+)$/i', '_thumb$1', $path) ?? $path.'_thumb';
 
-        $media = Media::query()->create([
-            'actor_id' => $actor->id,
-            'disk' => 'public',
-            'path' => $path,
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $mimeType,
-            'byte_size' => strlen($contents),
-            'width' => $width,
-            'height' => $height,
-            'alt_text' => $altText,
-        ]);
+        return $this->storeFiles($disk, [$path, $thumbnailPath], function () use ($file, $actor, $disk, $directory, $path, $contents, $mimeType, $width, $height, $altText): Media {
+            if (! Storage::disk($disk)->put($path, $contents)) {
+                throw new \RuntimeException;
+            }
+            if ($disk === 'public') {
+                $this->ensurePublicDirectoryIsTraversable($directory);
+                $this->ensurePublicFileIsReadable($path);
+            }
 
-        $this->generateThumbnail($media, $mimeType, $width, $height);
+            $media = Media::query()->create([
+                'actor_id' => $actor->id,
+                'disk' => $disk,
+                'path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type' => $mimeType,
+                'byte_size' => strlen($contents),
+                'width' => $width,
+                'height' => $height,
+                'alt_text' => $altText,
+            ]);
+            $this->generateThumbnail($media, $file->getRealPath(), $mimeType, $width, $height);
 
-        return $media;
+            return $media;
+        });
     }
 
     private function storeAudio(UploadedFile $file, Actor $actor, string $mimeType, ?string $altText): Media
@@ -210,27 +196,58 @@ final class MediaUploader
         $randomName = Str::uuid()->toString().'.'.$extension;
         $directory = 'media/'.date('Y/m');
         $path = $directory.'/'.$randomName;
-        $contents = file_get_contents($file->getRealPath());
+        $disk = app(MediaStorage::class)->uploadDisk();
 
-        if ($contents === false) {
-            throw new InvalidArgumentException('Impossibile leggere il file audio.');
+        return $this->storeFiles($disk, [$path], function () use ($file, $actor, $mimeType, $altText, $disk, $directory, $path): Media {
+            $stream = fopen($file->getRealPath(), 'rb');
+            if ($stream === false) {
+                throw new \RuntimeException;
+            }
+            try {
+                if (! Storage::disk($disk)->put($path, $stream)) {
+                    throw new \RuntimeException;
+                }
+            } finally {
+                fclose($stream);
+            }
+            if ($disk === 'public') {
+                $this->ensurePublicDirectoryIsTraversable($directory);
+                $this->ensurePublicFileIsReadable($path);
+            }
+
+            return Media::query()->create([
+                'actor_id' => $actor->id,
+                'disk' => $disk,
+                'path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type' => $mimeType,
+                'byte_size' => filesize($file->getRealPath()),
+                'width' => null,
+                'height' => null,
+                'alt_text' => $altText,
+            ]);
+        });
+    }
+
+    /** @param list<string> $paths */
+    private function storeFiles(string $disk, array $paths, \Closure $store): Media
+    {
+        return app(MediaStorage::class)->storeFiles($disk, $paths, $store);
+    }
+
+    private function copyFile(string $sourceDisk, string $sourcePath, string $disk, string $path): void
+    {
+        $stream = Storage::disk($sourceDisk)->readStream($sourcePath);
+        if (! is_resource($stream)) {
+            throw new \RuntimeException;
         }
-
-        Storage::disk('public')->put($path, $contents);
-        $this->ensurePublicDirectoryIsTraversable($directory);
-        $this->ensurePublicFileIsReadable($path);
-
-        return Media::query()->create([
-            'actor_id' => $actor->id,
-            'disk' => 'public',
-            'path' => $path,
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $mimeType,
-            'byte_size' => strlen($contents),
-            'width' => null,
-            'height' => null,
-            'alt_text' => $altText,
-        ]);
+        try {
+            if (! Storage::disk($disk)->put($path, $stream)) {
+                throw new \RuntimeException;
+            }
+        } finally {
+            fclose($stream);
+        }
     }
 
     /**
@@ -264,7 +281,7 @@ final class MediaUploader
         return ob_get_clean() ?: null;
     }
 
-    private function generateThumbnail(Media $media, string $mimeType, int $width, int $height): void
+    private function generateThumbnail(Media $media, string $sourcePath, string $mimeType, int $width, int $height): void
     {
         if ($mimeType === 'image/gif') {
             return;
@@ -278,7 +295,7 @@ final class MediaUploader
             return;
         }
 
-        $source = $this->loadImage(Storage::disk($media->disk)->path($media->path), $mimeType);
+        $source = $this->loadImage($sourcePath, $mimeType);
 
         if ($source === null) {
             return;
@@ -300,8 +317,12 @@ final class MediaUploader
 
         $thumbnailPath = preg_replace('/(\.[a-z0-9]+)$/i', '_thumb$1', $media->path) ?? $media->path.'_thumb';
 
-        Storage::disk($media->disk)->put($thumbnailPath, $contents);
-        $this->ensurePublicFileIsReadable($thumbnailPath);
+        if (! Storage::disk($media->disk)->put($thumbnailPath, $contents)) {
+            throw new \RuntimeException;
+        }
+        if ($media->disk === 'public') {
+            $this->ensurePublicFileIsReadable($thumbnailPath);
+        }
 
         MediaVariant::query()->create([
             'media_id' => $media->id,

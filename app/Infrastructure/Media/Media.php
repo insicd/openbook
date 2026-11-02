@@ -12,10 +12,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Support\Facades\Storage;
 
 /**
- * File immagine legato a un post o commento: locale (caricato su disco)
+ * Media legato a un contenuto: gestito dall'istanza su disco o object storage,
  * oppure remoto federato ({@see self::$remote_url}, senza download).
  *
  * Per i file locali "path" e' sempre un nome generato casualmente: non deve
@@ -113,7 +112,7 @@ class Media extends Model
             return (string) $this->remote_url;
         }
 
-        return Storage::disk($this->disk)->url($this->path);
+        return app(MediaStorage::class)->url($this);
     }
 
     public function thumbnailUrl(): string
@@ -128,7 +127,7 @@ class Media extends Model
             return $this->url();
         }
 
-        return Storage::disk($thumbnail->disk)->url($thumbnail->path);
+        return app(MediaStorage::class)->url($this, $thumbnail);
     }
 
     /**

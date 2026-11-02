@@ -1395,10 +1395,15 @@ class CommunityTest extends TestCase
         $actor = $community->actor->fresh();
         $this->assertSame('Nuovo nome', $actor->name);
         $this->assertSame('Nuova descrizione', $actor->summary);
-        $this->assertNotNull($actor->icon_url);
-        $this->assertNotNull($actor->image_url);
-        $this->assertSame($actor->icon_url, $actor->avatarUrl());
-        $this->assertSame($actor->image_url, $actor->coverUrl());
+        $community->refresh();
+        $this->assertNotNull($community->avatar_path);
+        $this->assertNotNull($community->cover_path);
+        $this->assertSame('public', $community->avatar_disk);
+        $this->assertSame('public', $community->cover_disk);
+        $this->assertNull($actor->icon_url);
+        $this->assertNull($actor->image_url);
+        $this->assertSame($community->avatarUrl(), $actor->avatarUrl());
+        $this->assertSame($community->coverUrl(), $actor->coverUrl());
 
         Queue::assertPushed(DeliverActivityJob::class, function (DeliverActivityJob $job) use ($community, $remoteMember): bool {
             return ($job->inboxUrl === $remoteMember->endpoints->shared_inbox

@@ -155,8 +155,9 @@ and "Edit profile" button on your own profile) makes them editable:
   metadata, and resizes with GD when available (avatar max 512px, cover max
   1600px on the longest side), reusing the same base logic already used for
   post attachments (`ManipulatesImagesWithGd`, trait shared with
-  `MediaUploader`). The previous file is always removed when a new one is
-  uploaded, so orphan copies do not accumulate on quota-limited hosting.
+  `MediaUploader`). The previous file is removed from its recorded disk after
+  committing the new reference; failed saves preserve the previous file and
+  compensate new uploads. Cleanup failures are logged without exposing credentials.
   Changing the display name also updates the local ActivityPub Actor's `name`
   field, which is the value actually exposed to remote servers
   (`ActorSerializer`). Every change to the public profile (name, biography,
@@ -175,13 +176,16 @@ and "Edit profile" button on your own profile) makes them editable:
   the id declared in the document matches the Actor that signed the request, so
   nobody can update someone else's profile. Before saving, the chosen file is
   shown immediately as a preview (client-side, via `FileReader`, with no
-  upload). `Profile::avatarUrl()`/`coverUrl()` build the public URL through the
-  configured "public" disk (`Storage::disk('public')->url()`), as already
-  happens for post attachments (`Media::url()`), instead of relying on the
-  `asset()` helper: the latter depends on the scheme/host detected on the
-  individual request and can produce inconsistent URLs (e.g. `http://` instead
-  of `https://`) behind a proxy or load balancer that does not correctly report
-  the original scheme.
+  upload). Each image's path and disk are stored in
+  `profiles.avatar_path/avatar_disk` and `cover_path/cover_disk`; communities use
+  the same fields in `communities`. `Profile::avatarUrl()`/`coverUrl()` and their
+  `Community` equivalents resolve URLs from the recorded disk: local public-disk
+  URLs, direct S3/CDN URLs or `/asset-files/...` streaming through the instance.
+  Attachments use `Media::url()` with the same delivery setting. Local Group
+  actors delegate to their community; historical actor URLs remain valid when
+  no managed path exists. Remote image URLs remain in `actors.icon_url/image_url`.
+  Web, REST and ActivityPub consumers use these getters. See the
+  [configuration guide](../docs/configuration.md) for configuration and migrations.
 - **Interface language**: each user can choose among the languages listed in
   `config('openbook.locales')` (Italian and English at the moment). The
   `SetUserLocale` middleware, applied to all web requests, sets the app

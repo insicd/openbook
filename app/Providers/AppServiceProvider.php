@@ -7,6 +7,7 @@ use App\Application\Queries\SuggestedActorsByBioQuery;
 use App\Application\Queries\SuggestedLocalActorsQuery;
 use App\Application\Services\ConversationReadTracker;
 use App\Application\Services\InstanceSettings;
+use App\Application\Services\ObjectStorageSettings;
 use App\Application\Services\PollLifecycle;
 use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
@@ -35,6 +36,7 @@ use App\Support\UserDate;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -58,6 +60,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Storage::extend('objectStorage', fn () => $this->app->make(ObjectStorageSettings::class)->disk());
+
         Blade::directive('userdate', fn (string $expression): string => '<?php echo e(app(\\'.UserDate::class.'::class)->format('.$expression.')); ?>');
 
         Post::updated(function (Post $post): void {

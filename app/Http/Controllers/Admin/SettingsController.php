@@ -7,9 +7,11 @@ use App\Domain\Accounts\User;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Media\HomeBackgroundUploader;
 use App\Infrastructure\Media\InstanceIconUploader;
+use App\Infrastructure\Media\MediaStorage;
 use App\Infrastructure\Media\VideoCapability;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -109,59 +111,68 @@ final class SettingsController extends Controller
             }
         }
 
-        try {
-            if ($request->hasFile('favicon')) {
-                $iconDirectory = $iconUploader->store($request->file('favicon'), $iconDirectory);
-            } elseif ($request->boolean('remove_favicon')) {
-                $iconUploader->deleteDirectory($iconDirectory);
-                $iconDirectory = null;
+        DB::transaction(function () use ($request, $settings, $iconUploader, $backgroundUploader, $data, $videoEnabled, $iconDirectory, $backgroundDirectory): void {
+            $iconDisk = $settings->iconDisk();
+            $backgroundDisk = $settings->homeBackgroundDisk();
+            $destination = app(MediaStorage::class)->uploadDisk();
+            try {
+                if ($request->hasFile('favicon')) {
+                    $iconDirectory = $iconUploader->store($request->file('favicon'), $iconDirectory, $iconDisk, $destination);
+                    $iconDisk = $destination;
+                } elseif ($request->boolean('remove_favicon')) {
+                    $iconUploader->deleteDirectory($iconDirectory, $iconDisk);
+                    $iconDirectory = null;
+                }
+            } catch (InvalidArgumentException $exception) {
+                throw ValidationException::withMessages([
+                    'favicon' => $exception->getMessage(),
+                ]);
             }
-        } catch (InvalidArgumentException $exception) {
-            throw ValidationException::withMessages([
-                'favicon' => $exception->getMessage(),
-            ]);
-        }
 
-        try {
-            if ($request->hasFile('home_background')) {
-                $backgroundDirectory = $backgroundUploader->store($request->file('home_background'), $backgroundDirectory);
-            } elseif ($request->boolean('remove_home_background')) {
-                $backgroundUploader->deleteDirectory($backgroundDirectory);
-                $backgroundDirectory = null;
+            try {
+                if ($request->hasFile('home_background')) {
+                    $backgroundDirectory = $backgroundUploader->store($request->file('home_background'), $backgroundDirectory, $backgroundDisk, $destination);
+                    $backgroundDisk = $destination;
+                } elseif ($request->boolean('remove_home_background')) {
+                    $backgroundUploader->deleteDirectory($backgroundDirectory, $backgroundDisk);
+                    $backgroundDirectory = null;
+                }
+            } catch (InvalidArgumentException $exception) {
+                throw ValidationException::withMessages([
+                    'home_background' => $exception->getMessage(),
+                ]);
             }
-        } catch (InvalidArgumentException $exception) {
-            throw ValidationException::withMessages([
-                'home_background' => $exception->getMessage(),
-            ]);
-        }
 
-        $settings->update([
-            'site_name' => $data['site_name'],
-            'site_description' => $data['site_description'] ?? '',
-            'contact_email' => $data['contact_email'] ?? '',
-            'contact_account_id' => $data['contact_account_id'] ?? null,
-            'registration_open' => $request->boolean('registration_open'),
-            'show_home_staff' => $request->boolean('show_home_staff'),
-            'instance_rules' => $data['instance_rules'] ?? '',
-            'privacy_policy' => $data['privacy_policy'] ?? '',
-            'post_max_length' => (int) $data['post_max_length'],
-            'comment_max_length' => (int) $data['comment_max_length'],
-            'media_max_size_kb' => (int) $data['media_max_size_kb'],
-            'media_max_attachments' => (int) $data['media_max_attachments'],
-            'video_enabled' => $videoEnabled,
-            'video_ffmpeg_path' => $data['video_ffmpeg_path'],
-            'video_ffprobe_path' => $data['video_ffprobe_path'],
-            'video_max_upload_mb' => (int) $data['video_max_upload_mb'],
-            'video_passthrough_max_mb' => (int) $data['video_passthrough_max_mb'],
-            'video_max_duration_seconds' => (int) $data['video_max_duration_seconds'],
-            'video_max_dimension' => (int) $data['video_max_dimension'],
-            'video_max_frame_rate' => (int) $data['video_max_frame_rate'],
-            'trending_days' => (int) $data['trending_days'],
-            'world_hide_content_warnings' => $request->boolean('world_hide_content_warnings'),
-            'forced_content_warning_hashtags' => $data['forced_content_warning_hashtags'] ?? '',
-            'instance_icon_dir' => $iconDirectory,
-            'home_background_dir' => $backgroundDirectory,
-        ], $request->user());
+            $settings->update([
+                'site_name' => $data['site_name'],
+                'site_description' => $data['site_description'] ?? '',
+                'contact_email' => $data['contact_email'] ?? '',
+                'contact_account_id' => $data['contact_account_id'] ?? null,
+                'registration_open' => $request->boolean('registration_open'),
+                'show_home_staff' => $request->boolean('show_home_staff'),
+                'instance_rules' => $data['instance_rules'] ?? '',
+                'privacy_policy' => $data['privacy_policy'] ?? '',
+                'post_max_length' => (int) $data['post_max_length'],
+                'comment_max_length' => (int) $data['comment_max_length'],
+                'media_max_size_kb' => (int) $data['media_max_size_kb'],
+                'media_max_attachments' => (int) $data['media_max_attachments'],
+                'video_enabled' => $videoEnabled,
+                'video_ffmpeg_path' => $data['video_ffmpeg_path'],
+                'video_ffprobe_path' => $data['video_ffprobe_path'],
+                'video_max_upload_mb' => (int) $data['video_max_upload_mb'],
+                'video_passthrough_max_mb' => (int) $data['video_passthrough_max_mb'],
+                'video_max_duration_seconds' => (int) $data['video_max_duration_seconds'],
+                'video_max_dimension' => (int) $data['video_max_dimension'],
+                'video_max_frame_rate' => (int) $data['video_max_frame_rate'],
+                'trending_days' => (int) $data['trending_days'],
+                'world_hide_content_warnings' => $request->boolean('world_hide_content_warnings'),
+                'forced_content_warning_hashtags' => $data['forced_content_warning_hashtags'] ?? '',
+                'instance_icon_dir' => $iconDirectory,
+                'instance_icon_disk' => $iconDisk,
+                'home_background_dir' => $backgroundDirectory,
+                'home_background_disk' => $backgroundDisk,
+            ], $request->user());
+        });
 
         return redirect()
             ->route('admin.settings.edit')

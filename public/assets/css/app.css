@@ -4913,3 +4913,43 @@ label.ob-poll__name {
   background: var(--ob-color-primary-soft);
   font-weight: 600;
 }
+
+
+/* Object storage configuration status */
+.ob-storage-status {
+  padding: 1rem;
+  border: 1px solid var(--ob-color-border);
+  border-radius: var(--ob-radius);
+}
+.ob-storage-status__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .85rem 1.5rem;
+}
+.ob-storage-status__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .7rem;
+  border-radius: 999px;
+  background: var(--ob-color-bg);
+  color: var(--ob-color-text-muted);
+  font-size: .875rem;
+  font-weight: 600;
+}
+.ob-storage-status__badge > span {
+  width: .5rem;
+  height: .5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+.ob-storage-status .ob-field__help {
+  margin-bottom: 0;
+  max-width: 65ch;
+}
+
+.ob-storage-status__badge.is-active {
+  background: var(--ob-color-primary-soft);
+  color: var(--ob-color-primary);
+}

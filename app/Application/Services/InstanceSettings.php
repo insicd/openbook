@@ -6,11 +6,11 @@ use App\Domain\Accounts\User;
 use App\Infrastructure\Appearance\CustomCssSanitizer;
 use App\Infrastructure\Database\SystemSetting;
 use App\Infrastructure\Locations\GeoNamesCityImporter;
+use App\Infrastructure\Media\AssetStorage;
 use App\Infrastructure\Media\HomeBackgroundUploader;
 use App\Infrastructure\Media\InstanceIconUploader;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Impostazioni istanza gestibili dal pannello admin: source of truth in
@@ -298,6 +298,16 @@ final class InstanceSettings
         return InstanceIconUploader::isValidDirectory($directory) ? $directory : null;
     }
 
+    public function iconDisk(): string
+    {
+        return SystemSetting::get('instance_icon_disk') ?: 'public';
+    }
+
+    public function homeBackgroundDisk(): string
+    {
+        return SystemSetting::get('home_background_disk') ?: 'public';
+    }
+
     public function hasCustomIcons(): bool
     {
         return $this->iconDirectory() !== null;
@@ -338,7 +348,7 @@ final class InstanceSettings
             return null;
         }
 
-        return Storage::disk('public')->url($directory.'/'.HomeBackgroundUploader::FILENAME);
+        return app(AssetStorage::class)->url($this->homeBackgroundDisk(), $directory.'/'.HomeBackgroundUploader::FILENAME, 'instance', 'site', 'background');
     }
 
     public function customCss(): string
@@ -426,7 +436,9 @@ final class InstanceSettings
      *     world_hide_content_warnings?: bool,
      *     forced_content_warning_hashtags?: string,
      *     instance_icon_dir?: string|null,
-     *     home_background_dir?: string|null
+     *     instance_icon_disk?: string,
+     *     home_background_dir?: string|null,
+     *     home_background_disk?: string
      * }  $data
      */
     public function update(array $data, ?User $actor = null): void
@@ -481,10 +493,16 @@ final class InstanceSettings
 
         if (array_key_exists('instance_icon_dir', $data)) {
             SystemSetting::put(self::KEY_INSTANCE_ICON_DIR, $data['instance_icon_dir']);
+            if (isset($data['instance_icon_disk'])) {
+                SystemSetting::put('instance_icon_disk', $data['instance_icon_disk']);
+            }
         }
 
         if (array_key_exists('home_background_dir', $data)) {
             SystemSetting::put(self::KEY_HOME_BACKGROUND_DIR, $data['home_background_dir']);
+            if (isset($data['home_background_disk'])) {
+                SystemSetting::put('home_background_disk', $data['home_background_disk']);
+            }
         }
 
         Config::set('app.name', $siteName);
@@ -531,7 +549,7 @@ final class InstanceSettings
             return null;
         }
 
-        return Storage::disk('public')->url($directory.'/'.$filename);
+        return app(AssetStorage::class)->url($this->iconDisk(), $directory.'/'.$filename, 'instance', 'site', $filename);
     }
 
     private function applyIntSetting(string $key, string $configKey): void

@@ -1,5 +1,28 @@
 # TODO
 
+## Unificare avatar e copertine con i media degli allegati
+
+**Stato:** attività futura, fuori dallo sprint object storage corrente.
+Completare prima il collaudo della struttura attuale; riferimento:
+[`OBJECT_STORAGE.md`](OBJECT_STORAGE.md).
+
+- Valutare l'uso di `Media` anche per avatar e copertine di persone e comunità,
+  con riferimenti come `avatar_media_id` e `cover_media_id` in `profiles` e
+  `communities`, invece di conservare separatamente percorso e disco.
+- L'obiettivo è condividere metadati del file, risoluzione degli URL locali/S3,
+  distribuzione diretta o intermediata, gestione delle varianti e compensazione
+  degli upload falliti. Ridurrebbe i flussi distinti da mantenere e verificare
+  per trasferimento dell'archivio, backup e ripristino. Conservare elaborazioni
+  e limiti specifici di avatar e copertine, riusando le parti comuni.
+- Definire il ciclo di vita prima della migrazione: sostituzioni e cancellazioni
+  devono rispettare tutti i riferimenti al file. Un media usato da un profilo o
+  da una comunità non è orfano soltanto perché non è allegato a un contenuto.
+  Migrare i riferimenti esistenti preservando file e URL già pubblicati;
+  mantenere distinti gli URL delle immagini remote non gestite dall'istanza.
+- Valutare separatamente icone dell'istanza, relative sei varianti e sfondo
+  della home: includerli solo se semplifica effettivamente la gestione, senza
+  complicare `Media` per ottenere un'uniformità soltanto formale.
+
 ## Semantica delle date di post e commenti
 
 - Uniformare in un intervento futuro la distinzione fra data originale del

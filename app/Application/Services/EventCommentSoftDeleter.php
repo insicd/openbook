@@ -3,9 +3,8 @@
 namespace App\Application\Services;
 
 use App\Domain\Events\EventComment;
-use App\Infrastructure\Media\Media;
+use App\Infrastructure\Media\MediaStorage;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 final class EventCommentSoftDeleter
 {
@@ -41,15 +40,16 @@ final class EventCommentSoftDeleter
                 $paths[] = [$item->thumbnail->disk, $item->thumbnail->path];
             }
 
-            $isRemote = $item->isRemote();
-            Media::query()->whereKey($item->id)->delete();
-
-            if (! $isRemote) {
-                // Keep files intact if an outer moderation transaction rolls back.
-                DB::afterCommit(function () use ($paths): void {
+            if ($item->isRemote()) {
+                $item->delete();
+            } else {
+                DB::afterCommit(function () use ($item, $paths): void {
                     foreach ($paths as [$disk, $path]) {
-                        Storage::disk($disk)->delete($path);
+                        if (! app(MediaStorage::class)->cleanup($disk, [$path])) {
+                            return;
+                        }
                     }
+                    $item->delete();
                 });
             }
         }

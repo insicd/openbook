@@ -5,9 +5,13 @@ namespace Tests\Feature\Posts;
 use App\Application\Services\PendingPostFinalizer;
 use App\Application\Services\PostPublicationStager;
 use App\Domain\Posts\PendingPostAttachment;
+use App\Domain\Posts\PendingPostPublication;
 use App\Federation\Serialization\NoteSerializer;
+use App\Infrastructure\Database\SystemSetting;
+use App\Infrastructure\Media\MediaStorage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Tests\Concerns\CreatesAccounts;
@@ -168,6 +172,46 @@ class PostPublicationStagerTest extends TestCase
         $this->assertSame('Document', $note['attachment'][0]['type']);
     }
 
+    public function test_failed_s3_finalization_removes_derived_temporaries_and_preserves_sources_for_retry(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        Storage::fake(MediaStorage::OBJECT_DISK);
+        Queue::fake();
+        SystemSetting::putBool('object_storage_enabled', true);
+        config([
+            'openbook.video.enabled' => true,
+            'openbook.video.ffprobe_path' => $this->fakeProbe(duration: 10, width: 640, height: 360, codec: 'hevc'),
+            'openbook.video.ffmpeg_path' => $this->fakeFfmpeg(),
+        ]);
+        $owner = $this->createFullAccount('objectretryvideo');
+        $publication = app(PostPublicationStager::class)->stage($owner->actor, [
+            'body' => 'Retry video', 'visibility' => 'public',
+            'images' => [UploadedFile::fake()->createWithContent('clip.mp4', $this->mp4Bytes())],
+        ]);
+        $source = $publication->attachments()->first()->path;
+        PendingPostPublication::updating(function ($publication): void {
+            if ($publication->post_id !== null) {
+                throw new \RuntimeException('Publication database write failed');
+            }
+        });
+        try {
+            app(PendingPostFinalizer::class)->finalize($publication);
+            $this->fail('Expected publication failure');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('Publication database write failed', $e->getMessage());
+            $this->assertDatabaseCount('posts', 0);
+            $this->assertDatabaseCount('media', 0);
+            Storage::disk(MediaStorage::OBJECT_DISK)->assertDirectoryEmpty('/');
+            $this->assertSame([$source], Storage::disk('local')->allFiles(dirname($source)));
+        } finally {
+            PendingPostPublication::flushEventListeners();
+        }
+        $post = app(PendingPostFinalizer::class)->finalize($publication);
+        $this->assertSame(MediaStorage::OBJECT_DISK, $post->media()->first()->disk);
+        $this->assertFalse(Storage::disk('local')->directoryExists(dirname($source)));
+    }
+
     private function fakeProbe(int $duration, int $width, int $height, string $codec = 'h264'): string
     {
         $output = json_encode([
@@ -208,7 +252,10 @@ class PostPublicationStagerTest extends TestCase
 for argument in "$@"; do
     destination="$argument"
 done
-printf 'generated-media' > "$destination"
+case "$destination" in
+    *.jpg) php -r 'imagejpeg(imagecreatetruecolor(2, 2), $argv[1]);' "$destination" ;;
+    *) printf 'generated-media' > "$destination" ;;
+esac
 SH);
         chmod($path, 0755);
 

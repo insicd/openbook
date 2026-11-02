@@ -2,10 +2,9 @@
 
 namespace App\Infrastructure\Media;
 
+use App\Infrastructure\Database\SystemSetting;
 use App\Infrastructure\Media\Concerns\ManipulatesImagesWithGd;
-use App\Infrastructure\Media\Concerns\NormalizesPublicDiskPermissions;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -13,11 +12,11 @@ use InvalidArgumentException;
  * Genera dal file caricato dall'amministratore tutte le varianti di icona
  * dell'istanza: favicon del browser, Apple Touch Icon (iOS) e icone Android
  * (anche maskable) per "Aggiungi alla schermata Home". Il risultato e' una
- * cartella su disco "public"; il percorso resta in {@see \App\Infrastructure\Database\SystemSetting}.
+ * cartella sul disco selezionato; percorso e disco restano in {@see SystemSetting}.
  */
 final class InstanceIconUploader
 {
-    use ManipulatesImagesWithGd, NormalizesPublicDiskPermissions;
+    use ManipulatesImagesWithGd;
 
     public const MIN_DIMENSION = 180;
 
@@ -46,7 +45,7 @@ final class InstanceIconUploader
         'icon-512-maskable.png' => 512,
     ];
 
-    public function store(UploadedFile $file, ?string $previousDirectory): string
+    public function store(UploadedFile $file, ?string $previousDirectory, string $previousDisk = 'public', ?string $destination = null): string
     {
         if (! extension_loaded('gd')) {
             throw new InvalidArgumentException(
@@ -95,33 +94,33 @@ final class InstanceIconUploader
         }
 
         $directory = self::DIRECTORY_PREFIX.'/'.Str::uuid()->toString();
-        $disk = Storage::disk('public');
-
+        $destination ??= app(MediaStorage::class)->uploadDisk();
+        $files = [];
         foreach (self::VARIANTS as $filename => $targetSize) {
-            $path = $directory.'/'.$filename;
-            $disk->put($path, $this->pngAtSize($square, $size, $targetSize));
-            $this->ensurePublicFileIsReadable($path);
+            $files[$directory.'/'.$filename] = $this->pngAtSize($square, $size, $targetSize);
         }
-
         foreach (self::MASKABLE_VARIANTS as $filename => $targetSize) {
-            $path = $directory.'/'.$filename;
-            $disk->put($path, $this->maskablePng($square, $size, $targetSize));
-            $this->ensurePublicFileIsReadable($path);
+            $files[$directory.'/'.$filename] = $this->maskablePng($square, $size, $targetSize);
         }
-
-        $this->ensurePublicDirectoryIsTraversable($directory);
-        $this->deleteDirectory($previousDirectory);
+        app(AssetStorage::class)->store($destination, $files);
+        $this->deleteDirectory($previousDirectory, $previousDisk);
 
         return $directory;
     }
 
-    public function deleteDirectory(?string $directory): void
+    public function deleteDirectory(?string $directory, string $disk = 'public'): void
     {
         if (! filled($directory) || ! self::isValidDirectory($directory)) {
             return;
         }
 
-        Storage::disk('public')->deleteDirectory($directory);
+        app(AssetStorage::class)->removeAfterCommit($disk, array_map(fn (string $file): string => $directory.'/'.$file, self::filenames()));
+    }
+
+    /** @return list<string> */
+    public static function filenames(): array
+    {
+        return array_keys(self::VARIANTS + self::MASKABLE_VARIANTS);
     }
 
     public static function isValidDirectory(?string $directory): bool
