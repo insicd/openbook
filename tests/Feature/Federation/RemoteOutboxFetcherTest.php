@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Federation;
 
+use App\Domain\Federation\Relay;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Announce;
@@ -11,6 +12,7 @@ use App\Federation\Outbox\RemoteOutboxFetcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -610,7 +612,13 @@ XML, 200, ['Content-Type' => 'application/atom+xml']),
         ]);
     }
 
-    public function test_a_lemmy_group_outbox_announce_create_page_is_ingested(): void
+    public static function groupRoles(): array
+    {
+        return ['community' => [false], 'configured relay' => [true]];
+    }
+
+    #[DataProvider('groupRoles')]
+    public function test_a_lemmy_group_outbox_announce_create_page_is_ingested(bool $isRelay): void
     {
         $viewer = $this->createFullAccount('esploratorelemmy');
         $group = $this->createRemoteActor('news', 'lemmy.example', [
@@ -618,6 +626,14 @@ XML, 200, ['Content-Type' => 'application/atom+xml']),
             'name' => 'News',
         ]);
         $author = $this->createRemoteActor('alice', 'lemmy.example');
+        if ($isRelay) {
+            Relay::query()->create([
+                'protocol' => Relay::PROTOCOL_MASTODON, 'actor_uri' => $group->uri,
+                'inbox_url' => $group->endpoints->inbox,
+                'inbox_url_hash' => hash('sha256', $group->endpoints->inbox),
+                'state' => Relay::STATE_ACCEPTED, 'receive_enabled' => true, 'publish_enabled' => false,
+            ]);
+        }
 
         Follow::query()->create([
             'follower_id' => $viewer->actor->id,
@@ -667,5 +683,6 @@ XML, 200, ['Content-Type' => 'application/atom+xml']),
                 ->where('post_id', Post::query()->where('uri', $pageUri)->value('id'))
                 ->exists()
         );
+        $this->assertSame([$isRelay ? 'relay' : 'community' => $group->uri], Post::query()->where('uri', $pageUri)->sole()->received_via);
     }
 }

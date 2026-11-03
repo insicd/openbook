@@ -6,9 +6,11 @@ use App\Application\Services\PollResultsProcessor;
 use App\Application\Services\PostComposer;
 use App\Domain\Federation\Relay;
 use App\Domain\Posts\Post;
+use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\ActorKey;
 use App\Federation\Actors\RemoteActorResolver;
+use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\InboxItem;
 use App\Federation\Serialization\NoteSerializer;
 use App\Infrastructure\Security\HttpSignatureSigner;
@@ -20,6 +22,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -757,6 +760,90 @@ class InboxSignatureTest extends TestCase
         $this->assertSame('Create', $payload['type']);
         $this->assertIsArray($payload['object'] ?? null);
         $this->assertSame($noteId, $payload['object']['id']);
+    }
+
+    public static function forwardingGroupRoles(): array
+    {
+        return ['community' => [false], 'configured Group relay' => [true]];
+    }
+
+    #[DataProvider('forwardingGroupRoles')]
+    public function test_verified_group_forwarding_survives_queue_normalization_and_processing(bool $isRelay): void
+    {
+        $viewer = $this->createFullAccount('forwardedsource');
+        $author = $this->createRemoteActor('writer', 'origin.example');
+        $group = $this->createRemoteActor('carol', 'remoto.example', ['type' => Actor::TYPE_GROUP]);
+        $group->key->update(['public_key' => $this->remoteKeyPair->publicKey]);
+        if ($isRelay) {
+            Relay::query()->create([
+                'protocol' => Relay::PROTOCOL_MASTODON, 'actor_uri' => $group->uri,
+                'inbox_url' => $group->endpoints->inbox,
+                'inbox_url_hash' => hash('sha256', $group->endpoints->inbox),
+                'state' => Relay::STATE_ACCEPTED, 'receive_enabled' => true, 'publish_enabled' => false,
+            ]);
+        }
+        $via = [$isRelay ? 'relay' : 'community' => $group->uri];
+        Follow::query()->create([
+            'follower_id' => $viewer->actor->id, 'following_id' => $author->id,
+            'status' => Follow::STATUS_ACCEPTED, 'requested_at' => now(), 'accepted_at' => now(),
+        ]);
+        $activity = [
+            'id' => $author->uri.'/activities/forwarded', 'type' => 'Create', 'actor' => $author->uri,
+            'object' => [
+                'id' => $author->uri.'/posts/forwarded', 'type' => 'Note',
+                'attributedTo' => $author->uri, 'content' => '<p>Verified origin</p>',
+                'published' => now()->toAtomString(), 'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+                'received_via' => ['relay' => 'https://untrusted.example/relay'],
+            ],
+        ];
+        Http::fake([$activity['id'] => Http::response($activity, 200, ['Content-Type' => 'application/activity+json'])]);
+        $parts = $this->signedActivityParts('/users/'.$viewer->username.'/inbox', $activity, $group->uri, $this->remoteKeyPair);
+        $this->postSigned($parts)->assertStatus(202);
+        $this->postSigned($parts)->assertStatus(202);
+        $item = InboxItem::query()->where('remote_activity_uri', $activity['id'])->sole();
+        $this->assertSame($author->uri, $item->actor_uri);
+        $this->assertNull($item->relay_id);
+        $this->assertSame($via, $item->received_via);
+        $this->assertSame(InboxItem::STATUS_PROCESSED, app(InboxActivityProcessor::class)->process($item->fresh()));
+        $post = Post::query()->where('uri', $activity['object']['id'])->sole();
+        $this->assertSame($via, $post->received_via);
+        $this->assertSame($author->id, $post->actor_id);
+        $this->assertSame(InboxItem::STATUS_PROCESSED, app(InboxActivityProcessor::class)->process($item->fresh()));
+        $this->assertSame($via, $post->fresh()->received_via);
+    }
+
+    public function test_relay_forwarded_group_announce_retains_both_sources_after_fetch(): void
+    {
+        $group = $this->createRemoteActor('forum', 'forum.example', ['type' => Actor::TYPE_GROUP]);
+        $author = $this->createRemoteActor('writer', 'origin.example');
+        $relay = Relay::query()->create([
+            'protocol' => Relay::PROTOCOL_MASTODON, 'actor_uri' => self::REMOTE_ACTOR_URI,
+            'inbox_url' => 'https://remoto.example/inbox',
+            'inbox_url_hash' => hash('sha256', 'https://remoto.example/inbox'),
+            'state' => Relay::STATE_ACCEPTED, 'receive_enabled' => true, 'publish_enabled' => false,
+        ]);
+        $note = [
+            'id' => $author->uri.'/posts/relayed', 'type' => 'Note',
+            'attributedTo' => $author->uri, 'content' => '<p>Relayed group post</p>',
+            'published' => now()->toAtomString(), 'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+        ];
+        $activity = ['id' => $group->uri.'/activities/relayed', 'type' => 'Announce', 'actor' => $group->uri, 'object' => $note['id']];
+        $key = $this->remoteKeyPair->publicKey;
+        Http::fake([
+            self::REMOTE_ACTOR_URI => Http::response([
+                'id' => self::REMOTE_ACTOR_URI, 'type' => 'Application', 'preferredUsername' => 'relay',
+                'inbox' => $relay->inbox_url,
+                'publicKey' => ['id' => self::REMOTE_ACTOR_URI.'#main-key', 'owner' => self::REMOTE_ACTOR_URI, 'publicKeyPem' => $key],
+            ]),
+            $activity['id'] => Http::response($activity, 200, ['Content-Type' => 'application/activity+json']),
+            $note['id'] => Http::response($note, 200, ['Content-Type' => 'application/activity+json']),
+        ]);
+        $this->postSigned($this->signedActivityParts('/inbox', $activity, self::REMOTE_ACTOR_URI, $this->remoteKeyPair))->assertStatus(202);
+        $item = InboxItem::query()->where('remote_activity_uri', $activity['id'])->sole();
+        $this->assertSame(['relay' => self::REMOTE_ACTOR_URI], $item->received_via);
+        $this->assertSame($group->uri, $item->actor_uri);
+        $this->assertSame(InboxItem::STATUS_PROCESSED, app(InboxActivityProcessor::class)->process($item->fresh()));
+        $this->assertEquals(['relay' => self::REMOTE_ACTOR_URI, 'community' => $group->uri], Post::query()->where('uri', $note['id'])->sole()->received_via);
     }
 
     public function test_a_forwarded_activity_is_rejected_when_origin_actor_does_not_match(): void

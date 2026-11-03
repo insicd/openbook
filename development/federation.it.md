@@ -130,6 +130,24 @@ essere consumati da altri server e non da browser:
   **elaborazione semantica** avviene fuori dal ciclo HTTP (vedi
   [Federazione sociale](federation.it.md#federazione-sociale-fase-4) qui sotto), cosi' da non bloccare
   mai chi consegna un'attivita' in attesa di elaborazioni pesanti.
+- **Provenienza di acquisizione dei post**: `posts.received_via` è un JSON
+  nullable con URI nelle chiavi opzionali `relay`, `community`, `rss`. Viene
+  assegnato soltanto alla prima creazione riuscita; Update, retry e consegne
+  successive non lo modificano, anche quando è NULL. Post locali, acquisizioni
+  ordinarie e post preesistenti restano NULL, senza ricostruzioni retroattive.
+  L'Announce di una comunità può conservare anche il relay che lo trasporta;
+  un fetch dell'oggetto originale mantiene il contesto dell'annuncio. Vale
+  anche per gli Announce acquisiti dall'outbox del Group. Un Group configurato
+  come relay viene identificato come relay, senza attribuirgli automaticamente
+  il ruolo di comunità. RSS/Atom conserva
+  l'URL del feed, distinto dall'articolo in `source_uri`. `inbox_items.received_via`
+  conserva il trasportatore verificato prima della normalizzazione, così il
+  job asincrono non perde la comunità che inoltra un'attività di un altro autore.
+  Il dato resta separato da firme, autorizzazioni e metriche DeliveryStats;
+  valori omonimi nel payload remoto non sono usati come provenienza locale.
+  Nessuna esposizione automatica in REST/ActivityPub o indicatore nella UI.
+  L'aggiornamento richiede la migrazione dei due nuovi campi nullable e il
+  riavvio dei processi inbox già in esecuzione per caricare il nuovo codice.
 - **Recupero di Actor remoti**: `RemoteActorResolver` scarica, valida e mette in cache
   localmente il documento `Person` di un Actor remoto (necessario per verificare le
   firme in ingresso, per la ricerca remota e per risolvere gli attori citati dalle

@@ -729,7 +729,7 @@ final class InboxActivityProcessor
                 return InboxItem::STATUS_IGNORED;
             }
 
-            $post = $this->resolveAnnouncedRemotePost($targetUri, $embeddedNote, $fromRelay, $source, $fetched);
+            $post = $this->resolveAnnouncedRemotePost($targetUri, $embeddedNote, $fromRelay, $source, $fetched, PostReceivedVia::inbox($source, $actor));
         }
 
         if ($post === null) {
@@ -805,7 +805,7 @@ final class InboxActivityProcessor
      *
      * @param  array<string, mixed>|null  $embeddedNote
      */
-    private function resolveAnnouncedRemotePost(?string $targetUri, ?array $embeddedNote, bool $requirePublic = false, ?InboxItem $source = null, bool $fetched = false): ?Post
+    private function resolveAnnouncedRemotePost(?string $targetUri, ?array $embeddedNote, bool $requirePublic = false, ?InboxItem $source = null, bool $fetched = false, ?array $receivedVia = null): ?Post
     {
         $note = $embeddedNote;
 
@@ -887,7 +887,7 @@ final class InboxActivityProcessor
             isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
         );
 
-        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false, source: $source, trackDelivery: false);
+        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false, source: $source, trackDelivery: false, receivedVia: $receivedVia);
     }
 
     private function hasLocalFollower(Actor $actor): bool
@@ -1201,6 +1201,7 @@ final class InboxActivityProcessor
                     directMessageThreadParent: $conversationThreadParent,
                     source: $source,
                     trackDelivery: false,
+                    receivedVia: PostReceivedVia::inbox($source),
                 );
 
                 return $post !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
@@ -1225,6 +1226,7 @@ final class InboxActivityProcessor
                 $publishedAt,
                 source: $source,
                 trackDelivery: false,
+                receivedVia: PostReceivedVia::inbox($source),
             );
 
             return $post !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;

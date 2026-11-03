@@ -33,6 +33,11 @@ la [roadmap](docs/roadmap.md).
   Richiede PHP `simplexml`. I file preesistenti restano nella posizione attuale:
   strumenti di trasferimento dell'archivio e procedura completa di ripristino
   non sono inclusi.
+- **Provenienza di acquisizione dei post**: metadato locale `received_via`
+  registrato al primo inserimento per relay, comunità e feed RSS/Atom, con
+  conservazione del contesto anche quando un Announce richiede il fetch del
+  post originale. Gli aggiornamenti mantengono la provenienza iniziale;
+  post locali, acquisizioni ordinarie e archivio preesistente restano NULL.
 - **Ricerca profili e post noti**: suggerimenti e pagina `/cerca` includono
   anche bot, feed RSS/Atom e community pubbliche gia' conosciuti
   dall'istanza, oltre alle persone. L'invio dalla pagina cerca nel testo

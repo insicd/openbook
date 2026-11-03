@@ -7,6 +7,7 @@ use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Inbox\ForwardedActivityAuthenticator;
 use App\Federation\Inbox\InboxItem;
+use App\Federation\Inbox\PostReceivedVia;
 use App\Federation\Inbox\RelayIngressResolver;
 use App\Federation\Resolution\ObjectResolver;
 use App\Federation\Support\ActivityPubUri;
@@ -133,9 +134,12 @@ final class InboxController extends Controller
         // Un relay Mastodon puo' inoltrare l'attivita' originale oppure
         // pubblicare un proprio Announce. In entrambi i casi il trasportatore
         // e' il firmatario HTTP noto della shared inbox.
-        $relay = $targetActor === null
+        $transportRelay = $targetActor === null || $verification->actor?->isGroup()
             ? $this->relayIngress->resolve($verification->actor)
             : null;
+        // Provenance also identifies a Group relay at a personal inbox;
+        // relay authorization/relevance remains limited to the shared inbox.
+        $relay = $targetActor === null ? $transportRelay : null;
 
         if ($isForwarded) {
             $authenticated = $this->forwardedActivities->authenticate($activity, $actorUri);
@@ -182,6 +186,7 @@ final class InboxController extends Controller
                 'target_actor_id' => $targetActor?->id,
                 'relay_id' => $relay?->id,
                 'is_shared' => $targetActor === null,
+                'received_via' => PostReceivedVia::transport($verification->actor, $transportRelay),
                 'remote_activity_uri' => $activity['id'],
                 'activity_type' => $activity['type'],
                 'actor_uri' => $actorUri,

@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $id
  * @property string|null $target_actor_id
  * @property string|null $relay_id
+ * @property array{relay?: string, community?: string}|null $received_via Verified transport context
  * @property bool $is_shared
  * @property string $remote_activity_uri
  * @property string $activity_type
@@ -45,6 +46,7 @@ class InboxItem extends Model
     protected $fillable = [
         'target_actor_id',
         'relay_id',
+        'received_via',
         'is_shared',
         'remote_activity_uri',
         'activity_type',
@@ -64,6 +66,7 @@ class InboxItem extends Model
     protected function casts(): array
     {
         return [
+            'received_via' => 'array',
             'is_shared' => 'boolean',
             'signature_valid' => 'boolean',
             'received_at' => 'datetime',
