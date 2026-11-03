@@ -145,7 +145,9 @@ essere consumati da altri server e non da browser:
   job asincrono non perde la comunità che inoltra un'attività di un altro autore.
   Il dato resta separato da firme, autorizzazioni e metriche DeliveryStats;
   valori omonimi nel payload remoto non sono usati come provenienza locale.
-  Nessuna esposizione automatica in REST/ActivityPub o indicatore nella UI.
+  La card mostra una piccola icona con riquadro informativo per la provenienza
+  nota, senza lookup per card: solo dominio e percorso, senza credenziali o parametri.
+  Nessuna esposizione automatica del metadato in REST/ActivityPub.
   L'aggiornamento richiede la migrazione dei due nuovi campi nullable e il
   riavvio dei processi inbox già in esecuzione per caricare il nuovo codice.
 - **Recupero di Actor remoti**: `RemoteActorResolver` scarica, valida e mette in cache

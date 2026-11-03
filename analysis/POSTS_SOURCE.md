@@ -1,9 +1,11 @@
 # Provenienza di acquisizione dei post
 
-Stato: persistenza implementata e verificata, 3 novembre 2026.
-Nessuna modifica alla UI o al contratto pubblico REST/ActivityPub.
-Ramo: `posts_source`, creato da `main` allineato all'upstream (`1b2a178`).
-Implementati salvataggio e migrazione; interfaccia ed esposizione API escluse.
+Stato: persistenza e indicatore nella card implementati, 3 novembre 2026.
+Nessuna modifica al contratto pubblico REST/ActivityPub.
+Ramo: `posts_source`, basato su `codex/object-storage-analysis` (`7f1e53b`).
+Dipendenza esplicita dalla PR object storage: il database locale contiene già
+media S3 e richiede il relativo codice per renderizzare il feed.
+Implementati salvataggio, migrazione e riquadro informativo; esposizione API esclusa.
 
 ## 1. Obiettivo
 
@@ -12,10 +14,11 @@ quando la provenienza è significativa: relay, comunità o feed RSS/Atom.
 Il dato descrive il canale che ha fatto scoprire il post all'istanza, senza
 cambiare autore, identità ActivityPub, appartenenza o visibilità del contenuto.
 
-L'obiettivo successivo è una piccola icona in basso a destra nella card, con
-una descrizione della provenienza disponibile tramite hover e modalità
-accessibili equivalenti per tastiera e tocco. Con provenienza nulla l'icona
-non viene mostrata. L'interfaccia resta fuori dal perimetro implementato.
+Una piccola icona grigia di percorso in basso a destra nella card espone la
+provenienza in un riquadro informativo coerente con il suggerimento Markdown
+dell’editor, apribile con clic, tocco o tastiera. Con provenienza nulla l’icona
+non viene mostrata. Il pannello si allinea al bordo destro della card e
+condivide lo stile dell’editor e la chiusura esterna dei pannelli dei post.
 
 L'analogia con Via HTTP riguarda la provenienza osservata da OpenBook:
 non si ricostruisce una catena di tutti i server attraversati e non si
@@ -61,7 +64,7 @@ Esempi:
 - Relay R annuncia P; OpenBook esegue GET di P presso l'autore: P conserva R.
 - Group G annuncia P sconosciuto: P conserva G, anche se serve un GET di P.
 - L'annuncio di G arriva attraverso il relay R: P conserva sia G sia R.
-  La futura UI può descriverlo come «Post ricevuto nella comunità G tramite
+  La UI lo descrive come «Post ricevuto nella comunità G tramite
   il relay R». G deve essere parte del percorso osservato, non soltanto una
   comunità associata al contenuto.
 - P è già presente prima dell'Announce di G: la provenienza di P non cambia.
@@ -178,9 +181,9 @@ L'utente conferma:
   trasporto verificato;
 - `posts.received_via` JSON nullable con chiavi opzionali `community`, `relay`,
   `rss`; nessun aggiornamento dopo l'inserimento, neppure quando il valore è NULL;
-- implementare prima persistenza e test. Indicatore nella card, nomi leggibili,
-  link ed eventuale esposizione REST restano attività successive. Nessuna
-  esposizione del metadato nei messaggi ActivityPub.
+- persistenza e indicatore nella card verificati separatamente; risoluzione
+  dei nomi, link ed eventuale esposizione REST restano fuori dal perimetro.
+  Nessuna esposizione del metadato nei messaggi ActivityPub.
 
 Gli agganci esistenti permettono un intervento circoscritto:
 
@@ -217,9 +220,10 @@ un Group dall'appartenenza del post o dal solo key ID. Un relay può essere a
 sua volta un actor di tipo Group: non registrarlo anche come comunità soltanto
 per quel tipo; i due ruoli devono essere effettivamente osservati.
 
-Il dettaglio del nome leggibile e la gestione degli URL feed con credenziali
-vanno definiti insieme alla UI, prima di mostrarli ai visitatori. Per ora
-non costituiscono un blocco per il salvataggio del metadato locale.
+Le etichette UI usano dominio e percorso dell’URI registrato, senza risolvere
+nomi o link e senza query o chiamate federate per card. Credenziali, query string
+e frammento sono omessi per tutte le sorgenti; URI non HTTP(S) o malformati e
+chiavi sconosciute vengono ignorati. L’escaping Blade protegge gli attributi.
 
 ## 6. Processo di implementazione proposto
 
@@ -235,18 +239,22 @@ non costituiscono un blocco per il salvataggio del metadato locale.
 - Test mirati sui flussi, compatibilità della migrazione SQLite/MySQL,
   documentazione e changelog secondo le regole del progetto.
 
-### Passo 2 — Indicatore nella card, successivamente
+### Passo 2 — Indicatore nella card (implementato)
 
 - Piccola icona coerente con la provenienza, in basso a destra.
 - Descrizione combinata quando sono presenti comunità e relay: «Post ricevuto
   nella comunità X tramite il relay Y», senza invertirne i ruoli.
-- Nessuna icona per `null`; descrizione accessibile con hover, focus e tocco.
-- Risoluzione/etichetta/link della sorgente senza chiamate federate per card.
+- Nessuna icona per `null`, card eliminate o citazioni incorporate.
+- Riquadro informativo con details/summary, come il suggerimento Markdown
+  dell’editor: clic, tocco e tastiera; chiusura al clic esterno.
+- Etichetta dominio/percorso, senza query per card, credenziali o parametri.
+  Nessuna risoluzione di nomi e nessun link aggiuntivo.
 - Valutare separatamente un'eventuale esposizione REST: se richiesta,
   aggiornare insieme contratto pubblico, implementazione e test.
 
-L'utente ha autorizzato l'implementazione del salvataggio e dei relativi test,
-con esplicita esclusione di icone e altre modifiche alla UI.
+Dopo la review e il commit del backend (`992caaf`), l’utente ha autorizzato
+l’indicatore grigio in basso a destra. Dopo la prova del tooltip nativo, ha
+preferito lo stesso riquadro informativo del suggerimento Markdown dell’editor.
 
 ## 7. Verifiche di uscita
 
@@ -273,8 +281,8 @@ con esplicita esclusione di icone e altre modifiche alla UI.
   community private, notifiche o contatori statistici.
 - Migrazione up/down conserva i dati esistenti, default NULL, MySQL/MariaDB
   e SQLite compatibili; eventuali query nontriviali verificate con EXPLAIN.
-- Per la UI futura, assenza di richieste esterne e nessuna esposizione di URL
-  con informazioni riservate. Prove desktop, mobile e tastiera.
+- UI senza richieste esterne o esposizione di credenziali e parametri URL;
+  testo escapato, etichetta accessibile, icona nascosta quando non applicabile.
 
 ## 8. Riferimenti
 
@@ -317,17 +325,40 @@ con esplicita esclusione di icone e altre modifiche alla UI.
   dopo Update/retry, NULL invariato, rollback, contenuti rifiutati, citazioni,
   RSS/Atom, migrazione e assenza del metadato da REST e ActivityPub.
 
-Verifica finale del 3 novembre 2026, PHP 8.5.12:
+### Indicatore nella card
 
-- Suite completa: **2.277 test, 17.293 asserzioni**, nessun errore o fallimento;
-  130 saltati della baseline, senza nuovi test saltati per questa attività.
+- `PostReceivedViaLabel` produce il testo localizzato dalle sole sorgenti note,
+  omettendo credenziali, query e frammenti degli URL. Nessuna query o richiesta
+  esterna aggiuntiva per ogni card; testo escapato in attributi e contenuto.
+- Il componente `post-source` usa details/summary e condivide le regole CSS
+  del suggerimento Markdown dell’editor. L’icona grigia di percorso compare
+  in basso a destra, anche in presenza della posizione del post; il riquadro
+  si apre verso l’interno della card e va a capo sugli URI lunghi.
+- Riutilizzata la gestione delegata dei pannelli dei post per la chiusura
+  esterna e l’apertura esclusiva, anche sulle card caricate via scorrimento
+  infinito. Il selettore dei pannelli aperti applica `[open]` a tutti i tipi.
+- Nessun indicatore con provenienza NULL, sole chiavi sconosciute o URI non
+  validi, su card eliminate e nelle citazioni incorporate.
+
+### Verifiche finali
+
+- Test di rendering su feed e dettaglio: community, relay, combinazione dei
+  due, RSS, NULL, dati non validi e chiavi future sconosciute. Verificati
+  escaping e omissione di credenziali/parametri, card eliminate/incorporate e
+  traduzioni italiano, inglese e finlandese.
+- Rendering verificato in sola lettura su 4 card pubbliche S3 già presenti nel
+  database locale. Aspetto e interazione del riquadro confermati dall’utente.
+- Suite completa finale: **2.359 test, 18.169 asserzioni, 131 saltati**,
+  nessun errore o fallimento (PHP 8.5.12, 3 novembre 2026).
   Comando: `APP_CONFIG_CACHE=/tmp/openbook-posts-source-test-config.php php vendor/bin/phpunit`.
-- Pint e `git diff --check` passati. Review dell'intero diff conclusa: modifiche
-  limitate a persistenza, contesto di acquisizione, test e documentazione.
-- Migrazione applicata anche al database locale; nessun dato storico
-  ricostruito. I nuovi campi precedentemente assenti sono nullable.
-- Dopo deploy riavviare i processi inbox già in esecuzione affinché utilizzino
-  il nuovo codice. Nessuna nuova coda, configurazione o servizio obbligatorio.
-- Non eseguito un test concorrente su più connessioni MySQL: l'immutabilità
-  riusa il lock e i vincoli URI esistenti; testati retry, duplicati HTTP,
+- Pint, controllo sintattico JavaScript e `git diff --check` passati.
+  Review dell’intero diff UI conclusa, incluso riuso di stili e gestione
+  dei pannelli, escaping, traduzioni e documentazione.
+- Migrazione applicata anche al database locale; nessun backfill. Per la prova
+  UI, su richiesta dell’utente, valorizzati manualmente quattro post recenti
+  con dati fittizi e backup dei soli valori originali per il ripristino.
+- Dopo deploy riavviare i processi inbox già in esecuzione per utilizzare il
+  nuovo codice. Nessuna nuova coda, configurazione o servizio obbligatorio.
+- Non eseguito un test concorrente su più connessioni MySQL: l’immutabilità
+  riusa il lock e i vincoli URI esistenti; verificati retry, duplicati HTTP,
   rollback e aggiornamenti di post già presenti, inclusa provenienza NULL.

@@ -9,6 +9,7 @@
 @php
     $paths = [
         'cloud' => '<path d="M7 19a5 5 0 1 1 1-9.9A7 7 0 0 1 21 12a3.5 3.5 0 0 1-.5 7H7Z"/>',
+        'route' => '<circle cx="6" cy="5" r="2"/><circle cx="18" cy="19" r="2"/><path d="M6 7v3a2 2 0 0 0 2 2h8a2 2 0 0 1 2 2v3"/>',
         'language' => '<path d="M2 5h12M7 2v3M11 5c-1 5-4 8-8 10M5 8c1 3 3 5 6 7"/><path d="m13 22 4.5-10L22 22M15 18h5"/>',
         'arrow-left' => '<line x1="20" y1="12" x2="4" y2="12"/><polyline points="10 6 4 12 10 18"/>',
         'arrow-right' => '<line x1="4" y1="12" x2="20" y2="12"/><polyline points="14 6 20 12 14 18"/>',

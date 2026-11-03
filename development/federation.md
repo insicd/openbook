@@ -143,8 +143,10 @@ browsers:
   transport context before normalization, so asynchronous processing retains a
   community forwarding another author's activity. Provenance remains separate
   from signatures, authorization and DeliveryStats; similarly named fields in
-  remote payloads are not trusted as local provenance. There is no automatic
-  REST/ActivityPub exposure or UI indicator. Upgrading requires the migration
+  remote payloads are not trusted as local provenance. Cards show a small icon
+  with an information panel for known sources, without per-card lookups: only
+  host and path, excluding credentials and parameters. There is no automatic
+  REST/ActivityPub exposure of the metadata. Upgrading requires the migration
   adding both nullable fields and restarting already running inbox processes
   to load the updated code.
 - **Fetching remote Actors**: `RemoteActorResolver` downloads, validates, and

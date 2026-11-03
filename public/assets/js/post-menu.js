@@ -1,12 +1,13 @@
 /**
  * Menu a tendina dei post (overflow "tre puntini", menu condividi, elenco
- * reazioni): un solo pannello aperto alla volta; click fuori lo chiude.
+ * reazioni e provenienza): un solo pannello aperto alla volta; click fuori lo chiude.
  * Voce "Copia link": scrive l'URL del post nella clipboard.
  */
 (function () {
     'use strict';
 
-    var MENU_SELECTOR = '.ob-post__menu, .ob-post__share-menu, .ob-reaction-list';
+    var MENU_SELECTOR = '.ob-post__menu, .ob-post__share-menu, .ob-reaction-list, .ob-post__source';
+    var OPEN_MENU_SELECTOR = ':is(' + MENU_SELECTOR + ')[open]';
 
     document.addEventListener('click', function (event) {
         var shareMenu = event.target.closest('.ob-post__share-menu');
@@ -33,7 +34,7 @@
             return;
         }
 
-        var openMenus = document.querySelectorAll(MENU_SELECTOR + '[open]');
+        var openMenus = document.querySelectorAll(OPEN_MENU_SELECTOR);
 
         if (openMenus.length === 0) {
             return;
@@ -53,7 +54,7 @@
             return;
         }
 
-        document.querySelectorAll(MENU_SELECTOR + '[open]').forEach(function (menu) {
+        document.querySelectorAll(OPEN_MENU_SELECTOR).forEach(function (menu) {
             if (menu !== target) {
                 menu.removeAttribute('open');
             }

@@ -351,6 +351,10 @@ return [
     ],
 
     'posts' => [
+        'received_via_community_relay' => 'Post received in community :community through relay :relay',
+        'received_via_community' => 'Post received in community :community',
+        'received_via_relay' => 'Post received through relay :relay',
+        'received_via_rss' => 'Post imported from feed :rss',
         'back' => 'Back',
         'open_post' => 'Open post',
         'video_queued' => 'The video was uploaded and the post will be published when processing is complete.',

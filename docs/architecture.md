@@ -43,6 +43,12 @@ their profile; a remote post’s date opens the original on its source server.
 The Back control on the detail page returns to the previous page when the post
 was opened from the same instance.
 
+A small grey route icon at the bottom right indicates the first acquisition
+source, when known: community, relay or RSS/Atom feed. Click or tap the icon
+to read its description in the same type of information panel used by the
+editor’s Markdown hint. Sources are identified by host and path; URL credentials and parameters are omitted. The icon is absent
+when no source was recorded and in embedded quoted posts.
+
 ## Visibility
 
 Choose visibility before publishing:

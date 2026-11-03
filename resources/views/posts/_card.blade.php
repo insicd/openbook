@@ -293,6 +293,7 @@
                         <span>{{ $post->location->label() }}</span>
                     </p>
                 @endif
+                <x-post-source :via="$post->received_via" />
             </div>
         @endunless
     @endif
