@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DatabaseMaintenanceController as AdminDatabaseMaintenanceController;
 use App\Http\Controllers\Admin\DomainBlockController as AdminDomainBlockController;
+use App\Http\Controllers\Admin\ModerationSettingsController;
 use App\Http\Controllers\Admin\ObjectStorageController;
 use App\Http\Controllers\Admin\QueueController as AdminQueueController;
 use App\Http\Controllers\Admin\RelayController as AdminRelayController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\UpdateController as AdminUpdateController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\VideoSettingsController;
 use App\Http\Controllers\AnnounceController;
 use App\Http\Controllers\AssetFileController;
 use App\Http\Controllers\Auth\EmailVerificationController;
@@ -296,6 +298,11 @@ Route::middleware('auth')->group(function () {
             Route::get('/object-storage', [ObjectStorageController::class, 'edit'])->name('object_storage.edit');
             Route::put('/object-storage', [ObjectStorageController::class, 'update'])->name('object_storage.update');
             Route::post('/object-storage/verifica', [ObjectStorageController::class, 'verify'])->middleware('throttle:6,1')->name('object_storage.verify');
+
+            Route::get('/video', [VideoSettingsController::class, 'edit'])->name('video.edit');
+            Route::put('/video', [VideoSettingsController::class, 'update'])->name('video.update');
+            Route::get('/moderazione', [ModerationSettingsController::class, 'edit'])->name('moderation.edit');
+            Route::put('/moderazione', [ModerationSettingsController::class, 'update'])->name('moderation.update');
 
             Route::get('/impostazioni', [AdminSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/impostazioni', [AdminSettingsController::class, 'update'])->name('settings.update');

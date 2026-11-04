@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Application\Services\DomainBlockManager;
 use App\Domain\Moderation\DomainBlock;
 use App\Http\Controllers\Controller;
-use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -17,14 +16,9 @@ class DomainBlockController extends Controller
         private readonly DomainBlockManager $domainBlockManager,
     ) {}
 
-    public function index(): View
+    public function index(): RedirectResponse
     {
-        return view('admin.domain-blocks.index', [
-            'blocks' => DomainBlock::query()
-                ->with('creator')
-                ->orderBy('domain')
-                ->paginate(40),
-        ]);
+        return redirect()->route('admin.moderation.edit', ['tab' => 'domains']);
     }
 
     public function store(Request $request): RedirectResponse

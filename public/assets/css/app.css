@@ -1211,6 +1211,7 @@ html.ob-compose-modal-open {
 }
 
 .ob-admin-database-tabs,
+.ob-admin-tabs,
 .ob-settings-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -1682,6 +1683,17 @@ body.ob-css-preview #ob-compose-modal {
 
 .ob-profile-name {
   margin-top: 0.75rem;
+}
+
+.ob-profile-avatar--zoom {
+  padding: 0;
+  cursor: zoom-in;
+  appearance: none;
+}
+
+.ob-profile-avatar--zoom:focus-visible {
+  outline: 2px solid var(--ob-color-primary);
+  outline-offset: 2px;
 }
 
 .ob-profile-heading {
@@ -4983,4 +4995,11 @@ label.ob-poll__name {
 .ob-storage-status__badge.is-active {
   background: var(--ob-color-primary-soft);
   color: var(--ob-color-primary);
+}
+
+.ob-admin-nav__divider {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--ob-color-border);
+  margin: 0.55rem 0;
 }

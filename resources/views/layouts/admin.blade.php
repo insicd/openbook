@@ -29,39 +29,49 @@
             <a href="{{ route('admin.dashboard') }}" class="ob-side-nav__link {{ request()->routeIs('admin.dashboard') ? 'is-active' : '' }}">
                 <x-icon name="home" /> {{ __('openbook.admin.nav.dashboard') }}
             </a>
-            <a href="{{ route('admin.reports.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.reports.*') ? 'is-active' : '' }}">
-                <x-icon name="flag" /> {{ __('openbook.admin.nav.reports') }}
-            </a>
-            <a href="{{ route('admin.users.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.users.*') ? 'is-active' : '' }}">
-                <x-icon name="people" /> {{ __('openbook.admin.nav.users') }}
-            </a>
+            <hr class="ob-admin-nav__divider">
             @can('administer')
                 <a href="{{ route('admin.settings.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.settings.*') ? 'is-active' : '' }}">
                     <x-icon name="settings" /> {{ __('openbook.admin.nav.settings') }}
                 </a>
-                <a href="{{ route('admin.object_storage.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.object_storage.*') ? 'is-active' : '' }}">
-                    <x-icon name="cloud" /> {{ __('object_storage.title') }}
-                </a>
                 <a href="{{ route('admin.appearance.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.appearance.*') ? 'is-active' : '' }}">
                     <x-icon name="image" /> {{ __('openbook.admin.nav.appearance') }}
                 </a>
-                <a href="{{ route('admin.updates.show') }}" class="ob-side-nav__link {{ request()->routeIs('admin.updates.*') ? 'is-active' : '' }}">
-                    <x-icon name="warning" /> {{ __('openbook.admin.nav.updates') }}
+            @endcan
+            <a href="{{ route('admin.users.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.users.*') ? 'is-active' : '' }}">
+                <x-icon name="people" /> {{ __('openbook.admin.nav.users') }}
+            </a>
+            @can('administer')
+                <a href="{{ route('admin.moderation.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.moderation.*') ? 'is-active' : '' }}">
+                    <x-icon name="shield" /> {{ __('openbook.admin.nav.moderation') }}
                 </a>
-                <a href="{{ route('admin.domain_blocks.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.domain_blocks.*') ? 'is-active' : '' }}">
-                    <x-icon name="globe" /> {{ __('openbook.admin.nav.domain_blocks') }}
+            @endcan
+            <a href="{{ route('admin.reports.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.reports.*') ? 'is-active' : '' }}">
+                <x-icon name="flag" /> {{ __('openbook.admin.nav.reports') }}
+            </a>
+            @can('administer')
+                <hr class="ob-admin-nav__divider">
+                <a href="{{ route('admin.video.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.video.*') ? 'is-active' : '' }}">
+                    <x-icon name="video" /> {{ __('openbook.admin.nav.video') }}
                 </a>
-                <a href="{{ route('admin.relays.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.relays.*') ? 'is-active' : '' }}">
-                    <x-icon name="share" /> {{ __('openbook.admin.nav.relays') }}
+                <a href="{{ route('admin.object_storage.edit') }}" class="ob-side-nav__link {{ request()->routeIs('admin.object_storage.*') ? 'is-active' : '' }}">
+                    <x-icon name="cloud" /> {{ __('object_storage.title') }}
+                </a>
+                <a href="{{ route('admin.database.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.database.*') ? 'is-active' : '' }}">
+                    <x-icon name="trash" /> {{ __('openbook.admin.nav.database') }}
                 </a>
                 <a href="{{ route('admin.queue.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.queue.*') ? 'is-active' : '' }}">
-                    <x-icon name="warning" /> {{ __('openbook.admin.nav.queue') }}
+                    <x-icon name="list" /> {{ __('openbook.admin.nav.queue') }}
                 </a>
                 <a href="{{ route('admin.audit.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.audit.*') ? 'is-active' : '' }}">
                     <x-icon name="info" /> {{ __('openbook.admin.nav.audit') }}
                 </a>
-                <a href="{{ route('admin.database.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.database.*') ? 'is-active' : '' }}">
-                    <x-icon name="trash" /> {{ __('openbook.admin.nav.database') }}
+                <a href="{{ route('admin.updates.show') }}" class="ob-side-nav__link {{ request()->routeIs('admin.updates.*') ? 'is-active' : '' }}">
+                    <x-icon name="warning" /> {{ __('openbook.admin.nav.updates') }}
+                </a>
+                <hr class="ob-admin-nav__divider">
+                <a href="{{ route('admin.relays.index') }}" class="ob-side-nav__link {{ request()->routeIs('admin.relays.*') ? 'is-active' : '' }}">
+                    <x-icon name="share" /> {{ __('openbook.admin.nav.relays') }}
                 </a>
             @endcan
         </aside>

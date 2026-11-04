@@ -1,5 +1,29 @@
 > Documentation: [English](README.md) · [Italiano](README.it.md)
 
+## Administration panel
+
+The sidebar groups instance functions, technical tools and relays, separated
+by subtle dividers. Screens share the Database page’s tab style.
+
+| Page | Sections |
+| --- | --- |
+| This instance | General; Registration and policies; Content |
+| Video | Enablement, FFmpeg/ffprobe tools and video limits |
+| Moderation | Content; Blocked domains |
+| Queues and processes | Pending; Failed; Federation inbox |
+| Reports | Open; Reviewed; Dismissed; Actioned; All |
+
+Each form saves only its own settings. The Content tab of This instance covers
+post, comment and attachment limits and the trending window; Registration and
+policies covers registration availability, rules and privacy. Icons and the
+background remain under General, while custom CSS stays under Appearance.
+The legacy `/admin/domini` address redirects to the Blocked domains tab.
+
+Settings and domain management remain administrator-only. Moderators retain
+their existing user and report management permissions. Report tabs preserve
+filtering and pagination; queue tabs keep counters visible and return to Failed
+after Retry or Delete.
+
 ## Object storage — media and images
 
 **Admin → Object storage** (`/admin/object-storage`) configures an S3-compatible
@@ -386,6 +410,12 @@ the import. Later deletion, domain blocks, relay removal or cancellation do not
 rewrite these counters. “Direct delivery” means inbox without a recognized
 configured relay, not necessarily a delivery from the original author.
 
+Statistical sources are independent of relay configuration. Deleting a row
+from `stats_delivery_sources` cascades to all its buckets; removing a relay
+deletes neither its statistical source nor its history. New deliveries may
+recreate a deleted source. Cached datasets refresh when their TTL expires or
+through **Clear cache**.
+
 There is no historical delivery backfill: collection starts when the feature
 is activated; events contribute from activation of their tracking. The chart
 shows at most two years. Older buckets are not automatically pruned; include
@@ -393,12 +423,16 @@ buckets, sources and collection metadata in ordinary backups. **Clear cache**
 does not reset collected history.
 
 Deploy using the [ordinary update procedure](install.md): apply pending
-migrations, including `2026_10_22_000000_create_post_delivery_metrics` and
-`2026_10_22_000001_unify_content_delivery_metrics`, then rebuild configuration,
+migrations, including `2026_10_22_000000_create_post_delivery_metrics`,
+`2026_10_22_000001_unify_content_delivery_metrics` and
+`2026_11_03_000001_constrain_delivery_bucket_sources`, then rebuild configuration,
 route and view caches if used. The second migration preserves any counters
-already collected by the first. After changing TTLs, rebuild configuration
-cache and clear Stats cache to apply them immediately. JSON responses remain
-authenticated and `private, no-store`; if cache storage is unavailable, the
+already collected by the first. The source constraint migration first removes
+daily buckets without a source, preserves all valid counters and adds the
+cascading foreign key. Rollback removes the constraint and its index without
+reconstructing deleted orphan buckets. After changing TTLs, rebuild
+configuration cache and clear Stats cache to apply them immediately. JSON
+responses remain authenticated and `private, no-store`; if cache storage is unavailable, the
 page attempts a direct read without claiming cache insertion.
 
 ### Database sanity

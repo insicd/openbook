@@ -1399,3 +1399,34 @@ Nessuna invalidazione automatica su modifiche o impostazioni. Nessuna modifica a
 i miss e il rendering restano asincroni per card. Prove mirate, misure MySQL
 e concorrenza registrate nel piano sprint e nel registro EXPLAIN. Suite
 PHPUnit completa rimandata, su richiesta, alla review finale. Nessun commit.
+
+## Integrità delle sorgenti statistiche (3 novembre 2026)
+
+- Decisione confermata: configurazione relay e identità statistiche rimangono
+  separate. Eliminare un relay conserva sorgente e conteggi storici.
+- `stats_content_delivery_buckets.source_id` riferisce invece
+  `stats_delivery_sources.id` con `ON DELETE CASCADE`: eliminando la riga di
+  sorgente si eliminano tutti e soli i suoi bucket, senza orfani.
+- Migrazione `2026_11_03_000001_constrain_delivery_bucket_sources`: indice
+  su source_id e FK, senza modificare PK (day, source_id) o contatori validi.
+  Prima della FK, DELETE con source_id NOT IN (SELECT id dalle sorgenti)
+  elimina gli orfani preesistenti, anche quando le sorgenti sono vuote.
+  Il rollback rimuove solo indice e vincolo, senza ricostruire gli orfani.
+- Nessuna nuova FK ai relay, nessuna cancellazione automatica di sorgenti
+  dalla gestione relay. Nuove consegne possono ricreare una sorgente eliminata;
+  il grafico conserva il normale TTL della cache.
+- SQLite: test su cancellazione in cascata, sorgenti non interessate preservate,
+  inserimenti orfani rifiutati, relay indipendenti, up/down e pulizia degli
+  orfani preesistenti preservando lo storico valido, anche senza sorgenti.
+- MySQL locale: prove su due tabelle con prefisso casuale e 1.200 bucket fittizi,
+  rimosse al termine senza alterare le tabelle applicative. Verificati up/down,
+  riapplicazione, CASCADE, rifiuto di nuovi orfani e pulizia dei preesistenti. EXPLAIN del lookup source_id:
+  accesso ref, indice source_id, 30 righe stimate per 30 bucket della sorgente.
+- EXPLAIN del DELETE sugli orfani: scansione dei bucket (1.201 righe di
+  prova) e lookup eq_ref sulla sorgente materializzata, letta tramite PRIMARY.
+  La scansione iniziale è necessaria per la pulizia una tantum e non introduce
+  query nel percorso ordinario di scrittura. Vincolo già applicato in locale.
+- Verifiche dopo la modifica della pulizia: **22 test mirati, 82 asserzioni**,
+  tutti passati; Pint e `git diff --check` passati. La suite completa finale,
+  inclusa la pulizia automatica, è passata con **2.373 test, 18.370 asserzioni,
+  131 saltati** (PHP 8.5.12).

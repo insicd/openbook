@@ -250,6 +250,10 @@ published historically.
 
 ## Profile and settings
 
+On profile and community pages, click or tap the avatar to enlarge it in the
+same viewer used for post images. You can also open it with the keyboard and
+close it with Escape. Initial-letter placeholders do not open the viewer.
+
 Open **Settings** from the user menu or **Edit profile** on your profile. You
 can update your name, biography, avatar, cover and up to eight fields shared
 between Links and Additional information. Images are previewed before saving.

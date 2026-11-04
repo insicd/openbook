@@ -1,6 +1,6 @@
 /**
- * Lightbox per le immagini dei post: nessuna libreria esterna, un solo
- * overlay condiviso da tutta la pagina (vedi il markup in
+ * Lightbox per immagini dei post e avatar dei profili: nessuna libreria esterna,
+ * un solo overlay condiviso da tutta la pagina (vedi il markup in
  * "layouts/app.blade.php") popolato al volo con l'immagine cliccata.
  *
  * Delega gli eventi su "document" invece di legarli a ogni singola <img>:
@@ -40,7 +40,8 @@
 
         var img = currentGroup[currentIndex];
         image.src = fullSrcOf(img);
-        image.alt = img.alt || '';
+        var thumbnail = img.matches('img') ? img : img.querySelector('img');
+        image.alt = thumbnail ? thumbnail.alt : '';
 
         var hasMultiple = currentGroup.length > 1;
         prevButton.hidden = !hasMultiple;

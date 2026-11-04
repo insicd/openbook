@@ -254,6 +254,10 @@ le serie e uno zero non prova l'assenza storica di pubblicazioni.
 
 ## Profilo e impostazioni
 
+Nelle pagine dei profili e delle community, clicca o tocca l’avatar per
+ingrandirlo nello stesso visualizzatore delle immagini dei post. Puoi aprirlo
+anche da tastiera e chiuderlo con Esc. Il segnaposto con l’iniziale non si apre.
+
 Apri **Impostazioni** dal menu utente o **Modifica profilo** sul tuo profilo.
 Puoi aggiornare nome, biografia, avatar, copertina e fino a otto campi, condivisi
 fra Link e Informazioni aggiuntive. Le immagini vengono mostrate in anteprima
