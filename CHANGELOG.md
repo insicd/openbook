@@ -19,6 +19,20 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Object storage S3 opzionale**: pagina admin `/admin/object-storage` con
+  preset Cloudflare R2, Amazon S3, DigitalOcean Spaces, OVHcloud e S3 generico.
+  Nuovi allegati immagine/audio/video, miniature, poster, avatar e copertine
+  di profili e comunità, favicon, icone PWA e sfondo salvabili sul bucket,
+  con URL pubblico diretto o streaming dall'istanza; audio/video intermediati
+  supportano HEAD e intervalli byte per riproduzione e avanzamento nel player.
+  Disattivare i nuovi upload conserva la lettura degli oggetti già sul bucket;
+  scritture fallite non producono fallback locali e le sostituzioni conservano
+  i vecchi file fino al salvataggio riuscito dei nuovi riferimenti. Parametri
+  amministrativi con sola secret cifrata tramite `APP_KEY`, test di connessione
+  e configurazione ricaricata dal processo video per ogni pubblicazione.
+  Richiede PHP `simplexml`. I file preesistenti restano nella posizione attuale:
+  strumenti di trasferimento dell'archivio e procedura completa di ripristino
+  non sono inclusi.
 - **Ricerca profili e post noti**: suggerimenti e pagina `/cerca` includono
   anche bot, feed RSS/Atom e community pubbliche gia' conosciuti
   dall'istanza, oltre alle persone. L'invio dalla pagina cerca nel testo

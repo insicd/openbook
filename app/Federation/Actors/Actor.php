@@ -369,6 +369,10 @@ class Actor extends Model
             return $this->user?->profile?->avatarUrl();
         }
 
+        if ($this->isLocal() && $this->isGroup()) {
+            return $this->community?->avatarUrl() ?? $this->icon_url;
+        }
+
         return $this->icon_url;
     }
 
@@ -380,6 +384,10 @@ class Actor extends Model
     {
         if ($this->isLocal() && $this->isPerson()) {
             return $this->user?->profile?->coverUrl();
+        }
+
+        if ($this->isLocal() && $this->isGroup()) {
+            return $this->community?->coverUrl() ?? $this->image_url;
         }
 
         return $this->image_url;

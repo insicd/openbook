@@ -159,9 +159,10 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   rimuove i metadati EXIF e ridimensiona con GD quando disponibile (avatar max 512px,
   copertina max 1600px sul lato piu' lungo), riusando la stessa logica di base gia'
   impiegata per gli allegati dei post (`ManipulatesImagesWithGd`, trait condiviso con
-  `MediaUploader`). Il file precedente viene sempre rimosso quando se ne carica uno
-  nuovo, per non accumulare copie orfane su hosting con quota limitata. Modificare il
-  nome visualizzato aggiorna anche il campo `name` dell'Actor ActivityPub locale, che e'
+  `MediaUploader`). Il file precedente viene rimosso dal suo disco dopo il commit
+  del nuovo riferimento; un errore conserva quello precedente e compensa i nuovi
+  upload. Gli errori di pulizia vengono registrati senza esporre credenziali.
+  Modificare il nome visualizzato aggiorna anche il campo `name` dell'Actor ActivityPub locale, che e'
   il valore effettivamente esposto ai server remoti (`ActorSerializer`). Ogni modifica
   al profilo pubblico (nome, biografia, link, avatar, copertina) o all'opzione "Account
   protetto" invia inoltre un `Update` ActivityPub a tutti i follower remoti
@@ -177,12 +178,17 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   l'id dichiarato nel documento coincide con l'Actor che ha firmato la richiesta, cosi'
   nessuno puo' aggiornare il profilo di un altro. Prima di salvare, il file scelto viene
   mostrato subito in anteprima (lato client,
-  via `FileReader`, senza upload). `Profile::avatarUrl()`/`coverUrl()` costruiscono
-  l'URL pubblico tramite il disco "public" configurato (`Storage::disk('public')->url()`),
-  come gia' avviene per gli allegati dei post (`Media::url()`), invece di affidarsi
-  all'helper `asset()`: quest'ultimo dipende dallo schema/host rilevati sulla singola
-  richiesta e puo' produrre URL incoerenti (es. `http://` invece di `https://`) dietro
-  proxy o load balancer che non riportano correttamente lo schema originale.
+  via `FileReader`, senza upload). Percorso e disco sono registrati per ogni immagine
+  in `profiles.avatar_path/avatar_disk` e `cover_path/cover_disk`; le comunità usano
+  gli stessi campi in `communities`. `Profile::avatarUrl()`/`coverUrl()` e i metodi
+  equivalenti di `Community` risolvono l'URL dal disco registrato: URL del disco
+  pubblico locale, oppure URL diretto S3/CDN o route `/asset-files/...` per lo
+  streaming dall'istanza. Gli allegati usano `Media::url()` con la stessa scelta di
+  distribuzione. Per i Group locali i getter di `Actor` delegano alla comunità;
+  in assenza di un percorso gestito restano validi gli URL storici sull'actor.
+  Gli URL delle immagini remote restano in `actors.icon_url/image_url`.
+  Tutti i consumer web, REST e ActivityPub usano questi getter. Per la
+  configurazione e le migrazioni vedere [la guida](../docs/configuration.it.md).
 - **Lingua dell'interfaccia**: ogni utente puo' scegliere tra le lingue elencate in
   `config('openbook.locales')` (italiano e inglese al momento). Il middleware
   `SetUserLocale`, applicato a tutte le richieste web, imposta la lingua dell'app in

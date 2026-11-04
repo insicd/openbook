@@ -33,6 +33,7 @@ class SystemSetting extends Model
         'cron_token',
         'push_vapid_keys',
         'oauth_signing_keys',
+        'object_storage_secret',
     ];
 
     public static function get(string $key, ?string $default = null): ?string

@@ -1,5 +1,108 @@
 > Documentazione: [Italiano](README.it.md) · [English](README.md)
 
+## Object storage — media e immagini
+
+**Admin → Object storage** (`/admin/object-storage`) configura una destinazione
+compatibile S3 per i nuovi media: allegati immagine, audio, video preparati e
+relative miniature/anteprime, avatar e copertine di persone e comunità,
+favicon, icone PWA e sfondo dell'istanza. I file esistenti restano nella loro
+posizione; attivare il servizio non trasferisce l'archivio.
+
+### Configurazione e verifica
+
+Scegli Cloudflare R2, Amazon S3, DigitalOcean Spaces, OVHcloud Object Storage S3
+o «Altro compatibile S3», quindi inserisci bucket e credenziali. R2 richiede
+l'Account ID; AWS e Spaces la regione; OVHcloud e Altro regione ed endpoint
+HTTPS fornito dal servizio. Per Altro è disponibile path-style. I preset
+semplificano la compilazione e vanno verificati con il proprio bucket.
+
+Salva prima di usare **Verifica connessione**: scrive, rilegge e confronta un
+piccolo oggetto temporaneo, poi lo cancella. Se la pulizia fallisce, controlla
+`openbook-connection-test/` nel bucket. Il test usa la configurazione salvata,
+ha un timeout di 15 secondi per operazione e non verifica l'URL pubblico.
+
+I parametri hanno voci separate in `system_settings`; solo la secret access
+key è cifrata con `APP_KEY`. Un campo password vuoto conserva il segreto salvato.
+Non servono variabili AWS nel `.env`; le modifiche valgono con config cache.
+Conserva insieme backup database e `APP_KEY`. L'adattatore incluso richiede
+PHP `simplexml` anche quando lo storage è disabilitato.
+
+### Nuovi upload e distribuzione
+
+**Attiva per i nuovi upload** sceglie il bucket per i nuovi file. Spegnerlo
+riporta i nuovi upload sul disco locale; quelli già registrati su S3 continuano
+a usare il bucket. Conserva quindi configurazione e credenziali finché esistono
+oggetti. Se una scrittura S3 fallisce, l'upload segnala un errore e non ripiega
+sul disco locale.
+
+**Pubblica direttamente da object storage** sceglie come distribuire gli oggetti
+S3, compresi quelli precedenti. Inserisci l'URL pubblico di base del bucket/CDN,
+incluso l'eventuale percorso bucket richiesto dal provider. Browser, REST e
+ActivityPub usano direttamente tale URL, senza trasferire i byte dall'istanza.
+Non usare l'endpoint API autenticato come URL pubblico.
+
+L'accesso pubblico si configura presso il provider: OpenBook non cambia le
+policy del bucket e non imposta ACL sugli oggetti. Spegnere la distribuzione
+diretta non revoca URL già diffusi, accesso pubblico o copie nelle cache.
+La scelta non modifica gli URL dei file locali.
+
+Con distribuzione diretta disabilitata, OpenBook legge dal bucket e serve in
+streaming gli allegati tramite `/media-files/...` e gli altri asset tramite
+`/asset-files/...`. Il bucket può restare privato. Gli URL degli asset cambiano
+quando l'immagine viene sostituita; manifest e documenti ActivityPub usano gli
+URL correnti. Le immagini federate esterne restano esterne.
+
+Audio/video intermediati supportano `HEAD` e un singolo intervallo byte
+(`Range`) per avanzare nel player senza scaricare prima il file intero. Range
+multipli o malformati vengono ignorati; intervalli non soddisfacibili
+restituiscono 416. Con `If-Range`, in assenza di un validator confrontabile,
+viene restituito il file intero. Gli oggetti mancanti restituiscono 404;
+problemi di accesso/configurazione S3 restituiscono 503 senza dettagli del provider.
+
+### Elaborazione e gestione dei file
+
+Le immagini vengono validate ed elaborate localmente, mantenendo rimozione
+metadati, ridimensionamenti e miniature dei flussi esistenti. I video usano
+preparazione e staging locali, con i normali strumenti ffmpeg/ffprobe,
+abilitazione e limiti. I file preparati vengono trasferiti tramite stream,
+senza una copia permanente in `public` per gli oggetti registrati sul bucket.
+Il timeout delle operazioni S3 è di 300 secondi.
+
+Un salvataggio fallito conserva gli asset precedenti e tenta di rimuovere i
+nuovi upload parziali. Sostituzioni e rimozioni seguono il disco del singolo
+file; i vecchi asset vengono eliminati dopo il salvataggio riuscito dei nuovi
+riferimenti. Errori di pulizia vengono registrati senza credenziali o messaggi
+SDK; possono richiedere una pulizia manuale. Le semantiche di conservazione dei
+media nei soft-delete esistenti non cambiano.
+
+Dopo un errore di pubblicazione gli originali in staging restano disponibili
+per ritentare e i derivati temporanei vengono rimossi. Lo staging resta locale:
+un lavoro non ancora pubblicato dipende ancora dal disco del server.
+Il processo video ricarica la connessione S3 per ogni pubblicazione; modificare
+le impostazioni non richiede un suo riavvio. Dopo un aggiornamento del codice,
+riavvia una volta un processo video già in esecuzione per caricare la nuova versione.
+
+### Aggiornamento e limiti operativi
+
+Esegui le migrazioni (`php artisan migrate`) e rigenera le cache secondo la
+normale procedura di deploy, incluse le route. Le migrazioni aggiornano i
+riferimenti dei file senza spostarli o cancellarli. I vecchi URL locali
+riconoscibili delle comunità diventano riferimenti al disco pubblico; gli URL
+esterni o relativi a un'altra istanza restano utilizzabili come riferimenti storici.
+
+È configurata una sola destinazione S3. Prima di cambiare provider, bucket o
+endpoint, trasferisci esternamente gli oggetti conservandone le chiavi e
+verifica la nuova destinazione. OpenBook non gestisce bucket storici.
+
+**Gap noto:** non sono disponibili un comando di trasferimento dell'archivio
+locale, una risoluzione dei vecchi URL `/storage/...` verso oggetti spostati,
+né una procedura completa di ripristino collaudata con disco pubblico vuoto.
+Queste attività non sono attualmente pianificate per l'implementazione.
+Conserva i file locali esistenti: una semplice copia sul bucket non aggiorna
+riferimenti e URL già distribuiti. Il solo object storage non costituisce un
+backup completo dell'istanza; database, `APP_KEY` e protezione indipendente
+del bucket rimangono necessari.
+
 ## Configurazione
 
 Tutte le impostazioni specifiche di Openbook sono centralizzate in

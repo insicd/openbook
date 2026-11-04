@@ -20,6 +20,7 @@
         "laravel/framework": "^12.61",
         "laravel/passport": "^13.0",
         "laravel/tinker": "^2.9",
+        "league/flysystem-aws-s3-v3": "^3.0",
         "minishlink/web-push": "^11.0",
         "symfony/intl": "^7.4"
     },

@@ -8,8 +8,10 @@ use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Delivery\ActivityDelivery;
 use App\Federation\Serialization\ActivitySerializer;
 use App\Federation\Serialization\ActorSerializer;
+use App\Infrastructure\Media\MediaStorage;
 use App\Infrastructure\Media\ProfileImageUploader;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Applica le modifiche al profilo pubblico di un account locale (nome
@@ -34,24 +36,31 @@ final class ProfileUpdater
      */
     public function update(User $user, array $data, ?UploadedFile $avatar, ?UploadedFile $cover): void
     {
-        $profile = $user->profile;
+        $actor = DB::transaction(function () use ($user, $data, $avatar, $cover) {
+            $disk = app(MediaStorage::class)->uploadDisk();
+            $profile = $user->profile;
 
-        $profile->display_name = $data['display_name'];
-        $profile->bio = $data['bio'] ?? null;
-        $profile->links = $this->normalizeLinks($data['links'] ?? []);
+            $profile->display_name = $data['display_name'];
+            $profile->bio = $data['bio'] ?? null;
+            $profile->links = $this->normalizeLinks($data['links'] ?? []);
 
-        if ($avatar !== null) {
-            $profile->avatar_path = $this->imageUploader->storeAvatar($avatar, $profile->avatar_path);
-        }
+            if ($avatar !== null) {
+                $profile->avatar_path = $this->imageUploader->storeAvatar($avatar, $profile->avatar_path, $profile->avatar_disk ?? 'public', $disk);
+                $profile->avatar_disk = $disk;
+            }
 
-        if ($cover !== null) {
-            $profile->cover_path = $this->imageUploader->storeCover($cover, $profile->cover_path);
-        }
+            if ($cover !== null) {
+                $profile->cover_path = $this->imageUploader->storeCover($cover, $profile->cover_path, $profile->cover_disk ?? 'public', $disk);
+                $profile->cover_disk = $disk;
+            }
 
-        $profile->save();
+            $profile->save();
 
-        $actor = $user->actor;
-        $actor?->update(['name' => $data['display_name']]);
+            $actor = $user->actor;
+            $actor?->update(['name' => $data['display_name']]);
+
+            return $actor;
+        });
 
         if ($actor !== null) {
             $this->delivery->deliverToFollowers($actor, ActivitySerializer::updateActor($actor));

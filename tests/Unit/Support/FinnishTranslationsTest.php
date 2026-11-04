@@ -44,6 +44,6 @@ class FinnishTranslationsTest extends TestCase
 
     public static function languageFiles(): array
     {
-        return [['openbook'], ['validation'], ['auth'], ['passwords'], ['pagination']];
+        return [['object_storage'], ['openbook'], ['validation'], ['auth'], ['passwords'], ['pagination']];
     }
 }

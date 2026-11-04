@@ -2,21 +2,20 @@
 
 namespace App\Infrastructure\Media;
 
+use App\Infrastructure\Database\SystemSetting;
 use App\Infrastructure\Media\Concerns\ManipulatesImagesWithGd;
-use App\Infrastructure\Media\Concerns\NormalizesPublicDiskPermissions;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
  * Sfondo della homepage ospite: conserva il rapporto d'aspetto, riduce i
- * lati lunghi e scrive un JPEG sul disco public. Il percorso della cartella
- * resta in {@see \App\Infrastructure\Database\SystemSetting}.
+ * lati lunghi e scrive un JPEG sul disco selezionato. Percorso e disco
+ * restano in {@see SystemSetting}.
  */
 final class HomeBackgroundUploader
 {
-    use ManipulatesImagesWithGd, NormalizesPublicDiskPermissions;
+    use ManipulatesImagesWithGd;
 
     public const DIRECTORY_PREFIX = 'home-backgrounds';
 
@@ -35,7 +34,7 @@ final class HomeBackgroundUploader
         'image/gif',
     ];
 
-    public function store(UploadedFile $file, ?string $previousDirectory): string
+    public function store(UploadedFile $file, ?string $previousDirectory, string $previousDisk = 'public', ?string $destination = null): string
     {
         if (! extension_loaded('gd')) {
             throw new InvalidArgumentException(
@@ -86,25 +85,23 @@ final class HomeBackgroundUploader
 
         $directory = self::DIRECTORY_PREFIX.'/'.Str::uuid()->toString();
         $path = $directory.'/'.self::FILENAME;
-        $disk = Storage::disk('public');
+        $destination ??= app(MediaStorage::class)->uploadDisk();
 
         ob_start();
         imagejpeg($image, null, 86);
-        $disk->put($path, (string) ob_get_clean());
-        $this->ensurePublicFileIsReadable($path);
-        $this->ensurePublicDirectoryIsTraversable($directory);
-        $this->deleteDirectory($previousDirectory);
+        app(AssetStorage::class)->store($destination, [$path => (string) ob_get_clean()]);
+        $this->deleteDirectory($previousDirectory, $previousDisk);
 
         return $directory;
     }
 
-    public function deleteDirectory(?string $directory): void
+    public function deleteDirectory(?string $directory, string $disk = 'public'): void
     {
         if (! filled($directory) || ! self::isValidDirectory($directory)) {
             return;
         }
 
-        Storage::disk('public')->deleteDirectory($directory);
+        app(AssetStorage::class)->removeAfterCommit($disk, [$directory.'/'.self::FILENAME]);
     }
 
     public static function isValidDirectory(?string $directory): bool

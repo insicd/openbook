@@ -150,7 +150,7 @@ function ob_requirement_errors(): array
     if (version_compare(PHP_VERSION, OB_SETUP_MIN_PHP, '<')) {
         $errors[] = 'Serve PHP '.OB_SETUP_MIN_PHP.' o superiore (attuale: '.PHP_VERSION.').';
     }
-    foreach (['curl', 'openssl', 'json', 'mbstring', 'pdo', 'pdo_mysql', 'fileinfo', 'zip'] as $ext) {
+    foreach (['curl', 'openssl', 'json', 'mbstring', 'pdo', 'pdo_mysql', 'fileinfo', 'simplexml', 'zip'] as $ext) {
         if ($ext === 'curl' && ! function_exists('curl_init') && ! ini_get('allow_url_fopen')) {
             $errors[] = 'Serve estensione curl oppure allow_url_fopen.';
 

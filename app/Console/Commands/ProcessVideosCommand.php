@@ -5,9 +5,11 @@ namespace App\Console\Commands;
 use App\Application\Services\InstanceSettings;
 use App\Application\Services\PendingPostFinalizer;
 use App\Application\Services\PostPublicationQueue;
+use App\Infrastructure\Media\MediaStorage;
 use App\Infrastructure\Media\VideoCapability;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 /** Worker CLI dedicato alla preparazione e pubblicazione dei post con video. */
@@ -90,6 +92,9 @@ class ProcessVideosCommand extends Command
             );
 
             try {
+                // Admin changes happen in another process. A long-lived worker
+                // must not reuse a disk resolved for a previous publication.
+                Storage::forgetDisk(MediaStorage::OBJECT_DISK);
                 $post = $finalizer->finalize($publication, $claimToken);
                 $elapsed = number_format(microtime(true) - $startedAt, 2, ',', '');
                 $processing = $requiresTranscode ? 'con transcodifica' : 'senza transcodifica';

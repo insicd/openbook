@@ -6,7 +6,7 @@ Openbook e' progettato per funzionare anche su un normale **shared hosting**, se
 accesso SSH continuo, senza Docker e senza processi permanenti:
 
 - PHP **8.4.1** o superiore, con estensioni: `curl`, `openssl`, `sodium`, `json`, `pdo`,
-  `pdo_mysql`, `mbstring`, `fileinfo`;
+  `pdo_mysql`, `mbstring`, `fileinfo`, `simplexml`;
 - estensione `gd` **consigliata** per miniature e rimozione dei metadati dalle
   immagini compatibili. Senza GD il caricamento resta disponibile, ma queste
   elaborazioni vengono saltate;

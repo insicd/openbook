@@ -128,13 +128,13 @@ final class ActorSerializer
             }
         }
 
-        $avatarUrl = $profile?->avatarUrl() ?: $actor->icon_url;
+        $avatarUrl = $profile?->avatarUrl() ?: $actor->avatarUrl() ?: $actor->icon_url;
 
         if (filled($avatarUrl)) {
             $document['icon'] = ['type' => 'Image', 'url' => $avatarUrl];
         }
 
-        $coverUrl = $profile?->coverUrl() ?: $actor->image_url;
+        $coverUrl = $profile?->coverUrl() ?: $actor->coverUrl() ?: $actor->image_url;
 
         if (filled($coverUrl)) {
             $document['image'] = ['type' => 'Image', 'url' => $coverUrl];

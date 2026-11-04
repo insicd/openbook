@@ -1,5 +1,103 @@
 > Documentation: [English](README.md) · [Italiano](README.it.md)
 
+## Object storage — media and images
+
+**Admin → Object storage** (`/admin/object-storage`) configures an S3-compatible
+destination for new media: image, audio and prepared video attachments with
+their thumbnails/posters, person and community avatars/covers, favicons, PWA
+icons and the instance background. Existing files stay in their current
+location; enabling storage does not transfer the archive.
+
+### Configuration and verification
+
+Choose Cloudflare R2, Amazon S3, DigitalOcean Spaces, OVHcloud Object Storage S3
+or Other S3-compatible storage, then supply bucket and credentials. R2 needs
+the Account ID; AWS and Spaces need the region; OVHcloud and Other need the
+region and HTTPS endpoint supplied by the service. Other supports path-style
+addressing. Presets simplify configuration and must be checked with your bucket.
+
+Save before using **Verify connection**: it writes a small temporary object,
+reads and compares its contents, then deletes it. If cleanup fails, inspect
+`openbook-connection-test/` in the bucket. The check uses saved configuration,
+has a 15-second timeout per operation and does not check the public URL.
+
+Parameters use separate `system_settings` entries; only the secret access key
+is encrypted with `APP_KEY`. Leaving the password empty preserves the saved
+secret. No AWS environment variables are needed; changes work with config
+cache. Preserve database backups and `APP_KEY` together. The bundled adapter
+requires PHP `simplexml` even when object storage is disabled.
+
+### New uploads and delivery
+
+**Enable for new uploads** selects the bucket for new files. Turning it off
+sends new uploads to the local disk; objects already recorded on S3 keep using
+the bucket. Preserve configuration and credentials while objects remain there.
+If an S3 write fails, the upload reports an error without falling back to the
+local disk.
+
+**Serve directly from object storage** selects delivery for S3 objects,
+including existing ones. Supply the public base URL of the bucket/CDN,
+including any bucket path required by the provider. Browsers, REST and
+ActivityPub use that URL directly, without transferring bytes through the
+instance. Do not use the authenticated API endpoint as the public URL.
+
+Configure public access with the provider: OpenBook does not change bucket
+policies or set object ACLs. Turning direct delivery off does not revoke
+previously distributed URLs, public access or cached copies. The setting does
+not change local file URLs.
+
+With direct delivery disabled, OpenBook reads from the bucket and streams
+attachments through `/media-files/...` and other assets through `/asset-files/...`.
+The bucket may remain private. Asset URLs change when images are replaced;
+manifests and ActivityPub documents use current URLs. External federated images
+remain external.
+
+Proxied audio/video support `HEAD` and a single byte range (`Range`) for player
+seeking without first downloading the entire file. Multiple or malformed
+ranges are ignored; unsatisfiable ranges return 416. When `If-Range` is present
+without a matching validator, the full file is returned. Missing objects return
+404; S3 access/configuration failures return 503 without provider details.
+
+### Processing and file management
+
+Images are validated and processed locally, preserving metadata removal,
+resizing and thumbnails from existing flows. Videos use local preparation and
+staging, with the normal ffmpeg/ffprobe tools, feature enablement and limits.
+Prepared files are transferred using streams, without a permanent `public`
+copy for objects recorded on the bucket. S3 operations have a 300-second timeout.
+
+Failed saves preserve previous assets and attempt to remove partial new uploads.
+Replacements and deletions follow the individual file's recorded disk; old
+assets are deleted after new references are successfully saved. Cleanup errors
+are logged without credentials or SDK messages and may require manual cleanup.
+Existing soft-delete media retention semantics do not change.
+
+After a failed publication, staged originals remain available for retry and
+temporary derivatives are removed. Staging remains local: an unpublished job
+still depends on the server disk. The video process reloads its S3 connection
+for every publication; changing settings does not require restarting it. After
+a code update, restart an already running video process once to load the new version.
+
+### Upgrading and operational limits
+
+Run migrations (`php artisan migrate`) and regenerate caches through the normal
+deployment procedure, including routes. Migrations update file references
+without moving or deleting files. Recognizable legacy local community URLs
+become public-disk references; external URLs or URLs from another instance
+remain usable as historical references.
+
+Only one S3 destination is configured. Before changing provider, bucket or
+endpoint, transfer objects externally while preserving their keys and verify
+the new destination. OpenBook does not manage historical buckets.
+
+**Known gap:** there is no local archive transfer command, resolution of old
+`/storage/...` URLs to relocated objects, or complete recovery procedure tested
+with an empty public disk. These activities are not currently planned for
+implementation. Preserve existing local files: copying them to the bucket
+does not update references or previously distributed URLs. Object storage alone
+is not a complete instance backup; the database, `APP_KEY` and independent
+bucket protection remain necessary.
+
 ## Configuration
 
 All Openbook-specific settings are centralized in

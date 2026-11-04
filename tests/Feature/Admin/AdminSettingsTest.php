@@ -6,6 +6,7 @@ use App\Application\Services\InstanceSettings;
 use App\Infrastructure\Database\SystemSetting;
 use App\Infrastructure\Media\HomeBackgroundUploader;
 use App\Infrastructure\Media\InstanceIconUploader;
+use App\Infrastructure\Media\MediaStorage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
@@ -479,5 +480,70 @@ class AdminSettingsTest extends TestCase
         }
 
         return $directory;
+    }
+
+    public function test_instance_assets_use_object_storage_with_manifest_urls_and_correct_removal(): void
+    {
+        Storage::fake('public');
+        Storage::fake(MediaStorage::OBJECT_DISK);
+        SystemSetting::putBool('object_storage_enabled', true);
+        $admin = $this->createFullAccount('adminbucketassets');
+        $admin->forceFill(['is_admin' => true])->save();
+        $this->actingAs($admin)->put(route('admin.settings.update'), $this->settingsPayload([
+            'favicon' => UploadedFile::fake()->image('icon.png', 640, 640),
+            'home_background' => UploadedFile::fake()->image('home.jpg', 1280, 720),
+        ]))->assertSessionHasNoErrors();
+        $settings = app(InstanceSettings::class);
+        $this->assertSame(MediaStorage::OBJECT_DISK, $settings->iconDisk());
+        $this->assertSame(MediaStorage::OBJECT_DISK, $settings->homeBackgroundDisk());
+        Storage::disk('public')->assertDirectoryEmpty('/');
+        foreach (InstanceIconUploader::filenames() as $filename) {
+            Storage::disk(MediaStorage::OBJECT_DISK)->assertExists($settings->iconDirectory().'/'.$filename);
+        }
+        $favicon = $settings->faviconUrl();
+        $background = $settings->homeBackgroundUrl();
+        $this->get($favicon)->assertOk()->assertHeader('Content-Type', 'image/png');
+        $this->get($background)->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+        $manifest = $this->get(route('site.manifest'))->assertOk()->json();
+        $this->assertCount(4, $manifest['icons']);
+        foreach ($manifest['icons'] as $icon) {
+            $this->get($icon['src'])->assertOk()->assertHeader('Content-Type', 'image/png');
+        }
+        SystemSetting::putBool('object_storage_enabled', false);
+        SystemSetting::putBool('object_storage_direct', true);
+        SystemSetting::put('object_storage_public_url', 'https://cdn.example/');
+        $this->assertStringStartsWith('https://cdn.example/', $settings->faviconUrl());
+        $manifest = $this->get(route('site.manifest'))->json();
+        $this->assertStringStartsWith('https://cdn.example/', $manifest['icons'][0]['src']);
+        $this->get($favicon)->assertOk();
+        $this->actingAs($admin)->put(route('admin.settings.update'), $this->settingsPayload([
+            'remove_favicon' => '1', 'remove_home_background' => '1',
+        ]))->assertSessionHasNoErrors();
+        $this->assertNull($settings->faviconUrl());
+        $this->assertNull($settings->homeBackgroundUrl());
+        Storage::disk(MediaStorage::OBJECT_DISK)->assertDirectoryEmpty('/');
+        $this->get($favicon)->assertNotFound();
+    }
+
+    public function test_invalid_background_preserves_previous_icons_and_cleans_new_icon_batch(): void
+    {
+        Storage::fake('public');
+        Storage::fake(MediaStorage::OBJECT_DISK);
+        $admin = $this->createFullAccount('adminassetrollback');
+        $admin->forceFill(['is_admin' => true])->save();
+        $this->actingAs($admin)->put(route('admin.settings.update'), $this->settingsPayload([
+            'favicon' => UploadedFile::fake()->image('old.png', 640, 640),
+        ]))->assertSessionHasNoErrors();
+        $settings = app(InstanceSettings::class);
+        $old = $settings->iconDirectory();
+        SystemSetting::putBool('object_storage_enabled', true);
+        $this->actingAs($admin)->put(route('admin.settings.update'), $this->settingsPayload([
+            'favicon' => UploadedFile::fake()->image('new.png', 640, 640),
+            'home_background' => UploadedFile::fake()->image('tiny.jpg', 20, 20),
+        ]))->assertSessionHasErrors('home_background');
+        $this->assertSame($old, $settings->iconDirectory());
+        $this->assertSame('public', $settings->iconDisk());
+        Storage::disk('public')->assertExists($old.'/favicon-32.png');
+        Storage::disk(MediaStorage::OBJECT_DISK)->assertDirectoryEmpty('/');
     }
 }

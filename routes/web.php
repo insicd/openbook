@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DatabaseMaintenanceController as AdminDatabaseMaintenanceController;
 use App\Http\Controllers\Admin\DomainBlockController as AdminDomainBlockController;
+use App\Http\Controllers\Admin\ObjectStorageController;
 use App\Http\Controllers\Admin\QueueController as AdminQueueController;
 use App\Http\Controllers\Admin\RelayController as AdminRelayController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\UpdateController as AdminUpdateController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AnnounceController;
+use App\Http\Controllers\AssetFileController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\SessionController;
@@ -36,6 +38,7 @@ use App\Http\Controllers\InstanceRulesController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\MediaFileController;
 use App\Http\Controllers\MentionSuggestController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PollComposerController;
@@ -60,6 +63,12 @@ Route::post('/lingua', [LocaleController::class, 'update'])->name('locale.update
 Route::get('/regole', [InstanceRulesController::class, 'show'])->name('instance.rules');
 Route::get('/privacy', [PrivacyPolicyController::class, 'show'])->name('instance.privacy');
 Route::get('/manifest.webmanifest', [SiteManifestController::class, 'show'])->name('site.manifest');
+
+Route::get('/media-files/{media}/{variant?}', [MediaFileController::class, 'show'])
+    ->whereUuid('media')->where('variant', 'thumbnail')->name('media.files.show');
+
+Route::get('/asset-files/{kind}/{id}/{slot}/{version}', [AssetFileController::class, 'show'])
+    ->where('kind', 'profile|community|actor|instance')->where('version', '[a-f0-9]{40}')->name('assets.files.show');
 
 Route::middleware('guest')->group(function () {
     Route::get('/registrati', [RegisterController::class, 'create'])->name('register');
@@ -283,6 +292,10 @@ Route::middleware('auth')->group(function () {
             Route::post('/utenti/{user}/rimuovi-moderatore', [AdminUserController::class, 'demoteModerator'])->name('users.demote_moderator');
             Route::post('/utenti/{user}/promuovi-admin', [AdminUserController::class, 'promoteAdmin'])->name('users.promote_admin');
             Route::post('/utenti/{user}/rimuovi-admin', [AdminUserController::class, 'demoteAdmin'])->name('users.demote_admin');
+
+            Route::get('/object-storage', [ObjectStorageController::class, 'edit'])->name('object_storage.edit');
+            Route::put('/object-storage', [ObjectStorageController::class, 'update'])->name('object_storage.update');
+            Route::post('/object-storage/verifica', [ObjectStorageController::class, 'verify'])->middleware('throttle:6,1')->name('object_storage.verify');
 
             Route::get('/impostazioni', [AdminSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/impostazioni', [AdminSettingsController::class, 'update'])->name('settings.update');

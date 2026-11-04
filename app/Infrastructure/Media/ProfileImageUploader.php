@@ -3,9 +3,7 @@
 namespace App\Infrastructure\Media;
 
 use App\Infrastructure\Media\Concerns\ManipulatesImagesWithGd;
-use App\Infrastructure\Media\Concerns\NormalizesPublicDiskPermissions;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -19,7 +17,7 @@ use InvalidArgumentException;
  */
 final class ProfileImageUploader
 {
-    use ManipulatesImagesWithGd, NormalizesPublicDiskPermissions;
+    use ManipulatesImagesWithGd;
 
     private const ALLOWED_EXTENSIONS = [
         'image/jpeg' => 'jpg',
@@ -32,17 +30,17 @@ final class ProfileImageUploader
 
     private const COVER_MAX_DIMENSION = 1600;
 
-    public function storeAvatar(UploadedFile $file, ?string $previousPath): string
+    public function storeAvatar(UploadedFile $file, ?string $previousPath, string $previousDisk = 'public', ?string $disk = null): string
     {
-        return $this->store($file, $previousPath, 'avatars', self::AVATAR_MAX_DIMENSION);
+        return $this->store($file, $previousPath, 'avatars', self::AVATAR_MAX_DIMENSION, $previousDisk, $disk);
     }
 
-    public function storeCover(UploadedFile $file, ?string $previousPath): string
+    public function storeCover(UploadedFile $file, ?string $previousPath, string $previousDisk = 'public', ?string $disk = null): string
     {
-        return $this->store($file, $previousPath, 'covers', self::COVER_MAX_DIMENSION);
+        return $this->store($file, $previousPath, 'covers', self::COVER_MAX_DIMENSION, $previousDisk, $disk);
     }
 
-    private function store(UploadedFile $file, ?string $previousPath, string $directory, int $maxDimension): string
+    private function store(UploadedFile $file, ?string $previousPath, string $directory, int $maxDimension, string $previousDisk, ?string $disk): string
     {
         $mimeType = (string) $file->getMimeType();
         $allowedMimeTypes = (array) config('openbook.media.allowed_mime_types');
@@ -70,12 +68,10 @@ final class ProfileImageUploader
         $contents = $this->prepareContents($file->getRealPath(), $mimeType, $width, $height, $maxDimension)
             ?? file_get_contents($file->getRealPath());
 
-        Storage::disk('public')->put($path, $contents);
-        $this->ensurePublicDirectoryIsTraversable($directory);
-        $this->ensurePublicFileIsReadable($path);
-
+        $disk ??= app(MediaStorage::class)->uploadDisk();
+        app(AssetStorage::class)->store($disk, [$path => $contents]);
         if (filled($previousPath)) {
-            Storage::disk('public')->delete($previousPath);
+            app(AssetStorage::class)->removeAfterCommit($previousDisk, [$previousPath]);
         }
 
         return $path;

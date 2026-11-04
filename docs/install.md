@@ -6,7 +6,7 @@ Openbook is designed to run even on ordinary **shared hosting**, without
 continuous SSH access, without Docker, and without long-running processes:
 
 - PHP **8.4.1** or later, with extensions: `curl`, `openssl`, `sodium`, `json`, `pdo`,
-  `pdo_mysql`, `mbstring`, `fileinfo`;
+  `pdo_mysql`, `mbstring`, `fileinfo`, `simplexml`;
 - `gd` extension **recommended** for thumbnails and metadata removal from
   supported images. Without GD, uploads remain available but these processing
   steps are skipped;

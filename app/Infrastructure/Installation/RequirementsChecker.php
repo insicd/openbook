@@ -10,7 +10,7 @@ namespace App\Infrastructure\Installation;
  */
 final class RequirementsChecker
 {
-    private const REQUIRED_EXTENSIONS = ['curl', 'openssl', 'sodium', 'json', 'pdo', 'pdo_mysql', 'mbstring', 'fileinfo'];
+    private const REQUIRED_EXTENSIONS = ['curl', 'openssl', 'sodium', 'json', 'pdo', 'pdo_mysql', 'mbstring', 'fileinfo', 'simplexml'];
 
     /**
      * Estensioni consigliate ma non bloccanti: la loro assenza degrada solo
