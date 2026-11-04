@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureApplicationIsInstalled;
 use App\Http\Middleware\EnsureStaff;
 use App\Http\Middleware\RestPersonRequest;
+use App\Http\Middleware\RestrictPublicWebVisibility;
 use App\Http\Middleware\SetUserLocale;
 use App\Infrastructure\Database\TransientConnectionHandler;
 use App\Support\UserDate;
@@ -42,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             EnsureApplicationIsInstalled::class,
             SetUserLocale::class,
+            RestrictPublicWebVisibility::class,
         ]);
 
         $middleware->alias([

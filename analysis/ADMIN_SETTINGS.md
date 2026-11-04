@@ -3,8 +3,10 @@
 Ramo: `ui_visibility`, creato da `main` aggiornato a `97208d4`.
 
 Decisioni approvate il 4 novembre 2026. Intervento di navigazione e separazione
-form: chiavi system_settings, configurazione, policy e permessi restano quelli
-esistenti. Non sono richieste migrazioni.
+form: per questa separazione, chiavi system_settings, configurazione, policy e
+permessi restano quelli esistenti e non sono richieste migrazioni. Il controllo
+della visibilità pubblica, aggiunto sullo stesso ramo come quarto tab, è
+descritto in [PUBLIC_WEB_VISIBILITY.md](PUBLIC_WEB_VISIBILITY.md).
 
 - Questa istanza: tab Generali (identità, contatti, icone, sfondo e staff),
   Registrazioni e policy (apertura, regole, privacy), Contenuti (limiti e tendenze).

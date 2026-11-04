@@ -8,7 +8,7 @@ di Database.
 
 | Pagina | Sezioni |
 | --- | --- |
-| Questa istanza | Generali; Registrazioni e policy; Contenuti |
+| Questa istanza | Generali; Registrazioni e policy; Contenuti; Visibilità pubblica |
 | Video | Abilitazione, strumenti FFmpeg/ffprobe e limiti video |
 | Moderazione | Contenuti; Domini bloccati |
 | Code e processi | In attesa; Falliti; Inbox federazione |
@@ -218,16 +218,37 @@ GeoNames selezionata e le coordinate del suo centro. I dati geografici sono
 forniti da GeoNames con licenza
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-### Flusso sulla home per gli ospiti
+### Visibilità pubblica e feed nella home
 
-Il layout della home per i visitatori resta quello attuale finché un
-amministratore non attiva **Flusso pubblico sulla home per gli ospiti** in
-**Aspetto**. L’opzione è disattiva di default. Se attiva, gli ospiti vedono
-le informazioni sull’istanza a sinistra (la colonna scorre da sola, anche
-su desktop) e al centro i post pubblici già visibili a questa istanza
-(locali e remoti in cache), con lo stesso scorrimento infinito usato altrove. Non è una timeline completa del
-Fediverso. Su schermi stretti la colonna sinistra diventa un pannello a
-comparsa, aperto da una freccia verso destra.
+In **Questa istanza → Visibilità pubblica** si sceglie cosa possono consultare i
+visitatori senza accedere:
+
+- **Tutto visibile** conserva l’accesso esistente ai contenuti pubblici locali e
+  federati. Un’opzione aggiuntiva consente l’esplorazione di tag e tendenze.
+- **Solo contenuti locali** permette di consultare profili e community locali,
+  con post ed eventi di autori locali. Restano nascosti i post remoti rilanciati
+  da utenti locali o pubblicati in una community locale e le citazioni remote
+  incorporate.
+- **Tutto chiuso** richiede l’accesso per consultare i contenuti. Restano aperte
+  la presentazione dell’istanza in home, l’accesso, la registrazione se abilitata,
+  le regole e la privacy.
+
+I commenti seguono il post o l’evento padre: una risposta locale non rende
+pubblica una discussione remota, mentre una discussione locale ammessa conserva
+le risposte remote. Permessi esistenti, preferenze di scoperta e consenso
+all’indicizzazione continuano a valere; questi controlli non rendono pubbliche
+pagine già riservate. La regolazione riguarda la consultazione web, senza
+modificare ActivityPub, REST autenticata o gli URL degli allegati.
+
+Senza impostazioni salvate restano l’accesso pubblico e l’esplorazione dei tag
+attuali. Il controllo esistente **Mostra il feed nella home pubblica** si trova
+ora in questo stesso tab ed è disattivo di default. Se attivo, mostra le
+informazioni sull’istanza a sinistra (con scorrimento indipendente su desktop)
+e al centro i post pubblici già presenti nell’istanza, con scorrimento infinito.
+Il feed segue la modalità selezionata: tutti i post pubblici disponibili oppure
+solo quelli di autori locali; Tutto chiuso lo nasconde. Non è un feed completo
+del fediverso. Sugli schermi piccoli, una freccia verso destra apre la colonna
+con le informazioni.
 
 ## Cron e attivita periodiche
 

@@ -9,6 +9,7 @@ use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\FollowListQuery;
 use App\Application\Services\FollowManager;
+use App\Application\Services\PublicWebVisibility;
 use App\Application\Services\QuotedActorResolver;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
@@ -189,12 +190,13 @@ class ProfileController extends Controller
         } elseif ($activeTab === 'activity') {
             $activity = $this->activityQuery->forActor($user->actor, $viewerActor, $request);
         } elseif ($activeTab === 'events') {
-            $events = $this->eventsQuery->forActor($user->actor, $viewerActor, $eventsArchive);
+            $events = $this->eventsQuery->forActor($user->actor, $viewerActor, $eventsArchive, localOnly: app(PublicWebVisibility::class)->localOnly($viewerActor));
         } else {
             $posts = $this->feedQuery->forProfile(
                 $user->actor,
                 $viewerActor,
                 FeedCursor::fromRequest($request),
+                localOnly: app(PublicWebVisibility::class)->localOnly($viewerActor),
             );
             Post::annotateViewerState($posts->getCollection(), $viewerActor);
         }

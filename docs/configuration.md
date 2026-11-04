@@ -7,7 +7,7 @@ by subtle dividers. Screens share the Database page’s tab style.
 
 | Page | Sections |
 | --- | --- |
-| This instance | General; Registration and policies; Content |
+| This instance | General; Registration and policies; Content; Public visibility |
 | Video | Enablement, FFmpeg/ffprobe tools and video limits |
 | Moderation | Content; Blocked domains |
 | Queues and processes | Pending; Failed; Federation inbox |
@@ -212,16 +212,33 @@ GeoNames city and its city-centre coordinates are saved and published.
 Geographical data is provided by GeoNames under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-### Guest homepage feed
+### Public visibility and guest homepage feed
 
-The guest homepage layout is unchanged unless an administrator enables
-**Public feed on the guest homepage** in **Appearance**. The option is off by
-default. When enabled, visitors see instance information on the left (that column
-scrolls on its own, including on desktop) and, in the centre, public posts
-already visible to this instance (local posts and cached remote posts),
-with the same infinite scrolling used elsewhere. It is
-not a complete Fediverse timeline. On small screens the left column becomes a
-slide-out panel opened with a right-pointing arrow.
+In **This instance → Public visibility**, choose how visitors can browse without
+signing in:
+
+- **Everything visible** preserves existing access to local and federated public
+  content. An additional option allows browsing tags and trends.
+- **Local content only** allows local profiles and communities, with posts and
+  events authored locally. Remote posts boosted by local users or published into
+  a local community remain hidden, as do embedded remote quotes.
+- **Everything closed** requires sign-in for content pages. The instance homepage,
+  sign-in, registration when enabled, rules and privacy remain accessible.
+
+Comments follow their parent post or event: a local reply does not make a remote
+thread public, while an allowed local thread keeps its remote replies. Existing
+content permissions, discovery preferences and indexing consent continue to
+apply; these controls never make an already restricted page public. They govern
+web browsing, without changing ActivityPub, authenticated REST access or media URLs.
+
+Without saved settings, existing public access and tag browsing are preserved.
+The existing **Show the feed on the public homepage** preference is now in this
+same tab and remains off by default. When enabled, instance information appears
+on the left (with independent scrolling on desktop), and the centre shows public
+posts already available on the instance, using infinite scrolling. The selected
+visibility mode limits this feed to all available public posts or only locally
+authored posts; Everything closed hides it. It is not a complete Fediverse timeline.
+On small screens, the information column opens with a right-pointing arrow.
 
 ## Cron and periodic tasks
 

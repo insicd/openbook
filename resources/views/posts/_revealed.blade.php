@@ -34,7 +34,7 @@
     </p>
 @endif
 
-@if ($post->quotedPost && $embedDepth < 1)
+@if ($post->quotedPost && $embedDepth < 1 && app(\App\Application\Services\PublicWebVisibility::class)->allowsContent($post->quotedPost))
     <div class="ob-post__quote">
         @include('posts._card', [
             'post' => $post->quotedPost,

@@ -19,6 +19,12 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Visibilità pubblica configurabile**: nuovo tab in Questa istanza con modalità
+  Tutto visibile, Solo contenuti locali e Tutto chiuso, più controllo di tag e
+  tendenze. Post, eventi, profili, community e commenti rispettano la scelta anche
+  nei frammenti e nelle citazioni. Il controllo del feed ospiti passa qui da
+  Aspetto e segue la stessa modalità. I valori impliciti conservano il
+  comportamento attuale; federazione e utenti autenticati restano invariati.
 - **Avatar ingrandibili**: nelle pagine dei profili locali, remoti e delle
   community, cliccare l’immagine del profilo apre lo stesso visualizzatore
   delle immagini dei post, utilizzabile anche da tastiera.
@@ -325,8 +331,9 @@ la [roadmap](docs/roadmap.md).
 
 ### Changed
 - **Pannello amministrativo riorganizzato**: Impostazioni diventa Questa istanza,
-  con tab Generali, Registrazioni e policy e Contenuti. Video e Moderazione
-  hanno pagine dedicate; Domini bloccati è un tab di Moderazione. Code e processi
+  con tab Generali, Registrazioni e policy, Contenuti e Visibilità pubblica.
+  Video e Moderazione hanno pagine dedicate; Domini bloccati è un tab di
+  Moderazione. Code e processi
   e Segnalazioni usano gli stessi tab di Database. Menu laterale ordinato per
   argomento con divisori discreti e salvataggi separati per ciascuna schermata.
 - **Requisiti PHP e dipendenze**: requisito minimo allineato a PHP **8.4.1**

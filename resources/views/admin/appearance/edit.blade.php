@@ -10,17 +10,6 @@
         @csrf
         @method('PUT')
 
-        <div class="ob-card">
-            <div class="ob-field">
-                <label style="display:flex;align-items:center;gap:0.5rem;font-weight:500">
-                    <input type="hidden" name="guest_home_feed" value="0">
-                    <input type="checkbox" name="guest_home_feed" value="1" @checked((string) old('guest_home_feed', $guestHomeFeed ? '1' : '0') === '1')>
-                    {{ __('openbook.admin.appearance.guest_home_feed') }}
-                </label>
-                <p class="ob-field__help">{{ __('openbook.admin.appearance.guest_home_feed_help') }}</p>
-            </div>
-        </div>
-
         <div class="ob-css-workbench">
             <div class="ob-card ob-css-workbench__editor">
                 <div class="ob-field">

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Application\Services\InstanceSettings;
+use App\Application\Services\PublicWebVisibility;
 use App\Domain\Accounts\User;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Media\HomeBackgroundUploader;
@@ -19,13 +20,16 @@ use InvalidArgumentException;
 
 final class SettingsController extends Controller
 {
-    private const TABS = ['general', 'registration', 'content'];
+    private const TABS = ['general', 'registration', 'content', 'visibility'];
 
     public function edit(Request $request, InstanceSettings $settings): View
     {
         $activeTab = in_array($request->query('tab'), self::TABS, true) ? $request->query('tab') : 'general';
 
         return view('admin.settings.edit', [
+            'publicVisibility' => app(PublicWebVisibility::class)->mode(),
+            'publicHashtags' => app(PublicWebVisibility::class)->hashtagsEnabled(),
+            'guestHomeFeed' => $settings->guestHomeFeed(),
             'activeTab' => $activeTab,
             'tabs' => array_map(fn ($tab) => ['label' => __('openbook.admin.settings.tab_'.$tab), 'url' => route('admin.settings.edit', ['tab' => $tab]), 'active' => $tab === $activeTab], self::TABS),
             'siteName' => $settings->siteName(),
@@ -58,11 +62,15 @@ final class SettingsController extends Controller
 
         $tab = in_array($request->input('tab'), self::TABS, true) ? $request->input('tab') : 'general';
         $fields = [
+            'visibility' => ['public_web_visibility', 'public_web_hashtags', 'guest_home_feed'],
             'general' => ['site_name', 'site_description', 'contact_email', 'contact_account_id', 'show_home_staff', 'favicon', 'remove_favicon', 'home_background', 'remove_home_background'],
             'registration' => ['registration_open', 'instance_rules', 'privacy_policy'],
             'content' => ['post_max_length', 'comment_max_length', 'media_max_size_kb', 'media_max_attachments', 'trending_days'],
         ];
         $rules = [
+            'public_web_visibility' => ['required', Rule::in(PublicWebVisibility::MODES)],
+            'public_web_hashtags' => ['sometimes', 'boolean'],
+            'guest_home_feed' => ['sometimes', 'boolean'],
             'site_name' => ['required', 'string', 'max:100'],
             'site_description' => ['nullable', 'string', 'max:500'],
             'contact_email' => ['nullable', 'email', 'max:254'],
@@ -87,6 +95,10 @@ final class SettingsController extends Controller
             'home_background' => __('openbook.admin.settings.home_background'),
         ]);
 
+        if ($tab === 'visibility') {
+            $data['public_web_hashtags'] = $request->boolean('public_web_hashtags');
+            $data['guest_home_feed'] = $request->boolean('guest_home_feed');
+        }
         if ($tab === 'registration') {
             $data['registration_open'] = $request->boolean('registration_open');
         }

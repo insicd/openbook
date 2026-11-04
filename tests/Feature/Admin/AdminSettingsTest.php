@@ -18,6 +18,60 @@ class AdminSettingsTest extends TestCase
 {
     use CreatesAccounts, RefreshDatabase;
 
+    public function test_admin_can_enable_the_guest_home_feed_from_public_visibility(): void
+    {
+        $admin = $this->createFullAccount('adminguesthome');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->assertFalse(app(InstanceSettings::class)->guestHomeFeed());
+        SystemSetting::put('site_name', 'Preserve this instance');
+        $this->actingAs($admin)->get(route('admin.settings.edit', ['tab' => 'visibility']))
+            ->assertOk()->assertSee('name="public_web_visibility"', false)
+            ->assertSee('name="public_web_hashtags"', false)->assertSee('name="guest_home_feed"', false)
+            ->assertDontSee('name="site_name"', false);
+        $this->put(route('admin.settings.update'), ['tab' => 'visibility', 'public_web_visibility' => 'unknown'])
+            ->assertSessionHasErrors('public_web_visibility');
+        $this->assertNull(SystemSetting::get('public_web_visibility'));
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), [
+                'tab' => 'visibility',
+                'public_web_visibility' => 'all',
+                'public_web_hashtags' => '1',
+                'guest_home_feed' => '1',
+            ])
+            ->assertRedirect(route('admin.settings.edit', ['tab' => 'visibility']));
+
+        $this->assertTrue(app(InstanceSettings::class)->guestHomeFeed());
+        $this->assertSame('all', SystemSetting::get('public_web_visibility'));
+        $this->assertTrue(SystemSetting::getBool('public_web_hashtags'));
+        $this->assertSame('Preserve this instance', SystemSetting::get('site_name'));
+
+        auth()->logout();
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('ob-guest-home-layout', false)
+            ->assertSee(__('openbook.home.feed_title', ['name' => 'Preserve this instance']));
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), [
+                'tab' => 'visibility',
+                'public_web_visibility' => 'all',
+                'public_web_hashtags' => '1',
+                'guest_home_feed' => '0',
+            ])
+            ->assertRedirect(route('admin.settings.edit', ['tab' => 'visibility']));
+
+        $this->assertFalse(app(InstanceSettings::class)->guestHomeFeed());
+
+        auth()->logout();
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertDontSee('ob-guest-home-layout', false);
+    }
+
     /**
      * @return array<string, mixed>
      */

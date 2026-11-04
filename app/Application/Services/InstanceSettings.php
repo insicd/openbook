@@ -357,8 +357,8 @@ final class InstanceSettings
     }
 
     /**
-     * Home guest a due colonne con flusso di post pubblici (locali e remoti
-     * in cache). Default false: senza la chiave in DB resta il layout attuale.
+     * Home guest a due colonne con flusso di post pubblici ammessi
+     * dalla visibilità pubblica. Default false: senza la chiave in DB resta il layout attuale.
      */
     public function guestHomeFeed(): bool
     {
@@ -378,17 +378,6 @@ final class InstanceSettings
         if ($actor !== null) {
             $this->auditLogger->log($actor, 'appearance.update', null, [
                 'css_length' => mb_strlen($css),
-            ]);
-        }
-    }
-
-    public function updateGuestHomeFeed(bool $enabled, ?User $actor = null): void
-    {
-        SystemSetting::putBool(self::KEY_GUEST_HOME_FEED, $enabled);
-
-        if ($actor !== null) {
-            $this->auditLogger->log($actor, 'appearance.update', null, [
-                'guest_home_feed' => $enabled,
             ]);
         }
     }
@@ -415,11 +404,11 @@ final class InstanceSettings
      */
     public function update(array $data, ?User $actor = null): void
     {
-        $booleans = [self::KEY_REGISTRATION_OPEN, self::KEY_SHOW_HOME_STAFF, self::KEY_VIDEO_ENABLED, self::KEY_WORLD_HIDE_CONTENT_WARNINGS];
+        $booleans = [PublicWebVisibility::KEY_HASHTAGS, self::KEY_GUEST_HOME_FEED, self::KEY_REGISTRATION_OPEN, self::KEY_SHOW_HOME_STAFF, self::KEY_VIDEO_ENABLED, self::KEY_WORLD_HIDE_CONTENT_WARNINGS];
         $integers = [self::KEY_POST_MAX_LENGTH, self::KEY_COMMENT_MAX_LENGTH, self::KEY_MEDIA_MAX_SIZE_KB,
             self::KEY_MEDIA_MAX_ATTACHMENTS, self::KEY_VIDEO_MAX_UPLOAD_MB, self::KEY_VIDEO_PASSTHROUGH_MAX_MB,
             self::KEY_VIDEO_MAX_DURATION_SECONDS, self::KEY_VIDEO_MAX_DIMENSION, self::KEY_VIDEO_MAX_FRAME_RATE, self::KEY_TRENDING_DAYS];
-        $strings = [self::KEY_SITE_NAME, self::KEY_SITE_DESCRIPTION, self::KEY_CONTACT_EMAIL, self::KEY_CONTACT_ACCOUNT_ID,
+        $strings = [PublicWebVisibility::KEY_MODE, self::KEY_SITE_NAME, self::KEY_SITE_DESCRIPTION, self::KEY_CONTACT_EMAIL, self::KEY_CONTACT_ACCOUNT_ID,
             self::KEY_INSTANCE_RULES, self::KEY_PRIVACY_POLICY, self::KEY_VIDEO_FFMPEG_PATH, self::KEY_VIDEO_FFPROBE_PATH,
             self::KEY_INSTANCE_ICON_DIR, 'instance_icon_disk', self::KEY_HOME_BACKGROUND_DIR, 'home_background_disk'];
         $runtime = [

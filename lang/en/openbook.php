@@ -781,6 +781,22 @@ return [
         ],
     ],
 
+    'public_visibility' => [
+        'title' => 'Public visibility',
+        'intro' => 'Choose which content visitors can browse without signing in.',
+        'all' => 'Everything visible',
+        'all_help' => 'Visitors can browse local and federated public content.',
+        'local' => 'Local content only',
+        'local_help' => 'Visitors can browse local profiles and communities and content published by local authors.',
+        'closed' => 'Everything closed',
+        'closed_help' => 'Visitors must sign in to browse content.',
+        'hashtags' => 'Allow browsing tags and trends',
+        'hashtags_help' => 'Available only with Everything visible.',
+        'home_feed' => 'Show the feed on the public homepage',
+        'home_feed_help' => 'The feed follows the selected mode and is hidden with Everything closed.',
+        'login_required' => 'Sign in to view this content.',
+    ],
+
     'admin' => [
         'times_in' => 'Times in :timezone',
         'title' => 'Control panel',
@@ -924,9 +940,10 @@ return [
         'settings' => [
             'tab_general' => 'General',
             'tab_registration' => 'Registration and policies',
+            'tab_visibility' => 'Public visibility',
             'tab_content' => 'Content',
             'title' => 'This instance',
-            'intro' => 'Identity, registration and content limits for your instance.',
+            'intro' => 'Identity, registration, content and public visibility settings for your instance.',
             'site_name' => 'Instance name',
             'site_description' => 'Instance description',
             'site_description_help' => 'Short public description: shown prominently on the guest homepage and also exposed through NodeInfo to fediverse services.',
@@ -979,9 +996,7 @@ return [
         ],
         'appearance' => [
             'title' => 'Appearance',
-            'intro' => 'Customise the public site (not the control panel): guest homepage layout and extra CSS. The CSS preview is a sample page: the live site changes only when you save.',
-            'guest_home_feed' => 'Public feed on the guest homepage',
-            'guest_home_feed_help' => 'When enabled, the homepage for visitors moves instance information to the left and shows public posts visible to this instance in the centre (local and already-cached remote posts), with infinite scrolling. When disabled, the homepage keeps the current layout.',
+            'intro' => 'Customize the public site with additional CSS. The preview uses a sample page; the live site changes only when you save.',
             'css_label' => 'Custom CSS',
             'css_help' => 'Rules are appended after the Openbook stylesheet, so you can override .ob-* classes and :root variables (--ob-color-primary, --ob-color-bg, …). Maximum 50,000 characters. Do not use @import.',
             'css_placeholder' => ":root {\n  --ob-color-primary: #c45c26;\n}",

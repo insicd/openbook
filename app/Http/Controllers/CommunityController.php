@@ -12,11 +12,11 @@ use App\Application\Services\CommunityModeratorManager;
 use App\Application\Services\CommunityRegistrar;
 use App\Application\Services\CommunityUpdater;
 use App\Application\Services\FollowManager;
+use App\Application\Services\PublicWebVisibility;
 use App\Domain\Accounts\User;
 use App\Domain\Communities\Community;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
-use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorUrls;
 use App\Http\Requests\Communities\StoreCommunityRequest;
 use App\Http\Requests\Communities\UpdateCommunityRequest;
@@ -49,6 +49,9 @@ class CommunityController extends Controller
         $scope = in_array($requestedScope, ['mine', 'local', 'remote'], true)
             ? $requestedScope
             : ($request->user() === null ? 'local' : 'mine');
+        if (app(PublicWebVisibility::class)->localOnly($request->user()?->actor)) {
+            $scope = 'local';
+        }
         if (! $request->ajax()) {
             return view('communities.index', ['scope' => $scope]);
         }
@@ -120,7 +123,7 @@ class CommunityController extends Controller
         }
 
         if ($canViewWall) {
-            $posts = $this->feedQuery->forCommunity($community, $viewerActor, FeedCursor::fromRequest($request));
+            $posts = $this->feedQuery->forCommunity($community, $viewerActor, FeedCursor::fromRequest($request), localOnly: app(PublicWebVisibility::class)->localOnly($viewerActor));
             Post::annotateViewerState($posts->getCollection(), $viewerActor);
         } else {
             $posts = new FeedPage(collect(), null);

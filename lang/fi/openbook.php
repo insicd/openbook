@@ -753,6 +753,22 @@ return [
             'cannot_remove_owner' => 'Omistajan on säilytettävä moderaattorin oikeudet.',
         ],
     ],
+    'public_visibility' => [
+        'title' => 'Julkinen näkyvyys',
+        'intro' => 'Valitse, mitä sisältöä vierailijat voivat selata kirjautumatta.',
+        'all' => 'Kaikki näkyvissä',
+        'all_help' => 'Vierailijat voivat selata paikallista ja federoitua julkista sisältöä.',
+        'local' => 'Vain paikallinen sisältö',
+        'local_help' => 'Vierailijat voivat selata paikallisia profiileja ja yhteisöjä sekä paikallisten tekijöiden sisältöä.',
+        'closed' => 'Kaikki suljettu',
+        'closed_help' => 'Sisällön selaaminen edellyttää kirjautumista.',
+        'hashtags' => 'Salli tunnisteiden ja trendien selaaminen',
+        'hashtags_help' => 'Käytettävissä vain, kun kaikki on näkyvissä.',
+        'home_feed' => 'Näytä syöte julkisella etusivulla',
+        'home_feed_help' => 'Syöte noudattaa valittua tilaa ja piilotetaan, kun kaikki on suljettu.',
+        'login_required' => 'Kirjaudu sisään nähdäksesi tämän sisällön.',
+    ],
+
     'admin' => [
         'times_in' => 'Ajat aikavyöhykkeellä :timezone',
         'title' => 'Hallintapaneeli',
@@ -896,9 +912,10 @@ return [
         'settings' => [
             'tab_general' => 'Yleiset',
             'tab_registration' => 'Rekisteröityminen ja käytännöt',
+            'tab_visibility' => 'Julkinen näkyvyys',
             'tab_content' => 'Sisältö',
             'title' => 'Tämä instanssi',
-            'intro' => 'Instanssin tiedot, rekisteröityminen ja sisältörajat.',
+            'intro' => 'Palvelimesi identiteetti, rekisteröityminen, sisältö ja julkinen näkyvyys.',
             'site_name' => 'Palvelimen nimi',
             'site_description' => 'Palvelimen kuvaus',
             'site_description_help' => 'Lyhyt julkinen kuvaus, joka näkyy vierailijoiden etusivulla ja välitetään NodeInfon kautta fediversumin palveluille.',
@@ -951,9 +968,7 @@ return [
         ],
         'appearance' => [
             'title' => 'Ulkoasu',
-            'intro' => 'Mukauta julkista sivustoa (ei hallintapaneelia): vierailijoiden etusivun asettelu ja lisä-CSS. CSS-esikatselu on esimerkkisivu, ja varsinainen sivusto muuttuu vasta tallennettaessa.',
-            'guest_home_feed' => 'Julkinen syöte vierailijoiden etusivulla',
-            'guest_home_feed_help' => 'Kun tämä on käytössä, vierailijoiden etusivulla palvelimen tiedot siirtyvät vasemmalle ja keskellä näkyvät tämän palvelimen näkemät julkiset julkaisut (paikalliset sekä välimuistissa olevat etäjulkaisut) jatkuvasti vieritettävänä syötteenä. Muuten etusivu säilyttää nykyisen asettelunsa.',
+            'intro' => 'Muokkaa julkista sivustoa omalla CSS:llä. Esikatselu käyttää mallisivua; varsinainen sivusto muuttuu vasta tallennettaessa.',
             'css_label' => 'Mukautettu CSS',
             'css_help' => 'Säännöt lisätään Openbookin tyylitiedoston jälkeen, joten voit korvata .ob-*-luokkia ja :root-muuttujia (--ob-color-primary, --ob-color-bg, …). Enintään 50 000 merkkiä. Älä käytä @import-sääntöä.',
             'css_placeholder' => ':root {

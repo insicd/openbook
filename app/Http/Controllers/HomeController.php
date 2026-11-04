@@ -6,6 +6,7 @@ use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
 use App\Application\Queries\InstanceStaffQuery;
 use App\Application\Services\InstanceSettings;
+use App\Application\Services\PublicWebVisibility;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,12 +26,12 @@ class HomeController extends Controller
             return redirect()->route('feed.index');
         }
 
-        $guestHomeFeed = $this->settings->guestHomeFeed();
+        $guestHomeFeed = $this->settings->guestHomeFeed() && app(PublicWebVisibility::class)->allowsGuests();
 
         if ($request->ajax()) {
             abort_unless($guestHomeFeed, 404);
 
-            $posts = $this->feedQuery->instancePublic(FeedCursor::fromRequest($request));
+            $posts = $this->feedQuery->instancePublic(FeedCursor::fromRequest($request), localOnly: app(PublicWebVisibility::class)->localOnly(null));
 
             return view('posts._feed', [
                 'posts' => $posts,
@@ -51,7 +52,7 @@ class HomeController extends Controller
                 ? $this->instanceStaff->all()
                 : collect(),
             'posts' => $guestHomeFeed
-                ? $this->feedQuery->instancePublic(FeedCursor::fromRequest($request))
+                ? $this->feedQuery->instancePublic(FeedCursor::fromRequest($request), localOnly: app(PublicWebVisibility::class)->localOnly(null))
                 : null,
         ]);
     }
