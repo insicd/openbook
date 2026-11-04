@@ -45,6 +45,14 @@ il profilo; la data di un post remoto apre l’originale sul server di provenien
 Il pulsante Indietro nel dettaglio riporta alla pagina precedente quando il post
 è stato aperto dalla stessa istanza.
 
+Una piccola icona grigia di percorso in basso a destra indica, quando nota,
+la provenienza del primo arrivo del post: community, relay o feed RSS/Atom.
+Clicca o tocca l’icona per leggere la descrizione nello stesso tipo di riquadro
+informativo usato dal suggerimento Markdown dell’editor.
+Le sorgenti sono identificate da dominio e percorso; credenziali e parametri
+degli URL non vengono mostrati. L’icona non compare sui post senza provenienza
+registrata o nei post incorporati come citazioni.
+
 ## Visibilità
 
 Scegli la visibilità prima della pubblicazione:

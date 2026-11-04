@@ -335,6 +335,10 @@ return [
         'cmn' => 'Mandariinikiina',
     ],
     'posts' => [
+        'received_via_community_relay' => 'Julkaisu vastaanotettu yhteisössä :community releen :relay kautta',
+        'received_via_community' => 'Julkaisu vastaanotettu yhteisössä :community',
+        'received_via_relay' => 'Julkaisu vastaanotettu releen :relay kautta',
+        'received_via_rss' => 'Julkaisu tuotu syötteestä :rss',
         'back' => 'Takaisin',
         'open_post' => 'Avaa julkaisu',
         'video_queued' => 'Video ladattiin. Julkaisu ilmestyy, kun käsittely on valmis.',

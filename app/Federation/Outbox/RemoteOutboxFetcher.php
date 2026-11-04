@@ -11,6 +11,8 @@ use App\Federation\Actors\Actor;
 use App\Federation\Actors\RemoteActorResolver;
 use App\Federation\Fetch\FederationFetchSigner;
 use App\Federation\Inbox\InboxActivityProcessor;
+use App\Federation\Inbox\PostReceivedVia;
+use App\Federation\Inbox\RelayIngressResolver;
 use App\Federation\Inbox\RemoteEventIngester;
 use App\Federation\Inbox\RemoteEventObject;
 use App\Federation\Inbox\RemoteNoteDocumentFetcher;
@@ -120,10 +122,13 @@ final class RemoteOutboxFetcher
         $items = ($fetchPosts || $fetchEventsFromOutbox) && filled($outboxUrl)
             ? $this->fetchItems($outboxUrl, $signingActor)
             : [];
+        $receivedVia = $fetchPosts && $items !== [] && $actor->isGroup()
+            ? PostReceivedVia::transport($actor, app(RelayIngressResolver::class)->resolve($actor))
+            : null;
 
         foreach ($items as $item) {
             if ($fetchPosts) {
-                $this->ingestItem($item, $actor);
+                $this->ingestItem($item, $actor, $receivedVia);
             }
 
             if ($fetchEventsFromOutbox) {
@@ -429,10 +434,10 @@ final class RemoteOutboxFetcher
     /**
      * @param  array<string, mixed>  $item
      */
-    private function ingestItem(array $item, Actor $actor): void
+    private function ingestItem(array $item, Actor $actor, ?array $receivedVia = null): void
     {
         if ($actor->isGroup() && ($item['type'] ?? null) === 'Announce') {
-            $this->ingestGroupAnnounce($item, $actor);
+            $this->ingestGroupAnnounce($item, $actor, $receivedVia);
 
             return;
         }
@@ -490,7 +495,7 @@ final class RemoteOutboxFetcher
      *
      * @param  array<string, mixed>  $item
      */
-    private function ingestGroupAnnounce(array $item, Actor $group): void
+    private function ingestGroupAnnounce(array $item, Actor $group, ?array $receivedVia): void
     {
         $object = $item['object'] ?? null;
         $note = null;
@@ -532,7 +537,7 @@ final class RemoteOutboxFetcher
             return;
         }
 
-        $post = $this->upsertPublicPost($note, $author);
+        $post = $this->upsertPublicPost($note, $author, $receivedVia);
 
         if ($post !== null) {
             $this->announceManager->announce(
@@ -547,7 +552,7 @@ final class RemoteOutboxFetcher
     /**
      * @param  array<string, mixed>  $note
      */
-    public function upsertPublicPost(array $note, Actor $author): ?Post
+    public function upsertPublicPost(array $note, Actor $author, ?array $receivedVia = null): ?Post
     {
         $noteUri = $note['id'] ?? null;
 
@@ -566,6 +571,6 @@ final class RemoteOutboxFetcher
             isset($note['published']) && is_string($note['published']) ? $note['published'] : null,
         );
 
-        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false, delivery: new DeliverySource('fetch'));
+        return $this->noteUpserter->upsertPost($note, $noteUri, $author, $body, $publishedAt, notifyMentions: false, delivery: new DeliverySource('fetch'), receivedVia: $receivedVia);
     }
 }

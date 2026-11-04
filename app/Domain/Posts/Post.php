@@ -34,6 +34,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $conversation_id
  * @property string|null $uri
  * @property string|null $source_uri guid o permalink dell'articolo per i post importati da RSS/Atom
+ * @property array{relay?: string, community?: string, rss?: string}|null $received_via Local first-acquisition provenance
  * @property string|null $quoted_post_id
  * @property string|null $quoted_actor_id
  * @property string|null $quoted_event_id
@@ -108,6 +109,7 @@ class Post extends Model
         'conversation_id',
         'uri',
         'source_uri',
+        'received_via',
         'quoted_post_id',
         'quoted_actor_id',
         'quoted_event_id',
@@ -130,6 +132,7 @@ class Post extends Model
     protected function casts(): array
     {
         return [
+            'received_via' => 'array',
             'published_at' => 'datetime',
             'custom_emojis' => 'array',
             'edited_at' => 'datetime',

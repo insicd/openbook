@@ -145,6 +145,7 @@ final class FeedImporter
             'actor_id' => $actor->id,
             'uri' => null,
             'source_uri' => $sourceUri,
+            'received_via' => ['rss' => $actor->feedSource->feed_url],
             'title' => mb_substr($entry->title, 0, 255),
             'body' => mb_substr($entry->body, 0, 50000),
             'visibility' => Post::VISIBILITY_PUBLIC,

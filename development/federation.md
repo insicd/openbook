@@ -129,6 +129,26 @@ browsers:
   status `pending`: their **semantic processing** happens outside the HTTP
   cycle (see [Social federation](federation.md#social-federation-phase-4) below), so a
   delivering peer is never blocked waiting for heavy processing.
+- **Post acquisition provenance**: `posts.received_via` is nullable JSON with
+  optional `relay`, `community` and `rss` URI fields. It is assigned only on
+  the first successful insertion; updates, retries and subsequent deliveries
+  leave it unchanged, including NULL. Local posts, ordinary acquisitions and
+  existing posts remain NULL without historical backfill. A community Announce
+  may retain the relay transporting it; fetching the original object preserves
+  the announcement context. This also applies to Announce activities retrieved
+  from a Group outbox. A Group configured as a relay is identified as a relay
+  without automatically assigning it a community role. RSS/Atom records the
+  feed URL, separate from the article
+  reference in `source_uri`. `inbox_items.received_via` preserves verified
+  transport context before normalization, so asynchronous processing retains a
+  community forwarding another author's activity. Provenance remains separate
+  from signatures, authorization and DeliveryStats; similarly named fields in
+  remote payloads are not trusted as local provenance. Cards show a small icon
+  with an information panel for known sources, without per-card lookups: only
+  host and path, excluding credentials and parameters. There is no automatic
+  REST/ActivityPub exposure of the metadata. Upgrading requires the migration
+  adding both nullable fields and restarting already running inbox processes
+  to load the updated code.
 - **Fetching remote Actors**: `RemoteActorResolver` downloads, validates, and
   caches locally the `Person` document of a remote Actor (needed to verify
   incoming signatures, for remote search, and to resolve actors cited by

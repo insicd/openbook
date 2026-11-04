@@ -2158,13 +2158,15 @@ body.ob-guest-home--has-bg::before {
   margin: 0 0 0.35rem;
 }
 
-.ob-composer__tip {
+.ob-composer__tip,
+.ob-post__source {
   position: relative;
   flex: 0 0 auto;
   line-height: 0;
 }
 
-.ob-composer__tip-trigger {
+.ob-composer__tip-trigger,
+.ob-post__source-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2178,21 +2180,25 @@ body.ob-guest-home--has-bg::before {
   line-height: 0;
 }
 
-.ob-composer__tip-trigger::-webkit-details-marker {
+.ob-composer__tip-trigger::-webkit-details-marker,
+.ob-post__source-trigger::-webkit-details-marker {
   display: none;
 }
 
-.ob-composer__tip-trigger .ob-icon {
+.ob-composer__tip-trigger .ob-icon,
+.ob-post__source-trigger .ob-icon {
   width: 1rem;
   height: 1rem;
 }
 
-.ob-composer__tip[open] > .ob-composer__tip-trigger {
+.ob-composer__tip[open] > .ob-composer__tip-trigger,
+.ob-post__source[open] > .ob-post__source-trigger {
   color: var(--ob-color-primary);
   background: transparent;
 }
 
-.ob-composer__tip-panel {
+.ob-composer__tip-panel,
+.ob-post__source-panel {
   position: absolute;
   left: calc(100% + 0.4rem);
   bottom: 0;
@@ -3392,6 +3398,31 @@ a.ob-post__menu-item {
 .ob-post__actions form {
   display: inline-flex;
   margin: 0;
+}
+
+.ob-post__source {
+  margin-left: auto;
+}
+
+.ob-post__source-trigger {
+  padding: 0.5rem;
+  border-radius: 50%;
+}
+
+.ob-post__source-panel {
+  left: auto;
+  right: 0;
+  bottom: calc(100% + 0.35rem);
+  overflow-wrap: anywhere;
+}
+
+.ob-post__source-trigger:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.ob-post__location + .ob-post__source {
+  margin-left: 0;
 }
 
 .ob-post__action {

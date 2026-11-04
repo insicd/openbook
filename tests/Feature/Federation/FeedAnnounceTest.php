@@ -3,6 +3,7 @@
 namespace Tests\Feature\Federation;
 
 use App\Application\Services\AnnounceManager;
+use App\Domain\Feeds\FeedImporter;
 use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
@@ -61,6 +62,7 @@ XML;
 
         $this->assertNull($post->uri);
         $this->assertSame('https://blog.example/posts/1', $post->source_uri);
+        $this->assertSame(['rss' => self::FEED_URL], $post->received_via);
         $this->assertFalse($post->isRemote());
 
         $response = $this->get(route('posts.show', $post), ['Accept' => 'application/activity+json']);
@@ -72,6 +74,31 @@ XML;
         $response->assertJsonPath('name', 'Prima voce');
         $this->assertStringContainsString('Ciao dal blog', $response->json('content'));
         $this->assertStringNotContainsString(self::FEED_URL, (string) $response->json('id'));
+        $response->assertJsonMissingPath('received_via');
+    }
+
+    public function test_reimports_do_not_change_the_first_source_or_backfill_legacy_items(): void
+    {
+        $actor = $this->importFeedActor();
+        $post = Post::query()->where('actor_id', $actor->id)->sole();
+        $actor->feedSource->update(['feed_url' => 'https://blog.example/another-feed.xml']);
+        $importer = app(FeedImporter::class);
+        $this->assertSame(0, $importer->import($actor, $this->atomFeed()));
+        $this->assertSame(['rss' => self::FEED_URL], $post->fresh()->received_via);
+        $post->update(['received_via' => null]);
+        $this->assertSame(0, $importer->import($actor, $this->atomFeed()));
+        $this->assertNull($post->fresh()->received_via);
+    }
+
+    public function test_rss_import_uses_the_feed_url_instead_of_the_article_url(): void
+    {
+        $actor = $this->importFeedActor();
+        $url = 'https://blog.example/rss.xml';
+        $actor->feedSource->update(['feed_url' => $url]);
+        $xml = '<rss version="2.0"><channel><title>Blog</title><link>https://blog.example/</link><description>Blog</description><item><guid>https://blog.example/posts/rss</guid><link>https://blog.example/posts/rss</link><title>RSS article</title><description>Content</description></item></channel></rss>';
+        $this->assertSame(1, app(FeedImporter::class)->import($actor, $xml));
+        $post = Post::query()->where('source_uri', 'https://blog.example/posts/rss')->sole();
+        $this->assertSame(['rss' => $url], $post->received_via);
     }
 
     public function test_a_feed_actor_exposes_an_activitypub_document(): void

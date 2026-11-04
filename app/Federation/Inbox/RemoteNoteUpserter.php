@@ -70,6 +70,7 @@ final class RemoteNoteUpserter
         ?InboxItem $source = null,
         ?DeliverySource $delivery = null,
         bool $trackDelivery = true,
+        ?array $receivedVia = null,
     ): ?Post {
         $post = DB::transaction(fn (): ?Post => $this->upsertPostWithinTransaction(
             $note,
@@ -81,6 +82,7 @@ final class RemoteNoteUpserter
             $resolveQuote,
             $directMessageThreadParent,
             $source,
+            $receivedVia,
         ));
         if ($trackDelivery && $post !== null) {
             $this->deliveryStats->record($post, $delivery ?? new DeliverySource);
@@ -102,6 +104,7 @@ final class RemoteNoteUpserter
         bool $resolveQuote,
         ?Post $directMessageThreadParent,
         ?InboxItem $source,
+        ?array $receivedVia,
     ): ?Post {
         /** @var Post $post */
         $post = Post::query()->where('uri', $noteUri)->lockForUpdate()->first() ?? new Post(['uri' => $noteUri]);
@@ -187,6 +190,10 @@ final class RemoteNoteUpserter
         }
 
         $post->fill($attributes);
+
+        if ($wasNew) {
+            $post->received_via = $receivedVia ?: null;
+        }
 
         if (! $wasNew) {
             $post->edited_at = now();
