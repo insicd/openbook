@@ -3,14 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Application\Services\InstanceSettings;
+use App\Application\Services\PublicWebVisibility;
 use App\Domain\Accounts\User;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Media\HomeBackgroundUploader;
 use App\Infrastructure\Media\InstanceIconUploader;
 use App\Infrastructure\Media\MediaStorage;
-use App\Infrastructure\Media\VideoCapability;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -19,11 +20,18 @@ use InvalidArgumentException;
 
 final class SettingsController extends Controller
 {
-    public function edit(InstanceSettings $settings): View
+    private const TABS = ['general', 'registration', 'content', 'visibility'];
+
+    public function edit(Request $request, InstanceSettings $settings): View
     {
-        $videoEnabled = $settings->videoEnabled();
+        $activeTab = in_array($request->query('tab'), self::TABS, true) ? $request->query('tab') : 'general';
 
         return view('admin.settings.edit', [
+            'publicVisibility' => app(PublicWebVisibility::class)->mode(),
+            'publicHashtags' => app(PublicWebVisibility::class)->hashtagsEnabled(),
+            'guestHomeFeed' => $settings->guestHomeFeed(),
+            'activeTab' => $activeTab,
+            'tabs' => array_map(fn ($tab) => ['label' => __('openbook.admin.settings.tab_'.$tab), 'url' => route('admin.settings.edit', ['tab' => $tab]), 'active' => $tab === $activeTab], self::TABS),
             'siteName' => $settings->siteName(),
             'siteDescription' => $settings->siteDescription(),
             'contactEmail' => $settings->contactEmail(),
@@ -38,16 +46,7 @@ final class SettingsController extends Controller
             'commentMaxLength' => $settings->commentMaxLength(),
             'mediaMaxSizeKb' => $settings->mediaMaxSizeKb(),
             'mediaMaxAttachments' => $settings->mediaMaxAttachments(),
-            'videoEnabled' => $videoEnabled,
-            'videoFfmpegPath' => $settings->videoFfmpegPath(),
-            'videoFfprobePath' => $settings->videoFfprobePath(),
-            'videoLimits' => $settings->videoLimits(),
-            'videoCapability' => $videoEnabled
-                ? app(VideoCapability::class)->inspect($settings->videoFfmpegPath(), $settings->videoFfprobePath())
-                : null,
             'trendingDays' => $settings->trendingDays(),
-            'worldHideContentWarnings' => $settings->worldHidesContentWarnings(),
-            'forcedContentWarningHashtags' => implode("\n", $settings->forcedContentWarningHashtags()),
             'faviconUrl' => $settings->faviconUrl(),
             'homeBackgroundUrl' => $settings->homeBackgroundUrl(),
         ]);
@@ -61,7 +60,17 @@ final class SettingsController extends Controller
     ): RedirectResponse {
         $maxKb = (int) config('openbook.media.max_size_kb');
 
-        $data = $request->validate([
+        $tab = in_array($request->input('tab'), self::TABS, true) ? $request->input('tab') : 'general';
+        $fields = [
+            'visibility' => ['public_web_visibility', 'public_web_hashtags', 'guest_home_feed'],
+            'general' => ['site_name', 'site_description', 'contact_email', 'contact_account_id', 'show_home_staff', 'favicon', 'remove_favicon', 'home_background', 'remove_home_background'],
+            'registration' => ['registration_open', 'instance_rules', 'privacy_policy'],
+            'content' => ['post_max_length', 'comment_max_length', 'media_max_size_kb', 'media_max_attachments', 'trending_days'],
+        ];
+        $rules = [
+            'public_web_visibility' => ['required', Rule::in(PublicWebVisibility::MODES)],
+            'public_web_hashtags' => ['sometimes', 'boolean'],
+            'guest_home_feed' => ['sometimes', 'boolean'],
             'site_name' => ['required', 'string', 'max:100'],
             'site_description' => ['nullable', 'string', 'max:500'],
             'contact_email' => ['nullable', 'email', 'max:254'],
@@ -75,43 +84,34 @@ final class SettingsController extends Controller
             'comment_max_length' => ['required', 'integer', 'min:100', 'max:10000'],
             'media_max_size_kb' => ['required', 'integer', 'min:100', 'max:51200'],
             'media_max_attachments' => ['required', 'integer', 'min:1', 'max:20'],
-            'video_enabled' => ['sometimes', 'boolean'],
-            'video_ffmpeg_path' => ['required', 'string', 'max:1024'],
-            'video_ffprobe_path' => ['required', 'string', 'max:1024'],
-            'video_max_upload_mb' => ['required', 'integer', 'min:1', 'max:1024'],
-            'video_passthrough_max_mb' => ['required', 'integer', 'min:1', 'lte:video_max_upload_mb'],
-            'video_max_duration_seconds' => ['required', 'integer', 'min:1', 'max:86400'],
-            'video_max_dimension' => ['required', 'integer', 'min:240', 'max:4320'],
-            'video_max_frame_rate' => ['required', 'integer', 'min:1', 'max:120'],
             'trending_days' => ['required', 'integer', 'min:1', 'max:365'],
-            'world_hide_content_warnings' => ['sometimes', 'boolean'],
-            'forced_content_warning_hashtags' => ['nullable', 'string', 'max:4000'],
             'favicon' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp,gif', 'max:'.$maxKb],
             'remove_favicon' => ['sometimes', 'boolean'],
             'home_background' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp,gif', 'max:'.max($maxKb, 8192)],
             'remove_home_background' => ['sometimes', 'boolean'],
-        ], [], [
+        ];
+        $data = $request->validate(Arr::only($rules, $fields[$tab]), [], [
             'favicon' => __('openbook.admin.settings.favicon'),
             'home_background' => __('openbook.admin.settings.home_background'),
         ]);
 
+        if ($tab === 'visibility') {
+            $data['public_web_hashtags'] = $request->boolean('public_web_hashtags');
+            $data['guest_home_feed'] = $request->boolean('guest_home_feed');
+        }
+        if ($tab === 'registration') {
+            $data['registration_open'] = $request->boolean('registration_open');
+        }
+        if ($tab !== 'general') {
+            DB::transaction(fn () => $settings->update($data, $request->user()));
+
+            return redirect()->route('admin.settings.edit', ['tab' => $tab])->with('status', __('openbook.admin.settings.saved'));
+        }
+        $data['show_home_staff'] = $request->boolean('show_home_staff');
         $iconDirectory = $settings->iconDirectory();
         $backgroundDirectory = $settings->homeBackgroundDirectory();
-        $videoEnabled = $request->boolean('video_enabled');
 
-        if ($videoEnabled) {
-            $capability = app(VideoCapability::class)->inspect($data['video_ffmpeg_path'], $data['video_ffprobe_path']);
-
-            if (! $capability['available']) {
-                throw ValidationException::withMessages([
-                    'video_ffmpeg_path' => __('openbook.admin.settings.video_tools_unavailable', [
-                        'error' => $capability['error'],
-                    ]),
-                ]);
-            }
-        }
-
-        DB::transaction(function () use ($request, $settings, $iconUploader, $backgroundUploader, $data, $videoEnabled, $iconDirectory, $backgroundDirectory): void {
+        DB::transaction(function () use ($request, $settings, $iconUploader, $backgroundUploader, $data, $iconDirectory, $backgroundDirectory): void {
             $iconDisk = $settings->iconDisk();
             $backgroundDisk = $settings->homeBackgroundDisk();
             $destination = app(MediaStorage::class)->uploadDisk();
@@ -143,34 +143,10 @@ final class SettingsController extends Controller
                 ]);
             }
 
-            $settings->update([
-                'site_name' => $data['site_name'],
-                'site_description' => $data['site_description'] ?? '',
-                'contact_email' => $data['contact_email'] ?? '',
-                'contact_account_id' => $data['contact_account_id'] ?? null,
-                'registration_open' => $request->boolean('registration_open'),
-                'show_home_staff' => $request->boolean('show_home_staff'),
-                'instance_rules' => $data['instance_rules'] ?? '',
-                'privacy_policy' => $data['privacy_policy'] ?? '',
-                'post_max_length' => (int) $data['post_max_length'],
-                'comment_max_length' => (int) $data['comment_max_length'],
-                'media_max_size_kb' => (int) $data['media_max_size_kb'],
-                'media_max_attachments' => (int) $data['media_max_attachments'],
-                'video_enabled' => $videoEnabled,
-                'video_ffmpeg_path' => $data['video_ffmpeg_path'],
-                'video_ffprobe_path' => $data['video_ffprobe_path'],
-                'video_max_upload_mb' => (int) $data['video_max_upload_mb'],
-                'video_passthrough_max_mb' => (int) $data['video_passthrough_max_mb'],
-                'video_max_duration_seconds' => (int) $data['video_max_duration_seconds'],
-                'video_max_dimension' => (int) $data['video_max_dimension'],
-                'video_max_frame_rate' => (int) $data['video_max_frame_rate'],
-                'trending_days' => (int) $data['trending_days'],
-                'world_hide_content_warnings' => $request->boolean('world_hide_content_warnings'),
-                'forced_content_warning_hashtags' => $data['forced_content_warning_hashtags'] ?? '',
-                'instance_icon_dir' => $iconDirectory,
-                'instance_icon_disk' => $iconDisk,
-                'home_background_dir' => $backgroundDirectory,
-                'home_background_disk' => $backgroundDisk,
+            unset($data['favicon'], $data['home_background'], $data['remove_favicon'], $data['remove_home_background']);
+            $settings->update($data + [
+                'instance_icon_dir' => $iconDirectory, 'instance_icon_disk' => $iconDisk,
+                'home_background_dir' => $backgroundDirectory, 'home_background_disk' => $backgroundDisk,
             ], $request->user());
         });
 

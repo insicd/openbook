@@ -5,11 +5,7 @@
 @section('content')
     <h1>{{ __('openbook.admin.reports.title') }}</h1>
 
-    <div class="ob-admin-filters">
-        @foreach (['open' => __('openbook.admin.reports.status.open'), 'reviewed' => __('openbook.admin.reports.status.reviewed'), 'dismissed' => __('openbook.admin.reports.status.dismissed'), 'actioned' => __('openbook.admin.reports.status.actioned'), 'all' => __('openbook.admin.reports.status.all')] as $key => $label)
-            <a href="{{ route('admin.reports.index', ['status' => $key]) }}" class="ob-btn {{ $status === $key ? 'ob-btn--primary' : 'ob-btn--ghost' }}">{{ $label }}</a>
-        @endforeach
-    </div>
+    <x-admin-tabs :label="__('openbook.admin.reports.title')" :tabs="$tabs" />
 
     @forelse ($reports as $report)
         <article class="ob-card" style="margin-top:1rem">

@@ -393,8 +393,10 @@ pulsante "Modifica profilo" sul proprio profilo) le rende modificabili:
   azione, con soft-delete opzionale dei soli contenuti locali), gestione
   utenti locali (sospensione / disabilitazione; promozione moderatori e
   admin), impostazioni istanza (`site_name`, `registration_open`, regole
-  e privacy policy Markdown, limiti post/commenti/media, sfondo homepage ospite), blocchi dominio federato,
-  ispezione coda federazione e registro azioni. CLI ancora disponibile:
+  e privacy policy Markdown, limiti post/commenti/media, sfondo homepage ospite)
+  suddivise in tab, pagine dedicate Video e Moderazione (con tab Domini bloccati),
+  Code e processi per job e inbox, e registro azioni. Segnalazioni usa tab di
+  stato. Ogni form aggiorna soltanto i propri campi tramite InstanceSettings. CLI ancora disponibile:
   `openbook:make-admin` / `openbook:make-moderator`.
 - **Embed video**: se il body di un post contiene un link YouTube
   (`youtube.com`, `youtu.be`, Shorts, ...) o PeerTube (`/w/...`,

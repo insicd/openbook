@@ -4,11 +4,13 @@ namespace Tests\Feature\Rest;
 
 use App\Application\Queries\FeedQuery;
 use App\Application\Services\CommunityRegistrar;
+use App\Application\Services\PublicWebVisibility;
 use App\Domain\Accounts\User;
 use App\Domain\Feeds\FeedSource;
 use App\Domain\Posts\Post;
 use App\Domain\Reactions\Announce;
 use App\Federation\Actors\Actor;
+use App\Infrastructure\Database\SystemSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Passport\Passport;
@@ -62,6 +64,7 @@ class PersonPostTest extends TestCase
 
     public function test_local_profile_matches_the_web_feed_with_own_posts_and_announces_and_visibility(): void
     {
+        SystemSetting::put(PublicWebVisibility::KEY_MODE, PublicWebVisibility::CLOSED);
         $owner = $this->createFullAccount('profilepostsowner')->actor;
         $author = $this->createFullAccount('originalprofileauthor')->actor;
         $own = $this->published($owner, 30);

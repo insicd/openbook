@@ -20,8 +20,7 @@ class AdminAppearanceTest extends TestCase
             ->get(route('admin.appearance.edit'))
             ->assertOk()
             ->assertSee('name="custom_css"', false)
-            ->assertSee('name="guest_home_feed"', false)
-            ->assertSee(__('openbook.admin.appearance.guest_home_feed'), false)
+            ->assertDontSee('name="guest_home_feed"', false)
             ->assertSee(route('admin.appearance.preview'), false);
 
         $this->actingAs($admin)
@@ -106,48 +105,9 @@ class AdminAppearanceTest extends TestCase
             ->assertDontSee('id="ob-custom-css"', false);
     }
 
-    public function test_admin_can_enable_the_guest_home_feed_from_appearance(): void
-    {
-        $admin = $this->createFullAccount('adminguesthome');
-        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
-
-        $this->assertFalse(app(InstanceSettings::class)->guestHomeFeed());
-
-        $this->actingAs($admin)
-            ->put(route('admin.appearance.update'), [
-                'custom_css' => '',
-                'guest_home_feed' => '1',
-            ])
-            ->assertRedirect(route('admin.appearance.edit'));
-
-        $this->assertTrue(app(InstanceSettings::class)->guestHomeFeed());
-
-        auth()->logout();
-
-        $this->get(route('home'))
-            ->assertOk()
-            ->assertSee('ob-guest-home-layout', false)
-            ->assertSee(__('openbook.home.feed_title', ['name' => config('app.name')]));
-
-        $this->actingAs($admin)
-            ->put(route('admin.appearance.update'), [
-                'custom_css' => '',
-                'guest_home_feed' => '0',
-            ])
-            ->assertRedirect(route('admin.appearance.edit'));
-
-        $this->assertFalse(app(InstanceSettings::class)->guestHomeFeed());
-
-        auth()->logout();
-
-        $this->get(route('home'))
-            ->assertOk()
-            ->assertDontSee('ob-guest-home-layout', false);
-    }
-
     public function test_saving_custom_css_without_the_feed_field_leaves_the_guest_home_feed_unchanged(): void
     {
-        app(InstanceSettings::class)->updateGuestHomeFeed(true);
+        app(InstanceSettings::class)->update([InstanceSettings::KEY_GUEST_HOME_FEED => true]);
 
         $admin = $this->createFullAccount('admincsskeepfeed');
         $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();

@@ -378,8 +378,10 @@ and "Edit profile" button on your own profile) makes them editable:
   of local content only), local user management (suspension / disable;
   promoting moderators and admins), instance settings (`site_name`,
   `registration_open`, Markdown rules and privacy policy, post/comment/media
-  limits, guest homepage background), federated domain blocks, federation queue inspection, and an action
-  log. CLI still available: `openbook:make-admin` / `openbook:make-moderator`.
+  limits, guest homepage background) divided into tabs, dedicated Video and
+  Moderation pages (including a Blocked domains tab), Queues and processes for
+  jobs and inbox, and an action log. Reports uses status tabs. Each form updates
+  only its own fields through InstanceSettings. CLI still available: `openbook:make-admin` / `openbook:make-moderator`.
 - **Video embeds**: if a post body contains a YouTube link (`youtube.com`,
   `youtu.be`, Shorts, ...) or PeerTube (`/w/...`, `/videos/watch/...`), an
   iframe player is shown under the text (only the *first* video link in the

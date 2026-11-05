@@ -18,6 +18,60 @@ class AdminSettingsTest extends TestCase
 {
     use CreatesAccounts, RefreshDatabase;
 
+    public function test_admin_can_enable_the_guest_home_feed_from_public_visibility(): void
+    {
+        $admin = $this->createFullAccount('adminguesthome');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+
+        $this->assertFalse(app(InstanceSettings::class)->guestHomeFeed());
+        SystemSetting::put('site_name', 'Preserve this instance');
+        $this->actingAs($admin)->get(route('admin.settings.edit', ['tab' => 'visibility']))
+            ->assertOk()->assertSee('name="public_web_visibility"', false)
+            ->assertSee('name="public_web_hashtags"', false)->assertSee('name="guest_home_feed"', false)
+            ->assertDontSee('name="site_name"', false);
+        $this->put(route('admin.settings.update'), ['tab' => 'visibility', 'public_web_visibility' => 'unknown'])
+            ->assertSessionHasErrors('public_web_visibility');
+        $this->assertNull(SystemSetting::get('public_web_visibility'));
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), [
+                'tab' => 'visibility',
+                'public_web_visibility' => 'all',
+                'public_web_hashtags' => '1',
+                'guest_home_feed' => '1',
+            ])
+            ->assertRedirect(route('admin.settings.edit', ['tab' => 'visibility']));
+
+        $this->assertTrue(app(InstanceSettings::class)->guestHomeFeed());
+        $this->assertSame('all', SystemSetting::get('public_web_visibility'));
+        $this->assertTrue(SystemSetting::getBool('public_web_hashtags'));
+        $this->assertSame('Preserve this instance', SystemSetting::get('site_name'));
+
+        auth()->logout();
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('ob-guest-home-layout', false)
+            ->assertSee(__('openbook.home.feed_title', ['name' => 'Preserve this instance']));
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.update'), [
+                'tab' => 'visibility',
+                'public_web_visibility' => 'all',
+                'public_web_hashtags' => '1',
+                'guest_home_feed' => '0',
+            ])
+            ->assertRedirect(route('admin.settings.edit', ['tab' => 'visibility']));
+
+        $this->assertFalse(app(InstanceSettings::class)->guestHomeFeed());
+
+        auth()->logout();
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertDontSee('ob-guest-home-layout', false);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -52,6 +106,13 @@ class AdminSettingsTest extends TestCase
         $this->actingAs($admin)
             ->put(route('admin.settings.update'), $this->settingsPayload())
             ->assertRedirect(route('admin.settings.edit'));
+
+        $this->put(route('admin.settings.update'), $this->settingsPayload(['tab' => 'registration']))
+            ->assertRedirect(route('admin.settings.edit', ['tab' => 'registration']));
+        $this->put(route('admin.settings.update'), $this->settingsPayload(['tab' => 'content']))
+            ->assertRedirect(route('admin.settings.edit', ['tab' => 'content']));
+        $this->put(route('admin.video.update'), $this->settingsPayload())
+            ->assertRedirect(route('admin.video.edit'));
 
         $this->assertSame('Openbook Test', SystemSetting::get(InstanceSettings::KEY_SITE_NAME));
         $this->assertFalse(app(InstanceSettings::class)->registrationOpen());
@@ -122,7 +183,7 @@ class AdminSettingsTest extends TestCase
         $this->assertFalse(app(InstanceSettings::class)->showHomeStaff());
         $this->get('/api/v1/instance')->assertJsonPath('contact_account.username', 'admincontactaccount');
 
-        $this->put(route('admin.settings.update'), $this->settingsPayload())
+        $this->put(route('admin.settings.update'), $this->settingsPayload(['contact_account_id' => null]))
             ->assertRedirect(route('admin.settings.edit'));
         $this->get('/api/v1/instance')->assertJsonPath('contact_account', null);
     }
@@ -133,13 +194,13 @@ class AdminSettingsTest extends TestCase
         $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
 
         $this->actingAs($admin)
-            ->from(route('admin.settings.edit'))
-            ->put(route('admin.settings.update'), $this->settingsPayload([
+            ->from(route('admin.video.edit'))
+            ->put(route('admin.video.update'), $this->settingsPayload([
                 'video_enabled' => '1',
                 'video_ffmpeg_path' => '/definitely/missing/openbook-ffmpeg',
                 'video_ffprobe_path' => '/definitely/missing/openbook-ffprobe',
             ]))
-            ->assertRedirect(route('admin.settings.edit'))
+            ->assertRedirect(route('admin.video.edit'))
             ->assertSessionHasErrors('video_ffmpeg_path');
 
         $this->assertFalse(app(InstanceSettings::class)->videoEnabled());
@@ -152,14 +213,14 @@ class AdminSettingsTest extends TestCase
         $tools = $this->fakeVideoTools();
 
         $this->actingAs($admin)
-            ->put(route('admin.settings.update'), $this->settingsPayload([
+            ->put(route('admin.video.update'), $this->settingsPayload([
                 'video_enabled' => '1',
                 'video_ffmpeg_path' => $tools.'/ffmpeg',
                 'video_ffprobe_path' => $tools.'/ffprobe',
                 'video_max_upload_mb' => 50,
                 'video_passthrough_max_mb' => 10,
             ]))
-            ->assertRedirect(route('admin.settings.edit'));
+            ->assertRedirect(route('admin.video.edit'));
 
         $settings = app(InstanceSettings::class);
 
@@ -177,9 +238,10 @@ class AdminSettingsTest extends TestCase
 
         $this->actingAs($admin)
             ->put(route('admin.settings.update'), $this->settingsPayload([
+                'tab' => 'content',
                 'trending_days' => 14,
             ]))
-            ->assertRedirect(route('admin.settings.edit'));
+            ->assertRedirect(route('admin.settings.edit', ['tab' => 'content']));
 
         $this->assertSame(14, app(InstanceSettings::class)->trendingDays());
         $this->assertSame(14, (int) config('openbook.hashtags.trending_days'));
@@ -191,11 +253,11 @@ class AdminSettingsTest extends TestCase
         $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
 
         $this->actingAs($admin)
-            ->put(route('admin.settings.update'), $this->settingsPayload([
+            ->put(route('admin.moderation.update'), $this->settingsPayload([
                 'world_hide_content_warnings' => '1',
                 'forced_content_warning_hashtags' => "#Nudes, porno\n#nudes invalid-tag",
             ]))
-            ->assertRedirect(route('admin.settings.edit'));
+            ->assertRedirect(route('admin.moderation.edit'));
 
         $settings = app(InstanceSettings::class);
 
@@ -203,6 +265,52 @@ class AdminSettingsTest extends TestCase
         $this->assertSame(['nudes', 'porno'], $settings->forcedContentWarningHashtags());
         $this->assertTrue((bool) config('openbook.moderation.hide_content_warnings_from_world'));
         $this->assertSame(['nudes', 'porno'], config('openbook.moderation.forced_content_warning_hashtags'));
+    }
+
+    public function test_each_settings_screen_only_changes_its_own_fields(): void
+    {
+        $admin = $this->createFullAccount('isolatedsettings');
+        $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
+        SystemSetting::putBool('video_enabled', true);
+        SystemSetting::putBool('world_hide_content_warnings', true);
+        SystemSetting::putBool('registration_open', true);
+        $this->actingAs($admin)->put(route('admin.settings.update'), ['site_name' => 'Only general'])
+            ->assertRedirect(route('admin.settings.edit'));
+        $settings = app(InstanceSettings::class);
+        $this->assertTrue($settings->videoEnabled());
+        $this->assertTrue($settings->worldHidesContentWarnings());
+        $this->assertTrue($settings->registrationOpen());
+        $this->assertFalse($settings->showHomeStaff());
+
+        $this->put(route('admin.settings.update'), ['tab' => 'registration', 'instance_rules' => 'Rules', 'site_name' => 'Ignored', 'video_enabled' => false])
+            ->assertRedirect(route('admin.settings.edit', ['tab' => 'registration']));
+        $this->assertFalse($settings->registrationOpen());
+        $this->assertTrue($settings->videoEnabled());
+        $this->assertSame('Only general', $settings->siteName());
+        $this->assertSame('Rules', $settings->instanceRules());
+
+        $this->put(route('admin.settings.update'), $this->settingsPayload(['tab' => 'content', 'video_enabled' => false, 'world_hide_content_warnings' => false]))
+            ->assertRedirect(route('admin.settings.edit', ['tab' => 'content']));
+        $this->assertTrue($settings->videoEnabled());
+        $this->assertTrue($settings->worldHidesContentWarnings());
+        $this->assertFalse($settings->registrationOpen());
+        $this->assertSame('Only general', $settings->siteName());
+
+        $this->put(route('admin.video.update'), $this->settingsPayload(['site_name' => 'Ignored again']))
+            ->assertRedirect(route('admin.video.edit'));
+        $this->assertFalse($settings->videoEnabled());
+        $this->assertTrue($settings->worldHidesContentWarnings());
+        $this->assertSame('Only general', $settings->siteName());
+        $this->put(route('admin.moderation.update'), ['site_name' => 'Also ignored', 'post_max_length' => 100])
+            ->assertRedirect(route('admin.moderation.edit'));
+        $this->assertFalse($settings->worldHidesContentWarnings());
+        $this->assertSame(4000, $settings->postMaxLength());
+        $this->assertSame('Only general', $settings->siteName());
+
+        $url = route('admin.settings.edit', ['tab' => 'content']);
+        $this->from($url)->put(route('admin.settings.update'), ['tab' => 'content', 'post_max_length' => 1])
+            ->assertRedirect($url)->assertSessionHasErrors('post_max_length');
+        $this->get($url)->assertSee('name="trending_days"', false)->assertDontSee('name="site_name"', false);
     }
 
     public function test_admin_settings_save_does_not_modify_env_file(): void
@@ -310,7 +418,8 @@ class AdminSettingsTest extends TestCase
             ->assertOk()
             ->assertSee('name="favicon"', false)
             ->assertSee('name="home_background"', false)
-            ->assertSee('name="trending_days"', false)
+            ->assertDontSee('name="trending_days"', false)
+            ->assertDontSee('name="video_enabled"', false)
             ->assertSee('enctype="multipart/form-data"', false);
     }
 

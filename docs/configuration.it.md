@@ -1,5 +1,30 @@
 > Documentazione: [Italiano](README.it.md) · [English](README.md)
 
+## Pannello di amministrazione
+
+Il menu laterale raggruppa le funzioni dell’istanza, gli strumenti tecnici e i
+relay, separati da divisori discreti. Le schermate condividono lo stile dei tab
+di Database.
+
+| Pagina | Sezioni |
+| --- | --- |
+| Questa istanza | Generali; Registrazioni e policy; Contenuti; Visibilità pubblica |
+| Video | Abilitazione, strumenti FFmpeg/ffprobe e limiti video |
+| Moderazione | Contenuti; Domini bloccati |
+| Code e processi | In attesa; Falliti; Inbox federazione |
+| Segnalazioni | Aperte; Revisionate; Archiviate; Con azione; Tutte |
+
+Ogni form salva solo le proprie impostazioni. In Questa istanza, il tab
+Contenuti comprende limiti di post, commenti, allegati e periodo delle tendenze;
+Registrazioni e policy comprende apertura delle iscrizioni, regole e privacy.
+Le icone e lo sfondo restano in Generali, mentre il CSS personalizzato rimane
+in Aspetto. Il vecchio indirizzo `/admin/domini` porta al tab Domini bloccati.
+
+Le impostazioni e i domini sono riservati agli amministratori. I moderatori
+continuano a gestire utenti e segnalazioni con i permessi già previsti. I tab
+delle segnalazioni conservano filtro e paginazione; quelli delle code mantengono
+i contatori visibili e riportano a Falliti dopo Riprova o Elimina.
+
 ## Object storage — media e immagini
 
 **Admin → Object storage** (`/admin/object-storage`) configura una destinazione
@@ -193,16 +218,37 @@ GeoNames selezionata e le coordinate del suo centro. I dati geografici sono
 forniti da GeoNames con licenza
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-### Flusso sulla home per gli ospiti
+### Visibilità pubblica e feed nella home
 
-Il layout della home per i visitatori resta quello attuale finché un
-amministratore non attiva **Flusso pubblico sulla home per gli ospiti** in
-**Aspetto**. L’opzione è disattiva di default. Se attiva, gli ospiti vedono
-le informazioni sull’istanza a sinistra (la colonna scorre da sola, anche
-su desktop) e al centro i post pubblici già visibili a questa istanza
-(locali e remoti in cache), con lo stesso scorrimento infinito usato altrove. Non è una timeline completa del
-Fediverso. Su schermi stretti la colonna sinistra diventa un pannello a
-comparsa, aperto da una freccia verso destra.
+In **Questa istanza → Visibilità pubblica** si sceglie cosa possono consultare i
+visitatori senza accedere:
+
+- **Tutto visibile** conserva l’accesso esistente ai contenuti pubblici locali e
+  federati. Un’opzione aggiuntiva consente l’esplorazione di tag e tendenze.
+- **Solo contenuti locali** permette di consultare profili e community locali,
+  con post ed eventi di autori locali. Restano nascosti i post remoti rilanciati
+  da utenti locali o pubblicati in una community locale e le citazioni remote
+  incorporate.
+- **Tutto chiuso** richiede l’accesso per consultare i contenuti. Restano aperte
+  la presentazione dell’istanza in home, l’accesso, la registrazione se abilitata,
+  le regole e la privacy.
+
+I commenti seguono il post o l’evento padre: una risposta locale non rende
+pubblica una discussione remota, mentre una discussione locale ammessa conserva
+le risposte remote. Permessi esistenti, preferenze di scoperta e consenso
+all’indicizzazione continuano a valere; questi controlli non rendono pubbliche
+pagine già riservate. La regolazione riguarda la consultazione web, senza
+modificare ActivityPub, REST autenticata o gli URL degli allegati.
+
+Senza impostazioni salvate restano l’accesso pubblico e l’esplorazione dei tag
+attuali. Il controllo esistente **Mostra il feed nella home pubblica** si trova
+ora in questo stesso tab ed è disattivo di default. Se attivo, mostra le
+informazioni sull’istanza a sinistra (con scorrimento indipendente su desktop)
+e al centro i post pubblici già presenti nell’istanza, con scorrimento infinito.
+Il feed segue la modalità selezionata: tutti i post pubblici disponibili oppure
+solo quelli di autori locali; Tutto chiuso lo nasconde. Non è un feed completo
+del fediverso. Sugli schermi piccoli, una freccia verso destra apre la colonna
+con le informazioni.
 
 ## Cron e attivita periodiche
 
@@ -393,6 +439,12 @@ annullamenti successivi non riscrivono questi contatori. «Consegna diretta»
 indica l’inbox senza relay configurato riconosciuto, non necessariamente
 l’invio dell’autore originale.
 
+Le sorgenti statistiche sono indipendenti dalla configurazione dei relay.
+Eliminare una riga da `stats_delivery_sources` elimina in cascata tutti i suoi
+bucket; rimuovere un relay non elimina la sorgente statistica né lo storico.
+Nuove consegne possono ricreare una sorgente eliminata. I dataset già in cache
+si aggiornano alla scadenza del TTL o con **Svuota cache**.
+
 Non esiste un recupero retroattivo delle delivery: la raccolta parte
 all’attivazione della funzione; gli eventi contribuiscono dall’attivazione del
 loro tracciamento. Il grafico legge al massimo due anni. Non è prevista una
@@ -400,12 +452,16 @@ pulizia automatica dei bucket più vecchi; includere bucket, sorgenti e metadati
 di raccolta nei normali backup. **Svuota cache** non azzera lo storico.
 
 Per il deploy, seguire la [procedura ordinaria](install.it.md): applicare le
-migration pendenti, comprese `2026_10_22_000000_create_post_delivery_metrics` e
-`2026_10_22_000001_unify_content_delivery_metrics`, e ricostruire le cache di
+migration pendenti, comprese `2026_10_22_000000_create_post_delivery_metrics`,
+`2026_10_22_000001_unify_content_delivery_metrics` e
+`2026_11_03_000001_constrain_delivery_bucket_sources`, e ricostruire le cache di
 configurazione, route e view se utilizzate. La seconda migration conserva i
-conteggi eventualmente già raccolti dalla prima. Dopo modifiche ai TTL,
-ricostruire la cache di configurazione e svuotare la cache Stats per applicarli
-subito. Le risposte JSON restano autenticate e `private, no-store`; se lo store
+conteggi eventualmente già raccolti dalla prima. La migration del vincolo sulle sorgenti
+elimina prima i bucket giornalieri senza sorgente, conserva tutti i contatori
+validi e aggiunge la FK con cancellazione in cascata. Il rollback rimuove il
+vincolo e il relativo indice, senza ricostruire gli orfani eliminati.
+Dopo modifiche ai TTL, ricostruire la cache di configurazione e svuotare la
+cache Stats per applicarli subito. Le risposte JSON restano autenticate e `private, no-store`; se lo store
 cache non funziona, la pagina tenta la lettura diretta senza dichiarare dati
 inseriti in cache.
 

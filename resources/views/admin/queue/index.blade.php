@@ -25,6 +25,18 @@
         </div>
     </div>
 
+    <x-admin-tabs :label="__('openbook.admin.queue.title')" :tabs="$tabs" />
+    @if ($activeTab === 'pending')
+    <h2 style="margin-top:1.75rem;font-size:1.1rem">{{ __('openbook.admin.queue.pending_title') }}</h2>
+    @forelse ($jobs as $job)
+        <article class="ob-card" style="margin-top:0.75rem">
+            <p><strong>#{{ $job->id }}</strong> {{ $job->queue }}</p>
+            <p class="ob-field__help">{{ $job->available_at ? \Illuminate\Support\Carbon::createFromTimestamp($job->available_at)->toDateTimeString() : '—' }}</p>
+        </article>
+    @empty
+        <p class="ob-field__help">{{ __('openbook.admin.queue.pending_empty') }}</p>
+    @endforelse
+    @elseif ($activeTab === 'failed')
     @if ($failed->isNotEmpty())
         <div class="ob-admin-row" style="margin-top:1.5rem">
             <h2 style="font-size:1.1rem;margin:0">{{ __('openbook.admin.queue.failed_title') }}</h2>
@@ -57,6 +69,10 @@
         @endforeach
     @endif
 
+    @if ($failed->isEmpty())
+        <p class="ob-field__help" style="margin-top:1rem">{{ __('openbook.admin.queue.failed_empty') }}</p>
+    @endif
+    @else
     <h2 style="margin-top:1.75rem;font-size:1.1rem">{{ __('openbook.admin.queue.inbox_title') }}</h2>
     @forelse ($inboxItems as $item)
         <article class="ob-card" style="margin-top:0.75rem">
@@ -73,13 +89,5 @@
         <p class="ob-field__help">{{ __('openbook.admin.queue.inbox_empty') }}</p>
     @endforelse
 
-    <h2 style="margin-top:1.75rem;font-size:1.1rem">{{ __('openbook.admin.queue.pending_title') }}</h2>
-    @forelse ($jobs as $job)
-        <article class="ob-card" style="margin-top:0.75rem">
-            <p><strong>#{{ $job->id }}</strong> {{ $job->queue }}</p>
-            <p class="ob-field__help">{{ $job->available_at ? \Illuminate\Support\Carbon::createFromTimestamp($job->available_at)->toDateTimeString() : '—' }}</p>
-        </article>
-    @empty
-        <p class="ob-field__help">{{ __('openbook.admin.queue.pending_empty') }}</p>
-    @endforelse
+    @endif
 @endsection

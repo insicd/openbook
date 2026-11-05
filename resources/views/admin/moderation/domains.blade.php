@@ -1,9 +1,3 @@
-@extends('layouts.admin')
-
-@section('title', __('openbook.admin.domain_blocks.title').' - '.config('app.name'))
-
-@section('content')
-    <h1>{{ __('openbook.admin.domain_blocks.title') }}</h1>
     @include('admin.partials.timezone-note')
     <p class="ob-field__help">{{ __('openbook.admin.domain_blocks.intro') }}</p>
 
@@ -46,4 +40,3 @@
     @endforelse
 
     <div style="margin-top:1.5rem">{{ $blocks->links() }}</div>
-@endsection

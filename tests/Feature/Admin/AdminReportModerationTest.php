@@ -34,6 +34,8 @@ class AdminReportModerationTest extends TestCase
         $this->actingAs($mod)
             ->get(route('admin.reports.index'))
             ->assertOk()
+            ->assertSee('class="ob-admin-tabs"', false)
+            ->assertSee('aria-current="page"', false)
             ->assertSee($reporter->username, false)
             ->assertSee(__('openbook.reports.reasons.spam'), false);
 
@@ -48,6 +50,9 @@ class AdminReportModerationTest extends TestCase
 
         $this->assertSame(Report::STATUS_REVIEWED, $report->fresh()->status);
         $this->assertSame($mod->id, $report->fresh()->reviewed_by);
+        $this->get(route('admin.reports.index', ['status' => 'reviewed']))->assertOk()->assertSee($reporter->username);
+        $this->get(route('admin.reports.index', ['status' => 'open']))->assertOk()->assertDontSee($reporter->username);
+        $this->get(route('admin.reports.index', ['status' => 'all']))->assertOk()->assertSee($reporter->username);
     }
 
     public function test_staff_can_dismiss_a_report(): void

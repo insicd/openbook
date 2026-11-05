@@ -37,6 +37,7 @@ class ReportController extends Controller
         return view('admin.reports.index', [
             'reports' => $this->reports->listing($status)->paginate(20)->withQueryString(),
             'status' => $status,
+            'tabs' => array_map(fn ($key) => ['label' => __('openbook.admin.reports.status.'.$key), 'url' => route('admin.reports.index', ['status' => $key]), 'active' => $status === $key], $allowed),
         ]);
     }
 

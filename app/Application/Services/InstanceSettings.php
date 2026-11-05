@@ -357,8 +357,8 @@ final class InstanceSettings
     }
 
     /**
-     * Home guest a due colonne con flusso di post pubblici (locali e remoti
-     * in cache). Default false: senza la chiave in DB resta il layout attuale.
+     * Home guest a due colonne con flusso di post pubblici ammessi
+     * dalla visibilità pubblica. Default false: senza la chiave in DB resta il layout attuale.
      */
     public function guestHomeFeed(): bool
     {
@@ -382,17 +382,6 @@ final class InstanceSettings
         }
     }
 
-    public function updateGuestHomeFeed(bool $enabled, ?User $actor = null): void
-    {
-        SystemSetting::putBool(self::KEY_GUEST_HOME_FEED, $enabled);
-
-        if ($actor !== null) {
-            $this->auditLogger->log($actor, 'appearance.update', null, [
-                'guest_home_feed' => $enabled,
-            ]);
-        }
-    }
-
     public function updateRemotePostRetention(int $nonPertinentDays, int $pertinentDays, User $actor): void
     {
         if ($nonPertinentDays < 0 || $pertinentDays < 0
@@ -410,132 +399,63 @@ final class InstanceSettings
         });
     }
 
-    /**
-     * @param  array{
-     *     site_name: string,
-     *     site_description?: string,
-     *     contact_email?: string,
-     *     contact_account_id?: string|null,
-     *     registration_open: bool,
-     *     show_home_staff: bool,
-     *     instance_rules?: string,
-     *     privacy_policy?: string,
-     *     post_max_length: int,
-     *     comment_max_length: int,
-     *     media_max_size_kb: int,
-     *     media_max_attachments: int,
-     *     video_enabled: bool,
-     *     video_ffmpeg_path: string,
-     *     video_ffprobe_path: string,
-     *     video_max_upload_mb: int,
-     *     video_passthrough_max_mb: int,
-     *     video_max_duration_seconds: int,
-     *     video_max_dimension: int,
-     *     video_max_frame_rate: int,
-     *     trending_days: int,
-     *     world_hide_content_warnings?: bool,
-     *     forced_content_warning_hashtags?: string,
-     *     instance_icon_dir?: string|null,
-     *     instance_icon_disk?: string,
-     *     home_background_dir?: string|null,
-     *     home_background_disk?: string
-     * }  $data
+    /** Update only the submitted settings; other admin screens keep their values.
+     * @param  array<string, mixed>  $data
      */
     public function update(array $data, ?User $actor = null): void
     {
-        $siteName = trim($data['site_name']);
-        $siteDescription = trim((string) ($data['site_description'] ?? ''));
-        $contactEmail = trim((string) ($data['contact_email'] ?? ''));
-        $contactAccountId = $data['contact_account_id'] ?? null;
-        $registrationOpen = (bool) $data['registration_open'];
-        $showHomeStaff = (bool) $data['show_home_staff'];
-        $rules = (string) ($data['instance_rules'] ?? '');
-        $privacyPolicy = (string) ($data['privacy_policy'] ?? '');
-        $postMax = (int) $data['post_max_length'];
-        $commentMax = (int) $data['comment_max_length'];
-        $mediaKb = (int) $data['media_max_size_kb'];
-        $mediaAttachments = (int) $data['media_max_attachments'];
-        $videoEnabled = (bool) $data['video_enabled'];
-        $videoFfmpegPath = trim($data['video_ffmpeg_path']);
-        $videoFfprobePath = trim($data['video_ffprobe_path']);
-        $trendingDays = max(1, (int) ($data['trending_days'] ?? $this->trendingDays()));
-        $worldHideContentWarnings = (bool) ($data['world_hide_content_warnings'] ?? false);
-        $forcedContentWarningHashtags = $this->normalizeHashtags(
-            preg_split('/[\s,;]+/u', (string) ($data['forced_content_warning_hashtags'] ?? '')) ?: [],
-        );
-
-        SystemSetting::put(self::KEY_SITE_NAME, $siteName);
-        SystemSetting::put(self::KEY_SITE_DESCRIPTION, $siteDescription);
-        SystemSetting::put(self::KEY_CONTACT_EMAIL, $contactEmail);
-        SystemSetting::put(self::KEY_CONTACT_ACCOUNT_ID, $contactAccountId);
-        SystemSetting::putBool(self::KEY_REGISTRATION_OPEN, $registrationOpen);
-        SystemSetting::putBool(self::KEY_SHOW_HOME_STAFF, $showHomeStaff);
-        SystemSetting::put(self::KEY_INSTANCE_RULES, $rules);
-        SystemSetting::put(self::KEY_PRIVACY_POLICY, $privacyPolicy);
-        SystemSetting::put(self::KEY_POST_MAX_LENGTH, (string) $postMax);
-        SystemSetting::put(self::KEY_COMMENT_MAX_LENGTH, (string) $commentMax);
-        SystemSetting::put(self::KEY_MEDIA_MAX_SIZE_KB, (string) $mediaKb);
-        SystemSetting::put(self::KEY_MEDIA_MAX_ATTACHMENTS, (string) $mediaAttachments);
-        SystemSetting::putBool(self::KEY_VIDEO_ENABLED, $videoEnabled);
-        SystemSetting::put(self::KEY_VIDEO_FFMPEG_PATH, $videoFfmpegPath);
-        SystemSetting::put(self::KEY_VIDEO_FFPROBE_PATH, $videoFfprobePath);
-        SystemSetting::put(self::KEY_VIDEO_MAX_UPLOAD_MB, (string) $data['video_max_upload_mb']);
-        SystemSetting::put(self::KEY_VIDEO_PASSTHROUGH_MAX_MB, (string) $data['video_passthrough_max_mb']);
-        SystemSetting::put(self::KEY_VIDEO_MAX_DURATION_SECONDS, (string) $data['video_max_duration_seconds']);
-        SystemSetting::put(self::KEY_VIDEO_MAX_DIMENSION, (string) $data['video_max_dimension']);
-        SystemSetting::put(self::KEY_VIDEO_MAX_FRAME_RATE, (string) $data['video_max_frame_rate']);
-        SystemSetting::put(self::KEY_TRENDING_DAYS, (string) $trendingDays);
-        SystemSetting::putBool(self::KEY_WORLD_HIDE_CONTENT_WARNINGS, $worldHideContentWarnings);
-        SystemSetting::put(
-            self::KEY_FORCED_CONTENT_WARNING_HASHTAGS,
-            json_encode($forcedContentWarningHashtags, JSON_THROW_ON_ERROR),
-        );
-
-        if (array_key_exists('instance_icon_dir', $data)) {
-            SystemSetting::put(self::KEY_INSTANCE_ICON_DIR, $data['instance_icon_dir']);
-            if (isset($data['instance_icon_disk'])) {
-                SystemSetting::put('instance_icon_disk', $data['instance_icon_disk']);
+        $booleans = [PublicWebVisibility::KEY_HASHTAGS, self::KEY_GUEST_HOME_FEED, self::KEY_REGISTRATION_OPEN, self::KEY_SHOW_HOME_STAFF, self::KEY_VIDEO_ENABLED, self::KEY_WORLD_HIDE_CONTENT_WARNINGS];
+        $integers = [self::KEY_POST_MAX_LENGTH, self::KEY_COMMENT_MAX_LENGTH, self::KEY_MEDIA_MAX_SIZE_KB,
+            self::KEY_MEDIA_MAX_ATTACHMENTS, self::KEY_VIDEO_MAX_UPLOAD_MB, self::KEY_VIDEO_PASSTHROUGH_MAX_MB,
+            self::KEY_VIDEO_MAX_DURATION_SECONDS, self::KEY_VIDEO_MAX_DIMENSION, self::KEY_VIDEO_MAX_FRAME_RATE, self::KEY_TRENDING_DAYS];
+        $strings = [PublicWebVisibility::KEY_MODE, self::KEY_SITE_NAME, self::KEY_SITE_DESCRIPTION, self::KEY_CONTACT_EMAIL, self::KEY_CONTACT_ACCOUNT_ID,
+            self::KEY_INSTANCE_RULES, self::KEY_PRIVACY_POLICY, self::KEY_VIDEO_FFMPEG_PATH, self::KEY_VIDEO_FFPROBE_PATH,
+            self::KEY_INSTANCE_ICON_DIR, 'instance_icon_disk', self::KEY_HOME_BACKGROUND_DIR, 'home_background_disk'];
+        $runtime = [
+            self::KEY_SITE_NAME => 'app.name', self::KEY_REGISTRATION_OPEN => 'openbook.registration.open',
+            self::KEY_POST_MAX_LENGTH => 'openbook.posts.max_length', self::KEY_COMMENT_MAX_LENGTH => 'openbook.comments.max_length',
+            self::KEY_MEDIA_MAX_SIZE_KB => 'openbook.media.max_size_kb', self::KEY_MEDIA_MAX_ATTACHMENTS => 'openbook.media.max_attachments_per_post',
+            self::KEY_VIDEO_ENABLED => 'openbook.video.enabled', self::KEY_VIDEO_FFMPEG_PATH => 'openbook.video.ffmpeg_path',
+            self::KEY_VIDEO_FFPROBE_PATH => 'openbook.video.ffprobe_path', self::KEY_VIDEO_MAX_UPLOAD_MB => 'openbook.video.max_upload_mb',
+            self::KEY_VIDEO_PASSTHROUGH_MAX_MB => 'openbook.video.passthrough_max_mb', self::KEY_VIDEO_MAX_DURATION_SECONDS => 'openbook.video.max_duration_seconds',
+            self::KEY_VIDEO_MAX_DIMENSION => 'openbook.video.max_dimension', self::KEY_VIDEO_MAX_FRAME_RATE => 'openbook.video.max_frame_rate',
+            self::KEY_TRENDING_DAYS => 'openbook.hashtags.trending_days', self::KEY_WORLD_HIDE_CONTENT_WARNINGS => 'openbook.moderation.hide_content_warnings_from_world',
+            self::KEY_FORCED_CONTENT_WARNING_HASHTAGS => 'openbook.moderation.forced_content_warning_hashtags',
+        ];
+        $changed = [];
+        foreach ($data as $key => $value) {
+            if (in_array($key, $booleans, true)) {
+                $value = (bool) $value;
+                SystemSetting::putBool($key, $value);
+            } elseif (in_array($key, $integers, true)) {
+                $value = $key === self::KEY_TRENDING_DAYS ? max(1, (int) $value) : (int) $value;
+                SystemSetting::put($key, (string) $value);
+            } elseif ($key === self::KEY_FORCED_CONTENT_WARNING_HASHTAGS) {
+                $value = $this->normalizeHashtags(preg_split('/[\s,;]+/u', (string) $value) ?: []);
+                SystemSetting::put($key, json_encode($value, JSON_THROW_ON_ERROR));
+            } elseif (in_array($key, $strings, true)) {
+                if (in_array($key, [self::KEY_SITE_NAME, self::KEY_SITE_DESCRIPTION, self::KEY_CONTACT_EMAIL, self::KEY_VIDEO_FFMPEG_PATH, self::KEY_VIDEO_FFPROBE_PATH], true)) {
+                    $value = trim((string) $value);
+                }
+                SystemSetting::put($key, $value);
+            } else {
+                continue;
+            }
+            $changed[] = $key;
+            if (isset($runtime[$key])) {
+                Config::set($runtime[$key], $value);
             }
         }
-
-        if (array_key_exists('home_background_dir', $data)) {
-            SystemSetting::put(self::KEY_HOME_BACKGROUND_DIR, $data['home_background_dir']);
-            if (isset($data['home_background_disk'])) {
-                SystemSetting::put('home_background_disk', $data['home_background_disk']);
-            }
-        }
-
-        Config::set('app.name', $siteName);
-        Config::set('openbook.registration.open', $registrationOpen);
-        Config::set('openbook.posts.max_length', $postMax);
-        Config::set('openbook.comments.max_length', $commentMax);
-        Config::set('openbook.media.max_size_kb', $mediaKb);
-        Config::set('openbook.media.max_attachments_per_post', $mediaAttachments);
-        Config::set('openbook.video.enabled', $videoEnabled);
-        Config::set('openbook.video.ffmpeg_path', $videoFfmpegPath);
-        Config::set('openbook.video.ffprobe_path', $videoFfprobePath);
-        Config::set('openbook.video.max_upload_mb', (int) $data['video_max_upload_mb']);
-        Config::set('openbook.video.passthrough_max_mb', (int) $data['video_passthrough_max_mb']);
-        Config::set('openbook.video.max_duration_seconds', (int) $data['video_max_duration_seconds']);
-        Config::set('openbook.video.max_dimension', (int) $data['video_max_dimension']);
-        Config::set('openbook.video.max_frame_rate', (int) $data['video_max_frame_rate']);
-        Config::set('openbook.hashtags.trending_days', $trendingDays);
-        Config::set('openbook.moderation.hide_content_warnings_from_world', $worldHideContentWarnings);
-        Config::set('openbook.moderation.forced_content_warning_hashtags', $forcedContentWarningHashtags);
-
         if ($actor !== null) {
             $this->auditLogger->log($actor, 'settings.update', null, [
-                'site_name' => $siteName,
-                'has_site_description' => $siteDescription !== '',
-                'has_contact_email' => $contactEmail !== '',
-                'has_contact_account' => $contactAccountId !== null,
-                'registration_open' => $registrationOpen,
-                'show_home_staff' => $showHomeStaff,
-                'trending_days' => $trendingDays,
-                'world_hide_content_warnings' => $worldHideContentWarnings,
-                'forced_content_warning_hashtags_count' => count($forcedContentWarningHashtags),
-                'video_enabled' => $videoEnabled,
-                'has_custom_icons' => $this->hasCustomIcons(),
+                'fields' => $changed, 'site_name' => $this->siteName(),
+                'has_site_description' => $this->siteDescription() !== '',
+                'has_contact_email' => $this->contactEmail() !== '',
+                'has_contact_account' => $this->contactAccountId() !== null,
+                'registration_open' => $this->registrationOpen(), 'show_home_staff' => $this->showHomeStaff(),
+                'trending_days' => $this->trendingDays(), 'world_hide_content_warnings' => $this->worldHidesContentWarnings(),
+                'forced_content_warning_hashtags_count' => count($this->forcedContentWarningHashtags()),
+                'video_enabled' => $this->videoEnabled(), 'has_custom_icons' => $this->hasCustomIcons(),
                 'has_home_background' => $this->homeBackgroundDirectory() !== null,
             ]);
         }

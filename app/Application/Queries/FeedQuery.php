@@ -3,6 +3,7 @@
 namespace App\Application\Queries;
 
 use App\Application\Services\AnnounceManager;
+use App\Application\Services\PublicWebVisibility;
 use App\Domain\Communities\Community;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
@@ -351,12 +352,13 @@ final class FeedQuery
      * L'eventuale nascondimento dei content warning di Mondo vale solo per
      * i remoti, cosi' i post locali restano visibili sulla home.
      */
-    public function instancePublic(?FeedCursor $cursor = null, int $perPage = 0): FeedPage
+    public function instancePublic(?FeedCursor $cursor = null, int $perPage = 0, bool $localOnly = false): FeedPage
     {
         $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
 
         $query = Post::query()
             ->with(Post::CARD_RELATIONS)
+            ->when($localOnly, fn (Builder $query) => app(PublicWebVisibility::class)->constrainContent($query))
             ->excludingPrivateMessages()
             ->where('status', Post::STATUS_PUBLISHED)
             ->where('visibility', Post::VISIBILITY_PUBLIC)
@@ -397,10 +399,11 @@ final class FeedQuery
     /**
      * Wall di una community: post pubblicati verso di essa.
      */
-    public function forCommunity(Community $community, ?Actor $viewer, ?FeedCursor $cursor = null): FeedPage
+    public function forCommunity(Community $community, ?Actor $viewer, ?FeedCursor $cursor = null, bool $localOnly = false): FeedPage
     {
         $query = Post::query()
             ->with(Post::CARD_RELATIONS)
+            ->when($localOnly, fn (Builder $query) => app(PublicWebVisibility::class)->constrainContent($query))
             ->excludingPrivateMessages()
             ->where('status', Post::STATUS_PUBLISHED)
             ->where('community_id', $community->id)
@@ -425,7 +428,7 @@ final class FeedQuery
      * dall'outbox gli Announce locali avrebbero altrimenti un ordine
      * invertito rispetto al feed (piu' vecchi in alto).
      */
-    public function forProfile(Actor $profileActor, ?Actor $viewer, ?FeedCursor $cursor = null): FeedPage
+    public function forProfile(Actor $profileActor, ?Actor $viewer, ?FeedCursor $cursor = null, bool $localOnly = false): FeedPage
     {
         $announcedPostIds = DB::table('announces')
             ->where('actor_id', $profileActor->id);
@@ -434,6 +437,7 @@ final class FeedQuery
 
         $query = Post::query()
             ->with(Post::CARD_RELATIONS)
+            ->when($localOnly, fn (Builder $query) => app(PublicWebVisibility::class)->constrainContent($query))
             ->excludingPrivateMessages()
             ->where('status', Post::STATUS_PUBLISHED)
             ->where(function ($query) use ($profileActor, $announcedPostIds) {

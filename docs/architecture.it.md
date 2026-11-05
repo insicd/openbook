@@ -254,6 +254,10 @@ le serie e uno zero non prova l'assenza storica di pubblicazioni.
 
 ## Profilo e impostazioni
 
+Nelle pagine dei profili e delle community, clicca o tocca l’avatar per
+ingrandirlo nello stesso visualizzatore delle immagini dei post. Puoi aprirlo
+anche da tastiera e chiuderlo con Esc. Il segnaposto con l’iniziale non si apre.
+
 Apri **Impostazioni** dal menu utente o **Modifica profilo** sul tuo profilo.
 Puoi aggiornare nome, biografia, avatar, copertina e fino a otto campi, condivisi
 fra Link e Informazioni aggiuntive. Le immagini vengono mostrate in anteprima
@@ -305,10 +309,11 @@ e interazioni con altri server, vedi la [guida alla federazione](federation.it.m
 Gli amministratori gestiscono impostazioni, account, moderazione, domini
 bloccati, code e manutenzione dal pannello di amministrazione. I moderatori
 hanno accesso alle funzioni assegnate al loro ruolo; il ruolo di staff non dà
-accesso al dettaglio delle risposte ai sondaggi di altri autori. In **Aspetto**,
-un flusso pubblico opzionale sulla home per gli ospiti (disattivo di default)
-sposta le informazioni sull’istanza a sinistra e al centro mostra i post
-pubblici già visibili all’istanza.
+accesso al dettaglio delle risposte ai sondaggi di altri autori. **Questa istanza
+→ Visibilità pubblica** controlla la consultazione web anonima e il feed
+opzionale nella home degli ospiti (disattivo di default). Il feed mostra solo
+i post ammessi dalla modalità scelta; vedi la
+[guida di configurazione](configuration.it.md#visibilità-pubblica-e-feed-nella-home).
 
 Per installazione e aggiornamenti segui la [guida dedicata](install.it.md).
 Per cron, manutenzione, retention e video consulta la

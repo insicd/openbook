@@ -250,6 +250,10 @@ published historically.
 
 ## Profile and settings
 
+On profile and community pages, click or tap the avatar to enlarge it in the
+same viewer used for post images. You can also open it with the keyboard and
+close it with Escape. Initial-letter placeholders do not open the viewer.
+
 Open **Settings** from the user menu or **Edit profile** on your profile. You
 can update your name, biography, avatar, cover and up to eight fields shared
 between Links and Additional information. Images are previewed before saving.
@@ -301,9 +305,10 @@ servers, see the [federation guide](federation.md).
 Administrators manage settings, accounts, moderation, blocked domains, queues
 and maintenance from the administration panel. Moderators can use functions
 assigned to their role; staff roles grant no access to another author’s
-individual poll answers. In **Appearance**, an optional public feed on the
-guest homepage (off by default) moves instance information to the left and
-shows public posts already visible to the instance in the centre.
+individual poll answers. **This instance → Public visibility** controls anonymous
+web browsing and the optional guest homepage feed (off by default). The feed
+shows only the posts allowed by the selected visibility mode; see the
+[configuration guide](configuration.md#public-visibility-and-guest-homepage-feed).
 
 For installation and updates, follow the [installation guide](install.md).
 For cron, maintenance, retention and videos, see

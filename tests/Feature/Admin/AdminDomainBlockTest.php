@@ -17,7 +17,11 @@ class AdminDomainBlockTest extends TestCase
         $admin = $this->createFullAccount('admindomain');
         $admin->forceFill(['is_admin' => true, 'is_moderator' => true])->save();
 
-        $this->actingAs($admin)
+        $url = route('admin.moderation.edit', ['tab' => 'domains']);
+        $this->actingAs($admin)->get(route('admin.domain_blocks.index'))->assertRedirect($url);
+        $this->get($url)->assertOk()->assertSee('aria-current="page"', false)->assertSee('name="domain"', false);
+
+        $this->actingAs($admin)->from($url)
             ->post(route('admin.domain_blocks.store'), [
                 'domain' => 'https://Spam.Example/path',
                 'reason' => 'spam',
@@ -29,6 +33,7 @@ class AdminDomainBlockTest extends TestCase
             'reason' => 'spam',
         ]);
 
+        $this->get($url)->assertOk()->assertSee('spam.example');
         $this->assertTrue(app(DomainBlockManager::class)->isBlockedHost('spam.example'));
         $this->assertDatabaseHas('audit_logs', ['action' => 'domain.block']);
 

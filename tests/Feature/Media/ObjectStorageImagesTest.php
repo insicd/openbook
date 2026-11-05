@@ -8,6 +8,7 @@ use App\Application\Services\EventCommentSoftDeleter;
 use App\Application\Services\EventComposer;
 use App\Application\Services\ObjectStorageSettings;
 use App\Application\Services\PostComposer;
+use App\Application\Services\PublicWebVisibility;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventAttachment;
 use App\Domain\SocialGraph\Follow;
@@ -145,6 +146,8 @@ class ObjectStorageImagesTest extends TestCase
         $this->assertSame($url, $media->url());
         SystemSetting::putBool('object_storage_direct', false);
         $this->assertStringContainsString('/media-files/'.$media->id, $media->url());
+        SystemSetting::put(PublicWebVisibility::KEY_MODE, PublicWebVisibility::CLOSED);
+        auth()->logout();
         $this->get($media->url())->assertOk();
     }
 

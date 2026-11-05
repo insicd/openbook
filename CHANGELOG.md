@@ -19,6 +19,15 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Visibilità pubblica configurabile**: nuovo tab in Questa istanza con modalità
+  Tutto visibile, Solo contenuti locali e Tutto chiuso, più controllo di tag e
+  tendenze. Post, eventi, profili, community e commenti rispettano la scelta anche
+  nei frammenti e nelle citazioni. Il controllo del feed ospiti passa qui da
+  Aspetto e segue la stessa modalità. I valori impliciti conservano il
+  comportamento attuale; federazione e utenti autenticati restano invariati.
+- **Avatar ingrandibili**: nelle pagine dei profili locali, remoti e delle
+  community, cliccare l’immagine del profilo apre lo stesso visualizzatore
+  delle immagini dei post, utilizzabile anche da tastiera.
 - **Object storage S3 opzionale**: pagina admin `/admin/object-storage` con
   preset Cloudflare R2, Amazon S3, DigitalOcean Spaces, OVHcloud e S3 generico.
   Nuovi allegati immagine/audio/video, miniature, poster, avatar e copertine
@@ -321,6 +330,12 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Pannello amministrativo riorganizzato**: Impostazioni diventa Questa istanza,
+  con tab Generali, Registrazioni e policy, Contenuti e Visibilità pubblica.
+  Video e Moderazione hanno pagine dedicate; Domini bloccati è un tab di
+  Moderazione. Code e processi
+  e Segnalazioni usano gli stessi tab di Database. Menu laterale ordinato per
+  argomento con divisori discreti e salvataggi separati per ciascuna schermata.
 - **Requisiti PHP e dipendenze**: requisito minimo allineato a PHP **8.4.1**
   in Composer, installer e distribuzione; documentazione di installazione
   aggiornata. La piattaforma Composer è fissata a 8.4.1 per mantenere il lock
@@ -396,6 +411,10 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Integrità delle statistiche di consegna**: eliminare una sorgente statistica
+  elimina in cascata i suoi contatori giornalieri; il database impedisce bucket
+  orfani. La migration ripulisce prima i bucket privi di sorgente. La rimozione
+  di un relay continua a conservare lo storico statistico.
 - **Requisiti PHP per OAuth**: Sodium dichiarato esplicitamente in Composer,
   nel controllo bloccante dell’installer e nelle guide di installazione.
   Abilitare l’estensione sia per PHP CLI sia per il sito prima del deploy.

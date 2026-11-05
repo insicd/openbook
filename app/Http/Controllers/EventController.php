@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Application\Services\EventComposer;
 use App\Application\Services\LocalContentDeleter;
+use App\Application\Services\PublicWebVisibility;
 use App\Application\Services\QuotedEventResolver;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventComment;
@@ -109,6 +110,7 @@ class EventController extends Controller
         $events = Event::query()
             ->with(self::CARD_RELATIONS)
             ->visibleTo($viewer)
+            ->when(app(PublicWebVisibility::class)->localOnly($viewer), fn (Builder $query) => app(PublicWebVisibility::class)->constrainContent($query))
             ->where(function (Builder $query) use ($viewer): void {
                 $query->where('visibility', Event::VISIBILITY_PUBLIC);
 

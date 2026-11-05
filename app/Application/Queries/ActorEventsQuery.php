@@ -2,6 +2,7 @@
 
 namespace App\Application\Queries;
 
+use App\Application\Services\PublicWebVisibility;
 use App\Domain\Events\Event;
 use App\Federation\Actors\Actor;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 final class ActorEventsQuery
 {
-    public function forActor(Actor $actor, ?Actor $viewer, bool $archive, int $perPage = 18): LengthAwarePaginator
+    public function forActor(Actor $actor, ?Actor $viewer, bool $archive, int $perPage = 18, bool $localOnly = false): LengthAwarePaginator
     {
         $defaultHours = max(1, (int) config('openbook.events.default_duration_hours', 12));
         $activeStatuses = [Event::STATUS_SCHEDULED, Event::STATUS_TENTATIVE, Event::STATUS_POSTPONED];
@@ -17,6 +18,7 @@ final class ActorEventsQuery
         return Event::query()
             ->with(['actor.user.profile', 'location', 'media.thumbnail', 'attributions.user.profile'])
             ->visibleTo($viewer)
+            ->when($localOnly, fn (Builder $query) => app(PublicWebVisibility::class)->constrainContent($query))
             ->where(function (Builder $query) use ($actor): void {
                 $query->where('actor_id', $actor->id)
                     ->orWhereHas('attributions', fn (Builder $query) => $query->whereKey($actor->id));

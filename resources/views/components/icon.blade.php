@@ -8,6 +8,9 @@
 --}}
 @php
     $paths = [
+        'video' => '<rect x="3" y="5" width="12" height="14" rx="2"/><path d="m15 10 6-4v12l-6-4"/>',
+        'shield' => '<path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7l-9-4Z"/>',
+        'list' => '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
         'cloud' => '<path d="M7 19a5 5 0 1 1 1-9.9A7 7 0 0 1 21 12a3.5 3.5 0 0 1-.5 7H7Z"/>',
         'route' => '<circle cx="6" cy="5" r="2"/><circle cx="18" cy="19" r="2"/><path d="M6 7v3a2 2 0 0 0 2 2h8a2 2 0 0 1 2 2v3"/>',
         'language' => '<path d="M2 5h12M7 2v3M11 5c-1 5-4 8-8 10M5 8c1 3 3 5 6 7"/><path d="m13 22 4.5-10L22 22M15 18h5"/>',

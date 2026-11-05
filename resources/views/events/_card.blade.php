@@ -1,3 +1,4 @@
+@if (app(\App\Application\Services\PublicWebVisibility::class)->allowsContent($event))
 @php
     $cover = $event->media->first();
     $location = $event->location;
@@ -51,3 +52,5 @@
         </div>
     </a>
 </article>
+
+@endif

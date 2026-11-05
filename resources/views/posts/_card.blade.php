@@ -1,3 +1,4 @@
+@if (app(\App\Application\Services\PublicWebVisibility::class)->allowsContent($post))
 @php
     /** @var \App\Domain\Posts\Post $post */
     $author = $post->actor;
@@ -298,3 +299,5 @@
         @endunless
     @endif
 </article>
+
+@endif

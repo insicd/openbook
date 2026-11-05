@@ -11,13 +11,7 @@
     <article class="ob-card" style="padding:0;overflow:hidden">
         <div class="ob-profile-cover" @if ($community->actor->coverUrl()) style="background-image:url('{{ $community->actor->coverUrl() }}');background-size:cover;background-position:center" @endif></div>
         <div class="ob-profile-header">
-            <div class="ob-profile-avatar" aria-hidden="true">
-                @if ($community->actor->avatarUrl())
-                    <img src="{{ $community->actor->avatarUrl() }}" alt="">
-                @else
-                    {{ mb_strtoupper(mb_substr($displayName, 0, 1)) }}
-                @endif
-            </div>
+            <x-profile-avatar :src="$community->actor->avatarUrl()" :name="$displayName" />
 
             <h1 class="ob-profile-name">{!! $community->actor->displayNameHtml() !!}</h1>
             <p class="ob-profile-handle">{{ $handle }}</p>

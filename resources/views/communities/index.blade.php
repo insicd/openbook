@@ -17,7 +17,7 @@
         </div>
 
         <nav class="ob-scope-switch" aria-label="{{ __('openbook.communities.scope_aria') }}">
-            @foreach (['mine', 'local', 'remote'] as $tab)
+            @foreach (app(\App\Application\Services\PublicWebVisibility::class)->localOnly(auth()->user()?->actor) ? ['local'] : ['mine', 'local', 'remote'] as $tab)
                 <a href="{{ route('communities.index', ['scope' => $tab]) }}"
                    class="ob-btn {{ $scope === $tab ? 'ob-btn--primary' : 'ob-btn--ghost' }}"
                    @if ($scope === $tab) aria-current="page" @endif>{{ __('openbook.communities.scope_'.$tab) }}</a>
