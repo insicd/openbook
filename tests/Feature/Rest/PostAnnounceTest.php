@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Laravel\Passport\Passport;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\Concerns\UsesPassportKeys;
@@ -50,8 +51,10 @@ class PostAnnounceTest extends TestCase
         return '/rest/v1/posts/'.$post->id.'/announce';
     }
 
-    public function test_manual_announces_are_idempotent_and_update_existing_post_fields(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_manual_announces_are_idempotent_and_update_existing_post_fields(bool $verified): void
     {
+        $this->viewer->forceFill(['email_verified_at' => $verified ? now() : null])->save();
         $post = $this->published($this->createFullAccount('announceauthor')->actor);
         $detail = '/rest/v1/posts/'.$post->id;
         $etag = $this->get($detail)->assertOk()->headers->get('ETag');

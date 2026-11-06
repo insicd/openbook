@@ -37,6 +37,8 @@ final class EventCommentComposer
         array $images = [],
         array $altTexts = [],
     ): EventComment {
+        ContentCreationGuard::ensureAllowed($author);
+
         RemoteInteractionGuard::assertAllowed($author, $event->actor, $parent?->actor);
 
         if (! $event->isOpenForInteractions()) {

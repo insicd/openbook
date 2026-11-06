@@ -6,9 +6,9 @@
     <div class="ob-card">
         <div class="ob-section-heading">
             <h1>{{ __('openbook.events.title') }}</h1>
-            @auth
+            @can('createContent')
                 <a href="{{ route('events.create') }}" class="ob-btn ob-btn--primary">{{ __('openbook.events.composer.create') }}</a>
-            @endauth
+            @endcan
         </div>
         <p class="ob-field__help">{{ __('openbook.events.subtitle') }}</p>
         <div class="ob-scope-switch" role="tablist">

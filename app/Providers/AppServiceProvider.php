@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Application\Queries\SidebarSuggestionContext;
 use App\Application\Queries\SuggestedActorsByBioQuery;
 use App\Application\Queries\SuggestedLocalActorsQuery;
+use App\Application\Services\ContentCreationGuard;
 use App\Application\Services\ConversationReadTracker;
 use App\Application\Services\InstanceSettings;
 use App\Application\Services\ObjectStorageSettings;
@@ -115,6 +116,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Community::class, CommunityPolicy::class);
         Gate::policy(Event::class, EventPolicy::class);
         Gate::policy(EventComment::class, EventCommentPolicy::class);
+
+        Gate::define('createContent', fn (User $user): bool => ContentCreationGuard::allows($user));
 
         Gate::define('accessAdminPanel', fn ($user) => $user->isStaff());
         Gate::define('moderate', fn ($user) => $user->canModerate());

@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Hash;
 
 trait CreatesAccounts
 {
+    public static function emailVerificationStates(): array
+    {
+        return ['verified' => [true], 'unverified' => [false]];
+    }
+
     private function createFullAccount(string $username, array $overrides = []): User
     {
         $user = app(AccountRegistrar::class)->register(array_merge([

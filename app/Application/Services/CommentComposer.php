@@ -50,6 +50,8 @@ final class CommentComposer
         array $images = [],
         array $altTexts = [],
     ): Comment {
+        ContentCreationGuard::ensureAllowed($author);
+
         RemoteInteractionGuard::assertAllowed($author, $post->actor, $parent?->actor);
 
         if ($parent !== null && $parent->post_id !== $post->id) {

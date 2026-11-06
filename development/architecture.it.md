@@ -487,3 +487,20 @@ la produzione; restano i guard di installazione, autenticazione e autorizzazione
 scelte e roadmap è in [REST_SERVICE](../analysis/REST_SERVICE.md). Nuove entità
 o scritture vanno prima confrontate con i flussi Web, includendo i controlli
 oggi presenti nei controller oltre a quelli dei servizi.
+
+## Verifica email e contenuti creati dagli utenti
+
+`ContentCreationGuard` controlla l'autore esplicito all'ingresso dei servizi
+applicativi, prima di persistenza, elaborazione media o effetti federativi.
+Ogni nuovo servizio che crea contenuti originali deve riusare questa regola.
+Per Actor Person locali richiede un User verificato, anche senza sessione HTTP;
+autori remoti, feed e Group tecnici conservano i flussi attuali. Non dedurre
+l'autore dalla sessione e non aggiungere observer Eloquent o middleware generali
+sulle mutazioni.
+
+Il Gate `createContent` condivide la regola con composer e azioni di contenuto.
+`EmailVerificationRequired` viene gestita centralmente per browser, AJAX e REST.
+La coda video salta gli autori non verificati senza consumare tentativi e il
+finalizzatore ricontrolla prima della preparazione media e della pubblicazione.
+Follow, like, boost, personalizzazione profilo e ciclo dei contenuti esistenti
+conservano il comportamento attuale.

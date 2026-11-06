@@ -5,7 +5,7 @@
 @section('content')
     <div class="ob-card ob-narrow">
         <h1>{{ __('openbook.verify_email.title') }}</h1>
-        <p>{{ __('openbook.verify_email.body') }}</p>
+        <p>{{ __('openbook.verify_email.content_required') }}</p>
 
         <form method="POST" action="{{ route('verification.send') }}">
             @csrf

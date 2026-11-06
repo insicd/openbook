@@ -29,3 +29,16 @@ stored encrypted in the database with APP_KEY. Preserve both in backups and
 across deployments; unreadable existing keys fail without automatic replacement.
 Limits and deployment guidance are documented in the
 [API guide](api/README.md).
+
+## Email verification and publishing
+
+Until the email address is verified, local accounts can browse, personalize their
+profile, follow people, like and reshare existing posts. Creating posts (including
+quotes and polls), comments, events, private messages and communities requires
+verification. Video publication also waits for verification. This applies to the
+website and REST API, including existing unverified accounts.
+
+Open the verification page from the notice to request another email. Confirming
+the signed link enables publishing without another login. Existing tokens continue
+to work. Editing or deleting existing content keeps its current permissions.
+Email verification does not replace visibility, ownership or moderation checks.

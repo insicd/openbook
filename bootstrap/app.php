@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\EmailVerificationRequired;
 use App\Http\Middleware\AuthenticateRest;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureApplicationIsInstalled;
@@ -15,6 +16,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -52,6 +54,30 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->render(function (AccessDeniedHttpException $exception, Request $request) {
+            if (! $exception->getPrevious() instanceof EmailVerificationRequired) {
+                return null;
+            }
+
+            if ($request->routeIs('rest.v1.*')) {
+                return response()->json([
+                    'type' => 'about:blank',
+                    'title' => 'Forbidden',
+                    'status' => 403,
+                    'code' => 'emailVerificationRequired',
+                ], 403, ['Content-Type' => 'application/problem+json', 'Cache-Control' => 'no-store']);
+            }
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                    'code' => 'emailVerificationRequired',
+                ], 403)->header('Cache-Control', 'no-store');
+            }
+
+            return redirect()->route('verification.notice');
+        });
+
         $exceptions->render(function (Throwable $e, Request $request) {
             $handler = app(TransientConnectionHandler::class);
 

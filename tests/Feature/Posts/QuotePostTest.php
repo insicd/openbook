@@ -24,7 +24,8 @@ class QuotePostTest extends TestCase
 {
     use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
-    public function test_the_share_menu_offers_direct_share_and_quote(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_the_share_menu_offers_direct_share_and_quote(bool $verified): void
     {
         $author = $this->createFullAccount('menushare');
         $post = app(PostComposer::class)->compose($author->actor, [
@@ -32,11 +33,23 @@ class QuotePostTest extends TestCase
             'visibility' => Post::VISIBILITY_PUBLIC,
         ]);
 
+        $author->forceFill(['email_verified_at' => $verified ? now() : null])->save();
         $response = $this->actingAs($author)->get(route('feed.index'), ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
         $response->assertSee('class="ob-post__share-menu"', false);
         $response->assertSee(__('openbook.actions.announce_direct'), false);
+        if (! $verified) {
+            $response->assertDontSee(route('posts.quote', $post), false);
+            $response->assertDontSee(route('posts.share_to_user', $post), false);
+            $this->postJson(route('posts.store'), [
+                'body' => 'Quote attempt', 'visibility' => 'public', 'quoted_post_id' => $post->id,
+            ])->assertForbidden()->assertJsonPath('code', 'emailVerificationRequired');
+            $this->assertDatabaseCount('posts', 1);
+
+            return;
+        }
+
         $response->assertSee(__('openbook.actions.announce_quote'), false);
         $response->assertSee(__('openbook.actions.announce_share_user'), false);
         $response->assertSee(route('posts.quote', $post), false);

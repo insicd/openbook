@@ -5,9 +5,11 @@ namespace Tests\Feature\Posts;
 use App\Application\Services\PostComposer;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
+use App\Exceptions\EmailVerificationRequired;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
@@ -15,9 +17,28 @@ class PostComposerTest extends TestCase
 {
     use CreatesAccounts, RefreshDatabase;
 
-    public function test_it_creates_a_published_post(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_it_creates_a_published_post(bool $verified): void
     {
         $author = $this->createFullAccount('autoreuno');
+        $author->forceFill(['email_verified_at' => $verified ? now() : null])->save();
+
+        if (! $verified) {
+            try {
+                app(PostComposer::class)->compose($author->actor, ['body' => 'Spam @someone #tag']);
+                $this->fail('Unverified content must be rejected.');
+            } catch (EmailVerificationRequired) {
+                foreach (['posts', 'mentions', 'hashtags', 'notifications', 'media'] as $table) {
+                    $this->assertDatabaseCount($table, 0);
+                }
+            }
+
+            $author->actor->forceFill(['user_id' => null])->save();
+            $this->expectException(EmailVerificationRequired::class);
+            app(PostComposer::class)->compose($author->actor, ['body' => 'Missing local identity']);
+
+            return;
+        }
 
         $post = app(PostComposer::class)->compose($author->actor, [
             'body' => 'Il mio primo post su Openbook.',

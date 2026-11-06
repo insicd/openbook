@@ -468,3 +468,19 @@ including production; installed-state, authentication and authorization guards r
 are in [REST_SERVICE](../analysis/REST_SERVICE.md). Compare new entities and writes
 with existing website flows first, including checks in controllers as well as
 services.
+
+## Verified email and user-authored content
+
+`ContentCreationGuard` checks the explicit author at the application-service
+boundary, before persistence, media processing or federation side effects.
+Every new service creating user-authored content must reuse this guard. It
+requires a verified User for local Person actors, including callers without an
+HTTP session; remote authors, feed imports and technical Group actors retain
+their existing flows. Do not infer the author from the current browser session
+or add a general Eloquent observer or mutation middleware.
+
+The `createContent` Gate shares the rule with composers and content actions.
+`EmailVerificationRequired` is rendered centrally for browser, AJAX and REST.
+The video queue skips unverified authors without consuming attempts and the
+finalizer checks again before preparing media and publishing. Follow, like,
+boost, profile customization and existing-content lifecycle are unaffected.

@@ -484,3 +484,15 @@ un server raggiungibile con le credenziali indicate dalle variabili d'ambiente
 `OPENBOOK_TEST_MYSQL_USERNAME`, `OPENBOOK_TEST_MYSQL_PASSWORD` (valori di esempio gia'
 presenti in `phpunit.xml`). Per eseguirli davvero, avvia un'istanza MySQL/MariaDB
 usa-e-getta con quelle credenziali prima di lanciare la suite.
+
+### Verifica email prima della creazione di contenuti
+
+I test di pubblicazione esistenti usano `CreatesAccounts::emailVerificationStates`
+per autori verificati e non verificati, senza duplicare le matrici dei payload.
+Auth e OAuth verificano la pubblicazione dopo conferma con la stessa sessione
+o Bearer; i casi negati controllano che contenuti, file, contatori e notifiche
+restino invariati. Follow, reazioni, boost e impostazioni vengono esercitati
+nei due stati. Staging/finalizzazione video e CLI coprono pubblicazioni in attesa,
+tentativi non consumati, avanzamento degli altri autori e ripresa dopo verifica.
+Eseguire Auth, Posts, Comments, Events, Communities, Messaging, Rest, Settings,
+SocialGraph, Reactions e Console, poi la suite completa.

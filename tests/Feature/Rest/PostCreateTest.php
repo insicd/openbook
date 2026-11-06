@@ -122,6 +122,15 @@ class PostCreateTest extends TestCase
         foreach (['[]', 'null', '"text"', '123'] as $json) {
             $this->call('POST', '/rest/v1/posts', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_AUTHORIZATION' => 'Bearer test-token'], content: $json)->assertStatus(422);
         }
+        $this->author->forceFill(['email_verified_at' => null])->save();
+        $this->postJson('/rest/v1/posts', $this->payload())->assertForbidden()
+            ->assertHeader('Content-Type', 'application/problem+json')
+            ->assertJsonPath('code', 'emailVerificationRequired');
+        $this->assertDatabaseCount('posts', 0);
+        $this->assertDatabaseCount('notifications', 0);
+        Queue::assertNothingPushed();
+        $this->author->forceFill(['email_verified_at' => now()])->save();
+
         $this->withoutHeader('Authorization')->postJson('/rest/v1/posts', $this->payload())->assertUnauthorized();
         $this->withToken('test-token');
         $this->author->actor->update(['status' => 'suspended']);

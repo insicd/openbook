@@ -292,7 +292,9 @@
                 }
 
                 if (!response.ok) {
-                    throw new Error(sendErrorLabel);
+                    return response.json().then(function (data) {
+                        throw new Error(data.message || sendErrorLabel);
+                    });
                 }
 
                 return response.json();

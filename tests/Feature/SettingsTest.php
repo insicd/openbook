@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -123,9 +124,11 @@ class SettingsTest extends TestCase
             ->assertSee('Unsaved biography')->assertSee('ob-field__error', false);
     }
 
-    public function test_a_user_can_update_their_display_name_bio_and_links(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_a_user_can_update_their_display_name_bio_and_links(bool $verified): void
     {
         $user = $this->createFullAccount('alice');
+        $user->forceFill(['email_verified_at' => $verified ? now() : null])->save();
 
         $response = $this->actingAs($user)->put(route('settings.profile.update'), [
             'display_name' => 'Alice Wonderland',
@@ -212,10 +215,12 @@ class SettingsTest extends TestCase
             ->assertOk()->assertJsonPath('attachment', []);
     }
 
-    public function test_a_user_can_upload_an_avatar_and_the_previous_one_is_removed(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_a_user_can_upload_an_avatar_and_the_previous_one_is_removed(bool $verified): void
     {
         Storage::fake('public');
         $user = $this->createFullAccount('alice');
+        $user->forceFill(['email_verified_at' => $verified ? now() : null])->save();
 
         $this->actingAs($user)->put(route('settings.profile.update'), [
             'display_name' => 'Alice',
@@ -252,9 +257,11 @@ class SettingsTest extends TestCase
         $this->assertNull($user->profile->fresh()->avatar_path);
     }
 
-    public function test_a_user_can_update_their_interface_language(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_a_user_can_update_their_interface_language(bool $verified): void
     {
         $user = $this->createFullAccount('alice');
+        $user->forceFill(['email_verified_at' => $verified ? now() : null])->save();
 
         $response = $this->actingAs($user)->put(route('settings.account.update'), [
             'locale' => 'en',

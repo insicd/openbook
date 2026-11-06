@@ -4661,7 +4661,7 @@
       "post": {
         "operationId": "createPost",
         "summary": "Create a text post",
-        "description": "Creates a text post as the authenticated user. The body is a NewPost object with explicit text and audience; all other properties are rejected in this initial version. Text length follows the instance's configured limit. Hashtags and mentions use the same behavior as website publishing; only local accounts and remote accounts already known to the instance are resolved as mentions. The response is the full Post representation without feed context. HTTP 201 confirms local publication, not delivery to every remote server. Repeating POST may create another post; an error does not guarantee that no post was created. Requires an authenticated active account and a Bearer token.",
+        "description": "Creates a text post as the authenticated user. The body is a NewPost object with explicit text and audience; all other properties are rejected in this initial version. Text length follows the instance's configured limit. Hashtags and mentions use the same behavior as website publishing; only local accounts and remote accounts already known to the instance are resolved as mentions. The response is the full Post representation without feed context. HTTP 201 confirms local publication, not delivery to every remote server. Repeating POST may create another post; an error does not guarantee that no post was created. Requires an authenticated active account and a Bearer token. Creating a post requires a verified email address. Unverified accounts may still read, follow, like and reshare. After email confirmation, an existing Bearer can create posts.",
         "tags": [
           "Posts"
         ],
@@ -4882,7 +4882,7 @@
             }
           },
           "403": {
-            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "description": "The authenticated account is unavailable or is not allowed to use this operation. Email verification is required to create a post; in that case the response includes code emailVerificationRequired.",
             "headers": {
               "Cache-Control": {
                 "description": "Errors are not stored.",
@@ -4900,7 +4900,8 @@
                 "example": {
                   "type": "about:blank",
                   "title": "Forbidden",
-                  "status": 403
+                  "status": 403,
+                  "code": "emailVerificationRequired"
                 }
               }
             }
@@ -7451,6 +7452,13 @@
             "type": "string",
             "format": "uri-reference",
             "description": "A URI identifying this occurrence, when available."
+          },
+          "code": {
+            "type": "string",
+            "description": "A machine-readable reason when available. Creating a post before email verification returns emailVerificationRequired.",
+            "examples": [
+              "emailVerificationRequired"
+            ]
           }
         }
       },

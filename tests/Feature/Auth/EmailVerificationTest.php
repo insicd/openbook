@@ -7,11 +7,12 @@ use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class EmailVerificationTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, \Tests\Concerns\CreatesAccounts;
 
     public function test_unverified_user_sees_the_verification_notice(): void
     {
@@ -33,7 +34,12 @@ class EmailVerificationTest extends TestCase
 
     public function test_a_signed_link_verifies_the_email(): void
     {
-        $user = User::factory()->unverified()->create();
+        $user = $this->createFullAccount('confirmationflow');
+        $user->forceFill(['email_verified_at' => null])->save();
+        $this->actingAs($user)->get(route('feed.index'))->assertOk()->assertDontSee('id="ob-composer"', false);
+        $payload = ['body' => 'First verified post', 'visibility' => 'public'];
+        $this->post(route('posts.store'), $payload)->assertRedirect(route('verification.notice'));
+        $this->assertDatabaseCount('posts', 0);
 
         $url = URL::temporarySignedRoute(
             'verification.verify',
@@ -45,17 +51,30 @@ class EmailVerificationTest extends TestCase
 
         $response->assertRedirect(route('feed.index'));
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
+        $this->post(route('posts.store'), $payload)->assertRedirect();
+        $this->assertDatabaseHas('posts', ['actor_id' => $user->actor->id, 'body' => $payload['body']]);
     }
 
-    public function test_an_invalid_hash_does_not_verify_the_email(): void
+    public static function invalidVerificationLinks(): array
+    {
+        return ['hash' => ['hash'], 'expired' => ['expired'], 'signature' => ['signature'], 'identity' => ['identity']];
+    }
+
+    #[DataProvider('invalidVerificationLinks')]
+    public function test_an_invalid_link_does_not_verify_the_email(string $failure): void
     {
         $user = User::factory()->unverified()->create();
 
         $url = URL::temporarySignedRoute(
             'verification.verify',
-            now()->addMinutes(60),
-            ['id' => $user->id, 'hash' => sha1('email-sbagliata@example.test')],
+            $failure === 'expired' ? now()->subMinute() : now()->addMinutes(60),
+            ['id' => $failure === 'identity' ? 'another-user' : $user->id,
+                'hash' => sha1($failure === 'hash' ? 'email-sbagliata@example.test' : $user->email)],
         );
+
+        if ($failure === 'signature') {
+            $url .= '&tampered=1';
+        }
 
         $this->actingAs($user)->get($url)->assertForbidden();
         $this->assertFalse($user->fresh()->hasVerifiedEmail());

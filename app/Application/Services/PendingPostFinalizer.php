@@ -91,5 +91,7 @@ final class PendingPostFinalizer
         if ($actor === null || ! $actor->isLocal() || $actor->status !== Actor::STATUS_ACTIVE) {
             throw new \RuntimeException('L\'autore del post in attesa non puo\' piu\' pubblicare.');
         }
+
+        ContentCreationGuard::ensureAllowed($actor);
     }
 }

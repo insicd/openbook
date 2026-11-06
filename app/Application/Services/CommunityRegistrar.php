@@ -28,6 +28,8 @@ final class CommunityRegistrar
      */
     public function register(User $owner, array $data): Community
     {
+        ContentCreationGuard::ensureAllowed($owner);
+
         $slug = mb_strtolower($data['slug']);
         $domain = (string) config('openbook.domain');
 

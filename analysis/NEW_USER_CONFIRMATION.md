@@ -125,8 +125,9 @@ la query, verificare il piano reale MySQL/MariaDB oltre ai test SQLite.
 
 Gestione comune dell'eccezione: pagina/invito alla verifica per browser; 403 JSON
 per AJAX; 403 application/problem+json per REST con motivo distinguibile
-emailVerificationRequired. RestPersonRequest oggi scarta i dettagli di eccezione:
-adattare solo questo caso, mantenendo il formato degli altri errori. Credenziali
+emailVerificationRequired. RestPersonRequest normalizza gli errori generici: la gestione comune deve
+produrre direttamente il problem strutturato per questo caso, mantenendo il
+formato degli altri errori. Credenziali
 mancanti o invalide restano 401. Non aggiungere campi a /me o scope OAuth nuovi.
 
 Rendere indisponibili composer e comandi di nuovo contenuto, conservando like,
@@ -203,3 +204,60 @@ verificato attraverso sito, REST o staging; lettura, personalizzazione e interaz
 ammesse funzionanti; verifica abilita la creazione senza nuova autenticazione;
 nessuna regressione di federazione o utenti verificati. Registrare qui eventuali
 decisioni tecniche emerse e gli esiti effettivi, separandoli dalla baseline.
+
+## 8. Attuazione e review tecnica
+
+La regola è implementata in ContentCreationGuard e richiamata dai sette servizi
+di creazione e dal finalizzatore video. Il Gate createContent è usato da composer,
+azioni e avviso nel layout; la gestione comune dell'eccezione rende il 403 JSON
+oppure l'invito alla verifica. RestPersonRequest non richiede modifiche: il
+renderer comune restituisce già application/problem+json per le rotte REST.
+Laravel prepara AuthorizationException come AccessDeniedHttpException prima
+delle callback: il renderer riconosce la causa specifica e lascia intatti gli
+altri errori. Il controllo sull'Actor rilegge il User per non usare una relazione
+caricata prima della conferma; nessuna verifica viene memorizzata nel Bearer.
+
+La coda aggiunge EXISTS su Actor e User verificato, prima di acquisire un lavoro.
+Sonda MySQL isolata, schema temporaneo con tutte le migration, 500 User/Actor e
+10.000 pubblicazioni (500 pendenti, metà autori verificati): claim effettivo e
+EXPLAIN passati. Il piano usa post_publication_queue_pending_index con range
+pending/processing, ordinamento dei candidati per created_at e lookup singoli
+PRIMARY su actors e users. Nessun indice aggiuntivo giustificato dal piano
+osservato. Test su MySQL 26.10.0; MariaDB non esercitato.
+
+Le suite esistenti sono state parametrizzate, senza nuove classi di test nel
+repository: copertura di contenuti negati e interazioni consentite nei due stati,
+conferma nella stessa sessione, PKCE/refresh e sblocco dello stesso Bearer,
+staging/worker e ripresa senza starvation. I link invalidi sono ora una matrice
+di hash, scadenza, firma e identità. ProfileTest riusa CreatesAccounts per le
+fixture che pubblicano, evitando un secondo helper con account non verificati.
+La fixture browser dei sondaggi dichiara l'email verificata e rende anche il
+composer non verificato per controllarne l'assenza su desktop e mobile.
+
+Review applicativa: proprietà/visibilità restano nei controlli esistenti;
+nessun allargamento dei destinatari o cambiamento di federazione. Nuove quote,
+commenti e DM sono contenuti; boost e profilo mantengono i flussi precedenti.
+Modifiche/cancellazioni di contenuti storici restano intenzionalmente fuori dal
+nuovo requisito. Nessuna migrazione, servizio esterno o worker aggiuntivo.
+
+Esiti di validazione:
+
+- Suite completa: 2.401 casi, 18.812 asserzioni, nessun errore/fallimento,
+  131 test opzionali saltati (integrazioni non abilitate/disponibili).
+- Ultimo ampliamento della matrice dei link invalidi e regressione video:
+  18 casi e 78 asserzioni passati, inclusi i tre nuovi casi firma/scadenza/identità
+  rispetto alla scoperta della suite completa precedente.
+- Regressioni profilo e ciclo di modifica/cancellazione post/eventi: 23 casi,
+  254 asserzioni passati. Altri test mirati di creazione/UI/impostazioni: 103 casi,
+  620 asserzioni passati. I numeri dei sottoinsiemi non si sommano alla suite.
+- Browser esistente polls.cjs: passato con Chromium già installato su viewport
+  desktop 1280 e mobile 375, includendo il composer assente per i non verificati.
+- Sonda MySQL isolata di claim/EXPLAIN: 1 caso e 4 asserzioni passati;
+  no nuovi indici. Server temporaneo arrestato al termine delle verifiche.
+- Pint, controlli sintattici JavaScript e diff whitespace passati. OpenAPI JSON
+  letto con successo, 168 riferimenti locali risolti e nuovo esempio 403 verificato;
+  non è stata eseguita una validazione OpenAPI mediante validatore esterno.
+
+Non esercitati: MariaDB, consegna SMTP effettiva, interoperabilità tra istanze
+reali e client mobile nativo. Video elaborati tramite gli strumenti finti dei
+fixture già esistenti, non tramite una conversione reale con ffmpeg.

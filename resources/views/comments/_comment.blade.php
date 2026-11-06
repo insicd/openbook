@@ -116,7 +116,7 @@
                     </button>
                 </form>
 
-                @if ($showReplyForm)
+                @if ($showReplyForm && auth()->user()->can('createContent'))
                     <button
                         type="button"
                         class="ob-post__action"

@@ -34,6 +34,8 @@ final class EventComposer
      */
     public function compose(Actor $author, array $data): Event
     {
+        ContentCreationGuard::ensureAllowed($author);
+
         $event = DB::transaction(function () use ($author, $data): Event {
             $timezone = (string) $data['timezone'];
             $startsAt = Carbon::createFromFormat('Y-m-d\TH:i', (string) $data['start_at'], $timezone);

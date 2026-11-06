@@ -9,11 +9,13 @@ use App\Application\Services\MessageComposer;
 use App\Domain\Messaging\Conversation;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
+use App\Exceptions\EmailVerificationRequired;
 use App\Federation\Actors\Actor;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -22,10 +24,25 @@ class ConversationTest extends TestCase
 {
     use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
-    public function test_a_user_can_send_a_message_to_a_local_contact(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_a_user_can_send_a_message_to_a_local_contact(bool $verified): void
     {
         $alice = $this->createFullAccount('alice');
+        $alice->forceFill(['email_verified_at' => $verified ? now() : null])->save();
         $bob = $this->createFullAccount('bob');
+
+        if (! $verified) {
+            try {
+                app(MessageComposer::class)->send($alice->actor, $bob->actor, 'Ciao Bob!');
+                $this->fail('Unverified messages must be rejected.');
+            } catch (EmailVerificationRequired) {
+                $this->assertDatabaseCount('posts', 0);
+                $this->assertDatabaseCount('conversations', 0);
+                $this->assertDatabaseCount('notifications', 0);
+            }
+
+            return;
+        }
 
         $post = app(MessageComposer::class)->send($alice->actor, $bob->actor, 'Ciao Bob!');
 

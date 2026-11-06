@@ -56,6 +56,8 @@ final class PostComposer
      */
     public function compose(Actor $author, array $data): Post
     {
+        ContentCreationGuard::ensureAllowed($author);
+
         $pollDefinition = $this->pollPublisher->definitionFor($author, $data);
         $images = $data['images'] ?? [];
         $preparedMedia = $data['prepared_media'] ?? [];

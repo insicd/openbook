@@ -22,6 +22,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -30,15 +31,29 @@ class CommunityTest extends TestCase
 {
     use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
-    public function test_a_user_can_create_a_local_community_group_actor(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_a_user_can_create_a_local_community_group_actor(bool $verified): void
     {
         $owner = $this->createFullAccount('owner');
+        $owner->forceFill(['email_verified_at' => $verified ? now() : null])->save();
 
         $response = $this->actingAs($owner)->post(route('communities.store'), [
             'slug' => 'bici',
             'name' => 'Amanti della bici',
             'summary' => 'Pedalate e racconti.',
         ]);
+
+        if (! $verified) {
+            $response->assertRedirect(route('verification.notice'));
+            $this->assertDatabaseCount('communities', 0);
+            $this->assertDatabaseCount('actors', 1);
+            $this->assertDatabaseCount('actor_keys', 1);
+            $this->assertDatabaseCount('actor_endpoints', 1);
+            $this->get(route('communities.create'))->assertOk()
+                ->assertDontSee('action="'.route('communities.store').'"', false);
+
+            return;
+        }
 
         $community = Community::query()->where('slug', 'bici')->first();
         $this->assertNotNull($community);

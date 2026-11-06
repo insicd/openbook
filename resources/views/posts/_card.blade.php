@@ -235,16 +235,18 @@
                                         {{ __('openbook.actions.unannounce') }}
                                     </button>
                                 </form>
-                                <a href="{{ route('posts.quote', $post) }}" class="ob-post__menu-item" role="menuitem">
-                                    <x-icon name="quote" />
-                                    {{ __('openbook.actions.announce_quote') }}
-                                </a>
-                                @unless ($post->isDirectMessage())
-                                    <a href="{{ route('posts.share_to_user', $post) }}" class="ob-post__menu-item" role="menuitem">
-                                        <x-icon name="message" />
-                                        {{ __('openbook.actions.announce_share_user') }}
+                                @can('createContent')
+                                    <a href="{{ route('posts.quote', $post) }}" class="ob-post__menu-item" role="menuitem">
+                                        <x-icon name="quote" />
+                                        {{ __('openbook.actions.announce_quote') }}
                                     </a>
-                                @endunless
+                                    @unless ($post->isDirectMessage())
+                                        <a href="{{ route('posts.share_to_user', $post) }}" class="ob-post__menu-item" role="menuitem">
+                                            <x-icon name="message" />
+                                            {{ __('openbook.actions.announce_share_user') }}
+                                        </a>
+                                    @endunless
+                                @endcan
                                 @include('posts._share_link_actions')
                             </div>
                         </details>

@@ -35,6 +35,8 @@ final class MessageComposer
         ?Actor $quotedActor = null,
         ?Event $quotedEvent = null,
     ): Post {
+        ContentCreationGuard::ensureAllowed($sender);
+
         RemoteInteractionGuard::assertAllowed($sender, $recipient, $quotedPost?->actor, $quotedActor, $quotedEvent?->actor);
 
         $body = trim($body);

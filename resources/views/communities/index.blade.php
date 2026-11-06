@@ -9,11 +9,11 @@
                 <h1>{{ __('openbook.communities.index_title') }}</h1>
                 <p class="ob-field__help">{{ __('openbook.communities.index_subtitle_'.$scope) }}</p>
             </div>
-            @auth
+            @can('createContent')
                 @can('create', App\Domain\Communities\Community::class)
                     <a href="{{ route('communities.create') }}" class="ob-btn ob-btn--primary">{{ __('openbook.communities.create') }}</a>
                 @endcan
-            @endauth
+            @endcan
         </div>
 
         <nav class="ob-scope-switch" aria-label="{{ __('openbook.communities.scope_aria') }}">
