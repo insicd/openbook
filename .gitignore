@@ -6,6 +6,7 @@
 /storage/*.key
 /storage/installed.lock
 /storage/pail
+/storage/debugbar
 /vendor
 .env
 .env.backup

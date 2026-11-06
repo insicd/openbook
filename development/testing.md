@@ -2,6 +2,19 @@
 
 ## Tests
 
+### Local query profiler
+
+`composer install` includes Laravel Debugbar as a development dependency.
+With `APP_ENV=local` and `APP_DEBUG=true`, HTML pages show a toolbar with SQL
+queries, timings, memory usage and framework details. Set `DEBUGBAR_ENABLED=false`
+to disable it locally. It stays disabled in other environments, even with debug
+enabled, and is omitted by `composer install --no-dev`. After changing flags,
+clear cached configuration with `php artisan config:clear`.
+
+Profiler data in `storage/debugbar` is excluded from Git. Profiling adds overhead,
+so use query counts to identify duplicates and measure final performance with
+the profiler disabled.
+
 ### Experimental REST and OAuth
 
 REST tests cover visibility, ownership, relationships and requests, caching,
