@@ -117,9 +117,11 @@ class OAuthTest extends TestCase
         $this->get($url)->assertOk()->assertSee('Example mobile app')->assertSee($user->federatedHandle());
     }
 
-    public function test_pkce_exchange_returns_standard_tokens_for_all_rest_endpoints(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_pkce_exchange_returns_standard_tokens_for_all_rest_endpoints(bool $verified): void
     {
         $user = $this->createFullAccount('oauthperson');
+        $user->forceFill(['email_verified_at' => $verified ? now() : null])->save();
         $code = $this->code($user);
         $response = $this->exchange($code)->assertOk()->assertJsonStructure(['access_token', 'token_type', 'expires_in', 'refresh_token']);
         $this->assertSame('Bearer', $response->json('token_type'));
@@ -132,6 +134,15 @@ class OAuthTest extends TestCase
         foreach (['', '/followers', '/following'] as $suffix) {
             $this->withToken($token)->get('/rest/v1/persons/'.$user->actor->id.$suffix)->assertOk();
         }
+        if (! $verified) {
+            $payload = ['postContent' => 'After email confirmation', 'postVisibility' => 'public'];
+            $this->withToken($token)->postJson('/rest/v1/posts', $payload)->assertForbidden()
+                ->assertJsonPath('code', 'emailVerificationRequired');
+            $this->assertDatabaseCount('posts', 0);
+            $user->forceFill(['email_verified_at' => now()])->save();
+            $this->withToken($token)->postJson('/rest/v1/posts', $payload)->assertCreated();
+        }
+
         $this->exchange($code)->assertStatus(400);
     }
 
@@ -261,9 +272,11 @@ class OAuthTest extends TestCase
         $this->withToken($expired->toString())->get($url)->assertUnauthorized();
     }
 
-    public function test_refresh_works_without_another_login(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_refresh_works_without_another_login(bool $verified): void
     {
         $user = $this->createFullAccount('oauthrefresh');
+        $user->forceFill(['email_verified_at' => $verified ? now() : null])->save();
         $tokens = $this->exchange($this->code($user))->assertOk()->json();
         $next = $this->post('/oauth/token', ['grant_type' => 'refresh_token', 'client_id' => $this->client->id,
             'refresh_token' => $tokens['refresh_token']])->assertOk()->json();

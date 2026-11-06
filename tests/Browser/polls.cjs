@@ -44,7 +44,7 @@ const server = http.createServer((request, response) => {
     response.setHeader('Content-Type', 'text/html; charset=utf-8');
     response.end(`<!DOCTYPE html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1">
         <link rel="stylesheet" href="/assets/app.css"></head><body><main class="ob-shell"><article class="ob-card">
-        <h1>Meet up</h1>${url.pathname.startsWith('/poll') ? '' : (modal || fixture.composer)}
+        <h1>Meet up</h1>${url.pathname.startsWith('/poll') ? '' : (url.pathname === '/unverified' ? fixture.unverifiedComposer : (modal || fixture.composer))}
         ${poll}<div class="ob-post__actions">♡ 0　♧ 0　♧ 0</div></article></main><script src="/assets/shared-composer.js" defer></script><script src="/assets/composer.js" defer></script><script src="/assets/polls.js" defer></script><script src="/assets/shortcut.js" defer></script>
         </body></html>`.replaceAll('http://openbook.test', origin));
 });
@@ -61,6 +61,8 @@ const server = http.createServer((request, response) => {
         const origin = `http://127.0.0.1:${server.address().port}`;
         for (const viewport of [{width: 1280, height: 900}, {width: 375, height: 812}]) {
             await page.setViewportSize(viewport);
+            await page.goto(origin + '/unverified');
+            assert.equal(await page.locator('[data-composer]').count(), 0);
             await page.goto(origin);
             const composer = page.locator('[data-poll-composer]');
             const togglePoll = page.locator('[data-composer-toggle="browser-panel-poll"]');

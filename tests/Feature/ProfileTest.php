@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Application\Services\AccountRegistrar;
 use App\Application\Services\PostComposer;
 use App\Domain\Accounts\User;
 use App\Domain\Posts\Post;
@@ -10,21 +9,12 @@ use App\Domain\Posts\PostAttachment;
 use App\Infrastructure\Media\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Hash;
+use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
 {
-    use RefreshDatabase;
-
-    private function createFullAccount(string $username): User
-    {
-        return app(AccountRegistrar::class)->register([
-            'username' => $username,
-            'email' => $username.'@example.test',
-            'password' => Hash::make('Password123'),
-        ]);
-    }
+    use CreatesAccounts, RefreshDatabase;
 
     public function test_the_canonical_profile_page_is_reachable(): void
     {

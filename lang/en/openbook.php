@@ -208,6 +208,7 @@ return [
     ],
 
     'verify_email' => [
+        'content_required' => 'Verify your email address to publish content and send messages. In the meantime, you can explore, customize your profile, follow people, like and reshare posts.',
         'title' => 'Verify your email address',
         'body' => 'Before continuing, please check your inbox: we sent you a verification link.',
         'resend' => "Didn't receive it? Resend the email",

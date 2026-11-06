@@ -199,6 +199,7 @@ return [
         'welcome' => 'Tervetuloa palveluun :app! Tilisi on luotu.',
     ],
     'verify_email' => [
+        'content_required' => 'Vahvista sähköpostiosoitteesi, jotta voit julkaista sisältöä ja lähettää viestejä. Voit sillä välin tutustua palveluun, muokata profiiliasi, seurata käyttäjiä, tykätä ja jakaa julkaisuja.',
         'title' => 'Vahvista sähköpostiosoitteesi',
         'body' => 'Tarkista sähköpostisi ennen jatkamista: lähetimme sinulle vahvistuslinkin.',
         'resend' => 'Lähetä vahvistusviesti uudelleen',

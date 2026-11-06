@@ -3,9 +3,11 @@
 namespace Tests\Feature\Posts;
 
 use App\Application\Services\PendingPostFinalizer;
+use App\Application\Services\PostPublicationQueue;
 use App\Application\Services\PostPublicationStager;
 use App\Domain\Posts\PendingPostAttachment;
 use App\Domain\Posts\PendingPostPublication;
+use App\Exceptions\EmailVerificationRequired;
 use App\Federation\Serialization\NoteSerializer;
 use App\Infrastructure\Database\SystemSetting;
 use App\Infrastructure\Media\MediaStorage;
@@ -14,6 +16,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
@@ -21,7 +24,8 @@ class PostPublicationStagerTest extends TestCase
 {
     use CreatesAccounts, RefreshDatabase;
 
-    public function test_it_stages_a_compatible_video_without_creating_a_post(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_it_stages_a_compatible_video_without_creating_a_post(bool $verified): void
     {
         Storage::fake('local');
         config([
@@ -30,7 +34,21 @@ class PostPublicationStagerTest extends TestCase
             'openbook.video.passthrough_max_mb' => 8,
         ]);
         $author = $this->createFullAccount('videostager');
+        $author->forceFill(['email_verified_at' => $verified ? now() : null])->save();
         $video = UploadedFile::fake()->createWithContent('clip.mp4', $this->mp4Bytes());
+
+        if (! $verified) {
+            config(['openbook.video.ffprobe_path' => '/missing/ffprobe']);
+            try {
+                app(PostPublicationStager::class)->stage($author->actor, ['body' => 'Video', 'images' => [$video]]);
+                $this->fail('Unverified staging must be rejected before probing.');
+            } catch (EmailVerificationRequired) {
+                $this->assertDatabaseCount('post_publication_queue', 0);
+                $this->assertSame([], Storage::disk('local')->allFiles());
+            }
+
+            return;
+        }
 
         $publication = app(PostPublicationStager::class)->stage($author->actor, [
             'body' => 'Un video in attesa.',
@@ -84,7 +102,8 @@ class PostPublicationStagerTest extends TestCase
         }
     }
 
-    public function test_it_finalizes_a_staged_post_once_and_exposes_its_poster(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_it_finalizes_a_staged_post_once_and_exposes_its_poster(bool $verified): void
     {
         Storage::fake('local');
         Storage::fake('public');
@@ -100,6 +119,21 @@ class PostPublicationStagerTest extends TestCase
             'images' => [UploadedFile::fake()->createWithContent('clip.mp4', $this->mp4Bytes())],
             'alt_texts' => ['Video dimostrativo'],
         ]);
+
+        if (! $verified) {
+            $author->forceFill(['email_verified_at' => null])->save();
+            $this->assertNull(app(PostPublicationQueue::class)->claimNext());
+            $this->assertSame(0, $publication->fresh()->attempts);
+            try {
+                app(PendingPostFinalizer::class)->finalize($publication);
+                $this->fail('Pending content must not bypass email verification.');
+            } catch (EmailVerificationRequired) {
+                $this->assertDatabaseCount('posts', 0);
+                $this->assertSame([], Storage::disk('public')->allFiles());
+                Storage::disk('local')->assertExists($publication->attachments->first()->path);
+            }
+            $author->forceFill(['email_verified_at' => now()])->save();
+        }
 
         $post = app(PendingPostFinalizer::class)->finalize($publication);
         $samePost = app(PendingPostFinalizer::class)->finalize($publication);

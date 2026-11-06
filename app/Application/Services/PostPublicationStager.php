@@ -29,6 +29,8 @@ final class PostPublicationStager
      */
     public function stage(Actor $author, array $data): PendingPostPublication
     {
+        ContentCreationGuard::ensureAllowed($author);
+
         $pollDefinition = $this->pollPublisher->definitionFor($author, $data);
         if ($pollDefinition !== null) {
             $data['poll'] = $pollDefinition->toArray();

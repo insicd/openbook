@@ -2,6 +2,19 @@
 
 ## Tests
 
+### Local query profiler
+
+`composer install` includes Laravel Debugbar as a development dependency.
+With `APP_ENV=local` and `APP_DEBUG=true`, HTML pages show a toolbar with SQL
+queries, timings, memory usage and framework details. Set `DEBUGBAR_ENABLED=false`
+to disable it locally. It stays disabled in other environments, even with debug
+enabled, and is omitted by `composer install --no-dev`. After changing flags,
+clear cached configuration with `php artisan config:clear`.
+
+Profiler data in `storage/debugbar` is excluded from Git. Profiling adds overhead,
+so use query counts to identify duplicates and measure final performance with
+the profiler disabled.
+
 ### Experimental REST and OAuth
 
 REST tests cover visibility, ownership, relationships and requests, caching,
@@ -479,3 +492,15 @@ variables `OPENBOOK_TEST_MYSQL_HOST`, `OPENBOOK_TEST_MYSQL_PORT`,
 `OPENBOOK_TEST_MYSQL_PASSWORD` (sample values already present in
 `phpunit.xml`). To actually run them, start a throwaway MySQL/MariaDB instance
 with those credentials before launching the suite.
+
+### Email verification before content creation
+
+Existing publication tests use `CreatesAccounts::emailVerificationStates` to
+exercise verified and unverified authors without duplicating payload matrices.
+Auth and OAuth tests verify publishing after confirmation with the same session
+or Bearer; creation tests check that rejection leaves content, files, counters
+and notifications unchanged. Follow, reaction, boost and settings cases run in
+both states. Video staging/finalization and CLI cases cover held publications,
+no consumed attempts, other authors progressing and resumption after verification.
+Run the Auth, Posts, Comments, Events, Communities, Messaging, Rest, Settings,
+SocialGraph, Reactions and Console suites, then the full suite.

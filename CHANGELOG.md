@@ -330,6 +330,11 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Verifica email prima della pubblicazione**: gli account non verificati possono
+  leggere, personalizzare il profilo, seguire, mettere mi piace e ricondividere.
+  Nuovi post, commenti, eventi, messaggi e community richiedono la conferma email
+  anche via REST; i video pendenti attendono senza consumare tentativi. La verifica
+  abilita la pubblicazione con la stessa sessione o token.
 - **Pannello amministrativo riorganizzato**: Impostazioni diventa Questa istanza,
   con tab Generali, Registrazioni e policy, Contenuti e Visibilità pubblica.
   Video e Moderazione hanno pagine dedicate; Domini bloccati è un tab di

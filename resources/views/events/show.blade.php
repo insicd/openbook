@@ -214,7 +214,7 @@
                     <details class="ob-post__share-menu">
                         <summary class="ob-btn ob-btn--ghost"><x-icon name="share" /> {{ __('openbook.events.share') }}</summary>
                         <div class="ob-post__menu-panel" role="menu">
-                            @if (auth()->check() && ! $event->actor?->isRemotelySuspended())
+                            @if (auth()->user()?->can('createContent') && ! $event->actor?->isRemotelySuspended())
                                 <a href="{{ route('events.share_to_user', $event) }}" class="ob-post__menu-item" role="menuitem">
                                     <x-icon name="message" /> {{ __('openbook.actions.announce_share_user') }}
                                 </a>

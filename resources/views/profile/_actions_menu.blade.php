@@ -2,7 +2,7 @@
     $actor = $actor ?? null;
     $autoAnnounce = $autoAnnounce ?? false;
     $showAutoAnnounce = (bool) ($showAutoAnnounce ?? false);
-    $showShareToUser = $actor !== null && $actor->isPerson() && $actor->isActive() && ! $actor->isRemotelySuspended();
+    $showShareToUser = auth()->user()?->can('createContent') && $actor !== null && $actor->isPerson() && $actor->isActive() && ! $actor->isRemotelySuspended();
     $shareUrl = null;
 
     if ($showShareToUser) {

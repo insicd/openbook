@@ -25,7 +25,7 @@ URL::forceRootUrl('http://openbook.test');
 Cache::put('openbook.domain_blocks', [], 60);
 request()->setLaravelSession(app('session.store'));
 view()->share('errors', new ViewErrorBag);
-$user = (new User)->forceFill(['id' => '00000000-0000-4000-8000-000000000001', 'status' => User::STATUS_ACTIVE]);
+$user = (new User)->forceFill(['id' => '00000000-0000-4000-8000-000000000001', 'status' => User::STATUS_ACTIVE, 'email_verified_at' => now()]);
 $actor = (new Actor)->forceFill(['id' => '00000000-0000-4000-8000-000000000002', 'user_id' => $user->id, 'is_local' => true, 'status' => Actor::STATUS_ACTIVE, 'uri' => 'http://openbook.test/users/author']);
 $user->setRelation('actor', $actor)->setRelation('settings', null)->setRelation('profile', null);
 $actor->setRelation('user', $user);
@@ -73,5 +73,8 @@ foreach ($options as $selected) {
     $votersHtml[$selected->id] = view('polls._voters', ['post' => $post, 'poll' => $poll, 'selected' => $selected,
         'voters' => $paginator, 'archivedCount' => 3])->render();
 }
-echo json_encode(['composer' => view('composer.form', ['prefix' => 'browser', 'errors' => new ViewErrorBag])->render(),
+$composer = view('composer.form', ['prefix' => 'browser', 'errors' => new ViewErrorBag])->render();
+$user->email_verified_at = null;
+$unverifiedComposer = view('composer.form', ['prefix' => 'browser', 'errors' => new ViewErrorBag])->render();
+echo json_encode(['composer' => $composer, 'unverifiedComposer' => $unverifiedComposer,
     'poll' => $initial, 'results' => $results, 'confirmed' => $confirmed, 'voters' => $votersHtml], JSON_THROW_ON_ERROR);

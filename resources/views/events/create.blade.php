@@ -3,6 +3,7 @@
 @section('title', __(isset($event) ? 'openbook.events.composer.edit_title' : 'openbook.events.composer.title').' - '.config('app.name'))
 
 @section('content')
+@if (isset($event) || auth()->user()->can('createContent'))
     @php
         $editing = isset($event);
         $eventTimezone = $editing ? $event->timezoneForDisplay() : app(\App\Support\UserDate::class)->timezone();
@@ -230,4 +231,5 @@
             updateMode();
         })();
     </script>
+@endif
 @endsection

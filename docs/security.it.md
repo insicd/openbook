@@ -29,3 +29,17 @@ automaticamente e conservate nel database cifrate con APP_KEY. Mantenere entramb
 nei backup e nei deploy; chiavi esistenti non leggibili producono un errore senza
 sostituzione automatica. Limiti e istruzioni operative sono descritti nella
 [guida API](api/README.it.md).
+
+## Verifica email e pubblicazione
+
+Prima della verifica email gli account locali possono navigare, personalizzare
+il profilo, seguire utenti, mettere mi piace e ricondividere post esistenti.
+Creare post (incluse citazioni e sondaggi), commenti, eventi, messaggi privati e
+community richiede la verifica. Anche la pubblicazione video attende la conferma.
+Il vincolo vale per sito e REST API, inclusi gli account esistenti non verificati.
+
+Dall'avviso si accede alla pagina di verifica per richiedere una nuova email.
+Confermando il link firmato si abilita la pubblicazione senza un nuovo login;
+i token esistenti restano utilizzabili. Modifica e cancellazione di contenuti
+esistenti conservano i permessi attuali. La verifica non sostituisce i controlli
+di visibilità, proprietà e moderazione.

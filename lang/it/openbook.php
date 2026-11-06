@@ -208,6 +208,7 @@ return [
     ],
 
     'verify_email' => [
+        'content_required' => 'Verifica il tuo indirizzo email per pubblicare contenuti e inviare messaggi. Nel frattempo puoi esplorare, personalizzare il profilo, seguire utenti, mettere mi piace e ricondividere post.',
         'title' => 'Verifica il tuo indirizzo email',
         'body' => 'Prima di continuare, controlla la tua casella di posta: ti abbiamo inviato un link di verifica.',
         'resend' => 'Non hai ricevuto nulla? Invia di nuovo l\'email',

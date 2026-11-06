@@ -229,3 +229,13 @@ Notification e Hashtag e le loro relazioni. Upload Media e post complessi
 richiedono contratti dedicati. Non sono già implementati da questo sprint.
 Cache basata sulle date, ricerca, sondaggi, messaggistica e ulteriori impostazioni
 restano da definire.
+
+## Verifica email
+
+Gli account non verificati possono autorizzare applicazioni, ottenere e rinnovare
+token, leggere risorse, seguire utenti, mettere mi piace e ricondividere post.
+Creare un post richiede la verifica email: altrimenti `POST /rest/v1/posts`
+restituisce HTTP 403, `application/problem+json` e
+`code: "emailVerificationRequired"`. Dopo la conferma tramite il sito, lo stesso
+Bearer permette di creare post senza una nuova autorizzazione. I permessi di
+modifica e cancellazione dei post esistenti restano invariati.

@@ -43,7 +43,7 @@
             @endforelse
         </div>
 
-        @if ($canSend)
+        @if ($canSend && auth()->user()->can('createContent'))
             <form method="POST" action="{{ route('messages.store', $conversation) }}" class="ob-message-composer"
                 id="ob-message-composer" data-ajax="1">
                 @csrf
@@ -109,7 +109,7 @@
                     <button type="submit" class="ob-btn ob-btn--primary" id="ob-message-submit">{{ __('openbook.messages.send') }}</button>
                 </div>
             </form>
-        @else
+        @elseif (auth()->user()->can('createContent'))
             <p class="ob-field__help ob-message-thread__blocked">{{ __('openbook.messages.cannot_send') }}</p>
         @endif
     </div>

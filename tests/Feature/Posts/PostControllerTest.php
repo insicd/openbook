@@ -10,6 +10,7 @@ use App\Infrastructure\Media\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
@@ -17,14 +18,23 @@ class PostControllerTest extends TestCase
 {
     use CreatesAccounts, RefreshDatabase;
 
-    public function test_an_authenticated_user_can_publish_a_post(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_an_authenticated_user_can_publish_a_post(bool $verified): void
     {
         $user = $this->createFullAccount('pubblicatore');
+        $user->forceFill(['email_verified_at' => $verified ? now() : null])->save();
 
         $response = $this->actingAs($user)->post(route('posts.store'), [
             'body' => 'Il mio post dalla richiesta HTTP.',
             'visibility' => Post::VISIBILITY_PUBLIC,
         ]);
+
+        if (! $verified) {
+            $response->assertRedirect(route('verification.notice'));
+            $this->assertDatabaseCount('posts', 0);
+
+            return;
+        }
 
         $post = Post::query()->where('body', 'Il mio post dalla richiesta HTTP.')->first();
         $this->assertNotNull($post);
@@ -35,14 +45,23 @@ class PostControllerTest extends TestCase
         ]);
     }
 
-    public function test_an_ajax_post_upload_returns_its_redirect_as_json(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_an_ajax_post_upload_returns_its_redirect_as_json(bool $verified): void
     {
         $user = $this->createFullAccount('pubblicatoreajax');
+        $user->forceFill(['email_verified_at' => $verified ? now() : null])->save();
 
         $response = $this->actingAs($user)->postJson(route('posts.store'), [
             'body' => 'Il mio post caricato via XHR.',
             'visibility' => Post::VISIBILITY_PUBLIC,
         ]);
+
+        if (! $verified) {
+            $response->assertForbidden()->assertJsonPath('code', 'emailVerificationRequired');
+            $this->assertDatabaseCount('posts', 0);
+
+            return;
+        }
 
         $post = Post::query()->where('body', 'Il mio post caricato via XHR.')->sole();
         $response

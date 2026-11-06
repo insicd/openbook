@@ -1,3 +1,4 @@
+@if (($editingPost ?? null) !== null || auth()->user()?->can('createContent'))
 @php
     /**
      * Composer unificato per post, commenti e risposte.
@@ -395,3 +396,5 @@
         </div>
     </form>
 </div>
+
+@endif

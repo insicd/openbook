@@ -8,6 +8,7 @@ use App\Infrastructure\Database\SystemSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
@@ -15,12 +16,20 @@ class ProcessVideosCommandTest extends TestCase
 {
     use CreatesAccounts, RefreshDatabase;
 
-    public function test_once_processes_one_pending_post_and_stops(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_once_processes_one_pending_post_and_stops(bool $verified): void
     {
         Storage::fake('local');
         Storage::fake('public');
         $tools = $this->fakeTools();
         $this->enableVideo($tools);
+        $held = null;
+        if (! $verified) {
+            $held = $this->stage('worker-held');
+            $held->forceFill(['created_at' => now()->subMinute()])->save();
+            $held->actor->user->forceFill(['email_verified_at' => null])->save();
+        }
+
         $publication = $this->stage('worker-success');
 
         $this->artisan('openbook:process-videos', ['--once' => true])
@@ -30,6 +39,18 @@ class ProcessVideosCommandTest extends TestCase
         $publication->refresh();
         $this->assertSame(PendingPostPublication::STATUS_PUBLISHED, $publication->status);
         $this->assertNotNull($publication->post_id);
+        if ($held !== null) {
+            $this->assertSame(PendingPostPublication::STATUS_PENDING, $held->fresh()->status);
+            $this->assertSame(0, $held->fresh()->attempts);
+            $held->actor->user->forceFill(['email_verified_at' => now()])->save();
+            $this->artisan('openbook:process-videos', ['--once' => true])->assertSuccessful();
+            $this->assertSame(PendingPostPublication::STATUS_PUBLISHED, $held->fresh()->status);
+            $this->assertSame(1, $held->fresh()->attempts);
+            $this->assertDatabaseCount('posts', 2);
+
+            return;
+        }
+
         $this->assertDatabaseCount('posts', 1);
     }
 

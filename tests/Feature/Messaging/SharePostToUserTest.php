@@ -10,6 +10,7 @@ use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\TestCase;
 
@@ -125,7 +126,8 @@ class SharePostToUserTest extends TestCase
             ->assertSee('Originale da citare in DM.');
     }
 
-    public function test_a_quoted_direct_message_may_have_an_empty_body(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_a_quoted_direct_message_may_have_an_empty_body(bool $verified): void
     {
         Queue::fake();
 
@@ -137,6 +139,19 @@ class SharePostToUserTest extends TestCase
         ]);
         $conversation = app(ConversationResolver::class)
             ->findOrCreate($alice->actor, $bob->actor);
+
+        $alice->forceFill(['email_verified_at' => $verified ? now() : null])->save();
+        if (! $verified) {
+            $this->actingAs($alice)->get(route('messages.show', $conversation))->assertOk()
+                ->assertDontSee('id="ob-message-composer"', false);
+            $this->postJson(route('messages.store', $conversation), [
+                'body' => '', 'quoted_post_id' => $original->id,
+            ])->assertForbidden()->assertJsonPath('code', 'emailVerificationRequired');
+            $this->assertDatabaseCount('posts', 1);
+            $this->assertDatabaseCount('notifications', 0);
+
+            return;
+        }
 
         $this->actingAs($alice)
             ->postJson(route('messages.store', $conversation), [

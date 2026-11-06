@@ -15,6 +15,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -23,11 +24,19 @@ class EventBrowseTest extends TestCase
 {
     use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
-    public function test_event_composer_prototype_is_reserved_to_authenticated_users(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_event_composer_prototype_is_reserved_to_authenticated_users(bool $verified): void
     {
         $this->get(route('events.create'))->assertRedirect(route('login'));
 
         $user = $this->createFullAccount('eventcomposer');
+        $user->forceFill(['email_verified_at' => $verified ? now() : null])->save();
+        if (! $verified) {
+            $this->actingAs($user)->get(route('events.index'))->assertOk()->assertDontSee(route('events.create'));
+            $this->get(route('events.create'))->assertOk()->assertDontSee('action="'.route('events.store').'"', false);
+
+            return;
+        }
 
         $this->actingAs($user)
             ->get(route('events.index'))
@@ -45,11 +54,13 @@ class EventBrowseTest extends TestCase
             ->assertSee('action="'.route('events.store').'"', false);
     }
 
-    public function test_local_user_can_create_an_unlisted_hybrid_event(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_local_user_can_create_an_unlisted_hybrid_event(bool $verified): void
     {
         Storage::fake('public');
         config()->set('openbook.locations.catalog_ready', true);
         $user = $this->createFullAccount('eventauthor');
+        $user->forceFill(['email_verified_at' => $verified ? now() : null])->save();
         $mentioned = $this->createFullAccount('eventfriend');
         $city = GeoCity::query()->create([
             'geoname_id' => 658225,
@@ -86,6 +97,16 @@ class EventBrowseTest extends TestCase
             'join_mode' => 'restricted',
             'visibility' => Event::VISIBILITY_UNLISTED,
         ]);
+
+        if (! $verified) {
+            $response->assertRedirect(route('verification.notice'));
+            foreach (['events', 'notifications', 'media', 'mentions'] as $table) {
+                $this->assertDatabaseCount($table, 0);
+            }
+            $this->assertSame([], Storage::disk('public')->allFiles());
+
+            return;
+        }
 
         $event = Event::query()->with(['location', 'hashtags', 'mentions', 'media.thumbnail'])->firstOrFail();
         $response->assertRedirect(route('events.show', $event));

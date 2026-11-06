@@ -31,6 +31,7 @@ final class PostPublicationQueue
                     ]);
 
                 $publication = PendingPostPublication::query()
+                    ->whereHas('actor.user', fn ($query) => $query->whereNotNull('email_verified_at'))
                     ->where('attempts', '<', $maxAttempts)
                     ->where(function ($query) use ($expiredBefore): void {
                         $query->where('status', PendingPostPublication::STATUS_PENDING)

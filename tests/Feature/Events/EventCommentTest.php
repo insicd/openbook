@@ -12,6 +12,7 @@ use App\Federation\Serialization\ActivitySerializer;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -20,16 +21,26 @@ class EventCommentTest extends TestCase
 {
     use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
-    public function test_local_comment_is_stored_notifies_the_owner_and_is_rendered(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_local_comment_is_stored_notifies_the_owner_and_is_rendered(bool $verified): void
     {
         Queue::fake();
         $owner = $this->createFullAccount('eventcommentowner');
         $commenter = $this->createFullAccount('eventcommenter');
+        $commenter->forceFill(['email_verified_at' => $verified ? now() : null])->save();
         $event = $this->event($owner->actor);
 
         $this->actingAs($commenter)->post(route('event-comments.store', $event), [
             'body' => 'Che bellissimo evento!',
         ])->assertRedirect();
+
+        if (! $verified) {
+            $this->assertDatabaseCount('event_comments', 0);
+            $this->assertDatabaseCount('notifications', 0);
+            Queue::assertNothingPushed();
+
+            return;
+        }
 
         $comment = EventComment::query()->sole();
         $this->assertSame($event->id, $comment->event_id);

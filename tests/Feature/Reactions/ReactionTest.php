@@ -10,6 +10,7 @@ use App\Domain\Accounts\User;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -26,10 +27,12 @@ class ReactionTest extends TestCase
         ]);
     }
 
-    public function test_liking_a_post_increments_the_counter_and_notifies_the_author(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_liking_a_post_increments_the_counter_and_notifies_the_author(bool $verified): void
     {
         $author = $this->createFullAccount('autoreliked');
         $liker = $this->createFullAccount('mipiace');
+        $liker->forceFill(['email_verified_at' => $verified ? now() : null])->save();
         $post = $this->publishPost($author);
 
         app(ReactionManager::class)->like($liker->actor, $post);

@@ -39,25 +39,27 @@
 
             @auth
                 <div class="ob-header__center">
-                    <a
-                        href="{{ route('feed.index') }}#ob-composer"
-                        class="ob-compose-btn ob-compose-btn--header{{ ($isHomeFeed ?? false) ? '' : ' is-visible' }}"
-                        id="ob-compose-header"
-                        data-compose-trigger
-                        data-compose-home="{{ ($isHomeFeed ?? false) ? '1' : '0' }}"
-                        aria-label="{{ __('openbook.nav.new_post') }}"
-                        title="{{ __('openbook.nav.new_post') }}"
-                        aria-haspopup="dialog"
-                        aria-controls="ob-compose-modal"
-                        @if ($isHomeFeed ?? false)
-                            aria-hidden="true"
-                            tabindex="-1"
-                        @else
-                            aria-hidden="false"
-                        @endif
-                    >
-                        <x-icon name="plus" />
-                    </a>
+                    @can('createContent')
+                        <a
+                            href="{{ route('feed.index') }}#ob-composer"
+                            class="ob-compose-btn ob-compose-btn--header{{ ($isHomeFeed ?? false) ? '' : ' is-visible' }}"
+                            id="ob-compose-header"
+                            data-compose-trigger
+                            data-compose-home="{{ ($isHomeFeed ?? false) ? '1' : '0' }}"
+                            aria-label="{{ __('openbook.nav.new_post') }}"
+                            title="{{ __('openbook.nav.new_post') }}"
+                            aria-haspopup="dialog"
+                            aria-controls="ob-compose-modal"
+                            @if ($isHomeFeed ?? false)
+                                aria-hidden="true"
+                                tabindex="-1"
+                            @else
+                                aria-hidden="false"
+                            @endif
+                        >
+                            <x-icon name="plus" />
+                        </a>
+                    @endcan
                 </div>
 
                 <div class="ob-header__end">
@@ -157,6 +159,17 @@
                 </div>
             @endif
 
+            @auth
+                @cannot('createContent')
+                    @unless (request()->routeIs('verification.notice'))
+                        <div class="ob-alert" role="status">
+                            {{ __('openbook.verify_email.content_required') }}
+                            <a href="{{ route('verification.notice') }}">{{ __('openbook.verify_email.title') }}</a>
+                        </div>
+                    @endunless
+                @endcannot
+            @endauth
+
             @yield('content')
         </main>
 
@@ -244,6 +257,7 @@
         ></div>
         <script src="{{ \App\Support\Assets::url('assets/js/search-suggest.js') }}" defer></script>
 
+        @can('createContent')
         <a
             href="{{ route('feed.index') }}#ob-composer"
             class="ob-compose-btn ob-compose-btn--fab{{ ($isHomeFeed ?? false) ? '' : ' is-visible' }}"
@@ -265,6 +279,7 @@
         </a>
 
         @include('partials.compose-modal')
+        @endcan
     @endauth
 
     @if (auth()->check() || ($guestHomeFeed ?? false))

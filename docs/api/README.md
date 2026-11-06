@@ -225,3 +225,12 @@ Hashtag resources and their relationships. Media upload and complex post writes
 need dedicated contracts; they are not implemented by this sprint.
 Date-based caching, search, polls, messaging and further settings remain to be
 defined.
+
+## Email verification
+
+Unverified accounts can authorize applications, obtain and refresh tokens, read
+resources, follow people, like and reshare posts. Creating a post requires a
+verified email address. Otherwise `POST /rest/v1/posts` returns HTTP 403 with
+`application/problem+json` and `code: "emailVerificationRequired"`. After confirming
+the email through the website, the same Bearer can create posts without another
+authorization. Existing post editing and deletion permissions are unchanged.

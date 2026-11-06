@@ -8,11 +8,14 @@ use App\Domain\Accounts\User;
 use App\Domain\Comments\Comment;
 use App\Domain\Notifications\Notification;
 use App\Domain\Posts\Post;
+use App\Domain\Posts\PostBodyRenderer;
+use App\Exceptions\EmailVerificationRequired;
 use App\Federation\Serialization\NoteSerializer;
 use App\Policies\CommentPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -29,11 +32,26 @@ class CommentTest extends TestCase
         ]);
     }
 
-    public function test_a_top_level_comment_increments_the_post_counter_and_notifies_the_author(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_a_top_level_comment_increments_the_post_counter_and_notifies_the_author(bool $verified): void
     {
         $author = $this->createFullAccount('autorepost');
         $commenter = $this->createFullAccount('commentatore');
+        $commenter->forceFill(['email_verified_at' => $verified ? now() : null])->save();
         $post = $this->publishPost($author);
+
+        if (! $verified) {
+            try {
+                app(CommentComposer::class)->compose($commenter->actor, $post, 'Blocked comment');
+                $this->fail('Unverified comments must be rejected.');
+            } catch (EmailVerificationRequired) {
+                $this->assertSame(0, $post->fresh()->comments_count);
+                $this->assertDatabaseCount('comments', 0);
+                $this->assertDatabaseCount('notifications', 0);
+            }
+
+            return;
+        }
 
         $comment = app(CommentComposer::class)->compose($commenter->actor, $post, 'Bellissimo post!');
 
@@ -460,7 +478,7 @@ class CommentTest extends TestCase
             'type' => Notification::TYPE_MENTION,
         ]);
 
-        $localHtml = (string) \App\Domain\Posts\PostBodyRenderer::render($comment->body);
+        $localHtml = (string) PostBodyRenderer::render($comment->body);
         $this->assertStringContainsString('Bellissimo, senza menzione.', $localHtml);
         $this->assertStringNotContainsString('@'.$author->actor->handle(), $localHtml);
 

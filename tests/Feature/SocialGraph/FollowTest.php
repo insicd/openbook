@@ -7,6 +7,7 @@ use App\Domain\Accounts\User;
 use App\Domain\Notifications\Notification;
 use App\Domain\SocialGraph\Follow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\CreatesRemoteActors;
 use Tests\TestCase;
@@ -15,9 +16,11 @@ class FollowTest extends TestCase
 {
     use CreatesAccounts, CreatesRemoteActors, RefreshDatabase;
 
-    public function test_following_an_open_account_is_immediately_accepted(): void
+    #[DataProvider('emailVerificationStates')]
+    public function test_following_an_open_account_is_immediately_accepted(bool $verified): void
     {
         $follower = $this->createFullAccount('seguace1');
+        $follower->forceFill(['email_verified_at' => $verified ? now() : null])->save();
         $target = $this->createFullAccount('seguito1');
 
         $follow = app(FollowManager::class)->follow($follower->actor, $target->actor);

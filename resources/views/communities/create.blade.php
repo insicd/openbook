@@ -3,6 +3,7 @@
 @section('title', __('openbook.communities.create').' - '.config('app.name'))
 
 @section('content')
+@can('createContent')
     <div class="ob-card ob-narrow">
         <h1>{{ __('openbook.communities.create') }}</h1>
         <p class="ob-field__help">{{ __('openbook.communities.create_help') }}</p>
@@ -40,4 +41,5 @@
             <button type="submit" class="ob-btn ob-btn--primary">{{ __('openbook.communities.submit_create') }}</button>
         </form>
     </div>
+@endcan
 @endsection
