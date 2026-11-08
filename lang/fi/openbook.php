@@ -1070,6 +1070,8 @@ return [
             'does_not_receive' => 'vastaanotto pois käytöstä',
             'publishes' => 'julkaiseminen käytössä',
             'does_not_publish' => 'julkaiseminen pois käytöstä',
+            'received_today' => 'Tänään vastaanotettu sisältö: :count',
+            'received_last_seven_days' => 'Viimeisten 7 päivän aikana vastaanotettu sisältö: :count',
             'last_success' => 'Viimeisin onnistunut tiedonsiirto',
             'last_failure' => 'Viimeisin epäonnistuminen',
             'never' => 'ei koskaan',

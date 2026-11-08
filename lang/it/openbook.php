@@ -1096,6 +1096,8 @@ return [
             'does_not_receive' => 'ricezione disabilitata',
             'publishes' => 'pubblicazione abilitata',
             'does_not_publish' => 'pubblicazione disabilitata',
+            'received_today' => 'Contenuti ricevuti oggi: :count',
+            'received_last_seven_days' => 'Contenuti ricevuti negli ultimi 7 giorni: :count',
             'last_success' => 'Ultimo scambio riuscito',
             'last_failure' => 'Ultimo errore',
             'never' => 'mai',

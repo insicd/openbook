@@ -19,6 +19,9 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Statistiche per relay nel pannello admin**: ogni relay mostra i contenuti
+  ricevuti oggi e negli ultimi sette giorni, sommando le statistiche esistenti
+  per giorni UTC (oggi incluso).
 - **Modifica dei commenti ai post**: voce Modifica nel menu dei propri commenti,
   con conservazione degli allegati e invio ActivityPub Update. API REST per
   elenco, dettaglio, creazione testuale, modifica e cancellazione sotto

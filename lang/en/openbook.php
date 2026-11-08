@@ -1096,6 +1096,8 @@ return [
             'does_not_receive' => 'receiving disabled',
             'publishes' => 'publishing enabled',
             'does_not_publish' => 'publishing disabled',
+            'received_today' => 'Content received today: :count',
+            'received_last_seven_days' => 'Content received in the last 7 days: :count',
             'last_success' => 'Last successful exchange',
             'last_failure' => 'Last failure',
             'never' => 'never',

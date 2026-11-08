@@ -2,6 +2,7 @@
 
 namespace App\Application\Services;
 
+use App\Domain\Federation\Relay;
 use App\Federation\Inbox\InboxItem;
 
 final readonly class DeliverySource
@@ -15,6 +16,11 @@ final readonly class DeliverySource
             return new self('inbox');
         }
 
+        return self::forRelay($relay);
+    }
+
+    public static function forRelay(Relay $relay): self
+    {
         $identity = $relay->actor_uri ?: $relay->inbox_url;
         $host = parse_url($identity, PHP_URL_HOST);
 
