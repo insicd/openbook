@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openbook.name" . }}
+  labels:
+    {{- include "openbook.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  # Allow the 20-minute video shutdown before the rollout is considered stalled.
+  progressDeadlineSeconds: 1800
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openbook
+      app.kubernetes.io/instance: {{ .Release.Name | quote }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "openbook.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 1200
+      initContainers:
+        - name: prepare
+          {{- include "openbook.runtime" . | nindent 10 }}
+          args: ["php", "/usr/local/lib/openbook/prepare.php"]
+      containers:
+        - name: web
+          {{- include "openbook.runtime" . | nindent 10 }}
+          ports:
+            - name: http
+              containerPort: 80
+          startupProbe:
+            httpGet:
+              path: /up
+              port: http
+            timeoutSeconds: 5
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: /up
+              port: http
+            timeoutSeconds: 5
+            periodSeconds: 10
+        - name: cron
+          {{- include "openbook.runtime" . | nindent 10 }}
+          args: ["openbook-cron"]
+        - name: inbox
+          {{- include "openbook.runtime" . | nindent 10 }}
+          args: ["php", "artisan", "queue:work", "--queue=inbox", "--sleep=1", "--no-interaction"]
+        - name: delivery
+          {{- include "openbook.runtime" . | nindent 10 }}
+          args: ["php", "artisan", "queue:work", "--queue=delivery", "--sleep=1", "--no-interaction"]
+        {{- if .Values.video.enabled }}
+        - name: video
+          {{- include "openbook.runtime" . | nindent 10 }}
+          args: ["php", "artisan", "openbook:process-videos", "--no-interaction"]
+        {{- end }}
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: {{ include "openbook.claim" . }}

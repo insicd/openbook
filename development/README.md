@@ -11,5 +11,6 @@ issue reports live in `analysis/`.
 - [Tests and local checks](testing.md)
 - [Preparing a release](releases.md)
 - [Building and publishing Docker images](docker.md)
+- [Checking the Helm chart](helm.md)
 
 Read [CONTRIBUTING.md](../CONTRIBUTING.md) before contributing.

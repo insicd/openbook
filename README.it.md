@@ -42,6 +42,8 @@ Il percorso piu' semplice non richiede Composer ne' SSH. Usa il bootstrap
 4. Configura il cron: vedi [Configurazione](docs/configuration.it.md#cron-e-attivita-periodiche).
 
 Per installare l’immagine già pronta da Docker Hub, vedi [Installazione Docker](docs/docker.it.md).
+Un chart Helm opzionale è descritto in [Kubernetes](docs/kubernetes.it.md);
+non è ancora stato provato su un cluster.
 
 PHP deve avere l’estensione Sodium abilitata. Requisiti completi, installazione
 git/Composer, server web e aggiornamenti:

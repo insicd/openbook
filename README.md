@@ -41,6 +41,8 @@ The simplest path needs neither Composer nor SSH. It uses the
 4. Configure cron: see [Configuration](docs/configuration.md#cron-and-periodic-tasks).
 
 To install the prebuilt Docker Hub image, see [Docker installation](docs/docker.md).
+An optional Helm chart is described in [Kubernetes deployment](docs/kubernetes.md);
+it has not yet been tested on a cluster.
 
 PHP must have the Sodium extension enabled. Full requirements, git/Composer
 install, web server layouts, and updates:

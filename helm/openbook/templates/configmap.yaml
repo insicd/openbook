@@ -1,0 +1,23 @@
+{{- range $key := list "APP_KEY_FILE" "DB_PASSWORD_FILE" }}
+{{- if hasKey $.Values.env $key }}
+{{- fail (printf "%s is not supported by this chart; use APP_KEY and DB_PASSWORD in existingSecret" $key) }}
+{{- end }}
+{{- end }}
+{{- range $key := list "APP_KEY" "DB_PASSWORD" "MAIL_PASSWORD" }}
+{{- if hasKey $.Values.env $key }}
+{{- fail (printf "Put %s in existingSecret, not in env/Helm values" $key) }}
+{{- end }}
+{{- end }}
+{{- range $key := list "APP_URL" "OPENBOOK_DOMAIN" "DB_HOST" "DB_DATABASE" "DB_USERNAME" }}
+{{- $_ := required (printf "env.%s is required" $key) (get $.Values.env $key) }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openbook.name" . }}
+  labels:
+    {{- include "openbook.labels" . | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.env }}
+  {{ $key }}: {{ $value | toString | quote }}
+  {{- end }}

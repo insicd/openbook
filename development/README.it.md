@@ -11,5 +11,6 @@ in `docs/`; decisioni, analisi e resoconti delle issue in `analysis/`.
 - [Test e verifiche locali](testing.it.md)
 - [Preparare una release](releases.it.md)
 - [Creare e pubblicare le immagini Docker](docker.it.md)
+- [Verificare il chart Helm](helm.it.md)
 
 Prima di contribuire leggi [CONTRIBUTING.md](../CONTRIBUTING.md).
