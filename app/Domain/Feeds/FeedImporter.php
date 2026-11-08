@@ -4,6 +4,7 @@ namespace App\Domain\Feeds;
 
 use App\Application\Services\DeliverySource;
 use App\Application\Services\DeliveryStats;
+use App\Application\Services\HashtagStats;
 use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use Illuminate\Support\Carbon;
@@ -152,6 +153,7 @@ final class FeedImporter
             'status' => Post::STATUS_PUBLISHED,
             'published_at' => $publishedAt,
         ]);
+        app(HashtagStats::class)->changed([], $post);
         app(DeliveryStats::class)->record($post, new DeliverySource('feed'));
 
         return true;

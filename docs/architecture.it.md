@@ -171,7 +171,7 @@ sono riferite alla data di generazione del dataset, interpolate fra i bucket
 senza modificare i dati o interrogare nuovamente il corpus. Sono riferimenti
 alle durate: la pulizia effettiva usa la prima importazione, mentre l'asse dei
 grafici usa la pubblicazione. Le soglie disabilitate o fuori periodo sono
-nascoste; durate uguali condividono una linea. Calendario eventi, distribuzioni
+nascoste; durate uguali condividono una linea. Calendario eventi, storico hashtag, distribuzioni
 non temporali e bucket delle delivery non mostrano questi riferimenti.
 
 La geografia mostra i paesi associati ai luoghi dei contenuti, sommando
@@ -254,12 +254,23 @@ di cache non modifica i filtri delle query.
 Aggiornare le cache di configurazione e route al deploy.
 
 Ogni grafico carica i dati quando ti avvicini alla sua posizione nella pagina;
-un errore può essere ritentato senza ricaricare gli altri. Le statistiche rispettano le esclusioni
+un errore può essere ritentato senza ricaricare gli altri. Le statistiche sul corpus rispettano le esclusioni
 di visibilità e moderazione, inclusi account sospesi o eliminati e domini
 bloccati. Tutte le statistiche aggregate includono anche gli account con
 `discoverable=false` e `indexable=false`. Descrivono il corpus ancora
 conservato, non tutto il Fediverso: retention e cancellazioni possono cambiare
 le serie e uno zero non prova l'assenza storica di pubblicazioni.
+
+### Conteggi storici degli hashtag
+
+Il grafico hashtag è un'eccezione alle statistiche sul corpus: i conteggi
+giornalieri coprono 30 giorni e i mensili 24 mesi. Restano dopo la pulizia locale
+e vengono corretti solo entro la più breve retention abilitata. Sono
+approssimativi, usano la pubblicazione in UTC e l'ammissibilità al momento della
+registrazione, senza ricalcoli retroattivi generali della moderazione. Il
+dettaglio del tag usa i giornalieri in un piccolo trend Chart.js nell'intestazione,
+senza tabella dati. Vedere la [configurazione](configuration.it.md#storico-persistente-degli-hashtag)
+per popolamento automatico nella migrazione, reset opzionale e pulizia Database.
 
 ## Profilo e impostazioni
 

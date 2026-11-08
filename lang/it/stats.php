@@ -9,7 +9,7 @@ return [
     'login' => 'Accedi di nuovo',
     'no_js' => 'Abilita JavaScript per caricare i grafici.',
     'method_title' => 'Una prospettiva, non tutto il Fediverso',
-    'method' => 'I grafici dei contenuti descrivono il corpus pubblico conservato, rispettando la moderazione. Cancellazioni e retention possono cambiare i risultati. Le consegne descrivono invece i contenuti ricevuti nel periodo indicato.',
+    'method' => 'La maggior parte dei grafici descrive i contenuti pubblici conservati. I grafici degli hashtag usano conteggi storici approssimativi che restano dopo la pulizia locale. I grafici di consegna descrivono i contenuti ricevuti nel periodo indicato.',
     'rhythm' => [
         'eyebrow' => 'Il ritmo',
         'title' => 'Quindici giorni, ora per ora',
@@ -44,7 +44,7 @@ return [
         'eyebrow' => 'Gli argomenti',
         'title' => 'Di cosa si parla',
         'description' => 'Gli hashtag più usati mese per mese, seguiti lungo gli ultimi 24 mesi.',
-        'note' => 'I dieci hashtag più usati in ciascun mese. Passa sulla legenda per evidenziare un argomento o sul grafico per scoprirne il nome. Il mese corrente è parziale.',
+        'note' => 'I dieci hashtag più usati ogni mese. I conteggi storici approssimativi restano dopo la pulizia locale; le correzioni si fermano alla finestra di retention configurata. Il mese corrente è parziale.',
     ],
     'geography' => [
         'eyebrow' => 'I luoghi',

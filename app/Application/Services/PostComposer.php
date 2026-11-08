@@ -145,6 +145,8 @@ final class PostComposer
                 $community->increment('posts_count');
             }
 
+            app(HashtagStats::class)->changed([], $post);
+
             return $post;
         });
 
@@ -208,6 +210,7 @@ final class PostComposer
                 throw new InvalidArgumentException('Questo post non puo\' essere modificato.');
             }
             $post->load(['mentions.actor', 'community.actor']);
+            $statsBefore = app(HashtagStats::class)->snapshot($post);
             $this->pollPublisher->recordPostUpdate($post, $data);
             $post->update([
                 'title' => $data['title'] ?? null,
@@ -234,6 +237,8 @@ final class PostComposer
             $this->attachHashtags($post);
             $this->syncMentions($post, $author);
             $this->syncLocation($post, $data['location_id'] ?? null);
+
+            app(HashtagStats::class)->changed($statsBefore, $post);
 
             return $post->fresh() ?? $post;
         });

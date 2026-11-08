@@ -693,6 +693,10 @@ return [
     ],
 
     'hashtags' => [
+        'trend_heading' => 'Trend',
+        'trend_period' => 'Last 30 days',
+        'trend_title' => 'Trend over the last 30 days',
+
         'empty' => 'No public posts with this hashtag yet.',
         'index_title' => 'Trending',
         'index_subtitle' => 'Most used hashtags on public and unlisted posts from the last :days days, local and remote.',
@@ -1200,6 +1204,10 @@ return [
                 'post_publication_queue_help' => 'Jobs completed or failed more than :days days ago. Cleanup also removes residual private staging files; published posts and media remain untouched.',
                 'reports' => 'Closed reports',
                 'reports_help' => 'Local and federated cases closed more than :months months ago. Open, only examined or undated cases are preserved. Only the minimal technical receipt against redelivery remains.',
+                'hashtag_daily' => 'Hashtag daily counters',
+                'hashtag_daily_help' => 'Approximate hashtag counts: keeps today and the preceding 29 UTC days. Cleanup removes only older buckets, preserving recent history.',
+                'hashtag_monthly' => 'Hashtag monthly counters',
+                'hashtag_monthly_help' => 'Approximate hashtag counts: keeps the current month and the preceding 23 UTC months. Cleanup removes only older buckets.',
                 'external_link_previews' => 'External link previews',
                 'external_link_previews_help' => 'Previews not refreshed for a long time, past their cache lifetime. Posts remain untouched.',
             ],

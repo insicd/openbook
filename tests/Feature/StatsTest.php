@@ -296,6 +296,7 @@ class StatsTest extends TestCase
                 'visibility' => 'public', 'published_at' => $publishedAt,
             ]);
             $post->hashtags()->attach(array_map(fn (string $name): string => $tags[$name]->id, $names));
+            $this->seedMonthlyHashtags($post);
         }
         $private = Post::create([
             'actor_id' => $local->actor->id, 'body' => 'Private tagged example', 'status' => 'published',
@@ -308,6 +309,19 @@ class StatsTest extends TestCase
         $this->assertSame(4, $months['2026-10']['counts'][0]);
         $this->assertSame(array_fill(0, 10, null), $months['2026-09']['counts']);
         $this->actingAs($local)->getJson('/stats/hashtag')->assertHeader('Cache-Control', 'no-store, private');
+    }
+
+    public function test_hashtag_history_includes_the_current_month_at_its_exact_utc_start(): void
+    {
+        CarbonImmutable::setTestNow('2026-11-01 00:00:00 UTC');
+        $tag = Hashtag::create(['name' => 'monthboundary']);
+        DB::table('stats_hashtag_monthly_buckets')->insert([
+            'hashtag_id' => $tag->id, 'month' => '2026-11-01', 'count' => 1,
+        ]);
+        $data = app(StatsDataset::class)->hashtags();
+        $this->assertCount(24, $data['months']);
+        $this->assertSame('2024-12', $data['months'][0]['month']);
+        $this->assertSame(['month' => '2026-11', 'counts' => [1]], $data['months'][23]);
     }
 
     public function test_a_short_lived_monthly_topic_is_included_outside_the_overall_top_ten(): void
@@ -323,6 +337,7 @@ class StatsTest extends TestCase
                 'visibility' => 'public', 'published_at' => $day.' 10:00:00',
             ]);
             $post->hashtags()->attach($regular->pluck('id')->all());
+            $this->seedMonthlyHashtags($post);
         }
         foreach (['2025-01-12', '2025-08-10', '2026-08-10'] as $day) {
             $post = Post::create([
@@ -330,6 +345,7 @@ class StatsTest extends TestCase
                 'visibility' => 'public', 'published_at' => $day.' 10:00:00',
             ]);
             $post->hashtags()->attach($occasional->id);
+            $this->seedMonthlyHashtags($post);
         }
         $data = app(StatsDataset::class)->hashtags();
         $this->assertSame('2024-11-01T00:00:00+00:00', $data['period']['from']);
@@ -493,5 +509,14 @@ class StatsTest extends TestCase
         $to = CarbonImmutable::now('UTC')->startOfHour();
         $this->assertSame(1, app(StatsQuery::class)->polls($to->subYearsNoOverflow(2), $to)->count());
         $this->actingAs($author)->getJson('/stats/sondaggi')->assertHeader('Cache-Control', 'no-store, private');
+    }
+
+    private function seedMonthlyHashtags(Post $post): void
+    {
+        foreach ($post->hashtags as $tag) {
+            $key = ['hashtag_id' => $tag->id, 'month' => $post->published_at->startOfMonth()->toDateString()];
+            DB::table('stats_hashtag_monthly_buckets')->insertOrIgnore($key + ['count' => 0]);
+            DB::table('stats_hashtag_monthly_buckets')->where($key)->increment('count');
+        }
     }
 }

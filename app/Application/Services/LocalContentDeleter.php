@@ -42,8 +42,10 @@ final class LocalContentDeleter
             }
             $directTargets = [];
             if ($content instanceof Post) {
+                $statsBefore = app(HashtagStats::class)->snapshot($content);
                 $content->update(['title' => null, 'content_warning' => null, 'body' => '', 'status' => Post::STATUS_DELETED]);
                 $content->location()->delete();
+                app(HashtagStats::class)->changed($statsBefore, null);
             } elseif ($content instanceof Comment) {
                 $content->load('post.actor', 'parent.actor');
                 $directTargets = array_filter([$content->parent?->actor ?? $content->post?->actor]);

@@ -68,7 +68,7 @@ final class StatsDataset
 
     public function hashtags(): array
     {
-        $to = CarbonImmutable::now('UTC')->startOfHour();
+        $to = CarbonImmutable::now('UTC');
         $from = $to->startOfMonth()->subMonthsNoOverflow(23);
         $data = $this->query->hashtags($from, $to);
         $rows = $data->unique('id')->map(static fn (object $tag): array => [
@@ -78,7 +78,7 @@ final class StatsDataset
         ])->values()->all();
         $winners = $data->filter(static fn (object $tag): bool => (int) $tag->month_rank <= 10)->groupBy('month');
         $months = [];
-        for ($month = $from; $month->lessThan($to); $month = $month->addMonth()) {
+        for ($month = $from; $month->lessThanOrEqualTo($to->startOfMonth()); $month = $month->addMonth()) {
             $key = $month->format('Y-m');
             $counts = $winners->get($key, collect())->keyBy('id');
             $months[] = [
@@ -88,7 +88,7 @@ final class StatsDataset
             ];
         }
 
-        return $this->metadata('hashtags', $from, $to, 'month', 'posts') + ['rows' => $rows, 'months' => $months];
+        return array_replace($this->metadata('hashtags', $from, $to, 'month', 'posts'), ['coverage' => ['mode' => 'historical_buckets', 'historical_completeness' => 'unknown']]) + ['rows' => $rows, 'months' => $months];
     }
 
     public function geography(): array

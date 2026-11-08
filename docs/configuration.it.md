@@ -423,7 +423,7 @@ gestione ordinaria dello store cache.
 visibilità, sospensioni, blocchi e impostazioni non anticipano il TTL. Per vedere
 subito i nuovi risultati, usare il pulsante. I filtri correnti si applicano al
 successivo ricalcolo; di conseguenza retention, cancellazioni e moderazione
-possono modificare anche i conteggi dei periodi passati. Questi grafici descrivono
+possono modificare anche i conteggi dei periodi passati. A eccezione dei conteggi storici degli hashtag, questi grafici descrivono
 il contenuto attualmente conservato e ammesso, non uno storico immutabile.
 Restano esclusi contenuti privati, account sospesi/eliminati e domini bloccati;
 `discoverable` e `indexable` non sono filtri statistici. Le impostazioni globali
@@ -464,6 +464,61 @@ Dopo modifiche ai TTL, ricostruire la cache di configurazione e svuotare la
 cache Stats per applicarli subito. Le risposte JSON restano autenticate e `private, no-store`; se lo store
 cache non funziona, la pagina tenta la lettura diretta senza dichiarare dati
 inseriti in cache.
+
+### Storico persistente degli hashtag
+
+L'intestazione dell'hashtag mostra un piccolo trend Chart.js degli ultimi 30 giorni
+UTC, senza assi, tooltip o tabella dati. Senza JavaScript il trend resta nascosto. Stats legge i
+conteggi mensili degli ultimi 24 mesi di calendario, conservando la classifica
+mensile dei dieci tag principali. Lo storico approssimativo resta dopo la
+pulizia locale dei post.
+
+Si contano i post pubblici ammessi al momento della registrazione/correzione.
+Il periodo deriva dalla pubblicazione originale. Ricevere nuovamente un post
+già presente non aggiunge un contributo. Le correzioni si fermano alla più
+breve retention abilitata dei post remoti; zero disabilita una categoria.
+Se entrambe sono disabilitate, si può correggere entro i 24 mesi conservati.
+Cambiare retention può riaprire periodi vecchi e alterare i conteggi: è un limite
+accettato. Non ci sono ricevute per contenuto o soglie permanenti di
+consolidamento. Cambiare moderazione non ricalcola tutto lo storico.
+
+La migrazione `2026_11_08_000000_create_hashtag_statistic_buckets` crea **e popola**
+i conteggi giornalieri/mensili dai post pubblici ancora presenti. Su istanze
+grandi il passaggio può richiedere minuti. Usare la finestra di manutenzione
+e sospendere ricezione, pubblicazione e cron durante l'operazione. I post già
+rimossi non sono recuperabili. I mesi completati sono registrati, così un
+popolamento interrotto può riprendere senza sommarli due volte.
+
+Per un ricalcolo completo esplicito, sospendere gli stessi processi ed eseguire:
+
+```sh
+php artisan down
+php artisan openbook:backfill-hashtag-stats --reset
+php artisan up
+```
+
+**Il reset elimina lo storico raccolto**, inclusi i conteggi dei post non più
+presenti. Ricostruisce solo dai post conservati, con le regole correnti.
+Se interrotto, rilanciare senza `--reset` per riprendere; `--month=YYYY-MM`
+inizializza un singolo mese incompleto. Non ricalcolare insieme alle scritture
+dei contenuti. Il comando richiede maintenance mode; riattivare poi cron e
+ricezione.
+
+**Amministrazione → Database → Manutenzione** mostra entrambe le tabelle con
+numero di righe, dimensione stimata e righe scadute. La pulizia singola/globale
+Web e il cron di pulizia database esistente eliminano solo i giorni fuori dalla
+finestra di 30 giorni e i mesi fuori dai 24 mesi. L'eliminazione è a blocchi e
+con budget temporale: arretrati grandi possono richiedere un altro passaggio.
+Non azzera lo storico corrente. Non c'è consolidamento giornaliero → mensile
+e non serve un nuovo worker.
+
+Le scritture avvengono dopo il commit del contenuto, su transazione/connessione
+separata. I due bucket applicabili vengono aggiornati insieme. Gli errori
+statistici vengono ignorati e non fanno ripetere o annullare l'operazione sul
+contenuto. Le letture non fanno più join fra post e associazioni ai tag.
+Includere entrambi i bucket e i metadati di raccolta nei backup del database.
+Il rollback della migrazione elimina i nuovi contatori; una migrazione
+successiva può ricostruire solo dai contenuti conservati.
 
 ### Database sanity
 

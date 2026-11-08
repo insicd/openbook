@@ -19,6 +19,12 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Storico persistente degli hashtag**: bucket giornalieri per 30 giorni e
+  mensili per 24 mesi, indipendenti dalla pulizia dei post. Il dettaglio del
+  tag mostra un trend Chart.js compatto nell'intestazione; Stats legge i bucket mensili invece del
+  corpus dei post. Conteggi best effort senza ricevute, con correzioni limitate
+  alla retention configurata, popolamento iniziale nella migrazione, ricalcolo
+  opzionale e pulizia dei bucket dal cron e dalla pagina Database admin.
 - **Statistiche per relay nel pannello admin**: ogni relay mostra i contenuti
   ricevuti oggi e negli ultimi sette giorni, sommando le statistiche esistenti
   per giorni UTC (oggi incluso).

@@ -693,6 +693,10 @@ return [
     ],
 
     'hashtags' => [
+        'trend_heading' => 'Andamento',
+        'trend_period' => 'Ultimi 30 giorni',
+        'trend_title' => 'Trend negli ultimi 30 giorni',
+
         'empty' => 'Nessun post pubblico con questo hashtag, per ora.',
         'index_title' => 'In tendenza',
         'index_subtitle' => 'Hashtag più usati nei post pubblici e non elencati degli ultimi :days giorni, locali e remoti.',
@@ -1200,6 +1204,10 @@ return [
                 'post_publication_queue_help' => 'Lavori completati o falliti da più di :days giorni. La pulizia rimuove anche eventuali file residui nello staging privato; post e media pubblicati restano intatti.',
                 'reports' => 'Segnalazioni chiuse',
                 'reports_help' => 'Casi locali e federati chiusi da più di :months mesi. I casi aperti, solo esaminati o senza data di chiusura restano conservati. Rimane la sola ricevuta tecnica minima contro le riconsegne.',
+                'hashtag_daily' => 'Conteggi giornalieri hashtag',
+                'hashtag_daily_help' => 'Conteggi approssimativi degli hashtag: conserva oggi e i 29 giorni UTC precedenti. La pulizia elimina solo i bucket più vecchi, conservando lo storico recente.',
+                'hashtag_monthly' => 'Conteggi mensili hashtag',
+                'hashtag_monthly_help' => 'Conteggi approssimativi degli hashtag: conserva il mese corrente e i 23 mesi UTC precedenti. La pulizia elimina solo i bucket più vecchi.',
                 'external_link_previews' => 'Anteprime dei link esterni',
                 'external_link_previews_help' => 'Anteprime non aggiornate da molto tempo, oltre la durata della cache. I post restano intatti.',
             ],

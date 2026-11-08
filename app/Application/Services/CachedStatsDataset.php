@@ -75,6 +75,18 @@ final class CachedStatsDataset
         return $this->uncached($metric, $ttl);
     }
 
+    public function clearMetric(string $metric): bool
+    {
+        if (! array_key_exists($metric, config('stats.ttl', []))) {
+            throw new InvalidArgumentException('Unknown stats dataset.');
+        }
+        try {
+            return (bool) Cache::forget($this->key($metric, $this->generation()));
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
     /** Rotating a namespace also fences out computations already in flight. */
     public function clear(): bool
     {
@@ -104,7 +116,7 @@ final class CachedStatsDataset
     {
         // Only expiry or the explicit admin command refreshes a cached dataset.
         // Windows and moderation settings are evaluated when computing a miss.
-        return 'stats:v3:'.$metric.':'.$generation;
+        return 'stats:'.($metric === 'hashtags' ? 'v4' : 'v3').':'.$metric.':'.$generation;
     }
 
     private function uncached(string $metric, int $ttl): array

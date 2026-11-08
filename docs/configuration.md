@@ -412,8 +412,9 @@ old entries are not reused and follow the store’s ordinary storage management.
 **No automatic invalidation:** edits, deletion, visibility, suspension, domain
 blocks and settings changes do not shorten the TTL. Use the button for an
 immediate refresh. Current filters apply on recalculation, so retention,
-deletion and moderation may change counts for past periods as well. These
-charts describe currently retained eligible content, not immutable history.
+deletion and moderation may change counts for past periods as well. Except for
+historical hashtag counters, these charts describe currently retained eligible
+content, not immutable history.
 Private content, suspended/deleted accounts and blocked domains remain excluded;
 `discoverable` and `indexable` are not statistics filters. Global settings that
 hide content warnings or sensitive hashtags from World also apply to the queries.
@@ -451,6 +452,57 @@ reconstructing deleted orphan buckets. After changing TTLs, rebuild
 configuration cache and clear Stats cache to apply them immediately. JSON
 responses remain authenticated and `private, no-store`; if cache storage is unavailable, the
 page attempts a direct read without claiming cache insertion.
+
+### Persistent hashtag history
+
+The hashtag header shows a compact Chart.js trend for the last 30 UTC days,
+without axes, tooltips or a data table. It is hidden if JavaScript is unavailable. Stats reads monthly
+counters for the last 24 calendar months, keeping its monthly top-ten ranking.
+These approximate historical counters survive local post cleanup.
+
+Counts apply to eligible public posts at recording/correction time. A post's
+publication date determines its day/month. Repeated receipt of an existing
+post does not add a new contribution. Corrections stop at the shortest enabled
+remote-post retention period; zero disables a retention category. If both are
+disabled, corrections remain possible throughout the retained 24 months.
+Changing retention may reopen old periods and alter approximate counts. There
+are no per-content receipts or permanent consolidation threshold. Moderation
+changes do not trigger a general historical recount.
+
+Migration `2026_11_08_000000_create_hashtag_statistic_buckets` creates **and seeds**
+the daily/monthly counters from the public posts still present. This historical
+step may take minutes on a large instance. Use the maintenance/deployment window
+and pause ingestion, publication and cron while it runs. Already pruned posts
+cannot be recovered. Completed months are recorded so interrupted population
+can resume without adding the same month twice.
+
+For an explicit full rebuild, pause the same processes and run:
+
+```sh
+php artisan down
+php artisan openbook:backfill-hashtag-stats --reset
+php artisan up
+```
+
+**Reset discards collected history**, including counts of posts no longer in
+the database. It rebuilds only from retained posts using the current policy.
+If interrupted, rerun without `--reset` to resume; `--month=YYYY-MM` initializes
+one unfinished month. Do not run a recount concurrently with content writes.
+The command requires maintenance mode; remember to restore cron/ingestion.
+
+**Administration → Database → Maintenance** lists both tables with row counts,
+estimated size and expired rows. Its single-table/global cleanup and the
+existing database-cleanup cron remove only days older than the 30-day window
+and months older than the 24-month window. Cleanup runs in bounded batches;
+large backlogs may need another pass. It never clears current history. There
+is no daily-to-monthly consolidation and no additional worker is required.
+
+Writes happen after the content commit on a separate transaction/connection.
+Both applicable bucket updates commit together. Statistical failures are
+ignored; no content operation is retried or rolled back because of counters.
+Reads no longer join posts to hashtag associations. Include both bucket tables
+and collection metadata in database backups. Rolling back this migration drops
+the new counters; a subsequent migration can only rebuild retained content.
 
 ### Database sanity
 

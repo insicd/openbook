@@ -667,6 +667,10 @@ return [
         ],
     ],
     'hashtags' => [
+        'trend_heading' => 'Trendi',
+        'trend_period' => 'Viimeiset 30 päivää',
+        'trend_title' => 'Viimeisten 30 päivän trendi',
+
         'empty' => 'Tällä aihetunnisteella ei vielä ole julkisia julkaisuja.',
         'index_title' => 'Suosittua',
         'index_subtitle' => 'Viimeisten :days päivän käytetyimmät aihetunnisteet paikallisten ja etäpalvelinten julkisissa ja listaamattomissa julkaisuissa.',
@@ -1174,6 +1178,10 @@ return [
                 'post_publication_queue_help' => 'Yli :days päivää sitten valmistuneet tai epäonnistuneet tehtävät. Siivous poistaa myös jäljelle jääneet yksityiset väliaikaistiedostot. Julkaistut julkaisut ja liitteet säilytetään.',
                 'reports' => 'Suljetut ilmiannot',
                 'reports_help' => 'Yli :months kuukautta sitten suljetut paikalliset ja federoidut tapaukset. Avoimet, vain tarkastetut tai ilman sulkemispäivää olevat tapaukset säilytetään. Uudelleentoimitusten estämiseksi säilytetään vain tekninen vähimmäiskuittaus.',
+                'hashtag_daily' => 'Aihetunnisteiden päivälaskurit',
+                'hashtag_daily_help' => 'Likimääräiset aihetunnistemäärät: säilyttää tämän ja 29 edellistä UTC-päivää. Siivous poistaa vain vanhemmat laskurit.',
+                'hashtag_monthly' => 'Aihetunnisteiden kuukausilaskurit',
+                'hashtag_monthly_help' => 'Likimääräiset aihetunnistemäärät: säilyttää kuluvan ja 23 edellistä UTC-kuukautta. Siivous poistaa vain vanhemmat laskurit.',
                 'external_link_previews' => 'Ulkoisten linkkien esikatselut',
                 'external_link_previews_help' => 'Pitkään päivittämättä olleet esikatselut, joiden välimuistin voimassaolo on päättynyt. Julkaisut säilytetään.',
             ],

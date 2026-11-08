@@ -9,7 +9,7 @@ return [
     'login' => 'Sign in again',
     'no_js' => 'Enable JavaScript to load the charts.',
     'method_title' => 'One perspective, not the whole Fediverse',
-    'method' => 'Content charts describe retained public content, respecting moderation. Deletion and retention can change the results. Delivery charts describe content received during the period shown.',
+    'method' => 'Most content charts describe retained public content. Hashtag charts use approximate historical counters that survive local cleanup. Delivery charts describe content received during the period shown.',
     'rhythm' => [
         'eyebrow' => 'The rhythm',
         'title' => 'Fifteen days, hour by hour',
@@ -44,7 +44,7 @@ return [
         'eyebrow' => 'The topics',
         'title' => 'What people talk about',
         'description' => 'The most used hashtags each month, followed over the last 24 months.',
-        'note' => 'The ten most used hashtags each month. Hover over the legend to highlight a topic or over the chart to see its name. The current month is partial.',
+        'note' => 'The ten most used hashtags each month. Approximate historical counts survive local cleanup; corrections stop at the configured retention horizon. The current month is partial.',
     ],
     'geography' => [
         'eyebrow' => 'The places',

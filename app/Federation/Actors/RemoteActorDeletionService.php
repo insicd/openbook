@@ -2,6 +2,7 @@
 
 namespace App\Federation\Actors;
 
+use App\Application\Services\HashtagStats;
 use App\Domain\Comments\Comment;
 use App\Domain\Events\EventComment;
 use App\Domain\Posts\Mention;
@@ -45,6 +46,8 @@ final class RemoteActorDeletionService
                 ->where('actor_id', $lockedActor->id);
 
             $this->eventDeletion->deleteActorEvents($lockedActor);
+
+            app(HashtagStats::class)->deletingActor($lockedActor->id);
 
             DB::table('post_hashtags')->whereIn('post_id', clone $authoredPostIds)->delete();
             DB::table('post_locations')->whereIn('post_id', clone $authoredPostIds)->delete();
