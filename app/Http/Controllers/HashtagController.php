@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
+use App\Application\Queries\HashtagStatsQuery;
 use App\Application\Queries\PopularHashtagsQuery;
 use App\Domain\Events\Event;
 use App\Domain\Posts\Hashtag;
@@ -38,6 +39,7 @@ class HashtagController extends Controller
 
         return view('hashtags.index', [
             'hashtags' => $hashtags,
+            'tagTrends' => app(HashtagStatsQuery::class)->dailyForTags($hashtags->pluck('id')->all()),
             'trendingDays' => max(1, (int) config('openbook.hashtags.trending_days', 7)),
             'followedHashtagIds' => $followedHashtagIds,
         ]);
@@ -114,6 +116,7 @@ class HashtagController extends Controller
 
         return view('hashtags.show', [
             'tagName' => $normalized,
+            'tagTrend' => $hashtag !== null ? app(HashtagStatsQuery::class)->daily($hashtag->id) : [],
             'posts' => $posts,
             'events' => $events,
             'isFollowing' => $viewer !== null && $hashtag !== null

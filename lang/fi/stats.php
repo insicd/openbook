@@ -9,7 +9,7 @@ return [
     'login' => 'Kirjaudu uudelleen',
     'no_js' => 'Ota JavaScript käyttöön nähdäksesi kaaviot.',
     'method_title' => 'Yksi näkökulma, ei koko fediversumi',
-    'method' => 'Sisältökaaviot kuvaavat säilytettyä julkista sisältöä moderointia noudattaen. Poistot ja säilytysajat voivat muuttaa tuloksia. Toimituskaaviot kuvaavat ilmoitettuna ajanjaksona vastaanotettua sisältöä.',
+    'method' => 'Useimmat kaaviot kuvaavat säilytettyä julkista sisältöä. Aihetunnistekaaviot käyttävät likimääräisiä historiallisia laskureita, jotka säilyvät paikallisessa siivouksessa. Vastaanottokaaviot kuvaavat ajanjaksolla vastaanotettua sisältöä.',
     'rhythm' => [
         'eyebrow' => 'Rytmi',
         'title' => 'Viisitoista päivää tunti tunnilta',
@@ -44,7 +44,7 @@ return [
         'eyebrow' => 'Aiheet',
         'title' => 'Mistä puhutaan',
         'description' => 'Kunkin kuukauden käytetyimmät aihetunnisteet viimeisten 24 kuukauden ajalta.',
-        'note' => 'Kunkin kuukauden kymmenen käytetyintä aihetunnistetta. Vie osoitin selitteen päälle korostaaksesi aihetta tai kaavion päälle nähdäksesi sen nimen. Kuluva kuukausi on osittainen.',
+        'note' => 'Kunkin kuukauden kymmenen käytetyintä aihetunnistetta. Likimääräiset historialliset luvut säilyvät siivouksessa; korjaukset päättyvät määritettyyn säilytysrajaan. Kuluva kuukausi on kesken.',
     ],
     'geography' => [
         'eyebrow' => 'Paikat',

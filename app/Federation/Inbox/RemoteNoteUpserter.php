@@ -6,6 +6,7 @@ use App\Application\Services\DeliverySource;
 use App\Application\Services\DeliveryStats;
 use App\Application\Services\DirectMessageLinker;
 use App\Application\Services\DomainBlockManager;
+use App\Application\Services\HashtagStats;
 use App\Application\Services\NotificationCreator;
 use App\Application\Services\RemoteLocationEnricher;
 use App\Domain\Comments\Comment;
@@ -189,6 +190,7 @@ final class RemoteNoteUpserter
             // quoteUri presente ma non risolto: lascia l'eventuale citazione gia' in cache.
         }
 
+        $statsBefore = $wasNew ? [] : app(HashtagStats::class)->snapshot($post);
         $post->fill($attributes);
 
         if ($wasNew) {
@@ -219,6 +221,8 @@ final class RemoteNoteUpserter
             $this->directMessageLinker->link($post, $actor, $note, false, $directMessageThreadParent);
         }
 
+        $this->syncHashtags($post, $note);
+        app(HashtagStats::class)->changed($statsBefore, $post);
         $this->attachments->sync($post, $actor, $note);
 
         return $post;
@@ -565,8 +569,23 @@ final class RemoteNoteUpserter
         return false;
     }
 
+    private function syncHashtags(Post $post, array $note): void
+    {
+        $ids = [];
+        foreach (is_array($note['tag'] ?? null) ? $note['tag'] : [] as $tag) {
+            if (! is_array($tag) || ($tag['type'] ?? null) !== 'Hashtag' || ! is_string($tag['name'] ?? null)) {
+                continue;
+            }
+            $name = Hashtag::normalize($tag['name']);
+            if (Hashtag::isValidName($name)) {
+                $ids[] = Hashtag::query()->firstOrCreate(['name' => $name])->id;
+            }
+        }
+        $post->hashtags()->sync(array_unique($ids));
+    }
+
     /**
-     * Hashtag e menzioni incorporati nella Note ("tag"): le menzioni di un
+     * Menzioni incorporate nella Note ("tag"): le menzioni di un
      * Actor locale generano anche una notifica, a meno che non si tratti di
      * un recupero massivo di contenuti passati (vedi "$notifyMentions"), nel
      * qual caso notificare oggi una menzione di settimane fa creerebbe solo
@@ -580,19 +599,6 @@ final class RemoteNoteUpserter
 
         foreach ($tags as $tag) {
             if (! is_array($tag)) {
-                continue;
-            }
-
-            if ($target instanceof Post && ($tag['type'] ?? null) === 'Hashtag' && is_string($tag['name'] ?? null)) {
-                $name = Hashtag::normalize($tag['name']);
-
-                if (! Hashtag::isValidName($name)) {
-                    continue;
-                }
-
-                $hashtag = Hashtag::query()->firstOrCreate(['name' => $name]);
-                $target->hashtags()->syncWithoutDetaching([$hashtag->id]);
-
                 continue;
             }
 

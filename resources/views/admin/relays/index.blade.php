@@ -59,6 +59,10 @@
                         {{ __('openbook.admin.relays.last_failure') }}:
                         {{ $relay->last_failure_at?->diffForHumans() ?? __('openbook.admin.relays.never') }}
                     </p>
+                    <p class="ob-field__help" style="margin:0.35rem 0 0">
+                        {{ __('openbook.admin.relays.received_today', ['count' => $deliveryCounts[$relay->id]['today']]) }} -
+                        {{ __('openbook.admin.relays.received_last_seven_days', ['count' => $deliveryCounts[$relay->id]['lastSevenDays']]) }}
+                    </p>
                     <form method="POST" action="{{ route('admin.relays.update', $relay) }}" style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-top:0.75rem">
                         @csrf
                         @method('PATCH')

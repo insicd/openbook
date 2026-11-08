@@ -8,6 +8,7 @@ use App\Application\Services\DeliveryStats;
 use App\Application\Services\DomainBlockManager;
 use App\Application\Services\EventParticipationManager;
 use App\Application\Services\FollowManager;
+use App\Application\Services\HashtagStats;
 use App\Application\Services\LocalCommunityIngester;
 use App\Application\Services\ReactionManager;
 use App\Application\Services\RelayHandshakeManager;
@@ -951,8 +952,19 @@ final class InboxActivityProcessor
         }
 
         if ($target instanceof Post) {
-            $target->update(['title' => null, 'content_warning' => null, 'body' => '', 'status' => Post::STATUS_DELETED]);
-            $target->location()->delete();
+            if (! $target->isPublished()) {
+                return InboxItem::STATUS_PROCESSED;
+            }
+            DB::transaction(function () use ($target): void {
+                $locked = Post::query()->whereKey($target->id)->lockForUpdate()->first();
+                if ($locked === null || ! $locked->isPublished()) {
+                    return;
+                }
+                $statsBefore = app(HashtagStats::class)->snapshot($locked);
+                $locked->update(['title' => null, 'content_warning' => null, 'body' => '', 'status' => Post::STATUS_DELETED]);
+                $locked->location()->delete();
+                app(HashtagStats::class)->changed($statsBefore, null);
+            });
         } else {
             $this->commentSoftDeleter->delete($target);
         }

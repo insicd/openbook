@@ -55,10 +55,9 @@
         container.replaceChildren();
         container.hidden = true;
         var metric = card.dataset.statsCard;
-        if (['rhythm', 'volume', 'authors', 'hashtags', 'communityActivity', 'mediaTrend', 'polls'].indexOf(metric) === -1) return [];
+        if (['rhythm', 'volume', 'authors', 'communityActivity', 'mediaTrend', 'polls'].indexOf(metric) === -1) return [];
         if (!(retention.non_pertinent > 0 || retention.pertinent > 0)) return [];
-        var dates = metric === 'hashtags' ? data.months.map(function (month) { return month.month + '-01T00:00:00Z'; })
-            : metric === 'volume' || metric === 'authors' ? data.weeks.map(function (week) { return week + 'T00:00:00Z'; })
+        var dates = metric === 'volume' || metric === 'authors' ? data.weeks.map(function (week) { return week + 'T00:00:00Z'; })
             : data.rows.map(function (row) { return row.at || row.week + 'T00:00:00Z'; });
         var buckets = dates.map(function (value) { return Date.parse(value); });
         if (!buckets.length) return [];

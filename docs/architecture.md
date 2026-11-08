@@ -164,7 +164,7 @@ the dataset generation time and are interpolated between buckets, without
 changing data or querying the corpus again. These are duration references:
 actual pruning uses first import time, while chart axes use publication time.
 Disabled or out-of-range thresholds are hidden; equal durations share one line.
-The event calendar, non-timeline distributions and delivery buckets do not
+The event calendar, historical hashtag chart, non-timeline distributions and delivery buckets do not
 show these references.
 
 Geography shows countries associated with content places, combining posts
@@ -248,13 +248,27 @@ recalculation; this cache policy does not change the filters themselves.
 Refresh configuration and route caches when deploying these changes.
 
 Each chart loads its dataset as you approach it on the page. Failed requests
-can be retried independently. Statistics
+can be retried independently. Corpus-based statistics
 respect visibility and moderation exclusions, including suspended or deleted
 accounts and blocked domains. All aggregate statistics include accounts with
 `discoverable=false` and `indexable=false`.
-They describe retained content, not the entire Fediverse: deletion and
+Except for historical hashtag counters, they describe retained content, not the entire Fediverse: deletion and
 retention can change the series, and zero does not prove that nothing was
 published historically.
+
+### Historical hashtag counters
+
+The hashtag chart combines public posts and events and is an exception to
+corpus-based statistics: daily counters
+cover 30 days and monthly counters 24 months. They survive local cleanup and
+are corrected only inside the shortest enabled retention window. Counts are
+approximate, use publication dates in UTC and reflect eligibility when recorded,
+without general retroactive moderation recalculation. The tag detail page uses
+the daily counters in a compact Chart.js trend within its header, without a data table.
+Trending reuses these daily buckets in seven-day SVG tickers, with one query
+for up to 100 tags and stable follow-button columns.
+See [configuration](configuration.md#persistent-hashtag-history) for automatic
+migration population, optional reset and Database-page cleanup.
 
 ## Profile and settings
 

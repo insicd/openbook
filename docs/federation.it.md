@@ -273,6 +273,11 @@ attraverso relay compatibili Mastodon, ActivityPub o LitePub. Il pannello mostra
 lo stato della sottoscrizione, compresa l’attesa di un follow reciproco.
 Abilita le direzioni necessarie secondo il protocollo e la policy dell’istanza.
 
+Ogni relay mostra anche i contenuti ricevuti oggi e negli ultimi sette giorni
+di calendario, oggi incluso. I totali usano i giorni UTC, come la pagina delle
+statistiche, e mostrano zero quando non ci sono consegne registrate nel periodo.
+Misurano le consegne registrate, non necessariamente contenuti distinti.
+
 Disabilitare la pubblicazione o rimuovere un relay ferma anche le consegne
 pendenti verso quel relay. Contenuti riservati, non elencati, remoti o di
 community private sono esclusi dalla pubblicazione pubblica verso i relay.

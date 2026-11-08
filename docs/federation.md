@@ -262,6 +262,11 @@ Mastodon, ActivityPub or LitePub-compatible relays. The panel shows subscription
 state, including waiting for a reciprocal follow. Enable the directions needed
 for the protocol and instance policy.
 
+Each relay also shows the recorded content received today and over the last
+seven calendar days, including today. These totals use UTC days, like the
+statistics page, and show zero when no deliveries are recorded in the period.
+They measure recorded deliveries, not necessarily distinct content.
+
 Disabling publication or removing a relay also stops pending deliveries to it.
 Restricted, unlisted, remote and private-community content is excluded from
 public relay publication. Domain blocks still apply.

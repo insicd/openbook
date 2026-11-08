@@ -139,6 +139,8 @@ final class DatabaseMaintenanceService
             'password_reset_tokens' => $this->purgePasswordResetTokens(),
             'post_publication_queue' => $this->purgePostPublicationQueue(),
             'external_link_previews' => $this->externalLinkPreviewsPurgeableQuery()->delete(),
+            'stats_hashtag_daily_buckets' => app(HashtagStats::class)->prune('daily'),
+            'stats_hashtag_monthly_buckets' => app(HashtagStats::class)->prune('monthly'),
             default => 0,
         };
 
@@ -173,6 +175,8 @@ final class DatabaseMaintenanceService
             'password_reset_tokens' => $this->passwordResetTokensPurgeableQuery()->count(),
             'post_publication_queue' => $this->postPublicationQueuePurgeableQuery()->count(),
             'external_link_previews' => $this->externalLinkPreviewsPurgeableQuery()->count(),
+            'stats_hashtag_daily_buckets' => app(HashtagStats::class)->expired('daily')->count(),
+            'stats_hashtag_monthly_buckets' => app(HashtagStats::class)->expired('monthly')->count(),
             default => 0,
         };
     }
@@ -183,6 +187,18 @@ final class DatabaseMaintenanceService
     private function definitions(): array
     {
         return [
+            [
+                'key' => 'stats_hashtag_daily_buckets',
+                'table' => 'stats_hashtag_daily_buckets',
+                'label_key' => 'openbook.admin.database.tables.hashtag_daily',
+                'description_key' => 'openbook.admin.database.tables.hashtag_daily_help',
+            ],
+            [
+                'key' => 'stats_hashtag_monthly_buckets',
+                'table' => 'stats_hashtag_monthly_buckets',
+                'label_key' => 'openbook.admin.database.tables.hashtag_monthly',
+                'description_key' => 'openbook.admin.database.tables.hashtag_monthly_help',
+            ],
             [
                 'key' => 'inbox_items',
                 'table' => 'inbox_items',

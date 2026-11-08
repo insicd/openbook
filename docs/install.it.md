@@ -188,6 +188,12 @@ php artisan view:cache
 ```
 
 
+La migrazione delle statistiche hashtag popola anche gli ultimi 24 mesi dai
+post ed eventi conservati. Su istanze grandi, prevedere il tempo delle query storiche e
+sospendere ricezione/pubblicazione e cron durante l'aggiornamento. Vedere lo
+[storico hashtag](configuration.it.md#storico-persistente-degli-hashtag) per i
+comandi di reset/ripresa e i limiti del recupero storico.
+
 ## Preparazione REST/OAuth
 
 L’API REST autenticata è disponibile anche in produzione. Applicare le normali

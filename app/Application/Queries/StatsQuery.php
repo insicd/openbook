@@ -2,7 +2,6 @@
 
 namespace App\Application\Queries;
 
-use App\Application\Services\DomainBlockManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Connection;
 use Illuminate\Database\MySqlConnection;
@@ -15,7 +14,7 @@ final class StatsQuery
 {
     private ?Connection $statsConnection = null;
 
-    public function __construct(private readonly DomainBlockManager $domainBlocks) {}
+    public function __construct(private readonly StatsPostFilter $filter) {}
 
     public function rhythm(CarbonImmutable $from, CarbonImmutable $to): Collection
     {
@@ -63,11 +62,11 @@ final class StatsQuery
     {
         $connection = $this->connection();
         $month = $connection->getDriverName() === 'sqlite'
-            ? "strftime('%Y-%m', openbook_stats_utc(p.published_at))"
-            : "DATE_FORMAT(p.published_at, '%Y-%m')";
-        $counts = $this->posts($from, $to)->join('post_hashtags as ph', 'ph.post_id', '=', 'p.id')
-            ->selectRaw("{$month} AS month, ph.hashtag_id, COUNT(*) AS count")
-            ->groupBy('month', 'ph.hashtag_id');
+            ? "strftime('%Y-%m', b.month)" : "DATE_FORMAT(b.month, '%Y-%m')";
+        $counts = $connection->table('stats_hashtag_monthly_buckets as b')
+            ->where('b.month', '>=', $from->startOfMonth()->toDateString())
+            ->where('b.month', '<=', $to->startOfMonth()->toDateString())->where('b.count', '>', 0)
+            ->selectRaw("{$month} AS month, b.hashtag_id, b.count");
         $totals = $connection->query()->fromSub($counts, 'mc')
             ->selectRaw('mc.*, SUM(count) OVER (PARTITION BY hashtag_id) AS total');
         $ranked = $connection->query()->fromSub($totals, 'tc')->join('hashtags as h', 'h.id', '=', 'tc.hashtag_id')
@@ -203,39 +202,17 @@ final class StatsQuery
     private function posts(CarbonImmutable $from, CarbonImmutable $to): Builder
     {
         [$from, $to] = $this->bounds($from, $to);
-        $query = $this->authors($this->connection()->table('posts as p')->join('actors as a', 'a.id', '=', 'p.actor_id'))
-            ->where('p.status', 'published')->where('p.visibility', 'public')
-            ->whereNull('p.conversation_id')
-            ->where('p.published_at', '>=', $from)->where('p.published_at', '<', $to)
-            ->where(function (Builder $query): void {
-                $query->whereNull('p.community_id')->orWhereExists(function (Builder $community): void {
-                    $community->selectRaw('1')->from('communities as c')
-                        ->whereColumn('c.id', 'p.community_id')->where('c.is_private', false);
-                });
-            });
 
-        if (config('openbook.moderation.hide_content_warnings_from_world', false)) {
-            $query->where(fn (Builder $cw) => $cw->whereNull('p.content_warning')->orWhere('p.content_warning', ''));
-            $this->excludeForcedTags($query, 'post_hashtags', 'post_id', 'p.id');
-        }
-
-        return $query;
+        return $this->filter->posts($this->connection()->table('posts as p')->join('actors as a', 'a.id', '=', 'p.actor_id'))
+            ->where('p.published_at', '>=', $from)->where('p.published_at', '<', $to);
     }
 
     private function events(CarbonImmutable $from, CarbonImmutable $to): Builder
     {
         [$from, $to] = $this->bounds($from, $to);
-        $query = $this->authors($this->connection()->table('events as e')->join('actors as a', 'a.id', '=', 'e.actor_id'))
-            ->where('e.visibility', 'public')->whereNull('e.deleted_at')
-            ->whereIn('e.status', ['scheduled', 'tentative', 'postponed'])
+
+        return $this->filter->events($this->connection()->table('events as e')->join('actors as a', 'a.id', '=', 'e.actor_id'))
             ->where('e.published_at', '>=', $from)->where('e.published_at', '<', $to);
-
-        if (config('openbook.moderation.hide_content_warnings_from_world', false)) {
-            $query->where('e.sensitive', false);
-            $this->excludeForcedTags($query, 'event_hashtags', 'event_id', 'e.id');
-        }
-
-        return $query;
     }
 
     private function connection(): Connection
@@ -283,36 +260,11 @@ final class StatsQuery
 
     private function authors(Builder $query): Builder
     {
-        $query->where('a.status', 'active')->where('a.remote_suspended', false)
-            ->whereNull('a.deleted_at');
-
-        $blocked = $this->domainBlocks->blockedHosts();
-        $query->whereNotIn('a.domain', $blocked);
-        foreach ($blocked as $host) {
-            // Handles and canonical Actor URIs can use different hosts.
-            foreach (['https://', 'http://'] as $scheme) {
-                $origin = $scheme.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $host);
-                $query->where('a.uri', '<>', $scheme.$host);
-                foreach (['/', ':', '?', '#'] as $boundary) {
-                    $query->where('a.uri', 'not like', $origin.$boundary.'%');
-                }
-            }
-        }
-
-        return $query;
+        return $this->filter->authors($query);
     }
 
     private function excludeForcedTags(Builder $query, string $pivot, string $foreignKey, string $contentId): void
     {
-        $tags = config('openbook.moderation.forced_content_warning_hashtags', []);
-        if (! is_array($tags) || $tags === []) {
-            return;
-        }
-
-        $query->whereNotExists(function (Builder $tag) use ($pivot, $foreignKey, $contentId, $tags): void {
-            $tag->selectRaw('1')->from($pivot.' as ph')
-                ->join('hashtags as h', 'h.id', '=', 'ph.hashtag_id')
-                ->whereColumn('ph.'.$foreignKey, $contentId)->whereIn('h.name', $tags);
-        });
+        $this->filter->excludeForcedTags($query, $pivot, $foreignKey, $contentId);
     }
 }

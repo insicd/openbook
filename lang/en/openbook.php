@@ -693,9 +693,16 @@ return [
     ],
 
     'hashtags' => [
+        'ticker_label' => '7-day trend of public posts and events',
+        'ticker_note' => 'Approximate 7-day trend of public posts and events. Today is partial.',
+        'contents' => '{1} :count item|[0,*] :count items',
+        'trend_heading' => 'Trend',
+        'trend_period' => 'Last 30 days',
+        'trend_title' => 'Trend over the last 30 days',
+
         'empty' => 'No public posts with this hashtag yet.',
         'index_title' => 'Trending',
-        'index_subtitle' => 'Most used hashtags on public and unlisted posts from the last :days days, local and remote.',
+        'index_subtitle' => 'Most used hashtags on public and unlisted posts and events from the last :days days, local and remote.',
     ],
 
     'communities' => [
@@ -1096,6 +1103,8 @@ return [
             'does_not_receive' => 'receiving disabled',
             'publishes' => 'publishing enabled',
             'does_not_publish' => 'publishing disabled',
+            'received_today' => 'Content received today: :count',
+            'received_last_seven_days' => 'Content received in the last 7 days: :count',
             'last_success' => 'Last successful exchange',
             'last_failure' => 'Last failure',
             'never' => 'never',
@@ -1198,6 +1207,10 @@ return [
                 'post_publication_queue_help' => 'Jobs completed or failed more than :days days ago. Cleanup also removes residual private staging files; published posts and media remain untouched.',
                 'reports' => 'Closed reports',
                 'reports_help' => 'Local and federated cases closed more than :months months ago. Open, only examined or undated cases are preserved. Only the minimal technical receipt against redelivery remains.',
+                'hashtag_daily' => 'Hashtag daily counters',
+                'hashtag_daily_help' => 'Approximate hashtag counts: keeps today and the preceding 29 UTC days. Cleanup removes only older buckets, preserving recent history.',
+                'hashtag_monthly' => 'Hashtag monthly counters',
+                'hashtag_monthly_help' => 'Approximate hashtag counts: keeps the current month and the preceding 23 UTC months. Cleanup removes only older buckets.',
                 'external_link_previews' => 'External link previews',
                 'external_link_previews_help' => 'Previews not refreshed for a long time, past their cache lifetime. Posts remain untouched.',
             ],

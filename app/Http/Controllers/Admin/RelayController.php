@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Application\Queries\RelayDeliveryStatsQuery;
 use App\Application\Services\InstanceRelayActor;
 use App\Application\Services\RelayConfigurationManager;
 use App\Application\Services\RelayHandshakeManager;
@@ -23,7 +24,7 @@ final class RelayController extends Controller
         private readonly RelayHandshakeManager $handshakes,
     ) {}
 
-    public function index(): View
+    public function index(RelayDeliveryStatsQuery $deliveryStats): View
     {
         $relayActor = $this->relayActor->getOrCreate();
         $relays = Relay::query()->latest()->paginate(40);
@@ -44,6 +45,7 @@ final class RelayController extends Controller
 
         return view('admin.relays.index', [
             'relays' => $relays,
+            'deliveryCounts' => $deliveryStats->forRelays($relays->getCollection()),
             'relayActor' => $relayActor,
             'reciprocalFollowerUris' => $reciprocalFollowerUris,
             'protocols' => [

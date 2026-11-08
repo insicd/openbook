@@ -83,6 +83,8 @@ final class EventComposer
                 ]);
             }
 
+            app(HashtagStats::class)->changed([], $event);
+
             return $event->fresh(['actor', 'location', 'hashtags', 'mentions.actor', 'media.thumbnail']) ?? $event;
         });
 
@@ -103,6 +105,9 @@ final class EventComposer
         $replacedMedia = collect();
 
         $event = DB::transaction(function () use ($author, $event, $data, &$replacedMedia): Event {
+            $event = Event::query()->whereKey($event->id)->lockForUpdate()->firstOrFail();
+            $this->ensureOwner($author, $event);
+            $statsBefore = app(HashtagStats::class)->snapshot($event);
             [$startsAt, $endsAt, $timezone] = $this->dates($data);
             $event->update([
                 'name' => trim((string) $data['name']),
@@ -140,6 +145,8 @@ final class EventComposer
                 $event->media()->update(['alt_text' => $data['cover_alt'] ?: null]);
             }
 
+            app(HashtagStats::class)->changed($statsBefore, $event);
+
             return $event->fresh(['actor', 'location', 'hashtags', 'mentions.actor', 'media.thumbnail']) ?? $event;
         });
 
@@ -167,7 +174,15 @@ final class EventComposer
             return $event;
         }
 
-        $event->update(['status' => Event::STATUS_CANCELLED]);
+        $event = DB::transaction(function () use ($author, $event): Event {
+            $event = Event::query()->whereKey($event->id)->lockForUpdate()->firstOrFail();
+            $this->ensureOwner($author, $event);
+            $statsBefore = app(HashtagStats::class)->snapshot($event);
+            $event->update(['status' => Event::STATUS_CANCELLED]);
+            app(HashtagStats::class)->changed($statsBefore, $event);
+
+            return $event;
+        });
         $event = $event->fresh(['actor', 'location', 'hashtags', 'mentions.actor', 'media.thumbnail']) ?? $event;
         $this->delivery->deliverContent($event, ActivitySerializer::update($event));
 
@@ -191,6 +206,9 @@ final class EventComposer
             ->unique('id');
 
         DB::transaction(function () use ($event, $comments): void {
+            $event = Event::query()->whereKey($event->id)->lockForUpdate()->firstOrFail();
+            $statsBefore = app(HashtagStats::class)->snapshot($event);
+            app(HashtagStats::class)->changed($statsBefore, null);
             $event->attachments()->delete();
             $event->location()->delete();
             $event->hashtags()->detach();

@@ -2,6 +2,7 @@
 
 namespace App\Federation\Inbox;
 
+use App\Application\Services\HashtagStats;
 use App\Domain\Events\Event;
 use App\Federation\Actors\Actor;
 use App\Infrastructure\Media\Media;
@@ -40,6 +41,7 @@ final class RemoteEventDeletionService
 
     private function tombstone(Event $event): void
     {
+        app(HashtagStats::class)->changed(app(HashtagStats::class)->snapshot($event), null);
         $mediaIds = $event->media()->pluck('media.id')
             ->merge(
                 Media::query()
