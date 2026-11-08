@@ -1,5 +1,10 @@
 > Documentation: [English](README.md) · [Italiano](README.it.md)
 
+## Docker
+
+To install and operate the prebuilt Docker Hub image, see
+[Docker installation](docker.md).
+
 ## Requirements
 
 Openbook is designed to run even on ordinary **shared hosting**, without

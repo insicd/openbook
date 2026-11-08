@@ -6,6 +6,7 @@ Guides for using Openbook and administering an instance, grouped by topic.
 
 | Topic | File |
 |---|---|
+| Docker Hub installation, configuration, services and updates | [`docker.md`](docker.md) |
 | Install, requirements, web server, updates | [`install.md`](install.md) |
 | Configuration, post locations, cron, database maintenance and Stats cache | [`configuration.md`](configuration.md) |
 | Usage, profiles, polls, World and Stats | [`architecture.md`](architecture.md) |

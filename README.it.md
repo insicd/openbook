@@ -41,6 +41,8 @@ Il percorso piu' semplice non richiede Composer ne' SSH. Usa il bootstrap
 3. Completa `/install` (database, nome istanza, amministratore).
 4. Configura il cron: vedi [Configurazione](docs/configuration.it.md#cron-e-attivita-periodiche).
 
+Per installare l’immagine già pronta da Docker Hub, vedi [Installazione Docker](docs/docker.it.md).
+
 PHP deve avere l’estensione Sodium abilitata. Requisiti completi, installazione
 git/Composer, server web e aggiornamenti:
 **[Guida all'installazione](docs/install.it.md)**.

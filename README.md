@@ -40,6 +40,8 @@ The simplest path needs neither Composer nor SSH. It uses the
 3. Complete `/install` (database, instance name, administrator).
 4. Configure cron: see [Configuration](docs/configuration.md#cron-and-periodic-tasks).
 
+To install the prebuilt Docker Hub image, see [Docker installation](docs/docker.md).
+
 PHP must have the Sodium extension enabled. Full requirements, git/Composer
 install, web server layouts, and updates:
 **[Install guide](docs/install.md)**.

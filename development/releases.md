@@ -6,3 +6,5 @@
 
 Upload to about.openb.app the zip, the `*-changelog.md` file, `latest.json`
 generated in `dist/`, and `setup-openbook.php` from the repository root.
+
+Docker images have a separate [build, validation and publication guide](docker.md).

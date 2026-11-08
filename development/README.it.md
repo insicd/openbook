@@ -10,5 +10,6 @@ in `docs/`; decisioni, analisi e resoconti delle issue in `analysis/`.
 - [Implementazione della federazione](federation.it.md)
 - [Test e verifiche locali](testing.it.md)
 - [Preparare una release](releases.it.md)
+- [Creare e pubblicare le immagini Docker](docker.it.md)
 
 Prima di contribuire leggi [CONTRIBUTING.md](../CONTRIBUTING.md).
