@@ -41,6 +41,9 @@
                             {{ $comment->created_at->diffForHumans() }}
                         </a>
                         <x-content-language :language="$comment->language" />
+                        @if ($comment->wasEdited())
+                            <span title="{{ $comment->edited_at->toAtomString() }}">· {{ __('openbook.posts.edited') }}</span>
+                        @endif
                     </div>
                 @endif
                 @if ($showInReplyTo)
@@ -53,7 +56,7 @@
                 @endif
             </div>
 
-            @canany(['delete', 'report'], $comment)
+            @canany(['update', 'delete', 'report'], $comment)
                 <details class="ob-post__menu">
                     <summary class="ob-icon-btn" aria-label="{{ __('openbook.comments.menu') }}">
                         <x-icon name="more-vertical" />
@@ -63,6 +66,12 @@
                             <a href="{{ route('comments.report.create', $comment) }}" class="ob-post__menu-item" role="menuitem">
                                 <x-icon name="flag" />
                                 {{ __('openbook.actions.report') }}
+                            </a>
+                        @endcan
+                        @can('update', $comment)
+                            <a href="{{ route('comments.edit', $comment) }}" class="ob-post__menu-item" role="menuitem">
+                                <x-icon name="edit" />
+                                {{ __('openbook.actions.edit') }}
                             </a>
                         @endcan
                         @can('delete', $comment)

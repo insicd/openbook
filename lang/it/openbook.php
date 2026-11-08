@@ -417,6 +417,8 @@ return [
     ],
 
     'comments' => [
+        'edit_title' => 'Modifica commento',
+        'cancel_edit' => 'Annulla',
         'title' => 'Commenti (:count)',
         'new_label' => 'Scrivi un commento',
         'empty' => 'Nessun commento. Sii il primo a commentare.',

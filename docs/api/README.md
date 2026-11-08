@@ -14,7 +14,7 @@ Mastodon API nor an ActivityPub representation. Deployment preparation is descri
 
 ## Supported operations
 
-Entities cover Instance, Me, Person, PersonReference, Follow and Post.
+Entities cover Instance, Me, Person, PersonReference, Follow, Post and Comment.
 NewPost and PatchPost define post inputs; PatchFollowRequest accepts incoming
 requests. Media and Location are already embedded in Post, without standalone
 upload or management endpoints.
@@ -220,7 +220,7 @@ PKCE support cannot complete this flow automatically.
 
 ## Next sprint
 
-A second PR is planned to extend Comment, Community, Event, Notification and
+A second PR is planned to extend Community, Event, Notification and
 Hashtag resources and their relationships. Media upload and complex post writes
 need dedicated contracts; they are not implemented by this sprint.
 Date-based caching, search, polls, messaging and further settings remain to be
@@ -234,3 +234,44 @@ verified email address. Otherwise `POST /rest/v1/posts` returns HTTP 403 with
 `application/problem+json` and `code: "emailVerificationRequired"`. After confirming
 the email through the website, the same Bearer can create posts without another
 authorization. Existing post editing and deletion permissions are unchanged.
+
+## Post comments
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/rest/v1/posts/{postId}/comments` | List published comments and nested replies |
+| POST | `/rest/v1/posts/{postId}/comments` | Create a text comment or reply |
+| GET | `/rest/v1/posts/{postId}/comments/{commentId}` | Read a comment |
+| PATCH | `/rest/v1/posts/{postId}/comments/{commentId}` | Edit your comment text |
+| DELETE | `/rest/v1/posts/{postId}/comments/{commentId}` | Delete your comment |
+
+Comment responses include a PersonReference author, root post ID and nullable
+parent comment ID, text, publication/edit time, existing Media attachments,
+known counters and the authenticated user's like state. Comments inherit the
+post audience. The post must be published and visible; private conversations
+are excluded. Every comment ID is checked within the post in the path.
+
+NewComment requires only `commentContent`. Optional `commentParentId` selects
+a published parent in the same post; omit it or use null for a top-level comment.
+Creation requires a verified email and rejects direct posts with 409.
+PatchComment accepts only required `commentContent`; existing attachments and
+reply relationships are preserved. Text must contain non-whitespace characters
+and respect the configured comment length limit. Unsupported properties are
+rejected. Uploads and comment likes are not exposed by these operations.
+
+PATCH and DELETE require an owned local published comment, including for admin
+accounts. Email verification is not required for editing/deletion. POST returns
+201 with Comment and Location, PATCH returns 200 with Comment, DELETE returns
+204. Repeated deletion returns 404. Changes generate the normal ActivityPub
+Create/Update/Delete; success confirms the local action, not completed delivery.
+
+The list is flat and includes every reply level, using `commentParentId` for
+relationships. Deleted comments are omitted while their published replies remain;
+a deleted parent ID can therefore remain in a reply. The list defaults to
+`sort=commentPublishedAt`, `direction=asc`, `limit=20` (maximum 100). Both asc
+and desc order by publication time with commentId as tie-breaker. `after` is
+the last commentId; unavailable or foreign anchors return 422. Follow Link next;
+page, cursor and afterAt are unsupported. Remote reads use the existing reply
+refresh policy, retain available cached data on remote failure, and recheck
+visibility before data or 304. Remote discussions may be incomplete. Reads
+support private ETag revalidation; writes and errors use no-store.

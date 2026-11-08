@@ -100,6 +100,9 @@ after following available when the account has enabled Fediverse sharing.
 
 Profile fields, biography and images are updated from information published by
 the source. Links and text remain subject to Openbook’s display protections.
+Custom emoji declared by the source appear in the display name, biography,
+and both labels and values of additional profile fields. Unknown emoji codes
+remain visible as text.
 The **Pinned posts** tab appears when visible pinned content exists; pins stay
 separate from the ordinary timeline. Fetch errors preserve the last valid list.
 
@@ -297,3 +300,11 @@ The command queues `ignored` and `pending` entries, excluding `processed` and
 happens immediately. This command changes the queue and has no preview: use it
 for manual recovery. It can queue jobs already present; previously processed
 entries are recognized and skipped.
+
+### Comment edits
+
+Editing a local comment on a post emits an ActivityPub Update with the same Note
+URI, author, original publication time and inReplyTo. The new text and updated
+time are included; attachments remain unchanged. Delivery uses the post audience
+and the author of the replied-to post or comment, including private-community
+restrictions. Updates may arrive later depending on cron and remote availability.

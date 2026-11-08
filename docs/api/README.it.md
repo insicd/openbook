@@ -14,7 +14,7 @@ Non è un’API Mastodon né una rappresentazione ActivityPub. La preparazione o
 
 ## Funzionalità disponibili
 
-Sono rappresentate Instance, Me, Person, PersonReference, Follow e Post.
+Sono rappresentate Instance, Me, Person, PersonReference, Follow, Post e Comment.
 NewPost e PatchPost descrivono gli input dei post; PatchFollowRequest accetta
 le richieste ricevute. Media e Location sono oggetti già incorporati nei Post,
 senza endpoint autonomi di upload o gestione.
@@ -224,7 +224,7 @@ Se il client non supporta PKCE, non completa il flusso automaticamente.
 
 ## Sprint successivo
 
-La seconda PR è prevista per ampliare le entità Comment, Community, Event,
+La seconda PR è prevista per ampliare le entità Community, Event,
 Notification e Hashtag e le loro relazioni. Upload Media e post complessi
 richiedono contratti dedicati. Non sono già implementati da questo sprint.
 Cache basata sulle date, ricerca, sondaggi, messaggistica e ulteriori impostazioni
@@ -239,3 +239,46 @@ restituisce HTTP 403, `application/problem+json` e
 `code: "emailVerificationRequired"`. Dopo la conferma tramite il sito, lo stesso
 Bearer permette di creare post senza una nuova autorizzazione. I permessi di
 modifica e cancellazione dei post esistenti restano invariati.
+
+## Commenti ai post
+
+| Metodo | Percorso | Funzione |
+| --- | --- | --- |
+| GET | `/rest/v1/posts/{postId}/comments` | Elenco dei commenti pubblicati e delle risposte annidate |
+| POST | `/rest/v1/posts/{postId}/comments` | Creazione di un commento testuale o risposta |
+| GET | `/rest/v1/posts/{postId}/comments/{commentId}` | Dettaglio del commento |
+| PATCH | `/rest/v1/posts/{postId}/comments/{commentId}` | Modifica del testo del proprio commento |
+| DELETE | `/rest/v1/posts/{postId}/comments/{commentId}` | Cancellazione del proprio commento |
+
+Comment include autore PersonReference, ID del post radice e ID nullable del
+commento padre, testo, date di pubblicazione/modifica, allegati Media esistenti,
+contatori noti e stato del proprio Mi piace. Il commento eredita l'audience del
+post, che deve essere pubblicato e visibile. Le conversazioni private sono
+escluse. Ogni commentId è verificato nel post indicato nel percorso.
+
+NewComment richiede solo `commentContent`. Il campo facoltativo
+`commentParentId` identifica un padre pubblicato nello stesso post; omesso o
+null crea un commento di primo livello. La creazione richiede email verificata
+e restituisce 409 sui post direct. PatchComment accetta solo il campo
+obbligatorio `commentContent`, conservando allegati e collegamenti alle risposte.
+Il testo deve contenere caratteri diversi dagli spazi e rispettare il limite
+configurato dei commenti. Le proprietà sconosciute sono rifiutate. Queste
+operazioni non espongono upload o gestione dei Mi piace dei commenti.
+
+PATCH e DELETE richiedono un proprio commento locale pubblicato, anche per gli
+admin. Non richiedono verifica email. POST restituisce 201 con Comment e
+Location, PATCH 200 con Comment, DELETE 204. Ripetere la cancellazione dà 404.
+Le modifiche generano i normali Create/Update/Delete ActivityPub; il successo
+conferma l'azione locale, non la consegna remota completata.
+
+La lista è piatta e include ogni livello di risposta, conservando i rapporti
+tramite `commentParentId`. I cancellati sono omessi, ma le loro risposte
+pubblicate restano disponibili: l'ID di un padre cancellato può quindi restare
+in una risposta. Valori predefiniti: `sort=commentPublishedAt`, `direction=asc`,
+`limit=20` (massimo 100). asc e desc ordinano per pubblicazione con spareggio
+per commentId. `after` identifica l'ultimo commento; ancore estranee o non più
+disponibili danno 422. Seguire Link next; page, cursor e afterAt non sono
+supportati. Le letture remote riusano il refresh delle risposte esistente,
+conservano i dati disponibili in cache in caso di errore remoto e ricontrollano
+la visibilità prima dei dati o del 304. Le discussioni remote possono essere
+incomplete. Le letture supportano ETag privato; scritture ed errori usano no-store.

@@ -49,6 +49,14 @@ to read its description in the same type of information panel used by the
 editor’s Markdown hint. Sources are identified by host and path; URL credentials and parameters are omitted. The icon is absent
 when no source was recorded and in embedded quoted posts.
 
+## Editing comments
+
+On a comment you published, open the three-dot menu and choose **Edit**, above
+**Delete**. Edit the text and save, or choose **Cancel** to return to the comment.
+Existing attachments and the reply relationship are preserved. Only the author
+can edit a local published comment; this also applies to comments on remote
+posts. Edited comments show an edit indicator. Comments on events are unchanged.
+
 ## Visibility
 
 Choose visibility before publishing:

@@ -9,7 +9,8 @@ class CommentPolicy
 {
     public function update(User $user, Comment $comment): bool
     {
-        return $comment->actor->user_id === $user->id;
+        return ! $comment->isRemote() && $comment->isPublished()
+            && $comment->actor?->isLocal() && $comment->actor->user_id === $user->id;
     }
 
     public function delete(User $user, Comment $comment): bool

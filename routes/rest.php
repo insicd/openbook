@@ -8,6 +8,7 @@ use App\Http\Controllers\Rest\V1\PersonController;
 use App\Http\Controllers\Rest\V1\PersonFollowController;
 use App\Http\Controllers\Rest\V1\PersonPostController;
 use App\Http\Controllers\Rest\V1\PostAnnounceController;
+use App\Http\Controllers\Rest\V1\PostCommentController;
 use App\Http\Controllers\Rest\V1\PostController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,3 +36,9 @@ Route::delete('/posts/{postId}/announce', [PostAnnounceController::class, 'destr
 Route::get('/me/follow-requests', [FollowRequestController::class, 'index'])->name('rest.v1.me.follow-requests.index');
 Route::patch('/me/follow-requests/{personId}', [FollowRequestController::class, 'update'])->name('rest.v1.me.follow-requests.update');
 Route::delete('/me/follow-requests/{personId}', [FollowRequestController::class, 'destroy'])->name('rest.v1.me.follow-requests.destroy');
+
+Route::get('/posts/{postId}/comments', [PostCommentController::class, 'index'])->name('rest.v1.comments.index');
+Route::post('/posts/{postId}/comments', [PostCommentController::class, 'store'])->name('rest.v1.comments.store');
+Route::get('/posts/{postId}/comments/{commentId}', [PostCommentController::class, 'show'])->name('rest.v1.comments.show');
+Route::patch('/posts/{postId}/comments/{commentId}', [PostCommentController::class, 'update'])->name('rest.v1.comments.update');
+Route::delete('/posts/{postId}/comments/{commentId}', [PostCommentController::class, 'destroy'])->name('rest.v1.comments.destroy');

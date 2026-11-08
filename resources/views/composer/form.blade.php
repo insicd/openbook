@@ -1,4 +1,4 @@
-@if (($editingPost ?? null) !== null || auth()->user()?->can('createContent'))
+@if (($editingPost ?? null) !== null || ($editingComment ?? null) !== null || auth()->user()?->can('createContent'))
 @php
     /**
      * Composer unificato per post, commenti e risposte.
@@ -16,9 +16,11 @@
     $action = $action ?? route('posts.store');
     $method = strtoupper($method ?? 'POST');
     $editingPost = $editingPost ?? null;
+    $editingComment = $editingComment ?? null;
+    $isEditingComment = ! $isPost && $editingComment !== null;
     $isEditing = $isPost && $editingPost !== null;
     $editingPoll = $isEditing ? $editingPost->poll : null;
-    $submitLabel = $submitLabel ?? ($isEditing
+    $submitLabel = $submitLabel ?? (($isEditing || $isEditingComment)
         ? __('openbook.composer.save')
         : ($isPost
             ? __('openbook.composer.submit')
@@ -54,7 +56,7 @@
 
     $titleValue = old('title', $isEditing ? $editingPost->title : '');
     $cwValue = old('content_warning', $isEditing ? $editingPost->content_warning : '');
-    $bodyValue = old('body', $isEditing ? $editingPost->body : '');
+    $bodyValue = old('body', $isEditing ? $editingPost->body : ($editingComment?->body ?? ''));
     $visibilityValue = old('visibility', $isEditing ? $editingPost->visibility : $defaultVisibility);
     $locationIdValue = old('location_id', $isEditing ? $editingPost->location?->geo_city_id : null);
     $locationLabelValue = old('location_label', $isEditing ? $editingPost->location?->label() : '');
@@ -206,6 +208,7 @@
                 </div>
             @endif
 
+            @unless ($isEditingComment)
             <div class="ob-composer__panel" id="{{ $prefix }}-panel-media" data-composer-panel @unless($mediaOpen) hidden @endunless>
                 <div class="ob-field">
                     <label for="{{ $prefix }}-images">{{ __('openbook.composer.images_label') }}</label>
@@ -227,6 +230,7 @@
                 </div>
             </div>
 
+            @endunless
             @if ($isPost)
                 @if ($editingPoll !== null)
                     <input type="hidden" name="visibility" value="{{ $editingPost->visibility }}">
@@ -332,6 +336,7 @@
                     </button>
                 @endif
 
+                @unless ($isEditingComment)
                 <button type="button" class="ob-icon-btn ob-composer__toggle {{ $mediaOpen ? 'is-active' : '' }}"
                     data-composer-toggle="{{ $prefix }}-panel-media"
                     aria-label="{{ __('openbook.composer.images_label') }}"
@@ -339,6 +344,7 @@
                     title="{{ __('openbook.composer.images_label') }}">
                     <x-icon name="image" />
                 </button>
+                @endunless
 
                 @if ($isPost)
                     @if ($editingPoll === null)

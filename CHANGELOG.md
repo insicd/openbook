@@ -19,6 +19,10 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Modifica dei commenti ai post**: voce Modifica nel menu dei propri commenti,
+  con conservazione degli allegati e invio ActivityPub Update. API REST per
+  elenco, dettaglio, creazione testuale, modifica e cancellazione sotto
+  `/rest/v1/posts/{postId}/comments`; creazione sui post direct esclusa.
 - **Visibilità pubblica configurabile**: nuovo tab in Questa istanza con modalità
   Tutto visibile, Solo contenuti locali e Tutto chiuso, più controllo di tag e
   tendenze. Post, eventi, profili, community e commenti rispettano la scelta anche
@@ -416,6 +420,8 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Emoji nei profili remoti**: le emoji personalizzate vengono mostrate anche
+  nelle etichette e nei valori dei campi aggiuntivi della biografia.
 - **Integrità delle statistiche di consegna**: eliminare una sorgente statistica
   elimina in cascata i suoi contatori giornalieri; il database impedisce bucket
   orfani. La migration ripulisce prima i bucket privi di sorgente. La rimozione
