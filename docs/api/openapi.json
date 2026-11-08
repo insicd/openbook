@@ -3,7 +3,7 @@
   "info": {
     "title": "OpenBook REST API",
     "version": "0.1.0-draft",
-    "description": "Experimental first-sprint API for authenticated independent OpenBook applications. Covers instance metadata, current user, persons, posts and follow relationships, including production installations. Property names and case-sensitive enum values use lowerCamelCase; OAuth protocol fields retain their standard wire names. Creation inputs use separate New<Entity> schemas with independently defined required and nullable fields. Further resources are planned for later sprints."
+    "description": "Experimental first-sprint API for authenticated independent OpenBook applications. Covers instance metadata, current user, persons, posts, post comments and follow relationships, including production installations. Property names and case-sensitive enum values use lowerCamelCase; OAuth protocol fields retain their standard wire names. Creation inputs use separate New<Entity> schemas with independently defined required and nullable fields. Further resources are planned for later sprints."
   },
   "paths": {
     "/.well-known/oauth-authorization-server": {
@@ -6637,6 +6637,1558 @@
           }
         }
       }
+    },
+    "/posts/{postId}/comments": {
+      "get": {
+        "operationId": "listPostComments",
+        "summary": "List comments on a post",
+        "description": "Requires an authenticated active account. Returns only comments of a visible published post; private conversations are excluded. Remote replies use the existing refresh policy and fall back to available cached data on failure. Visibility is checked again after refresh and before HTTP 304. ETag revalidation is supported. The array includes replies at every nesting level and uses commentParentId to retain relationships. Deleted parents are omitted while their published replies remain. Federated discussions may be incomplete. Pagination is not a snapshot; page, cursor and afterAt are not supported.",
+        "tags": [
+          "Comments"
+        ],
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "description": "The post identifier within this instance.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of comments.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "The last commentId from the previous page. It must remain published in this post; otherwise 422 is returned. Follow the next Link.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Publication time, with commentId as tie-breaker.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "commentPublishedAt"
+              ],
+              "default": "commentPublishedAt"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "description": "Order by publication time and identifier in the same direction.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            }
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "description": "An entity tag from a previous response. Send it to revalidate a cached representation.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of published comments and nested replies.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              },
+              "Link": {
+                "description": "The next page URL with rel=\"next\", when another page is available. Absent on the last page.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Comment"
+                  }
+                },
+                "example": [
+                  {
+                    "commentId": "01900000-0000-7000-8000-000000000004",
+                    "commentUri": "https://example.org/comments/01900000-0000-7000-8000-000000000004",
+                    "commentPostId": "01900000-0000-7000-8000-000000000002",
+                    "commentParentId": null,
+                    "commentAuthor": {
+                      "personId": "01900000-0000-7000-8000-000000000001",
+                      "personUsername": "alex",
+                      "personDomain": "example.org",
+                      "personName": "Alex Example",
+                      "personAvatar": "https://example.org/images/alex.png"
+                    },
+                    "commentContent": "Thank you for sharing this walk.",
+                    "commentPublishedAt": "2026-11-08T10:00:00Z",
+                    "commentCounters": {
+                      "commentLikesCount": 0,
+                      "commentRepliesCount": 0
+                    },
+                    "commentMyInteractions": {
+                      "commentLiked": false
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "304": {
+            "description": "The representation has not changed and remains accessible. No response body is returned.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              },
+              "Link": {
+                "description": "The next page URL with rel=\"next\", when another page is available. Absent on the last page.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A pagination or ordering parameter is invalid, or the anchor comment is unavailable in this post.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryValidationProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unprocessable Content",
+                  "status": 422,
+                  "errors": {
+                    "limit": [
+                      "The limit field must not be greater than 100."
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The post or comment is missing, deleted, inaccessible, belongs to another post, or is a private conversation message. Writes also require ownership of the comment.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404,
+                  "detail": "The person was not found or is not available through this endpoint."
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPostComment",
+        "summary": "Create a comment on a post",
+        "description": "Create a text comment or nested reply on a visible published post. Email verification is required. Direct posts and private conversations are excluded. commentParentId must identify a published comment in the same post. The response confirms local creation; remote delivery may complete later. Attachments cannot be uploaded through this operation.",
+        "tags": [
+          "Comments"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewComment"
+              },
+              "example": {
+                "commentContent": "Thank you for sharing this walk."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The requested Comment.",
+            "headers": {
+              "Location": {
+                "description": "The URL of the new comment detail under its post.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "Cache-Control": {
+                "description": "The creation response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store, private"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                },
+                "example": {
+                  "commentId": "01900000-0000-7000-8000-000000000004",
+                  "commentUri": "https://example.org/comments/01900000-0000-7000-8000-000000000004",
+                  "commentPostId": "01900000-0000-7000-8000-000000000002",
+                  "commentParentId": null,
+                  "commentAuthor": {
+                    "personId": "01900000-0000-7000-8000-000000000001",
+                    "personUsername": "alex",
+                    "personDomain": "example.org",
+                    "personName": "Alex Example",
+                    "personAvatar": "https://example.org/images/alex.png"
+                  },
+                  "commentContent": "Thank you for sharing this walk.",
+                  "commentPublishedAt": "2026-11-08T10:00:00Z",
+                  "commentCounters": {
+                    "commentLikesCount": 0,
+                    "commentRepliesCount": 0
+                  },
+                  "commentMyInteractions": {
+                    "commentLiked": false
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body is not an object, commentContent is missing or invalid, a property is unsupported, or the parent comment is unavailable in this post.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyValidationProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unprocessable Content",
+                  "status": 422,
+                  "errors": {
+                    "commentContent": [
+                      "The commentContent field is required."
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account cannot create content or interact with the target. An unverified email returns code emailVerificationRequired.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403,
+                  "code": "emailVerificationRequired"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Bad Request",
+                  "status": 400
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "A JSON content type is required.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unsupported Media Type",
+                  "status": 415
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The post or comment is missing, deleted, inaccessible, belongs to another post, or is a private conversation message. Writes also require ownership of the comment.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404,
+                  "detail": "The person was not found or is not available through this endpoint."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Creating comments on direct posts is not supported.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Conflict",
+                  "status": 409
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "description": "The post identifier within this instance.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "get": {
+        "operationId": "getPostComment",
+        "summary": "Get a comment on a post",
+        "description": "Requires an authenticated active account. Returns only comments of a visible published post; private conversations are excluded. Remote replies use the existing refresh policy and fall back to available cached data on failure. Visibility is checked again after refresh and before HTTP 304. ETag revalidation is supported.",
+        "tags": [
+          "Comments"
+        ],
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "description": "The post identifier within this instance.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "commentId",
+            "in": "path",
+            "required": true,
+            "description": "The comment identifier within this instance. It must belong to the post in this path.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "description": "An entity tag from a previous response. Send it to revalidate a cached representation.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested Comment.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                },
+                "example": {
+                  "commentId": "01900000-0000-7000-8000-000000000004",
+                  "commentUri": "https://example.org/comments/01900000-0000-7000-8000-000000000004",
+                  "commentPostId": "01900000-0000-7000-8000-000000000002",
+                  "commentParentId": null,
+                  "commentAuthor": {
+                    "personId": "01900000-0000-7000-8000-000000000001",
+                    "personUsername": "alex",
+                    "personDomain": "example.org",
+                    "personName": "Alex Example",
+                    "personAvatar": "https://example.org/images/alex.png"
+                  },
+                  "commentContent": "Thank you for sharing this walk.",
+                  "commentPublishedAt": "2026-11-08T10:00:00Z",
+                  "commentCounters": {
+                    "commentLikesCount": 0,
+                    "commentRepliesCount": 0
+                  },
+                  "commentMyInteractions": {
+                    "commentLiked": false
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The representation has not changed and remains accessible. No response body is returned.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The post or comment is missing, deleted, inaccessible, belongs to another post, or is a private conversation message. Writes also require ownership of the comment.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404,
+                  "detail": "The person was not found or is not available through this endpoint."
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updatePostComment",
+        "summary": "Edit your comment on a post",
+        "description": "Edit only the text of your own local published comment under a visible published post. Existing attachments, parent and publication time are preserved. Other users’ comments, including for administrators, are unavailable. The change generates an ActivityPub Update. An identical text leaves the edit time unchanged. Email verification is not required for edits. The response confirms local persistence, not completed remote delivery.",
+        "tags": [
+          "Comments"
+        ],
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "description": "The post identifier within this instance.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "commentId",
+            "in": "path",
+            "required": true,
+            "description": "The comment identifier within this instance. It must belong to the post in this path.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchComment"
+              },
+              "example": {
+                "commentContent": "Thank you for sharing this walk."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The requested Comment.",
+            "headers": {
+              "Cache-Control": {
+                "description": "The mutation response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store, private"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                },
+                "example": {
+                  "commentId": "01900000-0000-7000-8000-000000000004",
+                  "commentUri": "https://example.org/comments/01900000-0000-7000-8000-000000000004",
+                  "commentPostId": "01900000-0000-7000-8000-000000000002",
+                  "commentParentId": null,
+                  "commentAuthor": {
+                    "personId": "01900000-0000-7000-8000-000000000001",
+                    "personUsername": "alex",
+                    "personDomain": "example.org",
+                    "personName": "Alex Example",
+                    "personAvatar": "https://example.org/images/alex.png"
+                  },
+                  "commentContent": "Thank you for sharing this walk.",
+                  "commentPublishedAt": "2026-11-08T10:00:00Z",
+                  "commentCounters": {
+                    "commentLikesCount": 0,
+                    "commentRepliesCount": 0
+                  },
+                  "commentMyInteractions": {
+                    "commentLiked": false
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Bad Request",
+                  "status": 400
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "A JSON content type is required.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unsupported Media Type",
+                  "status": 415
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body is not an object, commentContent is missing or invalid, a property is unsupported, or the parent comment is unavailable in this post.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyValidationProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unprocessable Content",
+                  "status": 422,
+                  "errors": {
+                    "body": [
+                      "At least one property must be supplied."
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The post or comment is missing, deleted, inaccessible, belongs to another post, or is a private conversation message. Writes also require ownership of the comment.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404,
+                  "detail": "The person was not found or is not available through this endpoint."
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deletePostComment",
+        "summary": "Delete your comment on a post",
+        "description": "Delete your own local published comment under a visible published post. Administrators have no additional privileges. The deletion follows the normal ActivityPub Delete flow. Deleted comments and repeated deletion return 404. Email verification is not required.",
+        "tags": [
+          "Comments"
+        ],
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "description": "The post identifier within this instance.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "commentId",
+            "in": "path",
+            "required": true,
+            "description": "The comment identifier within this instance. It must belong to the post in this path.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The comment is deleted. Its published replies remain available. No response body.",
+            "headers": {
+              "Cache-Control": {
+                "description": "The mutation response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store, private"
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is unavailable or is not allowed to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The post or comment is missing, deleted, inaccessible, belongs to another post, or is a private conversation message. Writes also require ownership of the comment.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Not Found",
+                  "status": 404,
+                  "detail": "The person was not found or is not available through this endpoint."
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7540,6 +9092,189 @@
               }
             }
           }
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "description": "A published comment or nested reply belonging to a post visible to the authenticated user. Comments inherit the post audience. Deleted comments are not returned; their published replies remain available.",
+        "required": [
+          "commentId",
+          "commentUri",
+          "commentPostId",
+          "commentParentId",
+          "commentAuthor",
+          "commentContent",
+          "commentPublishedAt",
+          "commentCounters",
+          "commentMyInteractions"
+        ],
+        "properties": {
+          "commentId": {
+            "type": "string",
+            "description": "The comment identifier within this instance.",
+            "format": "uuid"
+          },
+          "commentUri": {
+            "type": "string",
+            "description": "The canonical comment URI.",
+            "format": "uri"
+          },
+          "commentPostId": {
+            "type": "string",
+            "description": "The root post identifier within this instance.",
+            "format": "uuid"
+          },
+          "commentParentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The parent comment identifier, or null for a reply to the post. A parent may have been deleted and no longer be retrievable.",
+            "format": "uuid"
+          },
+          "commentAuthor": {
+            "$ref": "#/components/schemas/PersonReference"
+          },
+          "commentContent": {
+            "type": "string",
+            "description": "The text available to OpenBook, without additional HTML rendering. It may contain Markdown or plain text; the original remote document is not guaranteed."
+          },
+          "commentPublishedAt": {
+            "type": "string",
+            "description": "The original publication time.",
+            "format": "date-time"
+          },
+          "commentEditedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The latest known edit time. Omitted when no edit is known.",
+            "format": "date-time"
+          },
+          "commentLanguage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The declared language when available; omitted when absent."
+          },
+          "commentCustomEmojis": {
+            "type": "object",
+            "description": "Custom emoji shortcodes mapped to image URLs. Omitted when empty.",
+            "additionalProperties": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "commentAttachments": {
+            "type": "array",
+            "description": "Existing attachments in display order. Omitted when empty.",
+            "items": {
+              "$ref": "#/components/schemas/Media"
+            }
+          },
+          "commentCounters": {
+            "type": "object",
+            "description": "Counts known to this instance; federated counts may be incomplete.",
+            "required": [
+              "commentLikesCount",
+              "commentRepliesCount"
+            ],
+            "properties": {
+              "commentLikesCount": {
+                "type": "integer",
+                "description": "Known likes.",
+                "minimum": 0
+              },
+              "commentRepliesCount": {
+                "type": "integer",
+                "description": "Known direct replies.",
+                "minimum": 0
+              }
+            }
+          },
+          "commentMyInteractions": {
+            "type": "object",
+            "description": "The authenticated user’s interactions.",
+            "required": [
+              "commentLiked"
+            ],
+            "properties": {
+              "commentLiked": {
+                "type": "boolean",
+                "description": "Whether the authenticated user likes this comment."
+              }
+            }
+          }
+        },
+        "example": {
+          "commentId": "01900000-0000-7000-8000-000000000004",
+          "commentUri": "https://example.org/comments/01900000-0000-7000-8000-000000000004",
+          "commentPostId": "01900000-0000-7000-8000-000000000002",
+          "commentParentId": null,
+          "commentAuthor": {
+            "personId": "01900000-0000-7000-8000-000000000001",
+            "personUsername": "alex",
+            "personDomain": "example.org",
+            "personName": "Alex Example",
+            "personAvatar": "https://example.org/images/alex.png"
+          },
+          "commentContent": "Thank you for sharing this walk.",
+          "commentPublishedAt": "2026-11-08T10:00:00Z",
+          "commentCounters": {
+            "commentLikesCount": 0,
+            "commentRepliesCount": 0
+          },
+          "commentMyInteractions": {
+            "commentLiked": false
+          }
+        }
+      },
+      "NewComment": {
+        "type": "object",
+        "description": "Inputs for a new text comment. Only commentContent is required. Author and audience follow the authenticated user and target post. Future creation fields will be optional.",
+        "additionalProperties": false,
+        "required": [
+          "commentContent"
+        ],
+        "properties": {
+          "commentContent": {
+            "type": "string",
+            "description": "Non-whitespace comment text. Markdown and mentions are supported. Must respect the instance’s configured comment length limit.",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "commentParentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional parent comment in the same post. Omit or use null for a top-level comment. The parent must still be published.",
+            "format": "uuid"
+          }
+        },
+        "example": {
+          "commentContent": "Thank you for sharing this walk."
+        }
+      },
+      "PatchComment": {
+        "type": "object",
+        "description": "Edit the text of an owned local published comment. Existing attachments and reply relationships are preserved.",
+        "additionalProperties": false,
+        "required": [
+          "commentContent"
+        ],
+        "properties": {
+          "commentContent": {
+            "type": "string",
+            "description": "Non-whitespace comment text. Markdown and mentions are supported. Must respect the instance’s configured comment length limit.",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "example": {
+          "commentContent": "Thank you for sharing this walk."
         }
       }
     },

@@ -126,6 +126,40 @@ final class CommentComposer
         }
     }
 
+    public function update(Actor $author, Comment $comment, string $body): Comment
+    {
+        return DB::transaction(function () use ($author, $comment, $body): Comment {
+            $comment = Comment::query()->lockForUpdate()->findOrFail($comment->id);
+            if ($comment->actor_id !== $author->id || ! $author->isLocal()
+                || $comment->isRemote() || ! $comment->isPublished()) {
+                throw new InvalidArgumentException('Questo commento non puo\' essere modificato.');
+            }
+
+            if ($comment->body === $body) {
+                return $comment;
+            }
+
+            $previousIds = $comment->mentions()->pluck('actor_id');
+            $comment->forceFill(['body' => $body, 'edited_at' => now()])->save();
+            $mentionedActors = $this->contentParser->extractMentionedActors($body)
+                ->filter(fn (Actor $actor) => $actor->id !== $author->id)->unique('id');
+            $comment->mentions()->whereNotIn('actor_id', $mentionedActors->pluck('id'))->delete();
+            foreach ($mentionedActors as $actor) {
+                $comment->mentions()->firstOrCreate(['actor_id' => $actor->id]);
+                if (! $previousIds->contains($actor->id) && $actor->isLocal() && $actor->isPerson()) {
+                    $this->notificationCreator->notify($actor, Notification::TYPE_MENTION, $author, $comment);
+                }
+            }
+
+            $comment->load('actor', 'mentions.actor', 'post.community.actor', 'post.actor', 'parent.actor', 'media');
+            $this->delivery->deliverContent($comment, ActivitySerializer::update($comment), [
+                $comment->parent?->actor ?? $comment->post->actor,
+            ]);
+
+            return $comment;
+        });
+    }
+
     private function notifyThread(Comment $comment, Post $post, Actor $author, ?Comment $parent): void
     {
         if ($parent !== null) {

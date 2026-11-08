@@ -417,6 +417,8 @@ return [
     ],
 
     'comments' => [
+        'edit_title' => 'Edit comment',
+        'cancel_edit' => 'Cancel',
         'title' => 'Comments (:count)',
         'new_label' => 'Write a comment',
         'empty' => 'No comments yet. Be the first to comment.',

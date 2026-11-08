@@ -427,7 +427,7 @@ di ambiente per il supporto autenticato.
 
 | Area | Percorsi/decisioni successive |
 | --- | --- |
-| Comment | /posts/{postId}/comments e /events/{eventId}/comments, con dettaglio figlio. Definire Comment, NewComment, risposte annidate e autorizzazioni. |
+| Comment | Commenti ai post: estensione su `comments`, con raccolta e dettaglio sotto `/posts/{postId}/comments`, Comment/NewComment/PatchComment e ownership. Analisi e verifiche in [COMMENTS](COMMENTS.md). `/events/{eventId}/comments` rimane futuro. |
 | Community | Catalogo/dettaglio, posts/followers, follow e /me/communities (ownership, non moderazione). |
 | Event | Catalogo/dettaglio, /me/events; follow «mi interessa» separato da participation «parteciperò», followers e participants. Definire Event e Location estesa. |
 | Notification | /me/notifications, stato lettura e riferimenti ai contenuti. |

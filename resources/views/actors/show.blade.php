@@ -72,8 +72,8 @@
                 <dl class="ob-profile-fields" aria-label="{{ __('openbook.profile.additional_fields') }}">
                     @foreach ($profileActor->links as $field)
                         <div class="ob-profile-fields__row">
-                            <dt>{{ $field['label'] }}</dt>
-                            <dd>{{ \App\Domain\Posts\PostBodyRenderer::render($field['value']) }}</dd>
+                            <dt>{{ \App\Domain\Posts\PostBodyRenderer::renderInlineCustomEmojis($field['label'], $profileActor->custom_emojis) }}</dt>
+                            <dd>{{ \App\Domain\Posts\PostBodyRenderer::render($field['value'], $profileActor->custom_emojis) }}</dd>
                         </div>
                     @endforeach
                 </dl>

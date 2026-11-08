@@ -104,7 +104,10 @@ l’account ha abilitato la condivisione sul Fediverso.
 
 I campi del profilo, la biografia e le immagini sono aggiornati dalle informazioni
 pubblicate dall’origine. I link e i testi restano soggetti alle protezioni di
-visualizzazione di Openbook. La scheda **Post fissati** compare quando esistono
+visualizzazione di Openbook. Le emoji personalizzate dichiarate dall’origine
+sono mostrate nel nome, nella biografia e nelle etichette e nei valori dei campi
+aggiuntivi del profilo. I codici emoji sconosciuti restano visibili come testo.
+La scheda **Post fissati** compare quando esistono
 contenuti fissati visibili; i fissati restano distinti dalla timeline ordinaria.
 Errori di recupero conservano l’ultimo elenco valido.
 
@@ -309,3 +312,12 @@ Il comando accoda gli elementi `ignored` e `pending`, senza includere quelli
 avviene subito. Il comando modifica la coda e non offre un’anteprima: usarlo
 come recupero manuale. Può accodare job già presenti; quelli già elaborati
 vengono riconosciuti e saltati.
+
+### Modifiche dei commenti
+
+La modifica di un commento locale a un post genera un Update ActivityPub con
+lo stesso URI della Note, autore, data originale e inReplyTo. Include il nuovo
+testo e la data updated; gli allegati restano invariati. La consegna segue
+l'audience del post e l'autore del post o commento a cui si risponde, rispettando
+le restrizioni delle community private. L'arrivo dipende dal cron e dalla
+disponibilità dell'istanza remota.

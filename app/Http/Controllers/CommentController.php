@@ -9,6 +9,7 @@ use App\Domain\Comments\CommentThread;
 use App\Domain\Posts\Post;
 use App\Federation\Serialization\NoteSerializer;
 use App\Http\Requests\Comments\StoreCommentRequest;
+use App\Http\Requests\Comments\UpdateCommentRequest;
 use App\Http\Support\ActivityPubNegotiation;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -109,6 +110,30 @@ class CommentController extends Controller
         );
 
         return redirect(route('posts.show', $post).'#commento-'.$comment->id);
+    }
+
+    public function edit(Request $request, Comment $comment): View
+    {
+        $this->authorizeEdit($request, $comment);
+        $comment->load('media');
+
+        return view('comments.edit', compact('comment'));
+    }
+
+    public function update(UpdateCommentRequest $request, Comment $comment): RedirectResponse
+    {
+        $this->authorizeEdit($request, $comment);
+        $this->commentComposer->update($request->user()->actor, $comment, $request->validated('body'));
+
+        return redirect()->route('comments.show', $comment);
+    }
+
+    private function authorizeEdit(Request $request, Comment $comment): void
+    {
+        abort_unless(Post::query()->whereKey($comment->post_id)
+            ->visibleTo($request->user()->actor)->excludingPrivateMessages()
+            ->where('status', Post::STATUS_PUBLISHED)->exists(), 404);
+        Gate::authorize('update', $comment);
     }
 
     public function destroy(Comment $comment): RedirectResponse

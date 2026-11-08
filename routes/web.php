@@ -151,6 +151,8 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/posts/{post}/commenti', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('/commenti/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+    Route::get('/commenti/{comment}/modifica', [CommentController::class, 'edit'])->name('comments.edit');
+    Route::put('/commenti/{comment}', [CommentController::class, 'update'])->name('comments.update');
 
     Route::get('/posts/{post}/sondaggio/votanti/{option?}', PollVotersController::class)
         ->whereUuid('option')->name('posts.poll.voters');

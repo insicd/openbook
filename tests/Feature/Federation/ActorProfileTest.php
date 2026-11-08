@@ -240,9 +240,51 @@ class ActorProfileTest extends TestCase
         $response = $this->actingAs($viewer)->get(route('actors.show', $remote));
 
         $response->assertOk();
-        $response->assertSee('class="ob-custom-emoji"', false);
-        $response->assertSee('src="https://remoto.example/emoji/blobcat.png"', false);
-        $response->assertSee('alt=":blobcat:"', false);
+        $document = new \DOMDocument;
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
+        $xpath = new \DOMXPath($document);
+
+        foreach (['ob-profile-name', 'ob-profile-bio'] as $class) {
+            $images = $xpath->query('//*[contains(concat(" ", normalize-space(@class), " "), " '.$class.' ")]//img[@class="ob-custom-emoji"]');
+            $this->assertSame(1, $images->length);
+            $this->assertSame('https://remoto.example/emoji/blobcat.png', $images->item(0)->getAttribute('src'));
+            $this->assertSame(':blobcat:', $images->item(0)->getAttribute('alt'));
+        }
+    }
+
+    public function test_custom_emojis_are_rendered_in_remote_profile_field_labels_and_values(): void
+    {
+        Http::fake(['*' => Http::response('', 404)]);
+        $viewer = $this->createFullAccount('fieldemoji');
+        $remote = $this->createRemoteActor('fieldemoji', overrides: [
+            'links' => [
+                ['label' => 'Wiki :blobcat: <script>alert(1)</script>', 'value' => ':blobcat: :blobcat: https://example.test/wiki :unknown: :unsafe:'],
+                ['label' => 'Plain field', 'value' => 'Plain value'],
+            ],
+            'custom_emojis' => [
+                ':blobcat:' => 'https://remoto.example/emoji/blobcat.png',
+                ':unsafe:' => 'javascript:alert(1)',
+            ],
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('actors.show', $remote))->assertOk();
+        $document = new \DOMDocument;
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
+        $xpath = new \DOMXPath($document);
+        $fields = '//dl[@class="ob-profile-fields"]';
+
+        $this->assertSame(1, $xpath->query($fields.'//dt//img[@class="ob-custom-emoji"]')->length);
+        $this->assertSame(2, $xpath->query($fields.'//dd//img[@class="ob-custom-emoji"]')->length);
+        foreach ($xpath->query($fields.'//img') as $image) {
+            $this->assertSame('https://remoto.example/emoji/blobcat.png', $image->getAttribute('src'));
+            $this->assertSame(':blobcat:', $image->getAttribute('alt'));
+        }
+        $this->assertSame(1, $xpath->query($fields.'//dd//a[@href="https://example.test/wiki"]')->length);
+        $this->assertSame(0, $xpath->query($fields.'//script')->length);
+        $this->assertStringContainsString('<script>alert(1)</script>', $xpath->query($fields.'//dt')->item(0)->textContent);
+        $this->assertStringContainsString(':unknown: :unsafe:', $xpath->query($fields.'//dd')->item(0)->textContent);
+        $this->assertSame('Plain field', $xpath->query($fields.'//dt')->item(1)->textContent);
+        $this->assertSame('Plain value', trim($xpath->query($fields.'//dd')->item(1)->textContent));
     }
 
     public function test_visiting_a_local_actor_id_redirects_to_the_canonical_profile(): void

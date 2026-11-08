@@ -53,6 +53,15 @@ Le sorgenti sono identificate da dominio e percorso; credenziali e parametri
 degli URL non vengono mostrati. L’icona non compare sui post senza provenienza
 registrata o nei post incorporati come citazioni.
 
+## Modificare i commenti
+
+Su un commento che hai pubblicato, apri il menu con i tre puntini e scegli
+**Modifica**, sopra **Elimina**. Modifica il testo e salva, oppure scegli
+**Annulla** per tornare al commento. Gli allegati esistenti e il collegamento
+alla risposta restano invariati. Solo l'autore può modificare un commento locale
+pubblicato, anche se appartiene a un post remoto. I commenti modificati mostrano
+un'indicazione di modifica. I commenti agli eventi restano invariati.
+
 ## Visibilità
 
 Scegli la visibilità prima della pubblicazione:

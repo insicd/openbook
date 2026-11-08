@@ -399,6 +399,8 @@ return [
         'report' => 'Ilmianna',
     ],
     'comments' => [
+        'edit_title' => 'Muokkaa kommenttia',
+        'cancel_edit' => 'Peruuta',
         'title' => 'Kommentit (:count)',
         'new_label' => 'Kirjoita kommentti',
         'empty' => 'Kommentteja ei vielä ole. Aloita keskustelu.',
