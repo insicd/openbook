@@ -693,13 +693,16 @@ return [
     ],
 
     'hashtags' => [
+        'ticker_label' => '7-day trend of public posts and events',
+        'ticker_note' => 'Approximate 7-day trend of public posts and events. Today is partial.',
+        'contents' => '{1} :count item|[0,*] :count items',
         'trend_heading' => 'Trend',
         'trend_period' => 'Last 30 days',
         'trend_title' => 'Trend over the last 30 days',
 
         'empty' => 'No public posts with this hashtag yet.',
         'index_title' => 'Trending',
-        'index_subtitle' => 'Most used hashtags on public and unlisted posts from the last :days days, local and remote.',
+        'index_subtitle' => 'Most used hashtags on public and unlisted posts and events from the last :days days, local and remote.',
     ],
 
     'communities' => [

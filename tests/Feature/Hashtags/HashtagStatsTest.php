@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Hashtags;
 
+use App\Application\Queries\HashtagStatsQuery;
 use App\Application\Queries\StatsQuery;
+use App\Application\Services\EventComposer;
 use App\Application\Services\HashtagStats;
 use App\Application\Services\HashtagStatsBootstrap;
 use App\Application\Services\InstanceSettings;
@@ -13,6 +15,8 @@ use App\Domain\Posts\Post;
 use App\Federation\Actors\RemoteActorDeletionService;
 use App\Federation\Inbox\InboxActivityProcessor;
 use App\Federation\Inbox\InboxItem;
+use App\Federation\Inbox\RemoteEventDeletionService;
+use App\Federation\Inbox\RemoteEventIngester;
 use App\Federation\Inbox\RemoteNoteUpserter;
 use App\Infrastructure\Database\SystemSetting;
 use Carbon\CarbonImmutable;
@@ -308,5 +312,136 @@ class HashtagStatsTest extends TestCase
             $lock->release();
         }
         $this->assertSame(1, $this->bucketCount('command'));
+    }
+
+    private function eventData(array $overrides = []): array
+    {
+        return array_replace(['name' => 'Synthetic concert', 'content' => '#concert #concert',
+            'start_at' => '2026-12-20T18:00', 'timezone' => 'UTC', 'mode' => 'online',
+            'participation_url' => 'https://events.example/live', 'join_mode' => 'free',
+            'visibility' => 'public'], $overrides);
+    }
+
+    public function test_local_events_share_post_buckets_and_edit_cancel_delete_only_once(): void
+    {
+        $owner = $this->createFullAccount('eventbuckets');
+        app(PostComposer::class)->compose($owner->actor, ['body' => '#concert', 'visibility' => 'public']);
+        $composer = app(EventComposer::class);
+        $event = $composer->compose($owner->actor, $this->eventData());
+        $this->assertSame(2, $this->bucketCount('concert'));
+        $this->assertSame(2, $this->bucketCount('concert', 'monthly'));
+        $event = $composer->update($owner->actor, $event, $this->eventData(['content' => '#music']));
+        $this->assertSame(1, $this->bucketCount('concert'));
+        $this->assertSame(1, $this->bucketCount('music'));
+        $event = $composer->update($owner->actor, $event, $this->eventData(['content' => '#music', 'visibility' => 'unlisted']));
+        $this->assertSame(0, $this->bucketCount('music'));
+        $event = $composer->update($owner->actor, $event, $this->eventData(['content' => '#music']));
+        $composer->cancel($owner->actor, $event);
+        $composer->cancel($owner->actor, $event->fresh());
+        $composer->delete($owner->actor, $event->fresh());
+        $this->assertSame(0, $this->bucketCount('music', 'monthly'));
+        $event = $composer->compose($owner->actor, $this->eventData());
+        $composer->delete($owner->actor, $event);
+        $composer->delete($owner->actor, $event->fresh());
+        $this->assertSame(1, $this->bucketCount('concert'));
+    }
+
+    public function test_remote_event_redelivery_update_and_actor_deletion_correct_contributions(): void
+    {
+        $remote = $this->createRemoteActor('eventbucketremote', 'events.example');
+        $document = ['id' => $remote->uri.'/concert', 'type' => 'Event', 'actor' => $remote->uri,
+            'attributedTo' => $remote->uri, 'name' => 'Synthetic concert', 'startTime' => '2026-12-20T18:00:00Z',
+            'published' => now()->subHour()->toAtomString(), 'updated' => now()->subHour()->toAtomString(),
+            'to' => ['https://www.w3.org/ns/activitystreams#Public'], 'tag' => [['type' => 'Hashtag', 'name' => '#concert']]];
+        $ingester = app(RemoteEventIngester::class);
+        $event = $ingester->ingest($document, $remote, 'Create');
+        $this->assertNotNull($event);
+        $ingester->ingest($document, $remote, 'Announce');
+        $this->assertSame(1, $this->bucketCount('concert'));
+        $document['tag'] = [['type' => 'Hashtag', 'name' => '#music']];
+        $document['updated'] = now()->toAtomString();
+        $event = $ingester->ingest($document, $remote, 'Update');
+        $this->assertSame(0, $this->bucketCount('concert'));
+        $this->assertSame(1, $this->bucketCount('music'));
+        $document['eventStatus'] = 'CANCELLED';
+        $ingester->ingest($document, $remote, 'Update');
+        $this->assertSame(0, $this->bucketCount('music'));
+        $document['eventStatus'] = 'TENTATIVE';
+        $ingester->ingest($document, $remote, 'Update');
+        $this->assertSame(1, $this->bucketCount('music'));
+        app(RemoteActorDeletionService::class)->delete($remote);
+        $this->assertSame(0, $this->bucketCount('music'));
+        app(RemoteEventDeletionService::class)->delete($event->fresh());
+        $this->assertSame(0, $this->bucketCount('music', 'monthly'));
+    }
+
+    public function test_reset_rebuilds_public_posts_and_events_and_preserves_publication_periods(): void
+    {
+        $owner = $this->createFullAccount('mixedbootstrap');
+        app(PostComposer::class)->compose($owner->actor, ['body' => '#concert', 'visibility' => 'public']);
+        app(EventComposer::class)->compose($owner->actor, $this->eventData());
+        app(EventComposer::class)->compose($owner->actor, $this->eventData(['visibility' => 'followers']));
+        $this->mock(MaintenanceMode::class)->shouldReceive('active')->andReturn(true);
+        $this->artisan('openbook:backfill-hashtag-stats', ['--reset' => true])->assertSuccessful();
+        $this->assertSame(2, $this->bucketCount('concert'));
+        $this->assertSame(2, $this->bucketCount('concert', 'monthly'));
+        $this->assertSame(0, $this->bucketCount('concert', 'monthly', '2026-12-01'));
+        $this->artisan('openbook:backfill-hashtag-stats')->assertSuccessful();
+        $this->assertSame(2, $this->bucketCount('concert'));
+        DB::table('events')->delete();
+        $this->assertSame(2, $this->bucketCount('concert'));
+    }
+
+    public function test_batch_tickers_use_one_query_and_zero_fill_seven_days_for_all_tags(): void
+    {
+        $tags = [];
+        for ($i = 0; $i < 100; $i++) {
+            $tag = Hashtag::create(['name' => 'tickertopic'.$i]);
+            $tags[] = $tag->id;
+            DB::table('stats_hashtag_daily_buckets')->insert(['hashtag_id' => $tag->id, 'day' => '2026-11-08', 'count' => $i]);
+        }
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        $series = app(HashtagStatsQuery::class)->dailyForTags($tags);
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+        $this->assertCount(1, $queries);
+        $this->assertCount(100, $series);
+        $this->assertCount(7, $series[$tags[99]]);
+        $this->assertSame(['day' => '2026-11-02', 'count' => 0], $series[$tags[99]][0]);
+        $this->assertSame(['day' => '2026-11-08', 'count' => 99], $series[$tags[99]][6]);
+    }
+
+    public function test_events_respect_freeze_moderation_and_transaction_rollback(): void
+    {
+        $owner = $this->createFullAccount('eventpolicy');
+        $composer = app(EventComposer::class);
+        DB::beginTransaction();
+        $composer->compose($owner->actor, $this->eventData());
+        DB::rollBack();
+        $this->assertSame(0, $this->bucketCount('concert'));
+        config(['openbook.moderation.hide_content_warnings_from_world' => true]);
+        $composer->compose($owner->actor, $this->eventData(['sensitive' => true]));
+        $this->assertSame(0, $this->bucketCount('concert'));
+        config(['openbook.moderation.hide_content_warnings_from_world' => false]);
+        $event = $composer->compose($owner->actor, $this->eventData());
+        SystemSetting::put(InstanceSettings::KEY_REMOTE_POST_NON_PERTINENT_RETENTION_DAYS, '7');
+        $this->travel(8)->days();
+        $composer->delete($owner->actor, $event);
+        $this->assertSame(1, $this->bucketCount('concert', 'monthly'));
+    }
+
+    public function test_trending_page_renders_all_tickers_with_one_bucket_query(): void
+    {
+        $owner = $this->createFullAccount('trendpagerows');
+        app(EventComposer::class)->compose($owner->actor, $this->eventData(['content' => '#concert #music']));
+        $this->actingAs($owner);
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        $response = $this->get('/tendenze')->assertOk()->assertViewHas('tagTrends', fn ($series) => count($series) === 2);
+        $queries = array_filter(DB::getQueryLog(), fn ($query) => str_contains($query['query'], 'stats_hashtag_daily_buckets'));
+        DB::disableQueryLog();
+        $this->assertCount(1, $queries);
+        $response->assertSee('ob-hashtag-sparkline', false)->assertSee(__('openbook.hashtags.ticker_note'));
     }
 }

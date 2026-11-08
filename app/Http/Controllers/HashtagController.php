@@ -39,6 +39,7 @@ class HashtagController extends Controller
 
         return view('hashtags.index', [
             'hashtags' => $hashtags,
+            'tagTrends' => app(HashtagStatsQuery::class)->dailyForTags($hashtags->pluck('id')->all()),
             'trendingDays' => max(1, (int) config('openbook.hashtags.trending_days', 7)),
             'followedHashtagIds' => $followedHashtagIds,
         ]);

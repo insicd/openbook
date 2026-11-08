@@ -4,6 +4,7 @@ namespace App\Federation\Inbox;
 
 use App\Application\Services\DeliverySource;
 use App\Application\Services\DeliveryStats;
+use App\Application\Services\HashtagStats;
 use App\Application\Services\RemoteLocationEnricher;
 use App\Domain\Events\Event;
 use App\Domain\Events\EventAnnounce;
@@ -108,6 +109,7 @@ final class RemoteEventIngester
             }
 
             if ($shouldRefreshObject) {
+                $statsBefore = $event->exists ? app(HashtagStats::class)->snapshot($event) : [];
                 $participantCount = RemoteEventObject::participantCount($document);
                 $likesCount = RemoteEventObject::likesCount($document);
                 $endAt = RemoteEventObject::endAt($document, $startAt);
@@ -153,6 +155,7 @@ final class RemoteEventIngester
                 $this->syncLocation($event, $document);
                 $this->syncLinks($event, $document);
                 $this->attachments->sync($event, $creator, $document);
+                app(HashtagStats::class)->changed($statsBefore, $event);
             } elseif ($recipientIds !== []) {
                 // Lo stesso oggetto non pubblico puo' essere consegnato a piu'
                 // inbox locali in attivita' distinte: ogni consegna aggiunge

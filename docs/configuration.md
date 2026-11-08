@@ -460,9 +460,10 @@ without axes, tooltips or a data table. It is hidden if JavaScript is unavailabl
 counters for the last 24 calendar months, keeping its monthly top-ten ranking.
 These approximate historical counters survive local post cleanup.
 
-Counts apply to eligible public posts at recording/correction time. A post's
-publication date determines its day/month. Repeated receipt of an existing
-post does not add a new contribution. Corrections stop at the shortest enabled
+Counts apply to eligible public posts and events at recording/correction time.
+The original publication date determines the day/month, not the event start
+date. Scheduled, tentative and postponed events contribute; cancellation and
+deletion remove their mutable contribution. Repeated receipt adds nothing. Corrections stop at the shortest enabled
 remote-post retention period; zero disables a retention category. If both are
 disabled, corrections remain possible throughout the retained 24 months.
 Changing retention may reopen old periods and alter approximate counts. There
@@ -470,9 +471,9 @@ are no per-content receipts or permanent consolidation threshold. Moderation
 changes do not trigger a general historical recount.
 
 Migration `2026_11_08_000000_create_hashtag_statistic_buckets` creates **and seeds**
-the daily/monthly counters from the public posts still present. This historical
+the daily/monthly counters from the public posts and events still present. This historical
 step may take minutes on a large instance. Use the maintenance/deployment window
-and pause ingestion, publication and cron while it runs. Already pruned posts
+and pause ingestion, publication and cron while it runs. Already pruned content
 cannot be recovered. Completed months are recorded so interrupted population
 can resume without adding the same month twice.
 
@@ -484,8 +485,8 @@ php artisan openbook:backfill-hashtag-stats --reset
 php artisan up
 ```
 
-**Reset discards collected history**, including counts of posts no longer in
-the database. It rebuilds only from retained posts using the current policy.
+**Reset discards collected history**, including counts of content no longer in
+the database. It rebuilds only from retained posts and events using the current policy.
 If interrupted, rerun without `--reset` to resume; `--month=YYYY-MM` initializes
 one unfinished month. Do not run a recount concurrently with content writes.
 The command requires maintenance mode; remember to restore cron/ingestion.
@@ -500,9 +501,20 @@ is no daily-to-monthly consolidation and no additional worker is required.
 Writes happen after the content commit on a separate transaction/connection.
 Both applicable bucket updates commit together. Statistical failures are
 ignored; no content operation is retried or rolled back because of counters.
-Reads no longer join posts to hashtag associations. Include both bucket tables
+Chart reads no longer join posts/events to hashtag associations. Include both bucket tables
 and collection metadata in database backups. Rolling back this migration drops
 the new counters; a subsequent migration can only rebuild retained content.
+
+Trending also shows a seven-day SVG ticker per hashtag, using one bucket query
+for all displayed tags. Tickers share the detail chart colors, subtle fill and
+endpoint, work without JavaScript and keep fixed columns when following or
+unfollowing tags. The ranking still counts public and unlisted posts/events;
+tickers show approximate public-content history. Today is partial in UTC.
+
+For an instance already running the post-only buckets, deploy this code and
+run the full `openbook:backfill-hashtag-stats --reset` procedure above to include
+retained events. An ordinary resume skips already initialized months. Pause
+cron/ingestion as described; no remote staging operation is performed automatically.
 
 ### Database sanity
 

@@ -10,9 +10,9 @@ use Illuminate\Support\Facades\Cache;
 class BackfillHashtagStatsCommand extends Command
 {
     protected $signature = 'openbook:backfill-hashtag-stats {--month= : Initialize one month (YYYY-MM); omit to resume all 24 months}
-        {--reset : Erase all hashtag buckets and rebuild from retained posts; previously pruned history is lost}';
+        {--reset : Erase all hashtag buckets and rebuild from retained posts and events; previously pruned history is lost}';
 
-    protected $description = 'Initialize historical hashtag buckets from retained posts, one atomic month at a time.';
+    protected $description = 'Initialize historical hashtag buckets from retained posts and events, one atomic month at a time.';
 
     public function handle(HashtagStatsBootstrap $bootstrap): int
     {

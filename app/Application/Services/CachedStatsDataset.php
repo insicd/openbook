@@ -116,7 +116,7 @@ final class CachedStatsDataset
     {
         // Only expiry or the explicit admin command refreshes a cached dataset.
         // Windows and moderation settings are evaluated when computing a miss.
-        return 'stats:'.($metric === 'hashtags' ? 'v4' : 'v3').':'.$metric.':'.$generation;
+        return 'stats:'.($metric === 'hashtags' ? 'v5' : 'v3').':'.$metric.':'.$generation;
     }
 
     private function uncached(string $metric, int $ttl): array

@@ -44,24 +44,30 @@ final class HashtagStatsBootstrap
             $end = $month->addMonth();
             $sqlite = $writer->getDriverName() === 'sqlite';
             $timezone = config('app.timezone');
-            $query = $this->filter->posts($writer->table('posts as p')->join('actors as a', 'a.id', '=', 'p.actor_id'))
-                ->join('post_hashtags as ph', 'ph.post_id', '=', 'p.id')
-                ->where('p.published_at', '>=', $sqlite ? $month->setTimezone($timezone) : $month)
-                ->where('p.published_at', '<', $sqlite ? $end->setTimezone($timezone) : $end)
-                ->where('p.published_at', '<=', $sqlite ? $now->setTimezone($timezone) : $now);
             if ($sqlite) {
                 $writer->getPdo()->sqliteCreateFunction('hashtag_stats_day', static fn ($value) => CarbonImmutable::parse($value, $timezone)->utc()->toDateString(), 1);
             }
-            $day = $sqlite ? 'hashtag_stats_day(p.published_at)' : 'DATE(p.published_at)';
-            $writer->transaction(function () use ($writer, $query, $metric, $month, $now, $day, $sqlite, $timezone): void {
+            $sources = [];
+            foreach (['posts' => ['p', 'post_hashtags', 'post_id'], 'events' => ['e', 'event_hashtags', 'event_id']] as $table => [$alias, $pivot, $foreignKey]) {
+                $source = $writer->table($table.' as '.$alias)->join('actors as a', 'a.id', '=', $alias.'.actor_id');
+                $source = $table === 'posts' ? $this->filter->posts($source) : $this->filter->events($source);
+                $day = $sqlite ? 'hashtag_stats_day('.$alias.'.published_at)' : 'DATE('.$alias.'.published_at)';
+                $sources[] = $source->join($pivot.' as tags', 'tags.'.$foreignKey, '=', $alias.'.id')
+                    ->where($alias.'.published_at', '>=', $sqlite ? $month->setTimezone($timezone) : $month)
+                    ->where($alias.'.published_at', '<', $sqlite ? $end->setTimezone($timezone) : $end)
+                    ->where($alias.'.published_at', '<=', $sqlite ? $now->setTimezone($timezone) : $now)
+                    ->select('tags.hashtag_id')->selectRaw($day.' AS day');
+            }
+            $query = $writer->query()->fromSub($sources[0]->unionAll($sources[1]), 'contributions');
+            $writer->transaction(function () use ($writer, $query, $metric, $month, $now): void {
                 $writer->table('stats_hashtag_monthly_buckets')->where('month', $month->toDateString())->delete();
-                $monthly = (clone $query)->select('ph.hashtag_id')->selectRaw('? AS month, COUNT(*) AS count', [$month->toDateString()])->groupBy('ph.hashtag_id');
+                $monthly = (clone $query)->select('hashtag_id')->selectRaw('? AS month, COUNT(*) AS count', [$month->toDateString()])->groupBy('hashtag_id');
                 $writer->table('stats_hashtag_monthly_buckets')->insertUsing(['hashtag_id', 'month', 'count'], $monthly);
                 $startDay = $now->subDays(29)->startOfDay()->max($month);
                 if ($startDay->lt($month->addMonth())) {
                     $writer->table('stats_hashtag_daily_buckets')->whereBetween('day', [$startDay->toDateString(), $month->endOfMonth()->toDateString()])->delete();
-                    $daily = (clone $query)->where('p.published_at', '>=', $sqlite ? $startDay->setTimezone($timezone) : $startDay)
-                        ->select('ph.hashtag_id')->selectRaw("{$day} AS day, COUNT(*) AS count")->groupBy('ph.hashtag_id')->groupByRaw($day);
+                    $daily = (clone $query)->where('day', '>=', $startDay->toDateString())
+                        ->select('hashtag_id', 'day')->selectRaw('COUNT(*) AS count')->groupBy('hashtag_id')->groupBy('day');
                     $writer->table('stats_hashtag_daily_buckets')->insertUsing(['hashtag_id', 'day', 'count'], $daily);
                 }
                 $writer->table('stats_collections')->insert(['metric' => $metric, 'started_at' => $now->format('Y-m-d H:i:s')]);

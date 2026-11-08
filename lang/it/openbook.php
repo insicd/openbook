@@ -693,13 +693,16 @@ return [
     ],
 
     'hashtags' => [
+        'ticker_label' => 'Trend a 7 giorni di post ed eventi pubblici',
+        'ticker_note' => 'Trend approssimativo a 7 giorni di post ed eventi pubblici. Oggi è parziale.',
+        'contents' => '{1} :count contenuto|[0,*] :count contenuti',
         'trend_heading' => 'Andamento',
         'trend_period' => 'Ultimi 30 giorni',
         'trend_title' => 'Trend negli ultimi 30 giorni',
 
         'empty' => 'Nessun post pubblico con questo hashtag, per ora.',
         'index_title' => 'In tendenza',
-        'index_subtitle' => 'Hashtag più usati nei post pubblici e non elencati degli ultimi :days giorni, locali e remoti.',
+        'index_subtitle' => 'Hashtag più usati nei post e negli eventi pubblici e non elencati degli ultimi :days giorni, locali e remoti.',
     ],
 
     'communities' => [

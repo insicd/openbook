@@ -188,7 +188,7 @@ php artisan view:cache
 
 
 The hashtag-statistics migration also populates the last 24 months from
-retained posts. On a large instance, allow time for the historical queries and
+retained posts and events. On a large instance, allow time for the historical queries and
 pause content ingestion/publication and cron during the upgrade. See
 [hashtag history](configuration.md#persistent-hashtag-history) for reset/resume
 commands and the limits of historical recovery.

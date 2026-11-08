@@ -17,7 +17,9 @@ const server = http.createServer((req, res) => {
     }
     if (url.pathname.includes('sidebar') || url.pathname.includes('notifiche')) return res.writeHead(200, {'Content-Type': 'application/json'}).end('{}');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.end(html.replaceAll('http://openbook.test', `http://127.0.0.1:${server.address().port}`));
+    const color = url.searchParams.get('color');
+    const content = color ? html.replace('</head>', `<style>:root {--ob-color-primary:${color}}</style></head>`) : html;
+    res.end(content.replaceAll('http://openbook.test', `http://127.0.0.1:${server.address().port}`));
 });
 (async () => {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -47,11 +49,26 @@ const server = http.createServer((req, res) => {
             assert.deepEqual(errors, []);
             await page.close();
         }
+        for (const color of ['rgb(24, 119, 242)', '#09f', 'hsl(210, 90%, 50%)', 'royalblue']) {
+            const page = await browser.newPage();
+            const errors = [];
+            page.on('pageerror', error => errors.push(error.message));
+            await page.goto(`http://127.0.0.1:${server.address().port}/?color=${encodeURIComponent(color)}`);
+            await page.waitForFunction(() => {
+                const root = document.querySelector('[data-hashtag-trend]');
+                const chart = window.Chart && Chart.getChart(root.querySelector('canvas'));
+                return !root.hidden && chart && chart.chartArea;
+            });
+            assert.equal(await page.locator('[data-hashtag-trend]').isVisible(), true, color);
+            assert(await page.evaluate(() => Chart.getChart(document.querySelector('[data-hashtag-trend] canvas')).getDatasetMeta(0).dataset.options.backgroundColor instanceof CanvasGradient));
+            assert.deepEqual(errors, [], color);
+            await page.close();
+        }
         const noJs = await browser.newPage({javaScriptEnabled: false, viewport: {width: 375, height: 900}});
         await noJs.goto(`http://127.0.0.1:${server.address().port}`);
         assert.equal(await noJs.locator('[data-hashtag-trend]:visible').count(), 0);
         await noJs.close();
-        console.log('PASS: compact header trend, no axes/tooltips/table, three widths, theme update and hidden without JavaScript.');
+        console.log('PASS: compact header trend, no axes/tooltips/table, three widths, theme update, RGB/short hex/HSL/named colors and hidden without JavaScript.');
     } finally {
         if (browser) await browser.close();
         await new Promise(resolve => server.close(resolve));

@@ -14,8 +14,8 @@
         var area = context.chart.chartArea;
         if (!area) return 'transparent';
         var gradient = context.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
-        gradient.addColorStop(0, palette.primary + '30');
-        gradient.addColorStop(1, palette.primary + '00');
+        gradient.addColorStop(0, Chart.helpers.color(palette.primary).alpha(0.19).rgbString());
+        gradient.addColorStop(1, Chart.helpers.color(palette.primary).alpha(0).rgbString());
         return gradient;
     }
     root.hidden = false;

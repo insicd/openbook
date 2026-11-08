@@ -88,7 +88,7 @@ final class StatsDataset
             ];
         }
 
-        return array_replace($this->metadata('hashtags', $from, $to, 'month', 'posts'), ['coverage' => ['mode' => 'historical_buckets', 'historical_completeness' => 'unknown']]) + ['rows' => $rows, 'months' => $months];
+        return array_replace($this->metadata('hashtags', $from, $to, 'month', 'posts_and_events'), ['coverage' => ['mode' => 'historical_buckets', 'historical_completeness' => 'unknown']]) + ['rows' => $rows, 'months' => $months];
     }
 
     public function geography(): array

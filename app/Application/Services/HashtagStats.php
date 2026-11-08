@@ -3,6 +3,7 @@
 namespace App\Application\Services;
 
 use App\Application\Queries\StatsPostFilter;
+use App\Domain\Events\Event;
 use App\Domain\Posts\Post;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Connection;
@@ -18,24 +19,28 @@ final class HashtagStats
     public function __construct(private readonly StatsPostFilter $filter, private readonly InstanceSettings $settings) {}
 
     /** A transient contribution, never a persisted receipt. @return array<string, array<string, int>> */
-    public function snapshot(Post $post): array
+    public function snapshot(Post|Event $content): array
     {
         try {
-            if (($post->status !== null && ! $post->isPublished())
-                || ($post->visibility !== null && $post->visibility !== Post::VISIBILITY_PUBLIC) || $post->conversation_id !== null) {
+            if (($content instanceof Post && $content->status !== null && ! $content->isPublished())
+                || ($content->visibility !== null && $content->visibility !== Post::VISIBILITY_PUBLIC) || ($content instanceof Post && $content->conversation_id !== null)) {
                 return [];
             }
-            $published = CarbonImmutable::instance($post->published_at)->utc();
+            $published = CarbonImmutable::instance($content->published_at)->utc();
             $now = CarbonImmutable::now('UTC');
             if ($published->gt($now) || $published->lt($this->mutableSince($now))) {
                 return [];
             }
-            $tags = DB::table('post_hashtags')->where('post_id', $post->id)->pluck('hashtag_id');
+            $isEvent = $content instanceof Event;
+            $tags = DB::table($isEvent ? 'event_hashtags' : 'post_hashtags')
+                ->where($isEvent ? 'event_id' : 'post_id', $content->id)->pluck('hashtag_id');
             if ($tags->isEmpty()) {
                 return [];
             }
-            $eligible = $this->filter->posts(DB::table('posts as p')->join('actors as a', 'a.id', '=', 'p.actor_id'))
-                ->where('p.id', $post->id)->exists();
+            $alias = $isEvent ? 'e' : 'p';
+            $query = DB::table($isEvent ? 'events as e' : 'posts as p')->join('actors as a', 'a.id', '=', $alias.'.actor_id');
+            $eligible = ($isEvent ? $this->filter->events($query) : $this->filter->posts($query))
+                ->where($alias.'.id', $content->id)->exists();
             if (! $eligible) {
                 return [];
             }
@@ -53,10 +58,10 @@ final class HashtagStats
         }
     }
 
-    public function changed(array $before, ?Post $post): void
+    public function changed(array $before, Post|Event|null $content): void
     {
         try {
-            $after = $post !== null ? $this->snapshot($post) : [];
+            $after = $content !== null ? $this->snapshot($content) : [];
             $deltas = [];
             foreach (['daily', 'monthly'] as $period) {
                 foreach (array_unique([...array_keys($before[$period] ?? []), ...array_keys($after[$period] ?? [])]) as $key) {

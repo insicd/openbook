@@ -19,6 +19,11 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Eventi nei trend degli hashtag e miniticker in Tendenze**: creazione,
+  modifica, annullamento e cancellazione degli eventi aggiornano gli stessi
+  bucket dei post. Popolamento e ricalcolo includono entrambe le entità;
+  Tendenze mostra per ogni tag un piccolo grafico SVG a sette giorni con una
+  sola lettura dei bucket e allineamento stabile dei pulsanti Segui.
 - **Storico persistente degli hashtag**: bucket giornalieri per 30 giorni e
   mensili per 24 mesi, indipendenti dalla pulizia dei post. Il dettaglio del
   tag mostra un trend Chart.js compatto nell'intestazione; Stats legge i bucket mensili invece del

@@ -473,9 +473,11 @@ conteggi mensili degli ultimi 24 mesi di calendario, conservando la classifica
 mensile dei dieci tag principali. Lo storico approssimativo resta dopo la
 pulizia locale dei post.
 
-Si contano i post pubblici ammessi al momento della registrazione/correzione.
-Il periodo deriva dalla pubblicazione originale. Ricevere nuovamente un post
-già presente non aggiunge un contributo. Le correzioni si fermano alla più
+Si contano post ed eventi pubblici ammessi al momento della registrazione o
+correzione. Il periodo deriva dalla pubblicazione originale, non dalla data
+di svolgimento. Sono ammessi eventi scheduled, tentative e postponed;
+annullamento e cancellazione rimuovono il contributo ancora modificabile.
+Una riconsegna non aggiunge un nuovo contributo. Le correzioni si fermano alla più
 breve retention abilitata dei post remoti; zero disabilita una categoria.
 Se entrambe sono disabilitate, si può correggere entro i 24 mesi conservati.
 Cambiare retention può riaprire periodi vecchi e alterare i conteggi: è un limite
@@ -483,9 +485,9 @@ accettato. Non ci sono ricevute per contenuto o soglie permanenti di
 consolidamento. Cambiare moderazione non ricalcola tutto lo storico.
 
 La migrazione `2026_11_08_000000_create_hashtag_statistic_buckets` crea **e popola**
-i conteggi giornalieri/mensili dai post pubblici ancora presenti. Su istanze
+i conteggi giornalieri/mensili dai post ed eventi pubblici ancora presenti. Su istanze
 grandi il passaggio può richiedere minuti. Usare la finestra di manutenzione
-e sospendere ricezione, pubblicazione e cron durante l'operazione. I post già
+e sospendere ricezione, pubblicazione e cron durante l'operazione. I contenuti già
 rimossi non sono recuperabili. I mesi completati sono registrati, così un
 popolamento interrotto può riprendere senza sommarli due volte.
 
@@ -497,8 +499,8 @@ php artisan openbook:backfill-hashtag-stats --reset
 php artisan up
 ```
 
-**Il reset elimina lo storico raccolto**, inclusi i conteggi dei post non più
-presenti. Ricostruisce solo dai post conservati, con le regole correnti.
+**Il reset elimina lo storico raccolto**, inclusi i conteggi dei contenuti non più
+presenti. Ricostruisce solo dai post ed eventi conservati, con le regole correnti.
 Se interrotto, rilanciare senza `--reset` per riprendere; `--month=YYYY-MM`
 inizializza un singolo mese incompleto. Non ricalcolare insieme alle scritture
 dei contenuti. Il comando richiede maintenance mode; riattivare poi cron e
@@ -515,10 +517,23 @@ e non serve un nuovo worker.
 Le scritture avvengono dopo il commit del contenuto, su transazione/connessione
 separata. I due bucket applicabili vengono aggiornati insieme. Gli errori
 statistici vengono ignorati e non fanno ripetere o annullare l'operazione sul
-contenuto. Le letture non fanno più join fra post e associazioni ai tag.
+contenuto. Le letture dei grafici non fanno più join fra post/eventi e associazioni ai tag.
 Includere entrambi i bucket e i metadati di raccolta nei backup del database.
 Il rollback della migrazione elimina i nuovi contatori; una migrazione
 successiva può ricostruire solo dai contenuti conservati.
+
+Tendenze mostra anche un ticker SVG di sette giorni per hashtag, con una sola
+query ai bucket per tutti i tag visualizzati. Colori, sfumatura e punto finale
+riprendono il dettaglio; funziona senza JavaScript e le colonne restano fisse
+con Segui/Smetti di seguire. La classifica conta ancora post/eventi pubblici e
+non elencati; i ticker mostrano lo storico approssimativo pubblico. Oggi è
+parziale in UTC.
+
+Su un'istanza già avviata con i bucket dei soli post, distribuire questo codice
+e seguire la procedura completa `openbook:backfill-hashtag-stats --reset` sopra
+per includere gli eventi conservati. La semplice ripresa salta i mesi già
+inizializzati. Sospendere cron e ricezione come descritto; nessuna operazione
+sullo staging viene eseguita automaticamente.
 
 ### Database sanity
 

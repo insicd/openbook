@@ -69,6 +69,9 @@ class HashtagStatsMysqlTest extends TestCase
             $series = app(HashtagStatsQuery::class)->daily($tags[0]['id']);
             $this->assertCount(30, $series);
             $this->assertSame(3, $series[0]['count']);
+            $batch = app(HashtagStatsQuery::class)->dailyForTags(array_column(array_slice($tags, 0, 100), 'id'));
+            $this->assertCount(100, $batch);
+            $this->assertCount(7, $batch[$tags[0]['id']]);
             $ranked = app(StatsQuery::class)->hashtags($now->startOfMonth()->subMonthsNoOverflow(23), $now);
             $this->assertNotEmpty($ranked);
             $indexes = [];
@@ -94,12 +97,16 @@ class HashtagStatsMysqlTest extends TestCase
             $post = Post::create(['actor_id' => $owner->actor->id, 'body' => '#bootstrapmysql',
                 'visibility' => 'public', 'published_at' => now()->subHour()]);
             $post->hashtags()->attach($tag->id);
-            $posts = $links = [];
+            $posts = $links = $events = $eventLinks = [];
             for ($i = 0; $i < 5000; $i++) {
                 $id = (string) Str::uuid();
                 $posts[] = ['id' => $id, 'actor_id' => $owner->actor->id, 'body' => 'Synthetic post',
                     'visibility' => 'public', 'status' => 'published', 'published_at' => $now->subDays($i % 730)->format('Y-m-d H:i:s')];
                 $links[] = ['post_id' => $id, 'hashtag_id' => $tags[$i % 2000]['id']];
+                $events[] = ['id' => $id, 'actor_id' => $owner->actor->id, 'uri' => 'https://events.example/synthetic/'.$id,
+                    'name' => 'Synthetic event', 'start_at' => $now->addMonth()->format('Y-m-d H:i:s'),
+                    'visibility' => 'public', 'status' => 'scheduled', 'published_at' => $posts[array_key_last($posts)]['published_at']];
+                $eventLinks[] = ['event_id' => $id, 'hashtag_id' => $tags[($i + 1) % 2000]['id']];
             }
             foreach (array_chunk($posts, 500) as $chunk) {
                 DB::table('posts')->insert($chunk);
@@ -107,7 +114,13 @@ class HashtagStatsMysqlTest extends TestCase
             foreach (array_chunk($links, 1000) as $chunk) {
                 DB::table('post_hashtags')->insert($chunk);
             }
-            DB::select('ANALYZE TABLE posts, post_hashtags');
+            foreach (array_chunk($events, 500) as $chunk) {
+                DB::table('events')->insert($chunk);
+            }
+            foreach (array_chunk($eventLinks, 1000) as $chunk) {
+                DB::table('event_hashtags')->insert($chunk);
+            }
+            DB::select('ANALYZE TABLE posts, post_hashtags, events, event_hashtags');
             $bootstrapPlans = [];
             DB::listen(function (QueryExecuted $query) use (&$bootstrapPlans): void {
                 if (str_starts_with($query->sql, 'insert into `stats_hashtag_') && preg_match('/\)\s+(select\s.*)/is', $query->sql, $matches)) {
@@ -121,7 +134,7 @@ class HashtagStatsMysqlTest extends TestCase
             foreach ($bootstrapPlans as $plan) {
                 fwrite(STDERR, "\nBootstrap plan: ".json_encode($plan)."\n");
                 foreach ($plan as $row) {
-                    if (in_array($row->table, ['p', 'ph'], true)) {
+                    if (in_array($row->table, ['p', 'e', 'tags'], true)) {
                         $this->assertNotNull($row->key);
                     }
                 }
@@ -138,6 +151,7 @@ class HashtagStatsMysqlTest extends TestCase
             $this->assertFalse(Schema::hasTable('stats_hashtag_daily_buckets'));
             $migration->up();
             $this->assertSame(1, (int) DB::table('stats_hashtag_daily_buckets')->where('hashtag_id', $tags[0]['id'])->where('day', $now->toDateString())->value('count'));
+            $this->assertSame(2, (int) DB::table('stats_hashtag_monthly_buckets')->where('hashtag_id', $tags[1]['id'])->where('month', $now->startOfMonth()->toDateString())->value('count'));
 
         } finally {
             app(HashtagStats::class)->connection()->disconnect();

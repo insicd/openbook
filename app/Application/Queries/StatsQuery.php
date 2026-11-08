@@ -210,17 +210,9 @@ final class StatsQuery
     private function events(CarbonImmutable $from, CarbonImmutable $to): Builder
     {
         [$from, $to] = $this->bounds($from, $to);
-        $query = $this->authors($this->connection()->table('events as e')->join('actors as a', 'a.id', '=', 'e.actor_id'))
-            ->where('e.visibility', 'public')->whereNull('e.deleted_at')
-            ->whereIn('e.status', ['scheduled', 'tentative', 'postponed'])
+
+        return $this->filter->events($this->connection()->table('events as e')->join('actors as a', 'a.id', '=', 'e.actor_id'))
             ->where('e.published_at', '>=', $from)->where('e.published_at', '<', $to);
-
-        if (config('openbook.moderation.hide_content_warnings_from_world', false)) {
-            $query->where('e.sensitive', false);
-            $this->excludeForcedTags($query, 'event_hashtags', 'event_id', 'e.id');
-        }
-
-        return $query;
     }
 
     private function connection(): Connection

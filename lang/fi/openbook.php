@@ -667,13 +667,16 @@ return [
         ],
     ],
     'hashtags' => [
+        'ticker_label' => 'Julkisten julkaisujen ja tapahtumien 7 päivän trendi',
+        'ticker_note' => 'Julkisten julkaisujen ja tapahtumien likimääräinen 7 päivän trendi. Tämä päivä on kesken.',
+        'contents' => '{1} :count julkaisu|[0,*] :count julkaisua',
         'trend_heading' => 'Trendi',
         'trend_period' => 'Viimeiset 30 päivää',
         'trend_title' => 'Viimeisten 30 päivän trendi',
 
         'empty' => 'Tällä aihetunnisteella ei vielä ole julkisia julkaisuja.',
         'index_title' => 'Suosittua',
-        'index_subtitle' => 'Viimeisten :days päivän käytetyimmät aihetunnisteet paikallisten ja etäpalvelinten julkisissa ja listaamattomissa julkaisuissa.',
+        'index_subtitle' => 'Viimeisten :days päivän käytetyimmät aihetunnisteet paikallisten ja etäpalvelinten julkisissa ja listaamattomissa julkaisuissa ja tapahtumissa.',
     ],
     'communities' => [
         'index_title' => 'Yhteisöt',

@@ -263,13 +263,15 @@ le serie e uno zero non prova l'assenza storica di pubblicazioni.
 
 ### Conteggi storici degli hashtag
 
-Il grafico hashtag è un'eccezione alle statistiche sul corpus: i conteggi
+Il grafico hashtag somma post ed eventi pubblici ed è un'eccezione alle
+statistiche sul corpus: i conteggi
 giornalieri coprono 30 giorni e i mensili 24 mesi. Restano dopo la pulizia locale
 e vengono corretti solo entro la più breve retention abilitata. Sono
 approssimativi, usano la pubblicazione in UTC e l'ammissibilità al momento della
 registrazione, senza ricalcoli retroattivi generali della moderazione. Il
 dettaglio del tag usa i giornalieri in un piccolo trend Chart.js nell'intestazione,
-senza tabella dati. Vedere la [configurazione](configuration.it.md#storico-persistente-degli-hashtag)
+senza tabella dati. Tendenze usa gli stessi bucket giornalieri per ticker SVG
+a sette giorni: una query per massimo 100 tag e colonne stabili con Segui. Vedere la [configurazione](configuration.it.md#storico-persistente-degli-hashtag)
 per popolamento automatico nella migrazione, reset opzionale e pulizia Database.
 
 ## Profilo e impostazioni

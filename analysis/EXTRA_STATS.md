@@ -2,11 +2,35 @@
 
 Data: 8 novembre 2026 · ramo `extra_stats`.
 
-Stato: implementata e verificata; review finale completata e commit autorizzato dall'utente.
+Stato: base implementata e committata; estensione eventi/ticker implementata,
+verificata e revisionata. Commit conclusivo autorizzato dall'utente.
 Questo documento riguarda i bucket degli hashtag. I conteggi di ricezione per
 relay già implementati sul ramo sono un intervento distinto.
 
 ## 1. Problema e obiettivi
+
+### Estensione autorizzata: eventi e miniticker
+
+L'utente ha autorizzato anche i contributi degli eventi e un miniticker a 7
+giorni per riga in `/tendenze`, senza commit prima della sua review. I bucket
+sommano post ed eventi pubblici, usando la pubblicazione originale, non la
+data di svolgimento dell'evento. Gli eventi ammessi sono scheduled, tentative
+e postponed, con gli stessi filtri autore/moderazione già usati da Stats.
+Annullamento, modifica e Delete correggono il contributo entro la finestra
+concordata; riconsegne e pulizia fisica non aggiungono/sottraggono contributi.
+La stessa più breve retention configurata dei post limita entrambe le entità.
+
+Il bootstrap in migrazione e il comando di reset sommano entrambe le entità;
+su staging già migrato si userà il ricalcolo completo in manutenzione.
+Non si aggiungono migrazioni di ricalcolo automatico alle istanze già attive.
+
+I ticker leggono sette giorni UTC, oggi parziale incluso, con una query per
+tutti i tag visualizzati e piccoli SVG senza istanze Chart.js per riga.
+La classifica corrente conserva il contratto post/eventi pubblici e non
+elencati; il trend statistico è pubblico, approssimativo e indipendente dalla
+pulizia. La descrizione della pagina distingue i due significati. Servono
+EXPLAIN MySQL per entrambe le sorgenti del bootstrap e per la lettura batch,
+test dei flussi eventi e verifica responsive della lista.
 
 La pagina di un hashtag potrebbe mostrare un piccolo grafico dell'andamento
 negli ultimi 30 giorni, sotto il titolo e prima dei contenuti. Calcolare ogni
@@ -58,11 +82,11 @@ Le due tabelle statistiche implementate sono:
 
 | Tabella | Chiave logica | Contenuto | Conservazione |
 | --- | --- | --- | --- |
-| `stats_hashtag_daily_buckets` | hashtag + giorno UTC | Conteggio dei post del tag pubblicati nel giorno | Ultimi 30 giorni di calendario, oggi incluso |
-| `stats_hashtag_monthly_buckets` | hashtag + primo giorno del mese UTC | Conteggio dei post del tag pubblicati nel mese | Ultimi 24 mesi di calendario, mese corrente incluso |
+| `stats_hashtag_daily_buckets` | hashtag + giorno UTC | Conteggio di post ed eventi del tag pubblicati nel giorno | Ultimi 30 giorni di calendario, oggi incluso |
+| `stats_hashtag_monthly_buckets` | hashtag + primo giorno del mese UTC | Conteggio di post ed eventi del tag pubblicati nel mese | Ultimi 24 mesi di calendario, mese corrente incluso |
 
 Si creano soltanto le coppie tag/periodo effettivamente necessarie, non una
-griglia preventiva di tutti gli hashtag e tutti i periodi. Un post con più
+griglia preventiva di tutti gli hashtag e tutti i periodi. Un contenuto con più
 occorrenze dello stesso tag contribuisce una sola volta a quel tag.
 
 Ogni contributo aggiorna direttamente i bucket giornaliero e mensile ancora
@@ -146,9 +170,8 @@ pubblicazione, compresi importazioni e finalizzazione dei video, riusando i
 servizi esistenti. Una riconsegna, un Announce o un Update di un post già noto
 non equivale a una nuova creazione.
 
-Il perimetro iniziale riguarda i post con hashtag. Gli eventi presenti nella
-pagina del tag non entrano automaticamente nel conteggio: l'attuale grafico
-hashtag di Stats usa i post.
+Il perimetro iniziale riguardava i post con hashtag; l'estensione autorizzata
+include anche gli eventi. I bucket e Stats sommano entrambe le entità ammesse.
 
 ## 6. Ammissibilità e cambiamento di significato rispetto a Stats
 
@@ -316,3 +339,34 @@ mensile. Implementazione e, dopo la verifica della UI, commit autorizzati dall'u
 Non sono state applicate migrazioni ai dati dell'istanza locale o di produzione.
 Non è stata eseguita una prova dedicata su MariaDB né un benchmark sulla
 produzione: i piani MySQL e i dati sintetici non garantiscono tempi assoluti.
+
+## 11. Verifiche dell'estensione eventi e ticker
+
+- Suite mirata eventi/federazione/statistiche/cache: 132 test, 1.169 asserzioni.
+- Suite completa: 2.457 test, 19.273 asserzioni, 133 skip; nessun errore.
+- MySQL su schema isolato: 192.000 bucket, 5.000 post e 5.000 eventi sintetici;
+  controllati lettura batch di 100 tag, entrambe le sorgenti UNION ALL del
+  bootstrap, reset, ripresa e migrazione down/up con somma post/eventi.
+  EXPLAIN usa gli indici per pubblicazione dei post e `events_trending_idx`,
+  con PRIMARY sui pivot; la query dei ticker usa gli indici già esistenti.
+- Un test di pagina conferma una sola query ai bucket per tutte le righe;
+  il lettore batch restituisce sette giorni per 100 tag, con zeri per i mancanti.
+- Browser: visitatore e utente autenticato, Segui/Smetti di seguire alternati,
+  hashtag lunghi, larghezze 320/375/768/1280 px, posizioni orizzontali uguali,
+  assenza di sovrapposizioni/overflow, colori CSS personalizzati e SVG senza JS.
+  Verificato anche il dettaglio hashtag dopo il riuso del colore di sfondo.
+- Pint e controllo del diff superati. Nessuna migrazione o ricalcolo eseguito
+  sull'istanza locale o sullo staging.
+
+Il TODO per queste due attività è stato assorbito dall'implementazione.
+Per lo staging già popolato con soli post, il reset completo documentato
+in `docs/configuration.it.md` ricostruirà i bucket da post ed eventi conservati;
+la semplice ripresa dei mesi già completati non aggiungerebbe gli eventi.
+
+Review conclusiva: corretta la sfumatura Chart.js per colori CSS RGB, HSL,
+nominali ed esadecimali brevi, usando il parser già disponibile in Chart.js.
+Verifica browser dedicata superata per tutti i formati, oltre ai layout del
+dettaglio e dei ticker. Sostituito «utilizzi» con «contenuti», con etichette
+naturali inglesi e finlandesi. Verifica rapida finale: 54 test mirati,
+698 asserzioni, Pint e controllo del diff superati; la suite completa e la
+prova MySQL dell'estensione erano già passate come riportato sopra.

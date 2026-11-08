@@ -27,6 +27,19 @@ final class StatsPostFilter
         return $query;
     }
 
+    public function events(Builder $query): Builder
+    {
+        $this->authors($query);
+        $query->where('e.visibility', 'public')->whereNull('e.deleted_at')
+            ->whereIn('e.status', ['scheduled', 'tentative', 'postponed']);
+        if (config('openbook.moderation.hide_content_warnings_from_world', false)) {
+            $query->where('e.sensitive', false);
+            $this->excludeForcedTags($query, 'event_hashtags', 'event_id', 'e.id');
+        }
+
+        return $query;
+    }
+
     public function authors(Builder $query): Builder
     {
         $query->where('a.status', 'active')->where('a.remote_suspended', false)->whereNull('a.deleted_at');

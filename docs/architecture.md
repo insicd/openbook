@@ -258,12 +258,15 @@ published historically.
 
 ### Historical hashtag counters
 
-The hashtag chart is an exception to corpus-based statistics: daily counters
+The hashtag chart combines public posts and events and is an exception to
+corpus-based statistics: daily counters
 cover 30 days and monthly counters 24 months. They survive local cleanup and
 are corrected only inside the shortest enabled retention window. Counts are
 approximate, use publication dates in UTC and reflect eligibility when recorded,
 without general retroactive moderation recalculation. The tag detail page uses
 the daily counters in a compact Chart.js trend within its header, without a data table.
+Trending reuses these daily buckets in seven-day SVG tickers, with one query
+for up to 100 tags and stable follow-button columns.
 See [configuration](configuration.md#persistent-hashtag-history) for automatic
 migration population, optional reset and Database-page cleanup.
 
