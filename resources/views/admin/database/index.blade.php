@@ -116,28 +116,28 @@
         </div>
 
         <div class="ob-card" style="margin-top:1.5rem;overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse">
+            <table class="ob-admin-maintenance-table">
                 <thead>
                     <tr>
-                        <th style="text-align:left;padding:0.5rem 0">{{ __('openbook.admin.database.col_table') }}</th>
-                        <th style="text-align:right;padding:0.5rem 0">{{ __('openbook.admin.database.col_rows') }}</th>
-                        <th style="text-align:right;padding:0.5rem 0">{{ __('openbook.admin.database.col_size') }}</th>
-                        <th style="text-align:right;padding:0.5rem 0">{{ __('openbook.admin.database.col_purgeable', ['hours' => $retentionHours]) }}</th>
-                        <th style="text-align:right;padding:0.5rem 0"></th>
+                        <th scope="col">{{ __('openbook.admin.database.col_table') }}</th>
+                        <th scope="col">{{ __('openbook.admin.database.col_rows') }}</th>
+                        <th scope="col">{{ __('openbook.admin.database.col_size') }}</th>
+                        <th scope="col">{{ __('openbook.admin.database.col_purgeable', ['hours' => $retentionHours]) }}</th>
+                        <th scope="col"></th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($tables as $table)
-                        <tr style="border-top:1px solid var(--ob-color-border)">
-                            <td style="padding:0.75rem 0;vertical-align:top">
+                        <tr>
+                            <td>
                                 <strong>{{ $table['label'] }}</strong>
                                 <p class="ob-field__help" style="margin:0.35rem 0 0">{{ $table['description'] }}</p>
                                 <code class="ob-field__help">{{ $table['table'] }}</code>
                             </td>
-                            <td style="padding:0.75rem 0;text-align:right;vertical-align:top">{{ number_format($table['row_count']) }}</td>
-                            <td style="padding:0.75rem 0;text-align:right;vertical-align:top">{{ $table['size_label'] }}</td>
-                            <td style="padding:0.75rem 0;text-align:right;vertical-align:top">{{ number_format($table['purgeable_count']) }}</td>
-                            <td style="padding:0.75rem 0;text-align:right;vertical-align:top">
+                            <td>{{ number_format($table['row_count']) }}</td>
+                            <td>{{ $table['size_label'] }}</td>
+                            <td>{{ number_format($table['purgeable_count']) }}</td>
+                            <td>
                                 @if ($table['purgeable_count'] > 0)
                                     <form method="POST" action="{{ route('admin.database.purge') }}"
                                           onsubmit="return confirm(@js(__('openbook.admin.database.confirm_table', ['table' => $table['label'], 'hours' => $retentionHours])))">

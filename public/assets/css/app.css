@@ -1328,6 +1328,59 @@ html.ob-compose-modal-open {
   border-bottom: 1px solid var(--ob-color-border);
 }
 
+.ob-admin-maintenance-table {
+  width: 100%;
+  min-width: 56rem;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.ob-admin-maintenance-table th,
+.ob-admin-maintenance-table td {
+  padding: 0.85rem 1rem;
+  text-align: right;
+  vertical-align: top;
+}
+
+.ob-admin-maintenance-table th {
+  width: 14%;
+  white-space: nowrap;
+}
+
+.ob-admin-maintenance-table th:first-child,
+.ob-admin-maintenance-table td:first-child {
+  width: 46%;
+  padding-left: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.ob-admin-maintenance-table th:nth-child(2) {
+  width: 12%;
+}
+
+.ob-admin-maintenance-table th:last-child,
+.ob-admin-maintenance-table td:last-child {
+  padding-right: 0;
+}
+
+.ob-admin-maintenance-table tbody tr {
+  border-top: 1px solid var(--ob-color-border);
+}
+
+.ob-admin-maintenance-table td:not(:first-child) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.ob-admin-maintenance-table td:first-child .ob-field__help {
+  max-width: 60ch;
+}
+
+.ob-admin-maintenance-table .ob-btn {
+  white-space: nowrap;
+}
+
 .ob-admin-retention .ob-admin-retention__duration input[type='number'] {
   width: 7rem;
   max-width: 100%;
