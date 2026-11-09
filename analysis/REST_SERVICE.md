@@ -181,7 +181,55 @@ Contiene soltanto campi accettati in creazione, senza ereditare gli obbligatori 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
 | `postContent` | string | Sì | No | Testo non vuoto, con gli stessi vincoli di NewPost. |
-| `postVisibility` | string; enum public, unlisted, followers | Sì | No | Nuova visibilità; se omessa resta quella corrente. |
+| `postVisibility` | string; enum public, unlisted, followers | Sì | No | Visibilità esplicita del nuovo post. |
+
+### Estensione proposta: allegati e PostPublication
+
+Proposta del 9 novembre 2026, **non ancora implementata**. Il contratto operativo
+e il piano sono in [Allegati REST](REST_POST_ATTACHMENTS.md). Questa sezione resta
+il riferimento per le nuove entità; l'inventario precedente descrive le API già
+implementate.
+
+`NewPost` mantiene obbligatori solo `postContent` e `postVisibility`. Nella nuova
+modalità multipart aggiunge `postAttachments`, array facoltativo e non nullable
+di `NewPostAttachment`, in ordine di presentazione. La modalità JSON resta
+riservata ai post testuali. Nel multipart `postContent` può essere `""` solo con
+almeno un allegato valido; senza allegati resta necessario testo significativo.
+
+#### NewPostAttachment
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| `filePart` | string | Sì | No | Nome della parte multipart contenente il file associato. |
+| `mediaAltText` | string | No | Sì | Descrizione alternativa; massimo 1.000 caratteri, coerentemente con la validazione web esistente in `StorePostRequest::rules()`. |
+
+Non accetta URL o identificativi di media già caricati. Immagini, audio e video
+usano la stessa struttura; i limiti dipendono dalla configurazione esistente.
+
+#### PostPublication
+
+Rappresentazione minima della pubblicazione differita esistente nel core.
+Non aggiunge un nuovo stato a `Post` né una seconda coda.
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| `postPublicationId` | string; uuid | Sì | No | Identificativo della richiesta di pubblicazione. |
+| `postPublicationStatus` | string; enum pending, processing, failed, published | Sì | No | Stato corrente del lavoro nel backend. |
+| `postId` | string; uuid | Sì | Sì | Identificativo del post dopo la pubblicazione; null prima o se non più disponibile. |
+
+Il client ricava il dettaglio finale con `GET /rest/v1/posts/{postId}`.
+Non esporre date, testo, visibilità, URL ridondanti, tentativi o diagnostica interna.
+`failed` comunica il fallimento; ulteriori dettagli pubblici non sono necessari
+per questa prima versione.
+
+| Endpoint proposto | Funzione |
+| --- | --- |
+| `POST /rest/v1/posts` | Accetta anche multipart; restituisce `201` e `Post` oppure `202` e `PostPublication`. |
+| `GET /rest/v1/postPublication/{postPublicationId}` | Legge lo stato della propria pubblicazione differita. |
+| `DELETE /rest/v1/postPublication/{postPublicationId}` | Annulla la propria pubblicazione in attesa o fallita; `409` durante l'elaborazione. |
+
+Si conserva il prefisso reale `/rest/v1`; il nuovo segmento usa `postPublication`
+in lowerCamelCase. Non è prevista una migrazione al prefisso `/api/v1`.
 
 ### PatchPost
 
@@ -432,7 +480,7 @@ di ambiente per il supporto autenticato.
 | Event | Catalogo/dettaglio, /me/events; follow «mi interessa» separato da participation «parteciperò», followers e participants. Definire Event e Location estesa. |
 | Notification | /me/notifications, stato lettura e riferimenti ai contenuti. |
 | Hashtag | Catalogo/dettaglio/posts e follow, normalizzazione del tag. |
-| Media e post complessi | Upload indipendente /media, elaborazione, NewPost/PatchPost estesi, sondaggi/citazioni e altri oggetti. |
+| Media e post complessi | Allegati multipart e monitoraggio/annullamento tramite PostPublication proposti in [Allegati REST](REST_POST_ATTACHMENTS.md); niente upload indipendente /media. Modifica allegati, sondaggi/citazioni e altri oggetti restano successivi. |
 | Ricerca/impostazioni | Contratti ancora da discutere; nessuna nuova API implicita in questo sprint. |
 
 Le liste generali future useranno relationship con valori multipli in OR e
