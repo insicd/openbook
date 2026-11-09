@@ -30,9 +30,9 @@ Current version: **26.38.rc1**. Release notes are in
 
 ## Install
 
-The simplest path needs neither Composer nor SSH. It uses the
-`setup-openbook.php` bootstrap and the zip releases on
-[about.openb.app](https://about.openb.app).
+The guided installation below remains the **recommended option**. It needs
+neither Composer nor SSH and uses the `setup-openbook.php` bootstrap and zip
+releases on [about.openb.app](https://about.openb.app).
 
 1. Download [`setup-openbook.php`](https://about.openb.app/dist/setup-openbook.php)
    and upload it to the folder where you want to install Openbook.
@@ -40,13 +40,26 @@ The simplest path needs neither Composer nor SSH. It uses the
 3. Complete `/install` (database, instance name, administrator).
 4. Configure cron: see [Configuration](docs/configuration.md#cron-and-periodic-tasks).
 
-To install the prebuilt Docker Hub image, see [Docker installation](docs/docker.md).
-An optional Helm chart is described in [Kubernetes deployment](docs/kubernetes.md);
-it has not yet been tested on a cluster.
-
 PHP must have the Sodium extension enabled. Full requirements, git/Composer
 install, web server layouts, and updates:
 **[Install guide](docs/install.md)**.
+
+## Deploy with Docker Compose or Kubernetes
+
+The repository also includes deployment definitions that use the prebuilt
+[`skeyby/openbook` image](https://hub.docker.com/r/skeyby/openbook). They provide
+PHP, Apache, application dependencies and background processes, so these do not
+need to be installed manually on the host:
+
+- **Docker Compose**: [`compose.yaml`](compose.yaml), with an
+  [installation and update guide](docs/docker.md).
+- **Kubernetes Helm**: the chart in [`helm/openbook`](helm/openbook), with a
+  [configuration and deployment guide](docs/kubernetes.md).
+
+You still need to configure the external MySQL/MariaDB database, domain and
+HTTPS, and create the first administrator using the documented steps. The Helm
+chart has passed local linting, rendering and schema checks; it has not yet
+been tested on a real Kubernetes cluster.
 
 ## Documentation
 
