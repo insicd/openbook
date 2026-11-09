@@ -10,6 +10,7 @@ use App\Http\Controllers\Rest\V1\PersonPostController;
 use App\Http\Controllers\Rest\V1\PostAnnounceController;
 use App\Http\Controllers\Rest\V1\PostCommentController;
 use App\Http\Controllers\Rest\V1\PostController;
+use App\Http\Controllers\Rest\V1\PostPublicationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/instance', [InstanceController::class, 'show'])->name('rest.v1.instance.show');
@@ -42,3 +43,6 @@ Route::post('/posts/{postId}/comments', [PostCommentController::class, 'store'])
 Route::get('/posts/{postId}/comments/{commentId}', [PostCommentController::class, 'show'])->name('rest.v1.comments.show');
 Route::patch('/posts/{postId}/comments/{commentId}', [PostCommentController::class, 'update'])->name('rest.v1.comments.update');
 Route::delete('/posts/{postId}/comments/{commentId}', [PostCommentController::class, 'destroy'])->name('rest.v1.comments.destroy');
+
+Route::get('/postPublication/{postPublicationId}', [PostPublicationController::class, 'show'])->name('rest.v1.postPublication.show');
+Route::delete('/postPublication/{postPublicationId}', [PostPublicationController::class, 'destroy'])->name('rest.v1.postPublication.destroy');

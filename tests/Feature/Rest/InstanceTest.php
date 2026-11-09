@@ -3,6 +3,7 @@
 namespace Tests\Feature\Rest;
 
 use App\Application\Services\InstanceSettings;
+use App\Application\Services\InstanceUploadLimits;
 use App\Domain\Accounts\User;
 use App\Infrastructure\Database\SystemSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Passport\Passport;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesAccounts;
 use Tests\Concerns\UsesPassportKeys;
 use Tests\TestCase;
@@ -31,6 +33,76 @@ class InstanceTest extends TestCase
         $this->withToken('test-token');
         Http::preventStrayRequests();
         config(['app.url' => 'https://social.example/', 'openbook.domain' => 'social.example']);
+        $this->phpUploadSettings();
+        config(['openbook.media.max_size_kb' => 8192, 'openbook.media.max_attachments_per_post' => 4,
+            'openbook.video.enabled' => false, 'openbook.video.max_upload_mb' => 40]);
+    }
+
+    private function phpUploadSettings(array $overrides = []): void
+    {
+        $ini = array_merge(['file_uploads' => '1', 'max_file_uploads' => '20',
+            'upload_max_filesize' => '64M', 'post_max_size' => '128M'], $overrides);
+        $limits = $this->getMockBuilder(InstanceUploadLimits::class)->onlyMethods(['phpSetting'])->getMock();
+        $limits->method('phpSetting')->willReturnCallback(fn (string $key): string => $ini[$key]);
+        $this->app->instance(InstanceUploadLimits::class, $limits);
+    }
+
+    private function defaultUploadLimits(): array
+    {
+        return ['maxAttachmentsPerPost' => 4, 'maxAttachmentBytes' => 8388608,
+            'maxVideoAttachmentBytes' => null, 'maxRequestBytes' => 134217728];
+    }
+
+    #[DataProvider('uploadLimitCases')]
+    public function test_upload_limits_combine_the_instance_and_php_settings(array $ini, bool $videoEnabled, array $expected): void
+    {
+        $this->phpUploadSettings($ini);
+        config(['openbook.video.enabled' => $videoEnabled]);
+        $this->getJson('/rest/v1/instance')->assertOk()->assertJsonPath('instanceUploadLimits', $expected);
+    }
+
+    public static function uploadLimitCases(): array
+    {
+        return [
+            'application limits win' => [[], true, ['maxAttachmentsPerPost' => 4, 'maxAttachmentBytes' => 8388608,
+                'maxVideoAttachmentBytes' => 41943040, 'maxRequestBytes' => 134217728]],
+            'PHP limits win' => [['max_file_uploads' => '2', 'upload_max_filesize' => '2M', 'post_max_size' => '6M'], true,
+                ['maxAttachmentsPerPost' => 2, 'maxAttachmentBytes' => 2097152,
+                    'maxVideoAttachmentBytes' => 2097152, 'maxRequestBytes' => 6291456]],
+            'video is disabled' => [[], false, ['maxAttachmentsPerPost' => 4, 'maxAttachmentBytes' => 8388608,
+                'maxVideoAttachmentBytes' => null, 'maxRequestBytes' => 134217728]],
+            'unlimited PHP byte limits' => [['upload_max_filesize' => '0', 'post_max_size' => '0'], true,
+                ['maxAttachmentsPerPost' => 4, 'maxAttachmentBytes' => 8388608,
+                    'maxVideoAttachmentBytes' => 41943040, 'maxRequestBytes' => null]],
+            'PHP units and separate request limit' => [['upload_max_filesize' => '1G', 'post_max_size' => '512K'], true,
+                ['maxAttachmentsPerPost' => 4, 'maxAttachmentBytes' => 8388608,
+                    'maxVideoAttachmentBytes' => 41943040, 'maxRequestBytes' => 524288]],
+            'PHP uploads disabled' => [['file_uploads' => 'Off'], true,
+                ['maxAttachmentsPerPost' => 0, 'maxAttachmentBytes' => 0,
+                    'maxVideoAttachmentBytes' => 0, 'maxRequestBytes' => 134217728]],
+            'zero file count disables attachments' => [['max_file_uploads' => '0'], false,
+                ['maxAttachmentsPerPost' => 0, 'maxAttachmentBytes' => 8388608,
+                    'maxVideoAttachmentBytes' => null, 'maxRequestBytes' => 134217728]],
+        ];
+    }
+
+    public function test_administrator_overrides_and_php_limit_changes_invalidate_the_etag(): void
+    {
+        $first = $this->getJson('/rest/v1/instance')->assertOk();
+        $etag = $first->headers->get('ETag');
+        foreach ([InstanceSettings::KEY_MEDIA_MAX_ATTACHMENTS => '2', InstanceSettings::KEY_MEDIA_MAX_SIZE_KB => '1024',
+            InstanceSettings::KEY_VIDEO_ENABLED => '1', InstanceSettings::KEY_VIDEO_MAX_UPLOAD_MB => '16'] as $key => $value) {
+            SystemSetting::put($key, $value);
+            $changed = $this->withHeader('If-None-Match', $etag)->getJson('/rest/v1/instance')->assertOk();
+            $this->assertNotSame($etag, $changed->headers->get('ETag'));
+            $etag = $changed->headers->get('ETag');
+        }
+        $changed->assertJsonPath('instanceUploadLimits.maxAttachmentsPerPost', 2)
+            ->assertJsonPath('instanceUploadLimits.maxAttachmentBytes', 1048576)
+            ->assertJsonPath('instanceUploadLimits.maxVideoAttachmentBytes', 16777216);
+        $this->phpUploadSettings(['post_max_size' => '32M']);
+        $this->withHeader('If-None-Match', $etag)->getJson('/rest/v1/instance')->assertOk()
+            ->assertJsonPath('instanceUploadLimits.maxRequestBytes', 33554432);
     }
 
     public function test_configured_metadata_uses_instance_settings_and_does_not_reflect_request_host(): void
@@ -44,6 +116,7 @@ class InstanceTest extends TestCase
         $this->withHeader('Host', 'untrusted.example')->getJson('/rest/v1/instance')->assertOk()->assertExactJson([
             'instanceName' => 'Example Social', 'instanceDomain' => 'social.example',
             'instanceUrl' => 'https://social.example', 'instanceDescription' => 'A friendly instance.',
+            'instanceUploadLimits' => $this->defaultUploadLimits(),
             'instanceIcon' => 'https://social.example/storage/'.self::ICON_DIRECTORY.'/icon-512.png',
         ])->assertHeader('Content-Type', 'application/json');
         Http::assertNothingSent();
@@ -61,6 +134,7 @@ class InstanceTest extends TestCase
         $this->getJson('/rest/v1/instance')->assertOk()->assertExactJson([
             'instanceName' => 'Fallback Social', 'instanceDomain' => 'social.example',
             'instanceUrl' => 'https://social.example', 'instanceDescription' => '',
+            'instanceUploadLimits' => $this->defaultUploadLimits(),
         ]);
         $this->assertNotEmpty($queries);
         foreach ($queries as $sql) {

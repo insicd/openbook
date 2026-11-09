@@ -65,7 +65,7 @@ indiscriminata dei modelli, chiavi o campi privati.
 
 ### Instance
 
-Metadati statici da InstanceSettings, senza conteggi o statistiche. URL e dominio configurati, non derivati dall’header Host. Icona omessa se assente.
+Metadati da InstanceSettings e limiti effettivi di upload, senza conteggi o statistiche. URL e dominio configurati, non derivati dall’header Host. Icona omessa se assente.
 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
@@ -74,6 +74,21 @@ Metadati statici da InstanceSettings, senza conteggi o statistiche. URL e domini
 | `instanceUrl` | string; uri | Sì | No | URL base configurato dell’istanza, senza slash finale. |
 | `instanceDescription` | string | Sì | No | Descrizione configurata, senza rendering aggiuntivo; stringa vuota se assente. |
 | `instanceIcon` | string; uri | No | No | Icona personalizzata PNG 512; omessa se non configurata. |
+| `instanceUploadLimits` | object | Sì | No | Limiti pubblici per controllare l'upload prima dell'invio; dimensioni in byte. |
+| `instanceUploadLimits.maxAttachmentsPerPost` | integer | Sì | No | Minimo tra limite OpenBook e PHP `max_file_uploads`; zero se gli upload sono disabilitati. |
+| `instanceUploadLimits.maxAttachmentBytes` | integer | Sì | No | Minimo tra limite immagini/audio OpenBook e PHP `upload_max_filesize`, quando quest'ultimo è positivo. |
+| `instanceUploadLimits.maxVideoAttachmentBytes` | integer | Sì | Sì | Analogo limite per video; null quando i video sono disabilitati. |
+| `instanceUploadLimits.maxRequestBytes` | integer | Sì | Sì | PHP `post_max_size` per l'intera richiesta multipart, JSON e struttura inclusi; null se non positivo, quindi senza soglia finita. |
+
+I valori PHP sono letti durante la richiesta web, non dalla configurazione CLI.
+Gli override amministrativi OpenBook sono inclusi nel calcolo. Con `file_uploads`
+disabilitato, numero e dimensioni per file valgono zero (video resta null se già
+disabilitato). PHP `upload_max_filesize` non positivo non limita il singolo file;
+OpenBook mantiene comunque il proprio limite. Il limite complessivo resta separato:
+il client deve rispettarlo anche quando ciascun file è sotto il proprio limite.
+Non dedurre un budget esatto per la somma degli allegati né eventuali soglie di
+proxy/server web che l'applicazione non può conoscere. L'ETag comprende i limiti.
+
 
 ### Person
 
@@ -185,7 +200,7 @@ Contiene soltanto campi accettati in creazione, senza ereditare gli obbligatori 
 
 ### Estensione proposta: allegati e PostPublication
 
-Proposta del 9 novembre 2026, **non ancora implementata**. Il contratto operativo
+Estensione del 9 novembre 2026, **implementata e revisionata**. Il contratto operativo
 e il piano sono in [Allegati REST](REST_POST_ATTACHMENTS.md). Questa sezione resta
 il riferimento per le nuove entità; l'inventario precedente descrive le API già
 implementate.

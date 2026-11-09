@@ -1,6 +1,7 @@
 # Allegati dei post REST e pubblicazione differita
 
-Stato: proposta, 9 novembre 2026. Nessuna implementazione avviata.
+Stato: implementazione completata e revisionata, 9 novembre 2026.
+L’analisi iniziale è stata committata separatamente.
 
 ## Obiettivo e perimetro
 
@@ -120,6 +121,17 @@ Non richiede un nuovo meccanismo applicativo.
 Ripetere il POST può creare un duplicato, come oggi. Non introdurre chiavi di
 idempotenza o nuovi invii automatici del client in questo lavoro.
 
+## Limiti comunicati al client
+
+`GET /rest/v1/instance` espone il gruppo `instanceUploadLimits` definito nell'analisi
+REST principale: numero massimo, dimensione immagini/audio, dimensione video e
+dimensione dell'intera richiesta. Numero e dimensioni individuali sono il minimo
+tra OpenBook e PHP, ignorando le soglie PHP senza limite. La dimensione complessiva
+è separata e include anche JSON e struttura multipart. I valori sono in byte;
+video disabilitati e richiesta senza soglia finita sono rappresentati da null nei
+rispettivi campi. Non sono necessarie nuove impostazioni o nuove query di elenco.
+Aggiornati OpenAPI, esempi e guide; verificare anche l'invalidazione dell'ETag.
+
 ## Consultazione e annullamento
 
 ### GET /rest/v1/postPublication/{postPublicationId}
@@ -196,3 +208,44 @@ parser PHP. L’aggiornamento OpenAPI fa parte obbligatoria dell’implementazio
 Non sono necessarie decisioni aggiuntive dell'utente per procedere con questa
 proposta. Il comportamento del parser e la pulizia sui fallimenti sono verifiche
 implementative, non nuove funzionalità da progettare.
+
+## Esito dell'implementazione e verifiche
+
+- Ramo `rest_attachments` creato da `485a44e`, commit corrente al momento della
+  richiesta, senza ripartire da main. Analisi iniziale nel commit `a4d8fe8`.
+- Implementati multipart, risposta `201`/`202`, rappresentazione minima,
+  monitoraggio e annullamento. Condivisi col web invio, validazione file e
+  annullamento; nessuna migrazione o query di elenco aggiunta.
+- Il parser PHP reale riceve il JSON come valore form e i file come upload validi.
+  Verificato con HTTP locale: ordine fisico diverso da quello JSON, alt text e
+  contenuto vuoto conservati. I Content-Type delle singole parti non-file non
+  sono disponibili dopo il parsing PHP; viene validato il JSON effettivo, senza
+  parser personalizzato o promessa di rilevare duplicati già accorpati da PHP.
+- Aggiornati OpenAPI, guide API inglese/italiana e changelog. Verificati riferimenti
+  OpenAPI, compilazione degli schemi JSON Schema e casi validi/non validi delle
+  richieste e della risposta minima. Gli esempi e il contratto pubblico sono in
+  inglese, senza dettagli del database.
+- I test usano una configurazione isolata per ignorare la cache locale, mantenendo
+  la protezione SQLite in memoria della suite. I risultati finali vengono
+  riportati alla consegna per la review; nessun commit finale automatico.
+
+Verifica prima dell’estensione dei limiti istanza: suite completa con **2.340 test riusciti, 133 saltati e 19.446
+asserzioni**, senza fallimenti. I test opzionali saltati non costituiscono una
+verifica MySQL/MariaDB. Passati anche Pint, controllo del diff e controlli di
+coerenza OpenAPI/guide/analisi. Le modifiche applicative e documentali sono state sottoposte alla review richiesta.
+
+Estensione dei limiti istanza: aggiunto `instanceUploadLimits` con il minimo tra
+limiti applicativi e PHP per numero/dimensione individuale; soglia complessiva
+separata. Verificati casi con soglia PHP più restrittiva, override amministrativi,
+video/upload disabilitati, soglie PHP illimitate, unità K/M/G e variazione ETag.
+Le semantiche PHP sono state confrontate con la [documentazione ufficiale](https://www.php.net/manual/en/ini.core.php)
+e con il parser multipart di PHP per le soglie non positive. Nessuna nuova
+impostazione di configurazione o modifica ai limiti esistenti.
+
+Verifica finale dopo l'estensione dei limiti: **2.348 test riusciti, 133 test MySQL
+saltati, 19.482 asserzioni**, nessun fallimento. Passati i controlli degli esempi
+OpenAPI (compresi null e zero), dei riferimenti e degli schemi, Pint e diff.
+Review completa prima del commit: nessun problema bloccante rilevato nel codice,
+nella gestione degli allegati e dell'annullamento o nel contratto OpenAPI.
+Restano espliciti i confini già documentati: parser multipart PHP standard,
+retention temporanea del monitoraggio e test MySQL non eseguiti.
