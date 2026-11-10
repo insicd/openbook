@@ -19,6 +19,12 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Allegati nei post REST**: creazione multipart con immagini, audio e video,
+  ordine e testi alternativi; risposta `201` con il post o `202` con la
+  pubblicazione differita. Monitoraggio e annullamento riservati all’autore
+  tramite `/rest/v1/postPublication/{postPublicationId}`, con specifica OpenAPI
+  e guide API aggiornate. `/rest/v1/instance` espone i limiti effettivi di upload
+  per numero, singolo allegato e richiesta complessiva, combinando OpenBook e PHP.
 - **Chart Helm opzionale essenziale**: una singola istanza con web e worker
   nello stesso Pod, MySQL esterno, Secret esistente, storage persistente e
   Ingress/video opzionali. Verificato con lint, rendering e schemi Kubernetes,

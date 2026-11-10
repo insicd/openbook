@@ -65,7 +65,7 @@ indiscriminata dei modelli, chiavi o campi privati.
 
 ### Instance
 
-Metadati statici da InstanceSettings, senza conteggi o statistiche. URL e dominio configurati, non derivati dall’header Host. Icona omessa se assente.
+Metadati da InstanceSettings e limiti effettivi di upload, senza conteggi o statistiche. URL e dominio configurati, non derivati dall’header Host. Icona omessa se assente.
 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
@@ -74,6 +74,21 @@ Metadati statici da InstanceSettings, senza conteggi o statistiche. URL e domini
 | `instanceUrl` | string; uri | Sì | No | URL base configurato dell’istanza, senza slash finale. |
 | `instanceDescription` | string | Sì | No | Descrizione configurata, senza rendering aggiuntivo; stringa vuota se assente. |
 | `instanceIcon` | string; uri | No | No | Icona personalizzata PNG 512; omessa se non configurata. |
+| `instanceUploadLimits` | object | Sì | No | Limiti pubblici per controllare l'upload prima dell'invio; dimensioni in byte. |
+| `instanceUploadLimits.maxAttachmentsPerPost` | integer | Sì | No | Minimo tra limite OpenBook e PHP `max_file_uploads`; zero se gli upload sono disabilitati. |
+| `instanceUploadLimits.maxAttachmentBytes` | integer | Sì | No | Minimo tra limite immagini/audio OpenBook e PHP `upload_max_filesize`, quando quest'ultimo è positivo. |
+| `instanceUploadLimits.maxVideoAttachmentBytes` | integer | Sì | Sì | Analogo limite per video; null quando i video sono disabilitati. |
+| `instanceUploadLimits.maxRequestBytes` | integer | Sì | Sì | PHP `post_max_size` per l'intera richiesta multipart, JSON e struttura inclusi; null se non positivo, quindi senza soglia finita. |
+
+I valori PHP sono letti durante la richiesta web, non dalla configurazione CLI.
+Gli override amministrativi OpenBook sono inclusi nel calcolo. Con `file_uploads`
+disabilitato, numero e dimensioni per file valgono zero (video resta null se già
+disabilitato). PHP `upload_max_filesize` non positivo non limita il singolo file;
+OpenBook mantiene comunque il proprio limite. Il limite complessivo resta separato:
+il client deve rispettarlo anche quando ciascun file è sotto il proprio limite.
+Non dedurre un budget esatto per la somma degli allegati né eventuali soglie di
+proxy/server web che l'applicazione non può conoscere. L'ETag comprende i limiti.
+
 
 ### Person
 
@@ -181,7 +196,55 @@ Contiene soltanto campi accettati in creazione, senza ereditare gli obbligatori 
 | Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
 | --- | --- | --- | --- | --- |
 | `postContent` | string | Sì | No | Testo non vuoto, con gli stessi vincoli di NewPost. |
-| `postVisibility` | string; enum public, unlisted, followers | Sì | No | Nuova visibilità; se omessa resta quella corrente. |
+| `postVisibility` | string; enum public, unlisted, followers | Sì | No | Visibilità esplicita del nuovo post. |
+
+### Estensione proposta: allegati e PostPublication
+
+Estensione del 9 novembre 2026, **implementata e revisionata**. Il contratto operativo
+e il piano sono in [Allegati REST](REST_POST_ATTACHMENTS.md). Questa sezione resta
+il riferimento per le nuove entità; l'inventario precedente descrive le API già
+implementate.
+
+`NewPost` mantiene obbligatori solo `postContent` e `postVisibility`. Nella nuova
+modalità multipart aggiunge `postAttachments`, array facoltativo e non nullable
+di `NewPostAttachment`, in ordine di presentazione. La modalità JSON resta
+riservata ai post testuali. Nel multipart `postContent` può essere `""` solo con
+almeno un allegato valido; senza allegati resta necessario testo significativo.
+
+#### NewPostAttachment
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| `filePart` | string | Sì | No | Nome della parte multipart contenente il file associato. |
+| `mediaAltText` | string | No | Sì | Descrizione alternativa; massimo 1.000 caratteri, coerentemente con la validazione web esistente in `StorePostRequest::rules()`. |
+
+Non accetta URL o identificativi di media già caricati. Immagini, audio e video
+usano la stessa struttura; i limiti dipendono dalla configurazione esistente.
+
+#### PostPublication
+
+Rappresentazione minima della pubblicazione differita esistente nel core.
+Non aggiunge un nuovo stato a `Post` né una seconda coda.
+
+| Nome campo | Tipo campo | Obbligatorio | Nullable | Descrizione |
+| --- | --- | --- | --- | --- |
+| `postPublicationId` | string; uuid | Sì | No | Identificativo della richiesta di pubblicazione. |
+| `postPublicationStatus` | string; enum pending, processing, failed, published | Sì | No | Stato corrente del lavoro nel backend. |
+| `postId` | string; uuid | Sì | Sì | Identificativo del post dopo la pubblicazione; null prima o se non più disponibile. |
+
+Il client ricava il dettaglio finale con `GET /rest/v1/posts/{postId}`.
+Non esporre date, testo, visibilità, URL ridondanti, tentativi o diagnostica interna.
+`failed` comunica il fallimento; ulteriori dettagli pubblici non sono necessari
+per questa prima versione.
+
+| Endpoint proposto | Funzione |
+| --- | --- |
+| `POST /rest/v1/posts` | Accetta anche multipart; restituisce `201` e `Post` oppure `202` e `PostPublication`. |
+| `GET /rest/v1/postPublication/{postPublicationId}` | Legge lo stato della propria pubblicazione differita. |
+| `DELETE /rest/v1/postPublication/{postPublicationId}` | Annulla la propria pubblicazione in attesa o fallita; `409` durante l'elaborazione. |
+
+Si conserva il prefisso reale `/rest/v1`; il nuovo segmento usa `postPublication`
+in lowerCamelCase. Non è prevista una migrazione al prefisso `/api/v1`.
 
 ### PatchPost
 
@@ -432,7 +495,7 @@ di ambiente per il supporto autenticato.
 | Event | Catalogo/dettaglio, /me/events; follow «mi interessa» separato da participation «parteciperò», followers e participants. Definire Event e Location estesa. |
 | Notification | /me/notifications, stato lettura e riferimenti ai contenuti. |
 | Hashtag | Catalogo/dettaglio/posts e follow, normalizzazione del tag. |
-| Media e post complessi | Upload indipendente /media, elaborazione, NewPost/PatchPost estesi, sondaggi/citazioni e altri oggetti. |
+| Media e post complessi | Allegati multipart e monitoraggio/annullamento tramite PostPublication proposti in [Allegati REST](REST_POST_ATTACHMENTS.md); niente upload indipendente /media. Modifica allegati, sondaggi/citazioni e altri oggetti restano successivi. |
 | Ricerca/impostazioni | Contratti ancora da discutere; nessuna nuova API implicita in questo sprint. |
 
 Le liste generali future useranno relationship con valori multipli in OR e

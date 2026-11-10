@@ -96,7 +96,7 @@
       "get": {
         "operationId": "getInstance",
         "summary": "Get instance metadata",
-        "description": "Returns general metadata for the OpenBook instance serving this API. The name, description and custom icon reflect the instance settings; domain and base URL identify the configured instance. No usage statistics, contact information, limits or administrative settings are included. Requires an authenticated active account and a Bearer token, even though the metadata is not specific to a user. Uses private caching with ETag and If-None-Match. Authentication and access checks precede HTTP 304. Last-Modified is not emitted.",
+        "description": "Returns general metadata for the OpenBook instance serving this API. The name, description and custom icon reflect the instance settings; domain and base URL identify the configured instance. Includes effective upload count, per-file image/audio and video limits, and the total multipart request-size limit for client preflight checks. Sizes are in bytes. No usage statistics, contact information or private administrative settings are included. Requires an authenticated active account and a Bearer token, even though the metadata is not specific to a user. Uses private caching with ETag and If-None-Match; changes to exposed upload limits invalidate the representation. Authentication and access checks precede HTTP 304. Last-Modified is not emitted.",
         "tags": [
           "Instance"
         ],
@@ -149,7 +149,13 @@
                       "instanceDomain": "social.example",
                       "instanceUrl": "https://social.example",
                       "instanceDescription": "A friendly OpenBook instance.",
-                      "instanceIcon": "https://social.example/storage/instance-icons/00000000-0000-0000-0000-000000000001/icon-512.png"
+                      "instanceIcon": "https://social.example/storage/instance-icons/00000000-0000-0000-0000-000000000001/icon-512.png",
+                      "instanceUploadLimits": {
+                        "maxAttachmentsPerPost": 4,
+                        "maxAttachmentBytes": 8388608,
+                        "maxVideoAttachmentBytes": null,
+                        "maxRequestBytes": 67108864
+                      }
                     }
                   },
                   "withoutIcon": {
@@ -158,7 +164,13 @@
                       "instanceName": "Example Social",
                       "instanceDomain": "social.example",
                       "instanceUrl": "https://social.example",
-                      "instanceDescription": ""
+                      "instanceDescription": "",
+                      "instanceUploadLimits": {
+                        "maxAttachmentsPerPost": 4,
+                        "maxAttachmentBytes": 8388608,
+                        "maxVideoAttachmentBytes": null,
+                        "maxRequestBytes": 67108864
+                      }
                     }
                   }
                 }
@@ -4660,8 +4672,8 @@
       },
       "post": {
         "operationId": "createPost",
-        "summary": "Create a text post",
-        "description": "Creates a text post as the authenticated user. The body is a NewPost object with explicit text and audience; all other properties are rejected in this initial version. Text length follows the instance's configured limit. Hashtags and mentions use the same behavior as website publishing; only local accounts and remote accounts already known to the instance are resolved as mentions. The response is the full Post representation without feed context. HTTP 201 confirms local publication, not delivery to every remote server. Repeating POST may create another post; an error does not guarantee that no post was created. Requires an authenticated active account and a Bearer token. Creating a post requires a verified email address. Unverified accounts may still read, follow, like and reshare. After email confirmation, an existing Bearer can create posts.",
+        "summary": "Create a post with optional attachments",
+        "description": "Creates a post as the authenticated user. Send application/json for text-only creation, or multipart/form-data with a JSON post part and referenced file parts for images, audio or enabled video. Only postContent and postVisibility are required in NewPost. Each attachment references one distinct file part by name; unreferenced or missing files are rejected. Array order determines attachment order. Read GET /instance and its instanceUploadLimits before uploading. Media types, count and size follow instance limits; video additionally follows the instance's duration and processing constraints. File content types are checked independently of filenames and declared MIME types. Image/audio submissions are published immediately; submissions containing video are accepted for deferred publication as a whole, including any other attachments. HTTP 201 returns the full Post without feed context and confirms local publication, not delivery to every remote server. HTTP 202 returns PostPublication and a Location to monitor; it does not confirm publication. Hashtags and mentions follow website publishing; only local accounts and known remote accounts are resolved. Repeating POST can create another post or publication, including after a lost response. Requires Bearer authentication, an active account and verified email.",
         "tags": [
           "Posts"
         ],
@@ -4670,11 +4682,51 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NewPost"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/NewPost"
+                  },
+                  {
+                    "not": {
+                      "required": [
+                        "postAttachments"
+                      ]
+                    },
+                    "properties": {
+                      "postContent": {
+                        "minLength": 1,
+                        "pattern": "\\S"
+                      }
+                    }
+                  }
+                ]
               },
               "example": {
                 "postContent": "Hello from my application! #OpenBook",
                 "postVisibility": "public"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "post"
+                ],
+                "properties": {
+                  "post": {
+                    "$ref": "#/components/schemas/NewPost"
+                  }
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "format": "binary"
+                },
+                "description": "The post property is a JSON form part without a filename, containing NewPost. Additional properties are binary file parts named by postAttachments[].filePart. Use simple, unique form-part names; nested file arrays are not supported. Physical part order is irrelevant. The server uses its standard multipart form parser."
+              },
+              "encoding": {
+                "post": {
+                  "contentType": "application/json"
+                }
               }
             }
           }
@@ -4822,7 +4874,7 @@
             }
           },
           "422": {
-            "description": "The body is not an object, a required field is missing or invalid, or an unsupported property was supplied.",
+            "description": "Invalid post fields, attachment metadata, file mapping, media contents or configured limits, including video submissions when video is disabled.",
             "headers": {
               "Cache-Control": {
                 "description": "Errors are not stored.",
@@ -4931,7 +4983,7 @@
             }
           },
           "415": {
-            "description": "A JSON content type is required.",
+            "description": "The request Content-Type is neither supported JSON nor multipart/form-data.",
             "headers": {
               "Cache-Control": {
                 "description": "Errors are not stored.",
@@ -4950,6 +5002,37 @@
                   "type": "about:blank",
                   "title": "Unsupported Media Type",
                   "status": 415
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The complete submission was saved for deferred processing. Publication may still fail. Monitor the Location URL; no completion deadline is guaranteed.",
+            "headers": {
+              "Location": {
+                "description": "Absolute REST URL for monitoring this publication.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "Cache-Control": {
+                "description": "This response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostPublication"
+                },
+                "example": {
+                  "postPublicationId": "5146b1f5-0e95-4be9-a194-25cb5d1d8081",
+                  "postPublicationStatus": "pending",
+                  "postId": null
                 }
               }
             }
@@ -8189,6 +8272,361 @@
           }
         }
       }
+    },
+    "/postPublication/{postPublicationId}": {
+      "parameters": [
+        {
+          "name": "postPublicationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "The deferred publication identifier."
+        }
+      ],
+      "get": {
+        "operationId": "getPostPublication",
+        "summary": "Get a deferred publication",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Reads the authenticated owner's deferred publication without starting or retrying processing. Staff cannot read other owners' publications. Email verification is not required for reading, and existing records remain readable when video creation is disabled. After publication, the resource remains available until terminal-record cleanup according to instance retention (seven days by default since its last workflow update). Afterwards it returns 404. Cleanup of this resource does not delete the final post. Poll while pending or processing; no percentage or completion deadline is provided.",
+        "responses": {
+          "200": {
+            "description": "The current publication state.",
+            "headers": {
+              "Cache-Control": {
+                "description": "This response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostPublication"
+                },
+                "example": {
+                  "postPublicationId": "5146b1f5-0e95-4be9-a194-25cb5d1d8081",
+                  "postPublicationStatus": "pending",
+                  "postId": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid Bearer credentials.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive or the token lacks the api scope.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "headers": {
+              "Cache-Control": {
+                "description": "This response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The publication is unavailable, expired or belongs to another account."
+          },
+          "429": {
+            "description": "The request rate limit was exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deletePostPublication",
+        "summary": "Cancel a deferred publication",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Cancels an owned pending or failed publication and removes its temporary files. Requires an active authenticated account and api scope; verified email is not required. Staff cannot cancel another owner's publication. A processing publication returns 409 without changes. A published, absent or foreign publication returns 404. This operation does not delete a published post; use DELETE /posts/{postId}. Subsequent monitoring of a cancelled publication returns 404.",
+        "responses": {
+          "204": {
+            "description": "The publication was cancelled. No response body.",
+            "headers": {
+              "Cache-Control": {
+                "description": "This response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            }
+          },
+          "409": {
+            "headers": {
+              "Cache-Control": {
+                "description": "This response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Processing has started; cancellation is not allowed and nothing is changed."
+          },
+          "401": {
+            "description": "Missing or invalid Bearer credentials.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The account is inactive or the token lacks the api scope.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "headers": {
+              "Cache-Control": {
+                "description": "This response must not be stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The publication is unavailable, expired or belongs to another account."
+          },
+          "429": {
+            "description": "The request rate limit was exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -8830,7 +9268,7 @@
       },
       "NewPost": {
         "type": "object",
-        "description": "Input for creating a text post. Uses the same property names as Post, with independent input requirements. The author is determined by the authenticated account. Only postContent and postVisibility are required; future additional creation fields will be optional.",
+        "description": "Input for creating a post. Only postContent and postVisibility are required. JSON requests are text-only and must omit postAttachments. Multipart requests carry this object in the post part and may reference binary file parts through postAttachments. Input requirements are independent from the response Post.",
         "additionalProperties": false,
         "required": [
           "postContent",
@@ -8839,9 +9277,16 @@
         "properties": {
           "postContent": {
             "type": "string",
-            "minLength": 1,
-            "pattern": "\\S",
-            "description": "The post text, which may contain Markdown, hashtags and mentions. Must contain non-whitespace text and respect the instance's configured post length limit."
+            "description": "Post text, supporting Markdown, hashtags and mentions, within the instance's configured length limit. Empty text is accepted only in multipart with at least one valid attachment. Whitespace-only text is rejected.",
+            "anyOf": [
+              {
+                "maxLength": 0
+              },
+              {
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            ]
           },
           "postVisibility": {
             "type": "string",
@@ -8851,12 +9296,39 @@
               "followers"
             ],
             "description": "The audience of the new post. Must be provided explicitly. Direct posts are not supported by this initial creation schema."
+          },
+          "postAttachments": {
+            "type": "array",
+            "description": "Optional multipart-only attachments in presentation order. Omission or an empty array means no attachments. The instance limits the number of attachments. Null is not accepted.",
+            "items": {
+              "$ref": "#/components/schemas/NewPostAttachment"
+            }
           }
         },
         "example": {
           "postContent": "Hello from my application! #OpenBook",
           "postVisibility": "public"
-        }
+        },
+        "anyOf": [
+          {
+            "properties": {
+              "postContent": {
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          },
+          {
+            "required": [
+              "postAttachments"
+            ],
+            "properties": {
+              "postAttachments": {
+                "minItems": 1
+              }
+            }
+          }
+        ]
       },
       "PatchPost": {
         "type": "object",
@@ -8886,12 +9358,13 @@
       },
       "Instance": {
         "type": "object",
-        "description": "General metadata of the current OpenBook instance. Contains no usage statistics or administrative configuration.",
+        "description": "General metadata and effective upload limits of the current OpenBook instance. Contains no usage statistics or private administrative settings.",
         "required": [
           "instanceName",
           "instanceDomain",
           "instanceUrl",
-          "instanceDescription"
+          "instanceDescription",
+          "instanceUploadLimits"
         ],
         "properties": {
           "instanceName": {
@@ -8915,6 +9388,45 @@
             "type": "string",
             "format": "uri",
             "description": "Absolute URL of the configured custom 512-pixel PNG icon. Omitted when no custom icon is configured."
+          },
+          "instanceUploadLimits": {
+            "type": "object",
+            "description": "Effective upload limits for client-side preflight checks. Count and per-file limits combine instance policy with the upload limits of the serving runtime. Clients must check both individual files and the complete multipart request. Other web server or proxy limits may be lower and are not included.",
+            "required": [
+              "maxAttachmentsPerPost",
+              "maxAttachmentBytes",
+              "maxVideoAttachmentBytes",
+              "maxRequestBytes"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "maxAttachmentsPerPost": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Maximum number of attachments in one post, taking the smaller instance and runtime file-count limit. Zero means attachments cannot currently be uploaded."
+              },
+              "maxAttachmentBytes": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Maximum bytes per image or audio attachment, taking the smaller instance and runtime per-file limit. Zero when HTTP file uploads are disabled. The separate whole-request limit also applies."
+              },
+              "maxVideoAttachmentBytes": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "description": "Maximum bytes per video attachment, taking the smaller instance and runtime per-file limit. Null when video creation is disabled; zero when video is enabled but HTTP file uploads are disabled. The separate whole-request limit also applies."
+              },
+              "maxRequestBytes": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "description": "Maximum total multipart request body size reported by the serving runtime, in bytes. Includes all files, JSON and multipart framing. Null when the runtime imposes no finite request-size limit. This is not a file-size budget to fill exactly."
+              }
+            }
           }
         },
         "example": {
@@ -8922,7 +9434,13 @@
           "instanceDomain": "social.example",
           "instanceUrl": "https://social.example",
           "instanceDescription": "A friendly OpenBook instance.",
-          "instanceIcon": "https://social.example/storage/instance-icons/00000000-0000-0000-0000-000000000001/icon-512.png"
+          "instanceIcon": "https://social.example/storage/instance-icons/00000000-0000-0000-0000-000000000001/icon-512.png",
+          "instanceUploadLimits": {
+            "maxAttachmentsPerPost": 4,
+            "maxAttachmentBytes": 8388608,
+            "maxVideoAttachmentBytes": null,
+            "maxRequestBytes": 67108864
+          }
         }
       },
       "Follow": {
@@ -9275,6 +9793,76 @@
         },
         "example": {
           "commentContent": "Thank you for sharing this walk."
+        }
+      },
+      "NewPostAttachment": {
+        "type": "object",
+        "description": "Input describing one file supplied in the same multipart creation request. The server assigns the resulting media identifier.",
+        "additionalProperties": false,
+        "required": [
+          "filePart"
+        ],
+        "properties": {
+          "filePart": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9]{0,63}$",
+            "not": {
+              "const": "post"
+            },
+            "description": "Case-sensitive name of one binary file part in this request. The name post is reserved. Each file must be referenced exactly once. Existing media IDs, URLs and nested file arrays are not accepted."
+          },
+          "mediaAltText": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000,
+            "description": "Alternative description for the attachment. Omission, null or an empty string means no description."
+          }
+        },
+        "example": {
+          "filePart": "attachment1",
+          "mediaAltText": "The lake surrounded by mountains."
+        }
+      },
+      "PostPublication": {
+        "type": "object",
+        "description": "Owner-only state of a deferred publication. Contains no post text, audience, processing diagnostics or numerical progress. Available after success until terminal-record retention cleanup.",
+        "additionalProperties": false,
+        "required": [
+          "postPublicationId",
+          "postPublicationStatus",
+          "postId"
+        ],
+        "properties": {
+          "postPublicationId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the deferred publication, distinct from the resulting post ID."
+          },
+          "postPublicationStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "failed",
+              "published"
+            ],
+            "description": "pending: waiting for backend processing; processing: being processed; failed: processing ended unsuccessfully; published: local publication completed. Internal backend retries may return processing to pending without a new client request."
+          },
+          "postId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Resulting available post ID when published; otherwise null, including if the post was subsequently deleted. Read the post with GET /posts/{postId}."
+          }
+        },
+        "example": {
+          "postPublicationId": "5146b1f5-0e95-4be9-a194-25cb5d1d8081",
+          "postPublicationStatus": "pending",
+          "postId": null
         }
       }
     },

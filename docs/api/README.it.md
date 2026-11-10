@@ -35,7 +35,9 @@ senza endpoint autonomi di upload o gestione.
 | Follow | `PUT /rest/v1/persons/{personId}/follow` | Follow o richiesta |
 | Follow | `DELETE /rest/v1/persons/{personId}/follow` | Rimozione o ritiro del follow |
 | Post | `GET /rest/v1/posts` | Mondo o timeline personale |
-| Post | `POST /rest/v1/posts` | Creazione testuale |
+| Post | `POST /rest/v1/posts` | Creazione testuale o con allegati |
+| PostPublication | `GET /rest/v1/postPublication/{postPublicationId}` | Monitoraggio di una propria pubblicazione differita |
+| PostPublication | `DELETE /rest/v1/postPublication/{postPublicationId}` | Annullamento di una propria pubblicazione in attesa o fallita |
 | Post | `GET /rest/v1/posts/{postId}` | Dettaglio del post |
 | Post | `PATCH /rest/v1/posts/{postId}` | Modifica dei propri post semplici |
 | Post | `DELETE /rest/v1/posts/{postId}` | Eliminazione dei propri post locali |
@@ -64,10 +66,35 @@ Ruoli admin/moderatore non conferiscono privilegi aggiuntivi nelle route REST.
   rendering HTML: Markdown o testo semplice secondo la fonte. Non si promette
   il documento originale remoto. Il client gestisce rendering e sanitizzazione.
   `personFields` contiene coppie label/value, anche quando il valore non è un URL.
-- Instance espone solo nome, dominio, URL canonico, descrizione e icona opzionale,
-  senza statistiche. Una descrizione non configurata è una stringa vuota.
+- Instance espone nome, dominio, URL canonico, descrizione, icona opzionale e
+  limiti effettivi di upload, senza statistiche. Una descrizione non configurata
+  è una stringa vuota.
 - I dati federati rappresentano ciò che l’istanza conosce: elenchi e cronologie
   remote possono essere parziali, non sono inventari globali.
+
+## Limiti di upload
+
+GET /instance include `instanceUploadLimits`, con tutte le dimensioni in byte:
+
+```json
+{
+  "maxAttachmentsPerPost": 4,
+  "maxAttachmentBytes": 8388608,
+  "maxVideoAttachmentBytes": null,
+  "maxRequestBytes": 67108864
+}
+```
+
+Numero e dimensioni per file sono il minimo tra il limite OpenBook e quello del
+runtime che serve la richiesta; immagini/audio e video possono avere soglie
+diverse. Il video è null se disabilitato. Numero zero indica che non si possono
+caricare allegati; con upload HTTP disabilitati anche le dimensioni per file sono
+zero. `maxRequestBytes` è il limite separato per l'intero body multipart, compresi
+tutti i file, il JSON e la struttura; null indica assenza di una soglia finita nel
+runtime. Non riempire questa soglia con i soli byte dei file. Server web o proxy
+possono imporre un limite inferiore che l'endpoint non può conoscere.
+L'ETag cambia quando cambiano i limiti esposti. Sono limiti dell'installazione,
+non quote residue dell'account o garanzie di successo di un particolare upload.
 
 ## Letture e paginazione
 
@@ -101,17 +128,71 @@ ricontrollate dopo i refresh. Le liste di persone/richieste non avviano fetch.
 
 ## Scritture e relazioni
 
-POST /posts accetta solo NewPost con `postContent` e `postVisibility` obbligatori.
-Le visibilità ammesse in creazione/modifica sono public, unlisted e followers.
-PATCH accetta PatchPost con gli stessi campi tutti opzionali, almeno uno presente.
-Testo non vuoto e limite configurato per l’istanza; campi sconosciuti, null o
-valori non validi danno 422. JSON malformato dà 400, Content-Type non JSON 415.
+POST /posts accetta NewPost con `postContent` e `postVisibility` obbligatori.
+Inviare `application/json` per post solo testuali, mantenendo il contratto attuale.
+Per gli allegati usare `multipart/form-data`: la parte `post` contiene il JSON di
+NewPost con `Content-Type: application/json` e senza filename; le parti binarie
+nominate contengono i file referenziati. L'ordine fisico delle parti non conta.
 
-Creazione: 201 con Post e Location. Modifica: 200 con Post, soltanto per propri
-post locali semplici. Media, posizione, sondaggi, community, citazioni e direct
-restano fuori dalla modifica iniziale: 409. Campi omessi come titolo/CW/lingua
-sono conservati. DELETE elimina solo propri post locali: 204; un post già
-cancellato dà 404. Gli admin non possono operare su post altrui.
+Esempio della parte JSON:
+
+```json
+{
+  "postContent": "A walk by the lake.",
+  "postVisibility": "public",
+  "postAttachments": [
+    {"filePart": "attachment1", "mediaAltText": "The lake surrounded by mountains."}
+  ]
+}
+```
+
+Inviare l'immagine in una parte file chiamata `attachment1`. Ogni allegato
+referenzia un file distinto nella stessa richiesta; riferimenti mancanti, ripetuti
+o file non referenziati vengono rifiutati. I nomi iniziano con una lettera ASCII
+e contengono solo lettere ASCII o cifre, fino a 64 caratteri; `post` è riservato.
+L'ordine nell'array determina la presentazione. Immagini, audio e video abilitati
+usano la stessa struttura e i limiti esistenti dell'istanza per tipo, dimensioni
+e numero. `mediaAltText` è facoltativo e nullable, massimo 1.000 caratteri; stringa
+vuota significa nessuna descrizione. `postAttachments` è facoltativo e solo
+multipart. `postContent` vuoto è consentito solo in multipart con almeno un
+allegato valido; testo composto soltanto da spazi è rifiutato. Il limite testuale
+dell'istanza vale per entrambe le modalità.
+
+Le visibilità in creazione/modifica sono public, unlisted e followers. Campi
+sconosciuti, null non ammessi e valori non validi danno 422; JSON malformato dà 400,
+Content-Type della richiesta non supportato 415. Un upload troppo grande può
+essere rifiutato direttamente dal server web, con errore non necessariamente JSON.
+
+La creazione restituisce 201 con Post e relativa Location dopo la pubblicazione
+locale. Invii con video restituiscono 202 con PostPublication e URL di monitoraggio
+in Location, dopo il salvataggio privato dell'intera richiesta. I post misti
+vengono pubblicati insieme dopo l'elaborazione. Nessuno dei codici conferma la
+consegna remota completata; 202 non conferma ancora la pubblicazione. Ripetere
+POST può duplicare l'invio, anche dopo una risposta persa.
+
+GET /postPublication/{postPublicationId} restituisce solo `postPublicationId`,
+`postPublicationStatus` (`pending`, `processing`, `failed`, `published`) e `postId`
+nullable. Interrogare Location durante pending/processing; con published leggere
+il risultato tramite GET /posts/{postId}. Tentativi interni del backend possono
+riportare processing a pending senza nuovi invii del client. Non ci sono
+percentuali o scadenze di completamento. I record terminali restano consultabili
+fino alla pulizia secondo la retention dell'istanza: default sette giorni
+dall'ultimo aggiornamento. Dopo, GET dà 404 senza eliminare il post pubblicato.
+Un post finale eliminato viene rappresentato con postId null.
+
+DELETE /postPublication/{postPublicationId} annulla lavori pending/failed e pulisce
+i temporanei, restituendo 204. Processing dà 409; pubblicazioni published, assenti
+o altrui danno 404. GET e DELETE sono riservate all'autore, richiedono account
+Bearer attivo e scope api, senza obbligo di email verificata. Record esistenti
+restano consultabili/annullabili se la creazione video viene disabilitata.
+Risposte con Cache-Control: no-store. Nessuna delega staff o upload media indipendente.
+
+PATCH accetta PatchPost con testo e visibilità opzionali, almeno uno presente;
+il testo non può essere vuoto. La modifica restituisce 200 con Post solo per
+propri post locali semplici. Allegati, posizione, sondaggi, community, citazioni e
+direct restano esclusi dalla modifica: 409. Titolo/CW/lingua omessi si conservano.
+DELETE /posts/{postId} elimina solo propri post locali: 204; post già eliminato
+404. Gli admin non possono modificare post altrui.
 
 | Relazione | PUT | DELETE |
 | --- | --- | --- |

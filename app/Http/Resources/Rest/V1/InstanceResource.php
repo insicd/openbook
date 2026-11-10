@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Rest\V1;
 
 use App\Application\Services\InstanceSettings;
+use App\Application\Services\InstanceUploadLimits;
 use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\Psr7\UriResolver;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class InstanceResource extends JsonResource
             'instanceDomain' => (string) config('openbook.domain'),
             'instanceUrl' => $baseUrl,
             'instanceDescription' => $settings->siteDescription(),
+            'instanceUploadLimits' => app(InstanceUploadLimits::class)->forInstance($settings),
         ];
         $icon = $settings->androidIconUrl(512);
         if ($icon !== null) {

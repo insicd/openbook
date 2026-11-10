@@ -4,7 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Application\Services\LocalContentDeleter;
 use App\Application\Services\PostComposer;
-use App\Application\Services\PostPublicationStager;
+use App\Application\Services\PostPublicationCanceller;
+use App\Application\Services\PostSubmission;
 use App\Application\Services\QuotedPostResolver;
 use App\Application\Services\RemoteInteractionGuard;
 use App\Domain\Comments\Comment;
@@ -21,10 +22,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 
 class PostController extends Controller
 {
@@ -36,22 +34,19 @@ class PostController extends Controller
         private readonly QuotedPostResolver $quotedPostResolver,
     ) {}
 
-    public function store(StorePostRequest $request): RedirectResponse|JsonResponse
+    public function store(StorePostRequest $request, PostSubmission $submission): RedirectResponse|JsonResponse
     {
         $data = $request->validated();
         $data['images'] = $request->file('images', []);
 
-        if ($this->containsVideo($data['images'])) {
-            app(PostPublicationStager::class)->stage($request->user()->actor, $data);
-
+        $post = $submission->submit($request->user()->actor, $data);
+        if ($post instanceof PendingPostPublication) {
             return $this->storeResponse(
                 $request,
                 route('feed.index'),
                 __('openbook.posts.video_queued'),
             );
         }
-
-        $post = $this->postComposer->compose($request->user()->actor, $data);
 
         if ($post->community_id !== null) {
             $post->loadMissing('community');
@@ -91,25 +86,11 @@ class PostController extends Controller
         return redirect()->to($redirect)->with('status', $status);
     }
 
-    public function destroyPending(PendingPostPublication $publication): RedirectResponse
+    public function destroyPending(PendingPostPublication $publication, PostPublicationCanceller $canceller): RedirectResponse
     {
         abort_unless($publication->actor?->user_id === auth()->id(), 403);
 
-        $result = DB::transaction(function () use ($publication): string {
-            $locked = PendingPostPublication::query()->lockForUpdate()->find($publication->id);
-
-            if ($locked === null || $locked->status === PendingPostPublication::STATUS_PUBLISHED) {
-                return 'missing';
-            }
-
-            if ($locked->status === PendingPostPublication::STATUS_PROCESSING) {
-                return 'processing';
-            }
-
-            $locked->delete();
-
-            return 'deleted';
-        });
+        $result = $canceller->cancel(auth()->user()->actor, $publication->id);
 
         abort_if($result === 'missing', 404);
 
@@ -117,21 +98,7 @@ class PostController extends Controller
             return back()->with('error', __('openbook.posts.video_processing_cannot_delete'));
         }
 
-        $directory = 'post-publication/'.$publication->id;
-        $publication->delete();
-        Storage::disk('local')->deleteDirectory($directory);
-
         return back()->with('status', __('openbook.posts.video_deleted'));
-    }
-
-    /** @param array<int, UploadedFile> $files */
-    private function containsVideo(array $files): bool
-    {
-        $videoMimes = (array) config('openbook.video.allowed_mime_types');
-
-        return collect($files)->contains(
-            fn ($file) => in_array(strtolower((string) $file->getMimeType()), $videoMimes, true),
-        );
     }
 
     public function edit(Post $post): View

@@ -35,7 +35,9 @@ upload or management endpoints.
 | Follow | `PUT /rest/v1/persons/{personId}/follow` | Follow a person or request approval |
 | Follow | `DELETE /rest/v1/persons/{personId}/follow` | Stop following a person or withdraw a pending request |
 | Post | `GET /rest/v1/posts` | List posts |
-| Post | `POST /rest/v1/posts` | Create a text post |
+| Post | `POST /rest/v1/posts` | Create a text or media post |
+| PostPublication | `GET /rest/v1/postPublication/{postPublicationId}` | Monitor an owned deferred publication |
+| PostPublication | `DELETE /rest/v1/postPublication/{postPublicationId}` | Cancel an owned pending or failed publication |
 | Post | `GET /rest/v1/posts/{postId}` | Get a post |
 | Post | `PATCH /rest/v1/posts/{postId}` | Edit a simple post |
 | Post | `DELETE /rest/v1/posts/{postId}` | Delete an owned local post |
@@ -64,10 +66,34 @@ requests. Admin/moderator roles grant no additional REST privileges.
   HTML rendering: Markdown or plain text depending on the source. The original
   remote document is not promised. Clients handle rendering and sanitization.
   `personFields` are label/value pairs; values need not be URLs.
-- Instance exposes name, domain, canonical URL, description and an optional icon,
-  without statistics. An unconfigured description is an empty string.
+- Instance exposes name, domain, canonical URL, description, an optional icon
+  and effective upload limits, without statistics. An unconfigured description
+  is an empty string.
 - Federated data reflects this instance's knowledge. Remote lists and histories
   may be partial rather than complete global inventories.
+
+## Upload limits
+
+GET /instance includes `instanceUploadLimits` with all sizes in bytes:
+
+```json
+{
+  "maxAttachmentsPerPost": 4,
+  "maxAttachmentBytes": 8388608,
+  "maxVideoAttachmentBytes": null,
+  "maxRequestBytes": 67108864
+}
+```
+
+Count and per-file limits take the smaller instance and serving runtime limit;
+images/audio and video may have different caps. Video is null when disabled.
+A zero count means attachments cannot be uploaded; disabled HTTP uploads also
+produce zero per-file limits. `maxRequestBytes` is the separate cap for the whole
+multipart body, including all files, JSON and framing; null means no finite
+runtime request-size limit. Do not fill that cap with file bytes alone. A web
+server or proxy can impose a lower limit that this endpoint cannot report.
+The ETag changes when the exposed limits change. These are deployment limits,
+not remaining account quota or a guarantee that a particular upload will succeed.
 
 ## Reading and pagination
 
@@ -100,17 +126,69 @@ lists and incoming requests do not fetch remote documents.
 
 ## Writes and relationships
 
-POST /posts accepts only NewPost with required `postContent` and `postVisibility`.
-Creation/editing allow public, unlisted and followers. PATCH accepts PatchPost
-with both fields optional but at least one supplied. Text must be nonempty and
-within the instance's configured limit. Unknown fields, nulls and invalid values
-return 422; malformed JSON returns 400 and non-JSON Content-Type returns 415.
+POST /posts accepts NewPost with required `postContent` and `postVisibility`.
+Send `application/json` for text-only posts, preserving the existing contract.
+Send `multipart/form-data` for attachments: the `post` part contains the NewPost
+JSON with `Content-Type: application/json` and no filename; named binary parts
+contain the referenced files. Physical part order does not matter.
 
-Creation returns 201 with Post and Location. Editing returns 200 with Post,
-only for owned, simple local posts. Media, location, polls, communities, quotes
-and direct posts are outside the initial edit scope and return 409. Omitted
-title/CW/language are preserved. DELETE removes only owned local posts: 204;
-already deleted posts return 404. Admins cannot mutate other users' posts.
+For example, the JSON part may contain:
+
+```json
+{
+  "postContent": "A walk by the lake.",
+  "postVisibility": "public",
+  "postAttachments": [
+    {"filePart": "attachment1", "mediaAltText": "The lake surrounded by mountains."}
+  ]
+}
+```
+
+Send the image in a file part named `attachment1`. Each attachment references one
+distinct file in the same request; missing, repeated or unreferenced files are
+rejected. Part names start with an ASCII letter and contain only ASCII letters
+or digits, up to 64 characters; `post` is reserved. Array order determines display
+order. Images, audio and enabled video use the same structure and the instance's
+existing type, size and count limits. `mediaAltText` is optional and nullable,
+with a maximum of 1,000 characters; an empty string means no description.
+`postAttachments` is multipart-only and optional. Empty `postContent` is accepted
+only with at least one valid attachment in multipart; whitespace-only text is
+rejected. The instance's text limit applies to both transports.
+
+Creation/editing allow public, unlisted and followers. Unknown fields, invalid
+nulls and invalid values return 422; malformed JSON returns 400 and unsupported
+request Content-Type returns 415. An oversized upload may be rejected directly
+by the web server, whose error response may not use the API's JSON format.
+
+Creation returns 201 with Post and its Location after local publication.
+Submissions containing video return 202 with PostPublication and its monitoring
+URL in Location, after saving the complete submission privately. Mixed posts are
+published together after processing. Neither code confirms completed remote
+delivery; 202 does not yet confirm publication. Repeating POST can duplicate a
+submission, including after a lost response.
+
+GET /postPublication/{postPublicationId} returns only `postPublicationId`,
+`postPublicationStatus` (`pending`, `processing`, `failed`, `published`) and nullable
+`postId`. Poll the Location while pending/processing; when published, read the
+result with GET /posts/{postId}. Backend retries may return processing to pending
+without another client submission. There is no percentage or completion deadline.
+Terminal records remain readable until instance retention cleanup (seven days by
+default since their last workflow update); afterwards GET returns 404 without
+deleting the published post. A deleted final post is represented by null postId.
+
+DELETE /postPublication/{postPublicationId} cancels pending/failed work and removes
+its temporary files, returning 204. Processing returns 409; published, missing or
+foreign publications return 404. GET and DELETE are owner-only, require an active
+Bearer account with api scope, and do not require verified email. Existing records
+remain readable/cancellable when video creation is disabled. Responses use
+Cache-Control: no-store. There is no staff override or independent media upload.
+
+PATCH accepts PatchPost with both text and visibility optional but at least one
+supplied; text must be nonempty. Editing returns 200 with Post, only for owned,
+simple local posts. Attachments, location, polls, communities, quotes and direct
+posts remain outside editing and return 409. Omitted title/CW/language are
+preserved. DELETE /posts/{postId} removes only owned local posts: 204; already
+deleted posts return 404. Admins cannot mutate other users' posts.
 
 | Relationship | PUT | DELETE |
 | --- | --- | --- |

@@ -6,12 +6,16 @@ use App\Application\Queries\FeedCursor;
 use App\Application\Queries\FeedQuery;
 use App\Application\Services\LocalContentDeleter;
 use App\Application\Services\PostComposer;
+use App\Application\Services\PostSubmission;
 use App\Application\Services\ReactionManager;
+use App\Domain\Posts\PendingPostPublication;
 use App\Domain\Posts\Post;
 use App\Federation\Replies\RemoteRepliesFetcher;
 use App\Http\Controllers\Concerns\RespondsWithConditionalRest;
 use App\Http\Controllers\Concerns\ValidatesRestInput;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Rest\V1\StorePostRequest;
+use App\Http\Resources\Rest\V1\PostPublicationResource;
 use App\Http\Resources\Rest\V1\PostResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -20,6 +24,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 final class PostController extends Controller
@@ -27,14 +32,22 @@ final class PostController extends Controller
     use RespondsWithConditionalRest;
     use ValidatesRestInput;
 
-    public function store(Request $request, PostComposer $composer): Response
+    public function store(StorePostRequest $request, PostSubmission $submission): Response
     {
-        $values = $this->postInput($request);
         $author = $request->user()->actor;
-        $post = $composer->compose($author, [
-            'body' => $values['postContent'],
-            'visibility' => $values['postVisibility'],
-        ]);
+        try {
+            $post = $submission->submit($author, $request->publicationData());
+        } catch (\InvalidArgumentException|ValidationException) {
+            $this->invalid(['postAttachments' => ['The attachments could not be accepted.']]);
+        }
+        if ($post instanceof PendingPostPublication) {
+            $response = (new PostPublicationResource($post))->toResponse($request);
+            $response->setStatusCode(202);
+            $response->headers->set('Location', route('rest.v1.postPublication.show', ['postPublicationId' => $post->id]));
+            $response->headers->set('Cache-Control', 'no-store');
+
+            return $response;
+        }
         $post->refresh()->load(Post::CARD_RELATIONS);
         Post::annotateViewerState([$post], $author);
         $response = (new PostResource($post))->toResponse($request);
