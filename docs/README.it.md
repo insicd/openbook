@@ -6,6 +6,8 @@ Guide per usare Openbook e amministrare un’istanza, divise per argomento.
 
 | Argomento | File |
 |---|---|
+| Installazione Docker Hub, configurazione, servizi e aggiornamenti | [`docker.it.md`](docker.it.md) |
+| Kubernetes con Helm (rendering verificato, non provato su cluster) | [`kubernetes.it.md`](kubernetes.it.md) |
 | Installazione, requisiti, server web, aggiornamenti | [`install.it.md`](install.it.md) |
 | Configurazione, posizioni nei post, cron, manutenzione database e cache Stats | [`configuration.it.md`](configuration.it.md) |
 | Uso, profili, sondaggi, Mondo e Stats | [`architecture.it.md`](architecture.it.md) |

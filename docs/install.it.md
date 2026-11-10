@@ -1,5 +1,10 @@
 > Documentazione: [Italiano](README.it.md) · [English](README.md)
 
+## Docker
+
+Per installare e gestire l’immagine già pronta da Docker Hub, vedi
+[Installazione Docker](docker.it.md).
+
 ## Requisiti
 
 Openbook e' progettato per funzionare anche su un normale **shared hosting**, senza

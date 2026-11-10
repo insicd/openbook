@@ -19,6 +19,18 @@ la [roadmap](docs/roadmap.md).
 ## [26.38.rc1]
 
 ### Added
+- **Chart Helm opzionale essenziale**: una singola istanza con web e worker
+  nello stesso Pod, MySQL esterno, Secret esistente, storage persistente e
+  Ingress/video opzionali. Verificato con lint, rendering e schemi Kubernetes,
+  non su cluster reale.
+- **Distribuzione Docker opzionale**: immagine PHP 8.5 con Apache, dipendenze
+  di produzione e FFmpeg; configurazione esterna con supporto ai segreti su
+  file, storage persistente e Compose distinti per build locale e immagini
+  Docker Hub, con cron, worker permanenti inbox e delivery e worker video
+  opzionale separati.
+  Migrazioni e pulizia delle viste automatiche all’avvio web, con avvio dei
+  worker subordinato alla disponibilità del sito; creazione amministratore da
+  CLI e guide separate per amministratori e sviluppatori in italiano e inglese.
 - **Eventi nei trend degli hashtag e miniticker in Tendenze**: creazione,
   modifica, annullamento e cancellazione degli eventi aggiornano gli stessi
   bucket dei post. Popolamento e ricalcolo includono entrambe le entità;

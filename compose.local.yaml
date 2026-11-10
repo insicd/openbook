@@ -1,0 +1,55 @@
+# Build from the local checkout; use this file on its own.
+x-openbook: &openbook
+  image: openbook:local
+  build: .
+  pull_policy: never
+  env_file: docker/openbook.env
+  volumes:
+    - openbook-storage:/var/www/html/storage
+  restart: unless-stopped
+  init: true
+
+services:
+  web:
+    <<: *openbook
+    stop_signal: SIGWINCH
+    stop_grace_period: 2m
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "--noproxy", "*", "http://127.0.0.1/up"]
+      interval: 10s
+      timeout: 5s
+      start_period: 5m
+      retries: 6
+    # Put an HTTPS reverse proxy in front; do not expose this HTTP port publicly.
+    ports:
+      - "127.0.0.1:8080:80"
+
+  cron:
+    <<: *openbook
+    command: ["openbook-cron"]
+    depends_on: &web-ready
+      web:
+        condition: service_healthy
+    stop_grace_period: 2m
+
+  inbox:
+    <<: *openbook
+    command: ["php", "artisan", "queue:work", "--queue=inbox", "--sleep=1", "--no-interaction"]
+    depends_on: *web-ready
+    stop_grace_period: 2m
+
+  delivery:
+    <<: *openbook
+    command: ["php", "artisan", "queue:work", "--queue=delivery", "--sleep=1", "--no-interaction"]
+    depends_on: *web-ready
+    stop_grace_period: 2m
+
+  video:
+    <<: *openbook
+    profiles: ["video"]
+    command: ["php", "artisan", "openbook:process-videos", "--no-interaction"]
+    depends_on: *web-ready
+    stop_grace_period: 20m
+
+volumes:
+  openbook-storage:

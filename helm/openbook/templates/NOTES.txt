@@ -1,0 +1,12 @@
+Openbook uses one Pod and an external MySQL/MariaDB database.
+
+The Secret {{ .Values.existingSecret }} must exist with APP_KEY and DB_PASSWORD.
+Database migrations run before the application containers start.
+
+Wait for startup:
+  kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ include "openbook.name" . }} --timeout=30m
+
+On first install, create the administrator only after startup succeeds:
+  kubectl -n {{ .Release.Namespace }} exec -it deployment/{{ include "openbook.name" . }} -c web -- openbook-entrypoint php artisan openbook:make-admin
+
+See docs/kubernetes.md for completing installation, HTTPS, backup and upgrades.

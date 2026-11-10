@@ -31,9 +31,9 @@ Versione corrente: **26.38.rc1**. Il dettaglio delle modifiche e' in
 
 ## Installazione
 
-Il percorso piu' semplice non richiede Composer ne' SSH. Usa il bootstrap
-`setup-openbook.php` e le release zip su
-[about.openb.app](https://about.openb.app).
+L’installazione guidata descritta qui sotto resta la **modalità consigliata**.
+Non richiede Composer né SSH e usa il bootstrap `setup-openbook.php` e le
+release zip su [about.openb.app](https://about.openb.app).
 
 1. Scarica [`setup-openbook.php`](https://about.openb.app/dist/setup-openbook.php)
    e caricalo nella cartella in cui vuoi installare Openbook.
@@ -44,6 +44,23 @@ Il percorso piu' semplice non richiede Composer ne' SSH. Usa il bootstrap
 PHP deve avere l’estensione Sodium abilitata. Requisiti completi, installazione
 git/Composer, server web e aggiornamenti:
 **[Guida all'installazione](docs/install.it.md)**.
+
+## Deploy con Docker Compose o Kubernetes
+
+Il repository include anche configurazioni di deploy che usano l’immagine già
+pronta [`skeyby/openbook`](https://hub.docker.com/r/skeyby/openbook). Forniscono
+PHP, Apache, dipendenze applicative e processi in background, senza doverli
+installare manualmente sull’host:
+
+- **Docker Compose**: [`compose.yaml`](compose.yaml), con una
+  [guida all’installazione e agli aggiornamenti](docs/docker.it.md).
+- **Kubernetes Helm**: il chart in [`helm/openbook`](helm/openbook), con una
+  [guida alla configurazione e al deploy](docs/kubernetes.it.md).
+
+Restano da configurare il database MySQL/MariaDB esterno, il dominio e HTTPS,
+e da creare il primo amministratore seguendo le istruzioni. Il chart Helm ha
+superato lint, rendering e verifica degli schemi locali; non è ancora stato
+provato su un cluster Kubernetes reale.
 
 ## Documentazione
 

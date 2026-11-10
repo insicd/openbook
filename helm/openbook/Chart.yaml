@@ -1,0 +1,8 @@
+apiVersion: v2
+name: openbook
+description: A minimal single-instance Openbook deployment with an external database.
+type: application
+version: 0.1.0
+appVersion: "26.38.rc1"
+kubeVersion: ">=1.27.0-0"
+home: https://github.com/skeyby/openbook

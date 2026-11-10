@@ -25,3 +25,6 @@ yarn-error.log
 /.vscode
 /.zed
 /dist/*
+/docker/openbook.env
+/docker/secrets/
+/tests/Docker/__pycache__/

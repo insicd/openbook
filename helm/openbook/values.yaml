@@ -1,0 +1,36 @@
+image:
+  repository: skeyby/openbook
+  tag: "26.38.rc1"
+  pullPolicy: IfNotPresent
+
+# Create this Secret separately; APP_KEY and DB_PASSWORD are required.
+# Optional secret values such as MAIL_PASSWORD can be added to it.
+existingSecret: openbook-secrets
+
+# Non-secret settings only. See docs/kubernetes.md for configuration.
+env:
+  APP_URL: https://social.example.org
+  OPENBOOK_DOMAIN: social.example.org
+  DB_HOST: mysql.example.org
+  DB_PORT: "3306"
+  DB_DATABASE: openbook
+  DB_USERNAME: openbook
+
+persistence:
+  existingClaim: ""
+  # Empty uses the cluster default StorageClass.
+  storageClass: ""
+  size: 10Gi
+
+video:
+  enabled: false
+
+# Requires an existing ingress controller and TLS certificate Secret.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  tlsSecretName: openbook-tls
+
+# One resource specification per container (web, workers and init).
+resources: {}
