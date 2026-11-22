@@ -107,6 +107,10 @@ final class EventSerializer
             $object['tag'] = $tags;
         }
 
+        if ($event->hashtags->isNotEmpty()) {
+            $object['@context'] = [$object['@context'], NoteSerializer::HASHTAG_CONTEXT];
+        }
+
         return $object;
     }
 

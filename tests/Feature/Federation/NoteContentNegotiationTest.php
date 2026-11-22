@@ -32,6 +32,7 @@ class NoteContentNegotiationTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/activity+json; charset=utf-8');
+        $response->assertJsonPath('@context.1.Hashtag', 'as:Hashtag');
         $response->assertJson([
             'id' => url("/posts/{$post->id}"),
             'type' => 'Note',

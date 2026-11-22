@@ -12,6 +12,7 @@ use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use App\Federation\Delivery\ActivityDelivery;
+use App\Infrastructure\Security\LinkedData\JsonLdDocumentLoader;
 use App\Jobs\Federation\DeliverActivityJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -168,6 +169,51 @@ class ActivityDeliveryTest extends TestCase
         Queue::assertPushed(DeliverActivityJob::class, 2);
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === $follower->endpoints->shared_inbox);
         Queue::assertPushed(DeliverActivityJob::class, fn (DeliverActivityJob $job): bool => $job->inboxUrl === ($repliedTo->endpoints->shared_inbox ?: $repliedTo->endpoints->inbox));
+    }
+
+    public function test_structured_hashtags_survive_json_ld_compaction_of_signed_create_and_update(): void
+    {
+        Queue::fake();
+        $author = $this->createFullAccount('hashtagauthor');
+        $follower = $this->createRemoteActor('hashtagfollower');
+        Follow::query()->create([
+            'follower_id' => $follower->id,
+            'following_id' => $author->actor->id,
+            'status' => Follow::STATUS_ACCEPTED,
+            'requested_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $this->actingAs($author)->post(route('posts.store'), [
+            'body' => "Un post pubblico.\n\n#helsinki #konala",
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ])->assertRedirect();
+        $post = Post::query()->sole();
+
+        $this->put(route('posts.update', $post), [
+            'body' => "Un post pubblico.\n\n#helsinki #archery",
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ])->assertRedirect();
+
+        app(JsonLdDocumentLoader::class)->register();
+        $receiverContext = (object) ['@context' => [
+            'https://www.w3.org/ns/activitystreams',
+            'https://w3id.org/security/v1',
+            (object) ['Hashtag' => 'as:Hashtag'],
+        ]];
+
+        $deliveries = Queue::pushed(DeliverActivityJob::class)->keyBy('activity.type');
+        $this->assertEqualsCanonicalizing(['Create', 'Update'], $deliveries->keys()->all());
+
+        foreach (['Create' => '#konala', 'Update' => '#archery'] as $type => $hashtag) {
+            $activity = $deliveries[$type]->activity;
+            $this->assertSame('RsaSignature2017', $activity['signature']['type']);
+            unset($activity['signature']); // Mastodon compacts the document without the signature.
+            $compacted = jsonld_compact(json_decode(json_encode($activity, JSON_THROW_ON_ERROR)), $receiverContext);
+
+            $this->assertSame(['Hashtag', 'Hashtag'], array_column($compacted->object->tag, 'type'));
+            $this->assertEqualsCanonicalizing(['#helsinki', $hashtag], array_column($compacted->object->tag, 'name'));
+        }
     }
 
     public function test_a_public_event_is_delivered_to_followers_and_remote_mentions(): void

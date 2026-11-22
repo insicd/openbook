@@ -23,6 +23,8 @@ final class NoteSerializer
 {
     public const PUBLIC_STREAM = 'https://www.w3.org/ns/activitystreams#Public';
 
+    public const HASHTAG_CONTEXT = ['Hashtag' => 'as:Hashtag'];
+
     /**
      * @return array<string, mixed>
      */
@@ -150,9 +152,15 @@ final class NoteSerializer
             $note['tag'] = $tags;
         }
 
-        return $post->poll !== null && ! $post->isRemote() && $post->isPublished()
-            ? LocalPollSerializer::forPost($note, $post->poll)
-            : $note;
+        if ($post->poll !== null && ! $post->isRemote() && $post->isPublished()) {
+            $note = LocalPollSerializer::forPost($note, $post->poll);
+        }
+
+        if ($post->hashtags->isNotEmpty()) {
+            $note['@context'] = [...(array) $note['@context'], self::HASHTAG_CONTEXT];
+        }
+
+        return $note;
     }
 
     /**
