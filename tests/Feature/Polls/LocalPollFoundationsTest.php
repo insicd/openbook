@@ -17,12 +17,15 @@ class LocalPollFoundationsTest extends TestCase
     {
         $user = $this->createFullAccount('httppollauthor');
         $this->actingAs($user)->post(route('posts.store'), [
-            'body' => 'Quale giorno?', 'visibility' => 'public',
+            'body' => 'Quale giorno? #weekend', 'visibility' => 'public',
             'poll' => ['options' => ['Sabato', 'Domenica'], 'multiple' => false, 'duration_seconds' => 300],
         ])->assertRedirect();
         $post = Post::query()->sole();
         $this->get(route('posts.show', $post), ['Accept' => 'application/activity+json'])
-            ->assertOk()->assertJsonPath('type', 'Question')->assertJsonPath('oneOf.0.name', 'Sabato');
+            ->assertOk()->assertJsonPath('type', 'Question')->assertJsonPath('oneOf.0.name', 'Sabato')
+            ->assertJsonPath('@context.1.votersCount', 'http://joinmastodon.org/ns#votersCount')
+            ->assertJsonPath('@context.2.Hashtag', 'as:Hashtag')
+            ->assertJsonPath('tag.0.name', '#weekend');
         $outbox = LocalActorUrls::forUsername($user->username)['outbox'];
         $this->get($outbox.'?page=1', ['Accept' => 'application/activity+json'])
             ->assertOk()->assertJsonPath('orderedItems.0.object.type', 'Question')

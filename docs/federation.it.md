@@ -6,6 +6,13 @@ La federazione permette a un account Openbook di seguire e interagire con
 account di altri server compatibili con ActivityPub. Ogni server conserva le
 proprie regole, tempi di elaborazione e funzioni disponibili.
 
+## Hashtag federati
+
+Openbook invia gli hashtag come link nel contenuto e come elementi strutturati
+in `tag`. Il contesto JSON-LD di post, sondaggi ed eventi dichiara il tipo
+`Hashtag` quando è presente. Così Mastodon può associare i post alle timeline
+dei tag dopo aver elaborato un'attività firmata.
+
 ## Segnalazioni federate in ingresso (#119)
 
 Openbook riceve le segnalazioni `Flag` tramite le inbox ActivityPub ordinarie,

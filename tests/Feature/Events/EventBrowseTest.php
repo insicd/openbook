@@ -140,6 +140,7 @@ class EventBrowseTest extends TestCase
             ->assertJsonPath('location.name', 'Lepakkomies')
             ->assertJsonPath('location.address.addressLocality', 'Helsinki')
             ->assertJsonPath('attachment.0.name', 'Locandina della serata')
+            ->assertJsonPath('@context.1.Hashtag', 'as:Hashtag')
             ->assertJsonPath('tag.0.name', '#crust');
     }
 

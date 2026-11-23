@@ -452,6 +452,10 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Hashtag federati**: i post con hashtag dichiarano il tipo JSON-LD
+  `Hashtag`, così Mastodon può associarli alle timeline dei tag anche quando
+  l'attività è firmata. La definizione è inclusa anche nei sondaggi e negli
+  eventi con hashtag.
 - **Emoji nei profili remoti**: le emoji personalizzate vengono mostrate anche
   nelle etichette e nei valori dei campi aggiuntivi della biografia.
 - **Integrità delle statistiche di consegna**: eliminare una sorgente statistica
