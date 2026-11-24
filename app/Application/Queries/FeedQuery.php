@@ -47,6 +47,8 @@ final class FeedQuery
     // mostrano fallback frequenti.
     private const FOLLOWED_POST_PROBE_LIMIT = 1024;
 
+    private const HASHTAG_POST_PROBE_LIMIT = 1024;
+
     public function forActor(Actor $viewer, ?FeedCursor $cursor = null, int $perPage = 0): FeedPage
     {
         $perPage = $perPage > 0 ? $perPage : (int) config('openbook.feed.per_page');
@@ -195,21 +197,18 @@ final class FeedQuery
         $applyCandidateCursor($communityPostEvents, 'posts.published_at', 'posts.id');
         $communityPostEvents->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
 
-        // EXISTS evita che un post con piu' hashtag seguiti occupi piu'
-        // candidati prima della deduplicazione finale della timeline.
-        $hashtagPostEvents = (clone $postSource)
+        $matchingFollowedHashtag = DB::table('post_hashtags as feed_post_hashtags')
+            ->selectRaw('1')
+            ->join('hashtag_follows as feed_hashtag_follows', function ($join) use ($viewer): void {
+                $join->on('feed_hashtag_follows.hashtag_id', 'feed_post_hashtags.hashtag_id')
+                    ->where('feed_hashtag_follows.actor_id', $viewer->id);
+            })
+            ->whereColumn('feed_post_hashtags.post_id', 'posts.id');
+
+        $hashtagPostSource = (clone $postSource)
             ->select('posts.id as post_id', 'posts.published_at as timeline_at')
             ->selectRaw('null as shared_by_actor_id, null as shared_at, posts.id as event_id')
             ->where('posts.visibility', Post::VISIBILITY_PUBLIC)
-            ->whereExists(function ($followedHashtag) use ($viewer): void {
-                $followedHashtag->selectRaw('1')
-                    ->from('post_hashtags as feed_post_hashtags')
-                    ->join('hashtag_follows as feed_hashtag_follows', function ($join) use ($viewer): void {
-                        $join->on('feed_hashtag_follows.hashtag_id', 'feed_post_hashtags.hashtag_id')
-                            ->where('feed_hashtag_follows.actor_id', $viewer->id);
-                    })
-                    ->whereColumn('feed_post_hashtags.post_id', 'posts.id');
-            })
             ->whereNotExists(function ($announce) use ($isRelevantAnnounce): void {
                 $announce->selectRaw('1')
                     ->from('announces as relevant_announces')
@@ -218,8 +217,37 @@ final class FeedQuery
                         $isRelevantAnnounce($relevant, 'relevant_announces');
                     });
             });
-        $applyCandidateCursor($hashtagPostEvents, 'posts.published_at', 'posts.id');
-        $hashtagPostEvents->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
+        $applyCandidateCursor($hashtagPostSource, 'posts.published_at', 'posts.id');
+        $hashtagPostSource->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
+
+        $recentPublicPosts = DB::table('posts')->select('posts.id')
+            ->where('posts.visibility', Post::VISIBILITY_PUBLIC)
+            ->where('posts.status', Post::STATUS_PUBLISHED)
+            ->whereNull('posts.conversation_id');
+        $applyCandidateCursor($recentPublicPosts, 'posts.published_at', 'posts.id');
+        $recentPublicPosts->orderByDesc('posts.published_at')->orderByDesc('posts.id')
+            ->limit(self::HASHTAG_POST_PROBE_LIMIT);
+
+        // Il lookup scalare parte dai post della finestra. Il fallback mantiene
+        // EXISTS per permettere a MySQL di partire dagli hashtag seguiti.
+        $recentHashtagEvents = (clone $hashtagPostSource)
+            ->joinSub($recentPublicPosts, 'recent_hashtag_posts', fn ($join) => $join->on('recent_hashtag_posts.id', 'posts.id'))
+            ->where((clone $matchingFollowedHashtag)->limit(1), '=', 1);
+        $recentHashtagCount = DB::query()->fromSub(clone $recentHashtagEvents, 'recent_hashtag_events')->selectRaw('count(*)');
+        $fallbackHashtagEvents = $hashtagPostSource->whereExists($matchingFollowedHashtag)
+            ->where($recentHashtagCount, '<', $candidateLimit);
+
+        $hasFollowedHashtags = DB::table('hashtag_follows')->selectRaw('1')
+            ->where('actor_id', $viewer->id)->limit(1);
+        // Il controllo scalare può scartare il ramo prima di materializzarlo,
+        // nello stesso snapshot della lettura dei post.
+        // UNION deduplica i candidati presenti sia nella finestra sia nel fallback.
+        $hashtagPostEvents = DB::query()->fromSub(
+            $recentHashtagEvents->union($fallbackHashtagEvents),
+            'hashtag_candidates',
+        )->select('post_id', 'timeline_at', 'shared_by_actor_id', 'shared_at', 'event_id')
+            ->where($hasFollowedHashtags, '=', 1)
+            ->orderByDesc('timeline_at')->orderByDesc('post_id')->limit($candidateLimit);
 
         $ownAnnounceEvents = DB::table('announces as announces')
             ->where(clone $eligibleAnnouncedPost, '=', 1)

@@ -452,6 +452,10 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Prestazioni del feed personale con hashtag seguiti**: i post pubblici
+  recenti vengono verificati per primi e la ricerca si estende allo storico
+  quando serve a completare la pagina. Per chi non segue hashtag, questa
+  ricerca viene saltata.
 - **Hashtag federati**: i post con hashtag dichiarano il tipo JSON-LD
   `Hashtag`, così Mastodon può associarli alle timeline dei tag anche quando
   l'attività è firmata. La definizione è inclusa anche nei sondaggi e negli

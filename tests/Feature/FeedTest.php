@@ -66,13 +66,19 @@ class FeedTest extends TestCase
         $author = $this->createFullAccount('tagfeedauthor');
         $matching = $this->publishPost($author, 'Post pubblico su #musica.');
         $unrelated = $this->publishPost($author, 'Post pubblico su #fotografia.');
+        $own = $this->publishPost($viewer, 'Il mio post.');
         $hashtag = Hashtag::query()->where('name', 'musica')->firstOrFail();
         $viewer->actor->followedHashtags()->attach($hashtag->id);
 
-        $ids = app(FeedQuery::class)->forActor($viewer->actor)->getCollection()->pluck('id');
+        $feed = app(FeedQuery::class);
+        $ids = $feed->forActor($viewer->actor)->getCollection()->pluck('id');
 
         $this->assertTrue($ids->contains($matching->id));
         $this->assertFalse($ids->contains($unrelated->id));
+
+        $viewer->actor->followedHashtags()->detach($hashtag->id);
+
+        $this->assertSame([$own->id], $feed->forActor($viewer->actor)->getCollection()->pluck('id')->all());
     }
 
     public function test_followed_hashtags_do_not_include_non_public_posts(): void
@@ -135,6 +141,53 @@ class FeedTest extends TestCase
 
         $this->assertSame($posts->pluck('id')->all(), $actual->all());
         $this->assertSame($actual->unique()->count(), $actual->count());
+    }
+
+    public function test_both_feed_fallbacks_preserve_order_and_deduplicate_across_pages(): void
+    {
+        $viewer = $this->createFullAccount('fallbackviewer');
+        $followed = $this->createFullAccount('fallbackfollowed');
+        $stranger = $this->createFullAccount('fallbackstranger');
+        app(FollowManager::class)->follow($viewer->actor, $followed->actor);
+
+        $at = now()->startOfSecond();
+        $recent = $this->publishPost($followed, 'Post recente #fallback.');
+        $recent->update(['published_at' => $at]);
+        $oldFollowed = $this->publishPost($followed, 'Post vecchio di un autore seguito.');
+        $oldHashtag = $this->publishPost($stranger, 'Post vecchio con #fallback.');
+        $oldFollowed->update(['published_at' => $at->copy()->subDay()]);
+        $oldHashtag->update(['published_at' => $at->copy()->subDay()]);
+        $oldestHashtag = $this->publishPost($stranger, 'Post ancora più vecchio con #fallback.');
+        $oldestHashtag->update(['published_at' => $at->copy()->subDays(2)]);
+        $viewer->actor->followedHashtags()->attach(Hashtag::query()->where('name', 'fallback')->firstOrFail()->id);
+
+        // I post estranei riempiono entrambe le finestre fra il post recente
+        // e quelli vecchi, che devono arrivare dai due fallback.
+        $noise = [];
+        for ($i = 0; $i < 1024; $i++) {
+            $noise[] = [
+                'id' => (string) Str::uuid(),
+                'actor_id' => $stranger->actor->id,
+                'body' => 'Post estraneo.',
+                'status' => Post::STATUS_PUBLISHED,
+                'visibility' => Post::VISIBILITY_PUBLIC,
+                'published_at' => $at->copy()->subHour(),
+            ];
+        }
+        foreach (array_chunk($noise, 100) as $batch) {
+            DB::table('posts')->insert($batch);
+        }
+
+        $sameTime = collect([$oldFollowed->id, $oldHashtag->id])->sortDesc(SORT_STRING)->values();
+        $feed = app(FeedQuery::class);
+        $firstPage = $feed->forActor($viewer->actor, perPage: 2);
+        $this->assertSame([$recent->id, $sameTime[0]], $firstPage->getCollection()->pluck('id')->all());
+        $this->assertTrue($firstPage->hasMorePages());
+
+        $cursor = FeedCursor::fromPost($firstPage->getCollection()->last(), useShareSort: true);
+        $secondPage = $feed->forActor($viewer->actor, $cursor, perPage: 2);
+        $this->assertSame([$sameTime[1], $oldestHashtag->id], $secondPage->getCollection()->pluck('id')->all());
+        $this->assertFalse($secondPage->hasMorePages());
     }
 
     public function test_the_feed_includes_posts_announced_by_followed_actors(): void
