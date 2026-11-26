@@ -15,9 +15,9 @@ ROOT = Path(__file__).resolve().parents[2]
 IMAGE = os.environ.get("OPENBOOK_TEST_IMAGE", "openbook:local")
 
 
-def docker(*args):
+def docker(*args, env=None):
     result = subprocess.run(
-        ["docker", *args], cwd=ROOT, text=True, capture_output=True, timeout=60
+        ["docker", *args], cwd=ROOT, env=env, text=True, capture_output=True, timeout=60
     )
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
@@ -167,16 +167,17 @@ return new class extends Illuminate\Database\Migrations\Migration {
 
 
 class ComposeTest(unittest.TestCase):
+    def resolve_compose(self, filename, image=""):
+        output = docker(
+            "compose", "--env-file", os.devnull, "-f", filename,
+            "--profile", "video", "config", "--no-env-resolution", "--format", "json",
+            env={**os.environ, "OPENBOOK_IMAGE": image},
+        )
+        return json.loads(output)
+
     def test_local_and_registry_services_match(self):
-        # Resolve both files without loading any instance configuration.
-        configs = []
-        for filename in ("compose.local.yaml", "compose.yaml"):
-            output = docker(
-                "compose", "-f", filename, "--profile", "video", "config",
-                "--no-env-resolution", "--format", "json",
-            )
-            configs.append(json.loads(output))
-        local, registry = configs
+        local = self.resolve_compose("compose.local.yaml")
+        registry = self.resolve_compose("compose.yaml")
         self.assertEqual(set(local["services"]), {"web", "cron", "inbox", "delivery", "video"})
         self.assertEqual(local["services"].keys(), registry["services"].keys())
         self.assertEqual(local["volumes"], registry["volumes"])
@@ -190,9 +191,14 @@ class ComposeTest(unittest.TestCase):
                 self.assertEqual(service.pop("image"), "openbook:local")
                 self.assertEqual(service.pop("pull_policy"), "never")
                 self.assertEqual(service.pop("build")["context"], str(ROOT))
-                self.assertTrue(other.pop("image"))
+                self.assertEqual(other.pop("image"), "docker.io/skeyby/openbook:latest")
                 self.assertNotIn("build", other)
                 self.assertEqual(service, other)
+
+    def test_registry_image_override_applies_to_every_service(self):
+        pinned = "docker.io/skeyby/openbook:26.48"
+        config = self.resolve_compose("compose.yaml", image=pinned)
+        self.assertEqual({service["image"] for service in config["services"].values()}, {pinned})
 
 
 if __name__ == "__main__":

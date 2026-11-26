@@ -21,8 +21,8 @@ distribuzione, non è un server di sviluppo con ricaricamento dei sorgenti.
   nell'immagine finale; la base PHP ufficiale conserva i propri strumenti di sviluppo.
 - `compose.local.yaml`: build locale autonoma di `openbook:local`, senza pull di
   quel tag applicativo. `build --pull` aggiorna comunque le basi PHP/Composer.
-- `compose.yaml`: distribuzione autonoma da registry, senza checkout o build di
-  ripiego. `OPENBOOK_IMAGE` consente di sostituire il riferimento nei test dell'immagine.
+- `compose.yaml`: distribuzione autonoma da registry con il tag stabile `latest`.
+  `OPENBOOK_IMAGE` permette di fissare una versione o di provare un'altra immagine.
 
 I due Compose hanno gli stessi servizi, configurazione esterna e volume. Non
 sovrapporli. Mantieni progetto e directory quando passi un'istanza da una modalità
@@ -120,8 +120,8 @@ Il repository è `docker.io/skeyby/openbook`. Usa come tag immutabile la version
 dichiarata in `config/openbook.php`. Prima della pubblicazione rivedi il diff
 completo, esegui le verifiche, crea il commit dei sorgenti previsti e controlla
 che la directory di lavoro sia pulita. Verifica se il tag esiste già e non
-sovrascrivere silenziosamente una release pubblicata. Tieni le release candidate
-separate da un eventuale alias stabile `latest`.
+sovrascrivere silenziosamente una release pubblicata. Le release candidate usano
+i propri tag di versione.
 
 Dopo il login locale su Docker Hub, per una sola piattaforma:
 
@@ -140,6 +140,15 @@ docker buildx build --platform linux/amd64,linux/arm64 \
   --build-arg VCS_REF="$(git rev-parse HEAD)" \
   -t docker.io/skeyby/openbook:YOUR_VERSION --push .
 docker buildx imagetools inspect docker.io/skeyby/openbook:YOUR_VERSION
+```
+
+Dopo aver pubblicato e verificato l'immagine di una release stabile, associa
+`latest` al suo manifest. Il default di Compose seguirà così la nuova release:
+
+```sh
+docker buildx imagetools create --prefer-index=false \
+  --tag docker.io/skeyby/openbook:latest docker.io/skeyby/openbook:YOUR_VERSION
+docker buildx imagetools inspect docker.io/skeyby/openbook:latest
 ```
 
 Ricostruisci per aggiornare la sicurezza della base, usando un nuovo tag

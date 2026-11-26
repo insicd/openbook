@@ -20,16 +20,16 @@ in una directory di installazione, mantenendo la sottodirectory `docker/`.
 Mantieni stabili directory e nome del progetto Compose: identificano container
 e volume dell'istanza. Per istanze indipendenti usa progetti e database distinti.
 
-In `compose.yaml` controlla il riferimento all'immagine vicino all'inizio del file
-e seleziona la versione pubblicata che vuoi usare, per esempio:
+Tutti i servizi usano `docker.io/skeyby/openbook:latest` come default. Il tag
+segue l'ultima release stabile. Per fissare una versione, imposta
+`OPENBOOK_IMAGE` in un file `.env` accanto a `compose.yaml`:
 
-```yaml
-image: docker.io/skeyby/openbook:26.48
+```dotenv
+OPENBOOK_IMAGE=docker.io/skeyby/openbook:26.48
 ```
 
-Tutti i servizi usano quella stessa immagine. Salva il riferimento effettivo nel
-file, così i comandi successivi e i nuovi terminali useranno la stessa versione.
-Poi:
+Il riferimento vale per tutti i servizi. Mantieni la configurazione
+dell'istanza in `docker/openbook.env`. Poi:
 
 ```sh
 cp docker/openbook.env.example docker/openbook.env
@@ -194,14 +194,14 @@ per evitare riavvii ripetuti di un worker inattivo.
 ## Aggiornamenti
 
 Salva prima un backup dell'istanza. **Ferma tutti i servizi**, incluso video,
-prima di cambiare in `compose.yaml` il riferimento all'immagine con quello
-della nuova versione pubblicata:
+prima di aggiornare l'immagine:
 
 ```sh
 docker compose -f compose.yaml --profile video stop
 ```
 
-Dopo aver salvato il nuovo riferimento:
+Se hai fissato una versione, aggiorna `OPENBOOK_IMAGE` prima del pull. Con
+`latest`, lo stesso file Compose scarica la nuova immagine stabile al `pull`:
 
 ```sh
 docker compose -f compose.yaml --profile video pull

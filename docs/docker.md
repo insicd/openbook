@@ -21,15 +21,16 @@ Keep that directory and its Compose project name stable: they identify the
 instance's containers and persistent volume. Use a different project and database
 for each independent instance.
 
-In `compose.yaml`, check the image reference near the top and select the
-published version you want to use, for example:
+All services use `docker.io/skeyby/openbook:latest` by default. This tag tracks
+the latest stable release. To pin a version, set `OPENBOOK_IMAGE` in a `.env`
+file next to `compose.yaml`:
 
-```yaml
-image: docker.io/skeyby/openbook:26.48
+```dotenv
+OPENBOOK_IMAGE=docker.io/skeyby/openbook:26.48
 ```
 
-All services use that same image. Save the actual image reference in this file
-so that later commands and new terminal sessions use the same version. Then:
+The override applies to all services. Keep the instance settings in
+`docker/openbook.env`. Then:
 
 ```sh
 cp docker/openbook.env.example docker/openbook.env
@@ -192,14 +193,15 @@ repeated restarts of an inactive worker.
 
 ## Updates
 
-Back up the instance first. **Stop all services**, including video, before changing
-the image reference in `compose.yaml` to the new published version:
+Back up the instance first. **Stop all services**, including video, before
+updating the image:
 
 ```sh
 docker compose -f compose.yaml --profile video stop
 ```
 
-After saving the new image reference:
+If you pin the image, update `OPENBOOK_IMAGE` before pulling. With `latest`, the
+same Compose file picks up the new stable image on `pull`:
 
 ```sh
 docker compose -f compose.yaml --profile video pull

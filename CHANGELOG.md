@@ -366,6 +366,9 @@ la [roadmap](docs/roadmap.md).
   delle tendenze insieme a quelli dei post.
 
 ### Changed
+- **Immagine Docker predefinita**: `compose.yaml` usa `skeyby/openbook:latest`,
+  aggiornato a ogni release stabile. Per fissare una versione si può impostare
+  `OPENBOOK_IMAGE`.
 - **Verifica email prima della pubblicazione**: gli account non verificati possono
   leggere, personalizzare il profilo, seguire, mettere mi piace e ricondividere.
   Nuovi post, commenti, eventi, messaggi e community richiedono la conferma email

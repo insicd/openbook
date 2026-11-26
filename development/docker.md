@@ -21,8 +21,8 @@ not a live-reloading development server.
   the final image; the official PHP base retains its own development tools.
 - `compose.local.yaml`: standalone local build using `openbook:local`, with no
   pull of that application tag. `build --pull` still refreshes PHP/Composer bases.
-- `compose.yaml`: standalone registry deployment; no source checkout or build
-  fallback. `OPENBOOK_IMAGE` can override its reference for packaging tests.
+- `compose.yaml`: standalone registry deployment using the stable `latest` tag.
+  `OPENBOOK_IMAGE` can override the reference to pin a version or test an image.
 
 Both Compose files have the same services, runtime configuration and volume.
 Do not overlay them. Keep the same project/directory if switching one instance
@@ -118,7 +118,7 @@ The target repository is `docker.io/skeyby/openbook`. Use the version declared
 in `config/openbook.php` as an immutable tag. Before publishing, review the full
 diff, run checks, commit the intended sources, and ensure the working tree is
 clean. Check whether the tag already exists; do not overwrite a published release
-silently. Keep release candidates separate from any stable `latest` alias.
+silently. Release candidates use their versioned tags.
 
 After local Docker Hub login, a single-platform publication can use:
 
@@ -137,6 +137,15 @@ docker buildx build --platform linux/amd64,linux/arm64 \
   --build-arg VCS_REF="$(git rev-parse HEAD)" \
   -t docker.io/skeyby/openbook:YOUR_VERSION --push .
 docker buildx imagetools inspect docker.io/skeyby/openbook:YOUR_VERSION
+```
+
+Once the versioned image of a stable release is published and verified, point
+`latest` to its manifest. The Compose default then follows the new stable release:
+
+```sh
+docker buildx imagetools create --prefer-index=false \
+  --tag docker.io/skeyby/openbook:latest docker.io/skeyby/openbook:YOUR_VERSION
+docker buildx imagetools inspect docker.io/skeyby/openbook:latest
 ```
 
 Rebuild for base security updates with a new documented image tag; preserve
