@@ -190,6 +190,81 @@ class FeedTest extends TestCase
         $this->assertFalse($secondPage->hasMorePages());
     }
 
+    public function test_hashtag_cutoff_keeps_posts_at_the_boundary_and_paginates_in_id_order(): void
+    {
+        $viewer = $this->createFullAccount('cutoffviewer');
+        $followed = $this->createFullAccount('cutofffollowed');
+        $stranger = $this->createFullAccount('cutoffstranger');
+        app(FollowManager::class)->follow($viewer->actor, $followed->actor);
+        $hashtag = Hashtag::query()->create(['name' => 'cutoff']);
+        $viewer->actor->followedHashtags()->attach($hashtag);
+
+        $at = now()->startOfSecond();
+        $ids = [];
+        foreach ([
+            'older_tag' => [$stranger, $at->copy()->subMinute(), true, Post::VISIBILITY_PUBLIC],
+            'lower_id' => [$followed, $at, false, Post::VISIBILITY_PUBLIC],
+            'higher_id' => [$followed, $at, false, Post::VISIBILITY_PUBLIC],
+            'tag_at_cutoff' => [$stranger, $at, true, Post::VISIBILITY_PUBLIC],
+            'newest' => [$followed, $at->copy()->addMinute(), true, Post::VISIBILITY_PUBLIC],
+            'unlisted' => [$stranger, $at->copy()->addMinutes(2), true, Post::VISIBILITY_UNLISTED],
+        ] as $name => [$author, $publishedAt, $tagged, $visibility]) {
+            $id = sprintf('00000000-0000-4000-8000-%012d', count($ids) + 1);
+            $post = Post::query()->forceCreate([
+                'id' => $id,
+                'actor_id' => $author->actor->id,
+                'body' => $name,
+                'status' => Post::STATUS_PUBLISHED,
+                'visibility' => $visibility,
+                'published_at' => $publishedAt,
+            ]);
+            if ($tagged) {
+                $post->hashtags()->attach($hashtag);
+            }
+            $ids[$name] = $id;
+        }
+
+        $feed = app(FeedQuery::class);
+        $cursor = null;
+        foreach ([['newest', 'tag_at_cutoff'], ['higher_id', 'lower_id'], ['older_tag']] as $i => $names) {
+            $page = $feed->forActor($viewer->actor, $cursor, perPage: 2);
+            $this->assertSame(array_map(fn ($name) => $ids[$name], $names), $page->getCollection()->pluck('id')->all());
+            $this->assertSame($i < 2, $page->hasMorePages());
+            $cursor = FeedCursor::fromPost($page->getCollection()->last(), useShareSort: true);
+        }
+    }
+
+    public function test_duplicate_non_hashtag_candidates_do_not_create_a_cutoff(): void
+    {
+        $viewer = $this->createFullAccount('cutoffduplicateviewer');
+        $author = $this->createFullAccount('cutoffduplicateauthor');
+        $stranger = $this->createFullAccount('cutoffduplicatestranger');
+        $community = app(CommunityRegistrar::class)->register($author, [
+            'slug' => 'cutoffduplicatecommunity',
+            'name' => 'Community feed',
+        ]);
+        app(FollowManager::class)->follow($viewer->actor, $author->actor);
+        app(CommunityMembershipService::class)->join($viewer->actor, $community);
+
+        $overlap = $this->publishPost($author, 'Post presente nei rami autore e community.');
+        DB::table('posts')->where('id', $overlap->id)->update(['community_id' => $community->id]);
+        $followed = $this->publishPost($author, 'Altro post dell’autore seguito.');
+        $followed->update(['published_at' => now()->subHour()]);
+        $tagged = $this->publishPost($stranger, 'Post più vecchio con #cutoff.');
+        $tagged->update(['published_at' => now()->subDay()]);
+        $viewer->actor->followedHashtags()->attach(Hashtag::query()->where('name', 'cutoff')->firstOrFail());
+
+        $feed = app(FeedQuery::class);
+        $firstPage = $feed->forActor($viewer->actor, perPage: 2);
+        $this->assertSame([$overlap->id, $followed->id], $firstPage->getCollection()->pluck('id')->all());
+        $this->assertTrue($firstPage->hasMorePages());
+
+        $cursor = FeedCursor::fromPost($firstPage->getCollection()->last(), useShareSort: true);
+        $secondPage = $feed->forActor($viewer->actor, $cursor, perPage: 2);
+        $this->assertSame([$tagged->id], $secondPage->getCollection()->pluck('id')->all());
+        $this->assertFalse($secondPage->hasMorePages());
+    }
+
     public function test_the_feed_includes_posts_announced_by_followed_actors(): void
     {
         $viewer = $this->createFullAccount('feedviewer2');
