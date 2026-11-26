@@ -317,3 +317,39 @@ Verifiche finali:
   remoto e due aspettative obsolete di `InfiniteScrollTest`);
 - README inglese/italiano e changelog descrivono il carattere locale e privato
   del follow e il limite ai post pubblici gia' noti all'istanza.
+
+## Soglia cronologica del feed personale
+
+La finestra fissa da 1.024 post riduce il costo quando trova tutti i candidati
+richiesti. In produzione la stessa finestra ha trovato 20 candidati su 21 nella
+prima pagina e 17 nella successiva. In entrambi i casi il fallback ha ripetuto
+circa 73.500 lookup su `posts`, portando la richiesta oltre i cinque secondi.
+
+I rami senza hashtag producono fino a `perPage + 1` post distinti, dopo aver
+scelto l'evento più recente per post e applicato il cursore. Quando bastano per
+riempire la pagina, la data dell'ultimo candidato è un limite inferiore sicuro
+per i post hashtag. Il confronto include l'intero secondo di confine. Il sort
+finale per data e ID decide quali post a pari data entrano nella pagina. Se gli
+altri rami sono incompleti, la ricerca per hashtag conserva la finestra e il
+fallback esistenti. Le due strade rileggono gli stessi vincoli di visibilità e
+di rilevanza delle condivisioni e lavorano nello stesso snapshot.
+
+Una CTE permette di riutilizzare i candidati degli altri rami per la soglia e
+per il risultato finale. Il prototipo usa l'indice cronologico già presente e
+ha letto 74 e 94 post per il controllo hashtag sulle due pagine osservate. Il
+confronto alternato su un unico snapshot ha dato 133–170 ms per il prototipo e
+5,25–5,45 s per la query precedente, con ID, ordine e condivisioni identici.
+
+Su MariaDB 11.4.13 il confronto scalare con la soglia non diventa un range
+sull'indice. Con un hashtag raro il ramo ha letto tutti i 116.756 post pubblici
+delle fixture, passando da circa 10 a 240 ms. La variante con join evita quel
+costo quando la soglia è assente, ma scansiona troppi post quando è presente.
+Il codice conserva quindi su MariaDB i rami già esistenti, con gli stessi
+filtri e la stessa deduplicazione finale. Il percorso con la soglia viene
+esercitato anche dai test SQLite.
+
+Il confronto del codice integrato su MySQL di produzione ha riprodotto tempi
+di 147 e 140 ms, con gli stessi risultati della versione precedente. Sul
+dataset sintetico MySQL, la variante con soglia aggiunge circa 4–16 ms in
+scenari già veloci. Su MariaDB le mediane degli otto scenari restano
+comparabili al codice precedente e i risultati coincidono.

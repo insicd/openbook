@@ -10,6 +10,7 @@ use App\Federation\Actors\Actor;
 use App\Federation\Inbox\InboxActivityProcessor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\MySqlConnection;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -48,6 +49,8 @@ final class FeedQuery
     private const FOLLOWED_POST_PROBE_LIMIT = 1024;
 
     private const HASHTAG_POST_PROBE_LIMIT = 1024;
+
+    private const EVENT_COLUMNS = ['post_id', 'timeline_at', 'shared_by_actor_id', 'shared_at', 'event_id'];
 
     public function forActor(Actor $viewer, ?FeedCursor $cursor = null, int $perPage = 0): FeedPage
     {
@@ -110,10 +113,6 @@ final class FeedQuery
             ->excludingPrivateMessages()
             ->where('posts.status', Post::STATUS_PUBLISHED)
             ->visibleTo($viewer);
-        $postSource = DB::query()->fromSub(
-            (clone $eligiblePosts)->select('posts.id', 'posts.actor_id', 'posts.community_id', 'posts.visibility', 'posts.published_at'),
-            'posts',
-        );
         // Lookup scalare sulla PK: verifica il post dell'evento corrente
         // senza trasformare lo stream Announce in una scansione dei post.
         $eligibleAnnouncedPost = (clone $eligiblePosts)->selectRaw('1')
@@ -122,10 +121,12 @@ final class FeedQuery
         // Un post con una condivisione rilevante deve essere ordinato dalla
         // condivisione, anche quando il post originale e' piu' recente.
         // Per questo gli eventi "post" escludono esplicitamente tali post.
-        $ownPostEvents = (clone $postSource)
+        $postEvents = DB::query()->fromSub(
+            $eligiblePosts->select('posts.id', 'posts.actor_id', 'posts.community_id', 'posts.visibility', 'posts.published_at'),
+            'posts',
+        )
             ->select('posts.id as post_id', 'posts.published_at as timeline_at')
             ->selectRaw('null as shared_by_actor_id, null as shared_at, posts.id as event_id')
-            ->where('posts.actor_id', $viewer->id)
             ->whereNotExists(function ($announce) use ($isRelevantAnnounce): void {
                 $announce->selectRaw('1')
                     ->from('announces as relevant_announces')
@@ -134,27 +135,16 @@ final class FeedQuery
                         $isRelevantAnnounce($relevant, 'relevant_announces');
                     });
             });
-        $applyCandidateCursor($ownPostEvents, 'posts.published_at', 'posts.id');
-        $ownPostEvents->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
+        $applyCandidateCursor($postEvents, 'posts.published_at', 'posts.id');
+        $postEvents->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
 
-        $followedPostEvents = (clone $postSource)
+        $ownPostEvents = (clone $postEvents)->where('posts.actor_id', $viewer->id);
+        $followedPostEvents = (clone $postEvents)
             ->join('follows as source_follows', function ($join) use ($viewer): void {
                 $join->on('source_follows.following_id', 'posts.actor_id')
                     ->where('source_follows.follower_id', $viewer->id)
                     ->where('source_follows.status', 'accepted');
-            })
-            ->select('posts.id as post_id', 'posts.published_at as timeline_at')
-            ->selectRaw('null as shared_by_actor_id, null as shared_at, posts.id as event_id')
-            ->whereNotExists(function ($announce) use ($isRelevantAnnounce): void {
-                $announce->selectRaw('1')
-                    ->from('announces as relevant_announces')
-                    ->whereColumn('relevant_announces.post_id', 'posts.id')
-                    ->where(function ($relevant) use ($isRelevantAnnounce): void {
-                        $isRelevantAnnounce($relevant, 'relevant_announces');
-                    });
             });
-        $applyCandidateCursor($followedPostEvents, 'posts.published_at', 'posts.id');
-        $followedPostEvents->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
 
         $recentPosts = DB::table('posts')->select('posts.id')
             ->where('posts.status', Post::STATUS_PUBLISHED)
@@ -165,37 +155,20 @@ final class FeedQuery
 
         $recentFollowedPosts = (clone $followedPostEvents)
             ->joinSub($recentPosts, 'recent_posts', fn ($join) => $join->on('recent_posts.id', 'posts.id'));
-        $recentCount = DB::query()->fromSub(clone $recentFollowedPosts, 'recent_followed_posts')->selectRaw('count(*)');
-        $fallbackPosts = (clone $followedPostEvents)->where($recentCount, '<', $candidateLimit);
-
-        // Tutto nella stessa SELECT: il conteggio e il fallback vedono lo
-        // stesso snapshot. UNION elimina i candidati recenti ripetuti dal
-        // fallback, che viene eseguito solo se non abbiamo gia' K post validi.
-        $followedPostEvents = DB::query()->fromSub(
-            $recentFollowedPosts->union($fallbackPosts),
+        $followedPostEvents = $this->withCandidateFallback(
+            $recentFollowedPosts,
+            $followedPostEvents,
             'followed_candidates',
-        )->select('post_id', 'timeline_at', 'shared_by_actor_id', 'shared_at', 'event_id')
-            ->orderByDesc('timeline_at')->orderByDesc('post_id')->limit($candidateLimit);
+            $candidateLimit,
+        );
 
-        $communityPostEvents = (clone $postSource)
+        $communityPostEvents = (clone $postEvents)
             ->join('communities as source_communities', 'source_communities.id', '=', 'posts.community_id')
             ->join('follows as source_follows', function ($join) use ($viewer): void {
                 $join->on('source_follows.following_id', 'source_communities.actor_id')
                     ->where('source_follows.follower_id', $viewer->id)
                     ->where('source_follows.status', 'accepted');
-            })
-            ->select('posts.id as post_id', 'posts.published_at as timeline_at')
-            ->selectRaw('null as shared_by_actor_id, null as shared_at, posts.id as event_id')
-            ->whereNotExists(function ($announce) use ($isRelevantAnnounce): void {
-                $announce->selectRaw('1')
-                    ->from('announces as relevant_announces')
-                    ->whereColumn('relevant_announces.post_id', 'posts.id')
-                    ->where(function ($relevant) use ($isRelevantAnnounce): void {
-                        $isRelevantAnnounce($relevant, 'relevant_announces');
-                    });
             });
-        $applyCandidateCursor($communityPostEvents, 'posts.published_at', 'posts.id');
-        $communityPostEvents->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
 
         $matchingFollowedHashtag = DB::table('post_hashtags as feed_post_hashtags')
             ->selectRaw('1')
@@ -205,20 +178,7 @@ final class FeedQuery
             })
             ->whereColumn('feed_post_hashtags.post_id', 'posts.id');
 
-        $hashtagPostSource = (clone $postSource)
-            ->select('posts.id as post_id', 'posts.published_at as timeline_at')
-            ->selectRaw('null as shared_by_actor_id, null as shared_at, posts.id as event_id')
-            ->where('posts.visibility', Post::VISIBILITY_PUBLIC)
-            ->whereNotExists(function ($announce) use ($isRelevantAnnounce): void {
-                $announce->selectRaw('1')
-                    ->from('announces as relevant_announces')
-                    ->whereColumn('relevant_announces.post_id', 'posts.id')
-                    ->where(function ($relevant) use ($isRelevantAnnounce): void {
-                        $isRelevantAnnounce($relevant, 'relevant_announces');
-                    });
-            });
-        $applyCandidateCursor($hashtagPostSource, 'posts.published_at', 'posts.id');
-        $hashtagPostSource->orderByDesc('posts.published_at')->orderByDesc('posts.id')->limit($candidateLimit);
+        $hashtagPostSource = (clone $postEvents)->where('posts.visibility', Post::VISIBILITY_PUBLIC);
 
         $recentPublicPosts = DB::table('posts')->select('posts.id')
             ->where('posts.visibility', Post::VISIBILITY_PUBLIC)
@@ -228,26 +188,20 @@ final class FeedQuery
         $recentPublicPosts->orderByDesc('posts.published_at')->orderByDesc('posts.id')
             ->limit(self::HASHTAG_POST_PROBE_LIMIT);
 
-        // Il lookup scalare parte dai post della finestra. Il fallback mantiene
-        // EXISTS per permettere a MySQL di partire dagli hashtag seguiti.
-        $recentHashtagEvents = (clone $hashtagPostSource)
-            ->joinSub($recentPublicPosts, 'recent_hashtag_posts', fn ($join) => $join->on('recent_hashtag_posts.id', 'posts.id'))
-            ->where((clone $matchingFollowedHashtag)->limit(1), '=', 1);
-        $recentHashtagCount = DB::query()->fromSub(clone $recentHashtagEvents, 'recent_hashtag_events')->selectRaw('count(*)');
-        $fallbackHashtagEvents = $hashtagPostSource->whereExists($matchingFollowedHashtag)
-            ->where($recentHashtagCount, '<', $candidateLimit);
-
+        // Il lookup scalare lascia partire la scansione dai post recenti.
+        // Il fallback usa EXISTS e può partire dagli hashtag seguiti.
+        $hashtagPostsByTime = (clone $hashtagPostSource)->where((clone $matchingFollowedHashtag)->limit(1), '=', 1);
+        $recentHashtagEvents = (clone $hashtagPostsByTime)
+            ->joinSub($recentPublicPosts, 'recent_hashtag_posts', fn ($join) => $join->on('recent_hashtag_posts.id', 'posts.id'));
         $hasFollowedHashtags = DB::table('hashtag_follows')->selectRaw('1')
             ->where('actor_id', $viewer->id)->limit(1);
-        // Il controllo scalare può scartare il ramo prima di materializzarlo,
-        // nello stesso snapshot della lettura dei post.
-        // UNION deduplica i candidati presenti sia nella finestra sia nel fallback.
-        $hashtagPostEvents = DB::query()->fromSub(
-            $recentHashtagEvents->union($fallbackHashtagEvents),
+        $hashtagPostEvents = $this->withCandidateFallback(
+            $recentHashtagEvents,
+            $hashtagPostSource->whereExists($matchingFollowedHashtag),
             'hashtag_candidates',
-        )->select('post_id', 'timeline_at', 'shared_by_actor_id', 'shared_at', 'event_id')
-            ->where($hasFollowedHashtags, '=', 1)
-            ->orderByDesc('timeline_at')->orderByDesc('post_id')->limit($candidateLimit);
+            $candidateLimit,
+        )->where(clone $hasFollowedHashtags, '=', 1);
+        $hashtagPostsByTime->where($hasFollowedHashtags, '=', 1);
 
         $ownAnnounceEvents = DB::table('announces as announces')
             ->where(clone $eligibleAnnouncedPost, '=', 1)
@@ -271,18 +225,18 @@ final class FeedQuery
         $applyCandidateCursor($followedAnnounceEvents, 'announces.created_at', 'announces.post_id');
         $followedAnnounceEvents->orderByDesc('announces.created_at')->orderByDesc('announces.post_id')->limit($candidateLimit);
 
-        $rankedEvents = DB::query()
-            ->fromSub(
-                $ownPostEvents
-                    ->unionAll($followedPostEvents)
-                    ->unionAll($communityPostEvents)
-                    ->unionAll($hashtagPostEvents)
-                    ->unionAll($ownAnnounceEvents)
-                    ->unionAll($followedAnnounceEvents),
-                'feed_events',
-            )
-            ->select('feed_events.post_id', 'feed_events.timeline_at', 'feed_events.shared_by_actor_id', 'feed_events.shared_at')
-            ->selectRaw('row_number() over (partition by feed_events.post_id order by feed_events.timeline_at desc, feed_events.event_id desc) as event_rank');
+        $otherEvents = $ownPostEvents
+            ->unionAll($followedPostEvents)
+            ->unionAll($communityPostEvents)
+            ->unionAll($ownAnnounceEvents)
+            ->unionAll($followedAnnounceEvents);
+        // Su MariaDB il confronto con la soglia della CTE non produce un
+        // range sull'indice cronologico e può far scorrere tutti i post pubblici.
+        $connection = DB::connection();
+        $feedCandidates = $connection instanceof MySqlConnection && $connection->isMaria()
+            ? DB::query()->fromSub($otherEvents->unionAll($hashtagPostEvents), 'feed_candidates')
+            : $this->mergeHashtagEvents($otherEvents, $hashtagPostsByTime, $hashtagPostEvents, $candidateLimit);
+        $rankedEvents = $this->rankPersonalFeedEvents($feedCandidates);
 
         $query = Post::query()
             ->with(Post::CARD_RELATIONS)
@@ -305,6 +259,62 @@ final class FeedQuery
         Post::attachSharedBy($page->getCollection());
 
         return $page;
+    }
+
+    private function withCandidateFallback(QueryBuilder $recent, QueryBuilder $complete, string $alias, int $limit): QueryBuilder
+    {
+        $recentCount = DB::query()->fromSub(clone $recent, 'recent_'.$alias)->selectRaw('count(*)');
+
+        // UNION deduplica i candidati presenti sia nella finestra sia nella
+        // ricerca completa. Entrambe le fonti leggono lo stesso snapshot.
+        return DB::query()
+            ->fromSub($recent->union($complete->where($recentCount, '<', $limit)), $alias)
+            ->select(self::EVENT_COLUMNS)
+            ->orderByDesc('timeline_at')->orderByDesc('post_id')->limit($limit);
+    }
+
+    private function rankPersonalFeedEvents(QueryBuilder $source): QueryBuilder
+    {
+        return $source->select(self::EVENT_COLUMNS)
+            ->selectRaw('row_number() over (partition by post_id order by timeline_at desc, event_id desc) as event_rank');
+    }
+
+    private function mergeHashtagEvents(
+        QueryBuilder $otherEvents,
+        QueryBuilder $hashtagPostsByTime,
+        QueryBuilder $hashtagPostEvents,
+        int $limit,
+    ): QueryBuilder {
+        $rankedOtherEvents = $this->rankPersonalFeedEvents(DB::query()->fromSub($otherEvents, 'other_events'));
+        $otherPage = DB::query()->fromSub($rankedOtherEvents, 'ranked_other_events')
+            ->select(self::EVENT_COLUMNS)->where('event_rank', 1)
+            ->orderByDesc('timeline_at')->orderByDesc('post_id')->limit($limit);
+
+        // La soglia esiste solo con K post distinti. Un post hashtag più
+        // vecchio non può entrare nei primi K. Includiamo tutto il secondo
+        // della soglia perché il sort finale dirime le parità per ID.
+        $cutoff = DB::table('feed_other_page')->select('timeline_at')
+            ->orderByDesc('timeline_at')->orderByDesc('post_id')
+            ->offset($limit - 1)->limit(1);
+        $cutoffTime = DB::table('feed_cutoff')->select('timeline_at');
+        $hashtagPostsByTime->where('posts.published_at', '>=', $cutoffTime);
+        $hashtagPostEvents->whereNull(DB::raw('('.$cutoffTime->toSql().')'));
+
+        // La CTE condivide i candidati degli altri rami tra il calcolo della
+        // soglia e il risultato, all'interno della stessa istruzione SQL.
+        $events = DB::table('feed_other_page')->select(self::EVENT_COLUMNS)
+            ->unionAll($hashtagPostsByTime)
+            ->unionAll($hashtagPostEvents);
+
+        return DB::query()->fromRaw(
+            sprintf(
+                '(with feed_other_page as (%s), feed_cutoff as (%s) %s) as feed_candidates',
+                $otherPage->toSql(),
+                $cutoff->toSql(),
+                $events->toSql(),
+            ),
+            [...$otherPage->getBindings(), ...$cutoff->getBindings(), ...$events->getBindings()],
+        );
     }
 
     /**
