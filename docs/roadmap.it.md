@@ -2,7 +2,7 @@
 
 # Stato del prodotto e limitazioni
 
-Versione corrente: **26.38.rc1**. Le modifiche per versione sono nel
+Versione corrente: **26.48 - Happy Nacho**. Le modifiche per versione sono nel
 [CHANGELOG](../CHANGELOG.md). Le versioni stabili usano `anno.settimana`;
 le patch candidate della stessa settimana aggiungono `.rcN` e seguono la
 relativa stabile. Il footer mostra la versione installata.

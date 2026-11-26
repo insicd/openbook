@@ -2,7 +2,7 @@
 
 # Product status and limitations
 
-Current version: **26.38.rc1**. Release changes are in the
+Current version: **26.48 - Happy Nacho**. Release changes are in the
 [CHANGELOG](../CHANGELOG.md). Stable versions use `year.week`; follow-up patch
 candidates of the same week add `.rcN` and come after that stable version.
 The footer shows the installed version.

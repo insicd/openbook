@@ -40,7 +40,7 @@ development dependencies or generated caches into the image.
   Compose profile because its command exits when disabled.
 - `compose.local.yaml` is standalone, builds openbook:local and never pulls that
   application tag. `compose.yaml` is standalone and only uses the published image
-  docker.io/skeyby/openbook:26.38.rc1 (OPENBOOK_IMAGE can override it). Both have
+  docker.io/skeyby/openbook:26.48 (OPENBOOK_IMAGE can override it). Both have
   the same service behavior and volume identity; do not overlay them.
 - General docs are for administrators using Docker Hub. Local builds, packaging
   internals, checks and publication live in development/docker.md and .it.md.

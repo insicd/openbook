@@ -25,7 +25,7 @@ In `compose.yaml`, check the image reference near the top and select the
 published version you want to use, for example:
 
 ```yaml
-image: docker.io/skeyby/openbook:26.38.rc1
+image: docker.io/skeyby/openbook:26.48
 ```
 
 All services use that same image. Save the actual image reference in this file

@@ -1,6 +1,6 @@
 # Prebuilt Docker Hub image; set OPENBOOK_IMAGE to select another published version.
 x-openbook: &openbook
-  image: ${OPENBOOK_IMAGE:-docker.io/skeyby/openbook:26.38.rc1}
+  image: ${OPENBOOK_IMAGE:-docker.io/skeyby/openbook:26.48}
   env_file: docker/openbook.env
   volumes:
     - openbook-storage:/var/www/html/storage

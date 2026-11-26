@@ -1,7 +1,7 @@
 <p align="center">
   <a href="https://www.php.net/"><img src="https://img.shields.io/badge/PHP-8.4.1%2B-brightgreen?logo=php&logoColor=white" alt="PHP 8.4.1+"></a>
   <a href="https://www.mysql.com/"><img src="https://img.shields.io/badge/MySQL-passed-brightgreen?logo=mysql&logoColor=white" alt="MySQL"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Openbook-26.38.rc1-0F766E" alt="Openbook 26.38.rc1"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Openbook-26.48-0F766E" alt="Openbook 26.48"></a>
   <a href="https://www.w3.org/TR/activitypub/"><img src="https://img.shields.io/badge/ActivityPub-federated-5B21B6" alt="ActivityPub"></a>
 </p>
 
@@ -25,7 +25,7 @@ semplicita' dei primi anni di Facebook ma costruito nativamente su
 un aggregatore di link: e' pensato per comunita' personali, territoriali,
 associative e tematiche.
 
-Versione corrente: **26.38.rc1**. Il dettaglio delle modifiche e' in
+Versione corrente: **26.48 - Happy Nacho**. Il dettaglio delle modifiche e' in
 [`CHANGELOG.md`](CHANGELOG.md). La prima stable e' stata
 **26.34 - Lovable Pancake**.
 

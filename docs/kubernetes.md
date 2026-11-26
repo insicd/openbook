@@ -3,7 +3,7 @@
 # Kubernetes with Helm
 
 The optional chart is in `helm/openbook`. It uses the published
-`skeyby/openbook:26.38.rc1` image and an external MySQL/MariaDB database.
+`skeyby/openbook:26.48` image and an external MySQL/MariaDB database.
 It is a minimal single-instance deployment: one Pod contains separate web,
 cron, inbox and delivery containers, plus optional video. They share one
 persistent volume. Updates replace the whole Pod, with downtime. A worker restart

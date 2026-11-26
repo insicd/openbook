@@ -1,7 +1,7 @@
 <p align="center">
   <a href="https://www.php.net/"><img src="https://img.shields.io/badge/PHP-8.4.1%2B-brightgreen?logo=php&logoColor=white" alt="PHP 8.4.1+"></a>
   <a href="https://www.mysql.com/"><img src="https://img.shields.io/badge/MySQL-passed-brightgreen?logo=mysql&logoColor=white" alt="MySQL"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Openbook-26.38.rc1-0F766E" alt="Openbook 26.38.rc1"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Openbook-26.48-0F766E" alt="Openbook 26.48"></a>
   <a href="https://www.w3.org/TR/activitypub/"><img src="https://img.shields.io/badge/ActivityPub-federated-5B21B6" alt="ActivityPub"></a>
 </p>
 
@@ -24,7 +24,7 @@ simplicity of Facebook's early years but built natively on **ActivityPub**.
 It is not a microblog, not a Mastodon clone, and not a link aggregator: it
 is meant for personal, local, association, and topic-based communities.
 
-Current version: **26.38.rc1**. Release notes are in
+Current version: **26.48 - Happy Nacho**. Release notes are in
 [`CHANGELOG.md`](CHANGELOG.md). The first stable release was
 **26.34 - Lovable Pancake**.
 

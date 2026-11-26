@@ -3,7 +3,7 @@
 # Kubernetes con Helm
 
 Il chart opzionale si trova in `helm/openbook`. Usa l'immagine pubblicata
-`skeyby/openbook:26.38.rc1` e un database MySQL/MariaDB esterno. La distribuzione
+`skeyby/openbook:26.48` e un database MySQL/MariaDB esterno. La distribuzione
 è essenziale, per una sola istanza: un Pod contiene container distinti per web,
 cron, inbox e delivery, più video opzionale. Condividono un volume persistente.
 Gli aggiornamenti sostituiscono l'intero Pod, con un'interruzione del servizio.

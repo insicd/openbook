@@ -1,6 +1,6 @@
 image:
   repository: skeyby/openbook
-  tag: "26.38.rc1"
+  tag: "26.48"
   pullPolicy: IfNotPresent
 
 # Create this Secret separately; APP_KEY and DB_PASSWORD are required.

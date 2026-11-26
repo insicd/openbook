@@ -16,7 +16,7 @@ Il footer mostra anche il nome in codice (`config('openbook.release_label')`).
 Per lo stato complessivo della roadmap (fasi completate / in corso) vedi
 la [roadmap](docs/roadmap.md).
 
-## [26.38.rc1]
+## [26.48] - Happy Nacho
 
 ### Added
 - **Allegati nei post REST**: creazione multipart con immagini, audio e video,
