@@ -22,6 +22,7 @@ upload or management endpoints.
 | Entity | Endpoint | Purpose |
 | --- | --- | --- |
 | Instance | `GET /rest/v1/instance` | Get instance metadata |
+| Search | `GET /rest/v1/search` | Search supported entities |
 | Me | `GET /rest/v1/me` | Get the authenticated user |
 | Me | `GET /rest/v1/me/posts` | List posts published by the authenticated user |
 | Person | `GET /rest/v1/persons/{personId}` | Get a person |
@@ -123,6 +124,20 @@ the person's post collection imports content when its TTL expires. Post detail
 uses the website's remote refresh behavior. Remote failures retain cached data
 when still accessible. Authorization is checked again after refresh. Person
 lists and incoming requests do not fetch remote documents.
+
+## Search
+
+`GET /rest/v1/search?q=alex` returns one array per entity type searched.
+The optional `type` parameter restricts the search to one entity type.
+The first supported type, `profile`, returns a `profiles` array of
+`PersonReference` entries. It covers searchable people, applications, feeds
+and groups already known to the instance, including remote profiles. You can
+search by name, username or handle. With no profile matches, the response is
+`{"profiles":[]}`.
+
+The query is required. The instance sets the minimum query length and result
+limit. The defaults are two characters and ten results. This operation returns
+a single set of results and supports private ETag revalidation.
 
 ## Writes and relationships
 
@@ -301,8 +316,8 @@ PKCE support cannot complete this flow automatically.
 A second PR is planned to extend Community, Event, Notification and
 Hashtag resources and their relationships. Media upload and complex post writes
 need dedicated contracts; they are not implemented by this sprint.
-Date-based caching, search, polls, messaging and further settings remain to be
-defined.
+Date-based caching, search for additional resources, polls, messaging and
+further settings remain to be defined.
 
 ## Email verification
 

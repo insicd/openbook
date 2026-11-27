@@ -39,6 +39,7 @@ indiscriminata dei modelli, chiavi o campi privati.
 | Entità | Endpoint | Funzione |
 | --- | --- | --- |
 | Instance | `GET /rest/v1/instance` | Metadati statici dell’istanza |
+| Search | `GET /rest/v1/search` | Ricerca tra le entità supportate |
 | Me | `GET /rest/v1/me` | Identità autenticata |
 | Me | `GET /rest/v1/me/posts` | Propri post, senza rilanci altrui |
 | Person | `GET /rest/v1/persons/{personId}` | Dettaglio del profilo |
@@ -496,7 +497,8 @@ di ambiente per il supporto autenticato.
 | Notification | /me/notifications, stato lettura e riferimenti ai contenuti. |
 | Hashtag | Catalogo/dettaglio/posts e follow, normalizzazione del tag. |
 | Media e post complessi | Allegati multipart e monitoraggio/annullamento tramite PostPublication proposti in [Allegati REST](REST_POST_ATTACHMENTS.md); niente upload indipendente /media. Modifica allegati, sondaggi/citazioni e altri oggetti restano successivi. |
-| Ricerca/impostazioni | Contratti ancora da discutere; nessuna nuova API implicita in questo sprint. |
+| Ricerca | `GET /search` supporta la ricerca dei profili. Restano da aggiungere le altre entità ricercabili. |
+| Impostazioni | Contratti ancora da discutere. |
 
 Le liste generali future useranno relationship con valori multipli in OR e
 filtri diversi in AND; sort e direction separati. /me raccoglie ownership e
@@ -509,3 +511,27 @@ Per le evoluzioni successive: politica di versionamento e compatibilità e
 ulteriori test operativi.
 La seconda PR estenderà le entità mancanti sopra; questo sprint non le dichiara
 già supportate né promette parità funzionale completa con il Web.
+
+## 11. Ricerca REST per Mobile
+
+La ricerca ha un endpoint trasversale, `GET /rest/v1/search`, con `q`
+obbligatorio. Il parametro facoltativo `type` seleziona un tipo di entità.
+Quando è omesso, la ricerca copre tutti i tipi di entità supportati. La risposta
+contiene un array per ogni tipo di entità cercato, ordinato secondo le regole
+del Web e vuoto quando non ci sono corrispondenze.
+
+Il primo tipo supportato è `profile`. Il campo `profiles` contiene i risultati
+come `PersonReference`, già usato per aprire il profilo a partire dal suo UUID.
+
+La prima integrazione riusa `PeopleSearchQuery`, condivisa dalla ricerca per
+parole chiave e dai suggerimenti Web. Include persone, bot remoti, feed e
+community secondo gli stessi controlli di visibilità, pertinenza e stato.
+Sono ricercabili sia i profili locali sia quelli remoti già noti all'istanza,
+anche tramite handle. Si riusano soglia minima e limite della ricerca Web
+completa. I risultati sono limitati e senza paginazione in questa fase.
+La risoluzione federata e l'importazione da URL del flusso Web sono operazioni
+distinte dalla ricerca per parole chiave esposta qui.
+
+La rotta eredita autenticazione Bearer, scope `api` e limiti REST. Usa Problem
+Details per input invalidi ed ETag privato calcolato dopo aver rieseguito la
+ricerca, così una modifica di visibilità può invalidare i risultati salvati.

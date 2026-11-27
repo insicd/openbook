@@ -22,6 +22,7 @@ senza endpoint autonomi di upload o gestione.
 | Entità | Endpoint | Funzione |
 | --- | --- | --- |
 | Instance | `GET /rest/v1/instance` | Metadati statici dell’istanza |
+| Search | `GET /rest/v1/search` | Ricerca tra le entità supportate |
 | Me | `GET /rest/v1/me` | Identità autenticata |
 | Me | `GET /rest/v1/me/posts` | Propri post, senza rilanci altrui |
 | Person | `GET /rest/v1/persons/{personId}` | Dettaglio del profilo |
@@ -125,6 +126,21 @@ esistenti; il suo elenco post importa i contenuti quando scade il TTL.
 Il dettaglio Post usa l’aggiornamento remoto del Web. Gli errori remoti
 conservano i dati in cache quando ancora accessibili. Le autorizzazioni sono
 ricontrollate dopo i refresh. Le liste di persone/richieste non avviano fetch.
+
+## Ricerca
+
+`GET /rest/v1/search?q=alex` restituisce un array per ogni tipo di entità
+cercato. Il parametro facoltativo `type` limita la ricerca a un tipo di entità.
+Il primo tipo supportato, `profile`, restituisce un array `profiles` di
+`PersonReference`. Include persone, bot, feed e community ricercabili già noti
+all’istanza, compresi i profili remoti. Si può cercare per nome, username o
+handle. Se la ricerca dei profili non trova corrispondenze, la risposta è
+`{"profiles":[]}`.
+
+Il termine di ricerca è obbligatorio. Lunghezza minima e limite dei risultati
+sono decisi dall’istanza. I valori predefiniti sono due caratteri e dieci
+risultati. La ricerca restituisce un insieme limitato di risultati e supporta
+la rivalidazione privata via ETag.
 
 ## Scritture e relazioni
 
@@ -308,8 +324,8 @@ Se il client non supporta PKCE, non completa il flusso automaticamente.
 La seconda PR è prevista per ampliare le entità Community, Event,
 Notification e Hashtag e le loro relazioni. Upload Media e post complessi
 richiedono contratti dedicati. Non sono già implementati da questo sprint.
-Cache basata sulle date, ricerca, sondaggi, messaggistica e ulteriori impostazioni
-restano da definire.
+Cache basata sulle date, ricerca di altre risorse, sondaggi, messaggistica e
+ulteriori impostazioni restano da definire.
 
 ## Verifica email
 

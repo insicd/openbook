@@ -11,9 +11,11 @@ use App\Http\Controllers\Rest\V1\PostAnnounceController;
 use App\Http\Controllers\Rest\V1\PostCommentController;
 use App\Http\Controllers\Rest\V1\PostController;
 use App\Http\Controllers\Rest\V1\PostPublicationController;
+use App\Http\Controllers\Rest\V1\SearchController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/instance', [InstanceController::class, 'show'])->name('rest.v1.instance.show');
+Route::get('/search', SearchController::class)->name('rest.v1.search');
 Route::get('/me', [MeController::class, 'show'])->name('rest.v1.me.show');
 Route::get('/me/posts', [MePostController::class, 'index'])->name('rest.v1.me.posts');
 Route::get('/posts', [PostController::class, 'index'])->name('rest.v1.posts.index');

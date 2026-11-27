@@ -3,7 +3,7 @@
   "info": {
     "title": "OpenBook REST API",
     "version": "0.1.0-draft",
-    "description": "Experimental first-sprint API for authenticated independent OpenBook applications. Covers instance metadata, current user, persons, posts, post comments and follow relationships, including production installations. Property names and case-sensitive enum values use lowerCamelCase; OAuth protocol fields retain their standard wire names. Creation inputs use separate New<Entity> schemas with independently defined required and nullable fields. Further resources are planned for later sprints."
+    "description": "Experimental first-sprint API for authenticated independent OpenBook applications. Covers instance metadata, current user, persons, search, posts, post comments and follow relationships, including production installations. Property names and case-sensitive enum values use lowerCamelCase; OAuth protocol fields retain their standard wire names. Creation inputs use separate New<Entity> schemas with independently defined required and nullable fields. Further resources are planned for later sprints."
   },
   "paths": {
     "/.well-known/oauth-authorization-server": {
@@ -90,6 +90,301 @@
           }
         },
         "parameters": []
+      }
+    },
+    "/search": {
+      "get": {
+        "operationId": "search",
+        "summary": "Search entities",
+        "description": "Searches for matching entities. Results are grouped by entity type and ordered by relevance within each group. The instance limits the number of results (ten by default). Results are not paginated. Authentication and search visibility checks precede conditional responses.",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search term. Leading and trailing whitespace is ignored. The instance sets the minimum length, two characters by default.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "alex"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "Restricts the search to one entity type. When omitted, all supported entity types are searched.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "profile"
+              ]
+            }
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "description": "An entity tag from a previous response. Send it to revalidate a cached representation.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching entities by type. A searched entity type with no matches has an empty array.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "profiles"
+                  ],
+                  "properties": {
+                    "profiles": {
+                      "type": "array",
+                      "description": "Searchable person, application, feed and group profiles already known to the instance, including remote profiles. Matches can be found by name, username or handle.",
+                      "items": {
+                        "$ref": "#/components/schemas/PersonReference"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "profiles": [
+                    {
+                      "personId": "01900000-0000-7000-8000-000000000001",
+                      "personUsername": "alex",
+                      "personDomain": "social.example",
+                      "personName": "Alex Example"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The representation has not changed and remains accessible. No response body is returned.",
+            "headers": {
+              "ETag": {
+                "description": "A validator for this representation. Send it in If-None-Match to revalidate a cached response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The caching policy for this response.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "private, no-cache"
+              },
+              "Vary": {
+                "description": "Request header fields used to distinguish cached representations.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Authorization"
+              }
+            }
+          },
+          "429": {
+            "description": "The request limit has been exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "The request limit has been exceeded."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The API is temporarily unavailable.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "Retry-After": {
+                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Service Unavailable",
+                  "status": 503,
+                  "detail": "The API is temporarily unavailable."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request could not be completed.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Internal Server Error",
+                  "status": 500,
+                  "detail": "The request could not be completed."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "One or more query parameters are invalid.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryValidationProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unprocessable Content",
+                  "status": 422,
+                  "errors": {
+                    "q": [
+                      "The q field is required."
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A Bearer token is missing, invalid, expired or revoked.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "WWW-Authenticate": {
+                "description": "The authentication scheme required for this resource.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Bearer"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Unauthorized",
+                  "status": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated account is inactive or lacks permission to use this operation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Errors are not stored.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "type": "about:blank",
+                  "title": "Forbidden",
+                  "status": 403
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/instance": {
