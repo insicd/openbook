@@ -23,6 +23,7 @@ upload or management endpoints.
 | --- | --- | --- |
 | Instance | `GET /rest/v1/instance` | Get instance metadata |
 | Search | `GET /rest/v1/search` | Search supported entities |
+| Hashtag | `GET /rest/v1/hashtags/{tag}/posts` | List posts associated with a hashtag |
 | Me | `GET /rest/v1/me` | Get the authenticated user |
 | Me | `GET /rest/v1/me/posts` | List posts published by the authenticated user |
 | Person | `GET /rest/v1/persons/{personId}` | Get a person |
@@ -101,7 +102,7 @@ not remaining account quota or a guarantee that a particular upload will succeed
 | Collection | Boundary and size | Order |
 | --- | --- | --- |
 | Followers, following and incoming requests | `after` = last personId; `limit` defaults to 20, maximum 100 | `sort=personId`; `direction=asc` default, or `desc` |
-| `/me/posts` and `/posts?engine=world` | `after` = last postId; `limit` 20/100 | `sort=postPublishedAt`; `direction=desc` |
+| `/me/posts`, `/posts?engine=world`, and `/hashtags/{tag}/posts` | `after` = last postId; `limit` 20/100 | `sort=postPublishedAt`; `direction=desc` |
 | `/posts?engine=timeline` | `after` + `afterAt`; `limit` 20/100 | `sort=postTimelineAt`; `direction=desc` |
 | `/persons/{personId}/posts` | `after` + `afterAt`; configured website page size; `limit` is not accepted | `sort=postTimelineAt`; `direction=desc` |
 
@@ -109,9 +110,15 @@ Follow the standard `Link: <URL>; rel="next"` header when present. No server-sid
 cursor state is stored. These lists do not support `cursor` or `page`.
 For timeline/profile lists, `afterAt` is the returned ISO postTimelineAt; the
 link supplies both parameters even if the reference post is later removed.
-Group profile order uses publication time. World and /me/posts require the
-reference to remain available in the collection; otherwise 422 means restart
-from the first page. Pagination is not an immutable snapshot.
+Group profile order uses publication time. World, `/me/posts`, and hashtag
+post lists require the reference to remain available in the collection.
+Otherwise `422` means restart from the first page. Pagination is not an
+immutable snapshot.
+
+Use the canonical lowercase name without `#` in hashtag paths, for example
+`/rest/v1/hashtags/photography/posts`. This returns a `Post` array with the
+visible published posts already known to the instance for that tag. A known
+tag with no visible posts returns `[]`. Invalid or unknown tags return `404`.
 
 World is the default engine and follows the website's World selection; timeline
 follows the personal home feed. Optional `postAnnounce` is the context selected

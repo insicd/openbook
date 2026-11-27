@@ -23,6 +23,7 @@ senza endpoint autonomi di upload o gestione.
 | --- | --- | --- |
 | Instance | `GET /rest/v1/instance` | Metadati statici dell’istanza |
 | Search | `GET /rest/v1/search` | Ricerca tra le entità supportate |
+| Hashtag | `GET /rest/v1/hashtags/{tag}/posts` | Elenco dei post associati a un hashtag |
 | Me | `GET /rest/v1/me` | Identità autenticata |
 | Me | `GET /rest/v1/me/posts` | Propri post, senza rilanci altrui |
 | Person | `GET /rest/v1/persons/{personId}` | Dettaglio del profilo |
@@ -102,7 +103,7 @@ non quote residue dell'account o garanzie di successo di un particolare upload.
 | Raccolta | Confine e dimensione | Ordine |
 | --- | --- | --- |
 | Follower, seguiti e richieste ricevute | `after` = ultimo personId; `limit` 20 predefinito, massimo 100 | `sort=personId`; `direction=asc` predefinita o `desc` |
-| `/me/posts` e `/posts?engine=world` | `after` = ultimo postId; `limit` 20/100 | `sort=postPublishedAt`; `direction=desc` |
+| `/me/posts`, `/posts?engine=world` e `/hashtags/{tag}/posts` | `after` = ultimo postId; `limit` 20/100 | `sort=postPublishedAt`; `direction=desc` |
 | `/posts?engine=timeline` | `after` + `afterAt`; `limit` 20/100 | `sort=postTimelineAt`; `direction=desc` |
 | `/persons/{personId}/posts` | `after` + `afterAt`; dimensione pagina configurata per il Web, `limit` non ammesso | `sort=postTimelineAt`; `direction=desc` |
 
@@ -111,9 +112,14 @@ cursori persistiti sul server, né parametri `cursor` o `page` per queste liste.
 Nella timeline/profilo `afterAt` è la data ISO restituita come postTimelineAt:
 il link fornisce sempre entrambi i parametri, anche se l’ancora viene rimossa.
 Nei gruppi la data di ordinamento del profilo è quella di pubblicazione.
-Per World e /me/posts l’ancora deve essere ancora disponibile nella raccolta:
-altrimenti 422, e il client deve ripartire dalla prima pagina.
+Per World, `/me/posts` e i post di un hashtag l’ancora deve essere ancora
+disponibile nella raccolta. Con `422`, il client riparte dalla prima pagina.
 La navigazione non è uno snapshot immutabile.
+
+Per i percorsi hashtag si usa il nome canonico minuscolo senza `#`, come in
+`/rest/v1/hashtags/fotografia/posts`. La risposta è un array di `Post` con i
+post pubblicati e visibili già noti all’istanza per il tag. Un tag noto senza
+post visibili restituisce `[]`. Un tag invalido o sconosciuto restituisce `404`.
 
 World è il motore predefinito e segue la selezione del Mondo Web; timeline segue
 la home personale. `postAnnounce` è il contesto di un rilancio selezionato dal
