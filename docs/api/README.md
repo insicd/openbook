@@ -1,10 +1,10 @@
-# Experimental REST API — first sprint
+# Experimental REST API
 
 > [Italiano](README.it.md) · [OpenAPI JSON](openapi.json) · [Client integration](clients.md)
 
-This sprint opens OpenBook to independent applications: native clients,
-specialized frontends and third-party integrations. The native interface
-continues to manage the product and all administrative operations.
+The REST API serves independent OpenBook applications, including native
+clients, specialized frontends and third-party integrations. Administrative
+operations are available in the web interface.
 
 **Support is experimental in coverage and contract, and is available in
 production too.** REST/OAuth and connected accesses do not depend on APP_ENV.
@@ -318,13 +318,12 @@ Paw: OAuth 2 / Authorization Code, registered client_id, empty secret,
 scope api and PKCE S256. Callback must match registration. A client without
 PKCE support cannot complete this flow automatically.
 
-## Next sprint
+## Planned extensions
 
-A second PR is planned to extend Community, Event, Notification and
-Hashtag resources and their relationships. Media upload and complex post writes
-need dedicated contracts; they are not implemented by this sprint.
-Date-based caching, search for additional resources, polls, messaging and
-further settings remain to be defined.
+Planned extensions include Community, Event and Notification resources,
+hashtag catalogs, detail and follow, and search for additional entities.
+Changing post attachments, polls, quotes, messaging and further settings
+still need dedicated contracts.
 
 ## Email verification
 

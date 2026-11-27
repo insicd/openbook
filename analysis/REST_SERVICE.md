@@ -509,10 +509,8 @@ anche risorse proprie. Community/Event non diventano sottotipi di Post, e non
 si introducono alias /me/following o /me/followers. La gestione delle richieste
 di partecipazione dell’organizzatore dovrà essere delimitata rispetto allo staff.
 
-Per le evoluzioni successive: politica di versionamento e compatibilità e
-ulteriori test operativi.
-La seconda PR estenderà le entità mancanti sopra; questo sprint non le dichiara
-già supportate né promette parità funzionale completa con il Web.
+Restano da definire la politica di versionamento e compatibilità, oltre alle
+verifiche operative delle prossime estensioni.
 
 ## 11. Ricerca REST per Mobile
 
@@ -538,6 +536,13 @@ La rotta eredita autenticazione Bearer, scope `api` e limiti REST. Usa Problem
 Details per input invalidi ed ETag privato calcolato dopo aver rieseguito la
 ricerca, così una modifica di visibilità può invalidare i risultati salvati.
 
+Gli avatar delle community locali vengono caricati in blocco. Su MySQL locale
+la query e la serializzazione di sei community hanno richiesto 2 query, contro
+le 13 precedenti a parità di risposta. Su un campione di circa 8.000 actor la
+ricerca per handle ha usato `actors_preferred_username_domain_unique`, mentre
+la ricerca per sottostringa ha scandito gli actor per mantenere il match su
+username, nome e bio del Web.
+
 ## 12. Post di un hashtag
 
 `GET /rest/v1/hashtags/{tag}/posts` espone la relazione tra hashtag e post già
@@ -559,3 +564,5 @@ associazioni e uno con 5.000. MySQL usa `hashtags_name_unique` per il lookup,
 `post_hashtags_hashtag_id_index` per le pagine e le chiavi primarie dei post e
 della relazione per verificare l'ancora. L'ordinamento usa `filesort` nei
 piani osservati. Le due pagine dei due tag non hanno restituito duplicati.
+Le raccolte REST caricano le relazioni usate da `PostResource`, incluse quelle
+necessarie per gli avvisi sui contenuti e le anteprime degli allegati.

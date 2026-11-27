@@ -43,7 +43,7 @@ trait RespondsWithPublishedPosts
             $cursor = FeedCursor::fromPost($anchor, false);
         }
         $limit = (int) ($values['limit'] ?? 20);
-        $page = $feeds->paginatePublishedQuery($query->with(Post::CARD_RELATIONS), $cursor, $limit);
+        $page = $feeds->paginatePublishedQuery($query->with(PostResource::RELATIONS), $cursor, $limit);
         Post::annotateViewerState($page->getCollection(), $viewer);
         $items = $page->getCollection()->map(fn (Post $post): array => (new PostResource($post))->resolve($request));
         $response = response()->json($items->values()->all());

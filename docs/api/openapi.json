@@ -3,7 +3,7 @@
   "info": {
     "title": "OpenBook REST API",
     "version": "0.1.0-draft",
-    "description": "Experimental first-sprint API for authenticated independent OpenBook applications. Covers instance metadata, current user, persons, search, posts, post comments and follow relationships, including production installations. Property names and case-sensitive enum values use lowerCamelCase; OAuth protocol fields retain their standard wire names. Creation inputs use separate New<Entity> schemas with independently defined required and nullable fields. Further resources are planned for later sprints."
+    "description": "Experimental REST API for authenticated independent OpenBook applications. Covers instance metadata, current user, persons, search, posts, post comments and follow relationships, including production installations. Property names and case-sensitive enum values use lowerCamelCase; OAuth protocol fields retain their standard wire names. Creation inputs use separate New<Entity> schemas with independently defined required and nullable fields. Further resources are planned for later sprints."
   },
   "paths": {
     "/.well-known/oauth-authorization-server": {
@@ -214,91 +214,13 @@
             }
           },
           "429": {
-            "description": "The request limit has been exceeded.",
-            "headers": {
-              "Cache-Control": {
-                "description": "Errors are not stored.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "no-store"
-              },
-              "Retry-After": {
-                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "type": "about:blank",
-                  "title": "Too Many Requests",
-                  "status": 429,
-                  "detail": "The request limit has been exceeded."
-                }
-              }
-            }
+            "$ref": "#/components/responses/RestRateLimited"
           },
           "503": {
-            "description": "The API is temporarily unavailable.",
-            "headers": {
-              "Cache-Control": {
-                "description": "Errors are not stored.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "no-store"
-              },
-              "Retry-After": {
-                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "type": "about:blank",
-                  "title": "Service Unavailable",
-                  "status": 503,
-                  "detail": "The API is temporarily unavailable."
-                }
-              }
-            }
+            "$ref": "#/components/responses/RestUnavailable"
           },
           "500": {
-            "description": "The request could not be completed.",
-            "headers": {
-              "Cache-Control": {
-                "description": "Errors are not stored.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "no-store"
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "type": "about:blank",
-                  "title": "Internal Server Error",
-                  "status": 500,
-                  "detail": "The request could not be completed."
-                }
-              }
-            }
+            "$ref": "#/components/responses/RestInternalError"
           },
           "422": {
             "description": "One or more query parameters are invalid.",
@@ -330,35 +252,7 @@
             }
           },
           "401": {
-            "description": "A Bearer token is missing, invalid, expired or revoked.",
-            "headers": {
-              "Cache-Control": {
-                "description": "Errors are not stored.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "no-store"
-              },
-              "WWW-Authenticate": {
-                "description": "The authentication scheme required for this resource.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "Bearer"
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "type": "about:blank",
-                  "title": "Unauthorized",
-                  "status": 401
-                }
-              }
-            }
+            "$ref": "#/components/responses/RestUnauthorized"
           },
           "403": {
             "description": "The authenticated account is inactive or lacks permission to use this operation.",
@@ -574,91 +468,13 @@
             }
           },
           "429": {
-            "description": "The request limit has been exceeded.",
-            "headers": {
-              "Cache-Control": {
-                "description": "Errors are not stored.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "no-store"
-              },
-              "Retry-After": {
-                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "type": "about:blank",
-                  "title": "Too Many Requests",
-                  "status": 429,
-                  "detail": "The request limit has been exceeded."
-                }
-              }
-            }
+            "$ref": "#/components/responses/RestRateLimited"
           },
           "503": {
-            "description": "The API is temporarily unavailable.",
-            "headers": {
-              "Cache-Control": {
-                "description": "Errors are not stored.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "no-store"
-              },
-              "Retry-After": {
-                "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "type": "about:blank",
-                  "title": "Service Unavailable",
-                  "status": 503,
-                  "detail": "The API is temporarily unavailable."
-                }
-              }
-            }
+            "$ref": "#/components/responses/RestUnavailable"
           },
           "500": {
-            "description": "The request could not be completed.",
-            "headers": {
-              "Cache-Control": {
-                "description": "Errors are not stored.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "no-store"
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "type": "about:blank",
-                  "title": "Internal Server Error",
-                  "status": 500,
-                  "detail": "The request could not be completed."
-                }
-              }
-            }
+            "$ref": "#/components/responses/RestInternalError"
           },
           "422": {
             "description": "Invalid parameters or ordering, an unsupported engine, afterAt, cursor or page parameter, or a reference post outside this collection.",
@@ -690,35 +506,7 @@
             }
           },
           "401": {
-            "description": "A Bearer token is missing, invalid, expired or revoked.",
-            "headers": {
-              "Cache-Control": {
-                "description": "Errors are not stored.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "no-store"
-              },
-              "WWW-Authenticate": {
-                "description": "The authentication scheme required for this resource.",
-                "schema": {
-                  "type": "string"
-                },
-                "example": "Bearer"
-              }
-            },
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "type": "about:blank",
-                  "title": "Unauthorized",
-                  "status": 401
-                }
-              }
-            }
+            "$ref": "#/components/responses/RestUnauthorized"
           },
           "403": {
             "description": "The authenticated account is unavailable or is not allowed to use this operation.",
@@ -10555,6 +10343,126 @@
             "tokenUrl": "/oauth/token",
             "scopes": {
               "api": "Use OpenBook user features."
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "RestUnauthorized": {
+        "description": "A Bearer token is missing, invalid, expired or revoked.",
+        "headers": {
+          "Cache-Control": {
+            "description": "Errors are not stored.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "no-store"
+          },
+          "WWW-Authenticate": {
+            "description": "The authentication scheme required for this resource.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "Bearer"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "about:blank",
+              "title": "Unauthorized",
+              "status": 401
+            }
+          }
+        }
+      },
+      "RestRateLimited": {
+        "description": "The request limit has been exceeded.",
+        "headers": {
+          "Cache-Control": {
+            "description": "Errors are not stored.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "no-store"
+          },
+          "Retry-After": {
+            "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "about:blank",
+              "title": "Too Many Requests",
+              "status": 429,
+              "detail": "The request limit has been exceeded."
+            }
+          }
+        }
+      },
+      "RestInternalError": {
+        "description": "The request could not be completed.",
+        "headers": {
+          "Cache-Control": {
+            "description": "Errors are not stored.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "no-store"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "about:blank",
+              "title": "Internal Server Error",
+              "status": 500,
+              "detail": "The request could not be completed."
+            }
+          }
+        }
+      },
+      "RestUnavailable": {
+        "description": "The API is temporarily unavailable.",
+        "headers": {
+          "Cache-Control": {
+            "description": "Errors are not stored.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "no-store"
+          },
+          "Retry-After": {
+            "description": "The delay in seconds or an HTTP-date after which another request may be attempted, when available.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "about:blank",
+              "title": "Service Unavailable",
+              "status": 503,
+              "detail": "The API is temporarily unavailable."
             }
           }
         }

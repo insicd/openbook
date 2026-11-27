@@ -5,6 +5,7 @@ namespace Tests\Feature\Rest;
 use App\Application\Services\CommunityRegistrar;
 use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Laravel\Passport\Passport;
 use Tests\Concerns\CreatesAccounts;
@@ -69,6 +70,28 @@ class SearchTest extends TestCase
         $this->get('/rest/v1/search?q=garden')->assertOk()->assertExactJson(['profiles' => []]);
     }
 
+    public function test_community_avatars_are_loaded_in_a_single_query(): void
+    {
+        $owner = $this->createFullAccount('communityowner');
+        foreach (['gardenalpha', 'gardenbeta', 'gardengamma'] as $slug) {
+            $community = app(CommunityRegistrar::class)->register($owner, ['slug' => $slug, 'name' => ucfirst($slug)]);
+            $community->actor->update(['icon_url' => 'https://openbook.test/avatars/'.$slug.'.png']);
+        }
+
+        DB::enableQueryLog();
+        try {
+            $response = $this->get('/rest/v1/search?q=garden')->assertOk();
+            $communityReads = collect(DB::getQueryLog())->filter(fn (array $entry) => str_contains($entry['query'], 'from "communities"'));
+        } finally {
+            DB::disableQueryLog();
+        }
+
+        $response->assertJsonCount(3, 'profiles')
+            ->assertJsonPath('profiles.0.personAvatar', 'https://openbook.test/avatars/gardenalpha.png')
+            ->assertJsonPath('profiles.2.personAvatar', 'https://openbook.test/avatars/gardengamma.png');
+        $this->assertCount(1, $communityReads);
+    }
+
     public function test_search_uses_the_instance_limits_and_validates_query_parameters(): void
     {
         config(['openbook.search.min_length' => 3, 'openbook.search.per_section' => 1]);
@@ -77,11 +100,11 @@ class SearchTest extends TestCase
 
         $this->get('/rest/v1/search?q=garden')->assertOk()->assertJsonCount(1, 'profiles')
             ->assertJsonPath('profiles.0.personId', $first->id);
-        foreach (['', '?q=%20%20', '?q=ab', '?q[]=garden', '?q=garden&type=person'] as $query) {
+        foreach (['' => 'q', '?q=%20%20' => 'q', '?q=ab' => 'q', '?q[]=garden' => 'q', '?q=garden&type=person' => 'type'] as $query => $field) {
             $this->get('/rest/v1/search'.$query)->assertUnprocessable()
                 ->assertHeader('Content-Type', 'application/problem+json')
                 ->assertJsonPath('status', 422)
-                ->assertJsonStructure(['errors' => [$query === '?q=garden&type=person' ? 'type' : 'q']]);
+                ->assertJsonStructure(['errors' => [$field]]);
         }
     }
 

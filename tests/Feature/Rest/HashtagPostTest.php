@@ -9,6 +9,7 @@ use App\Domain\Posts\Post;
 use App\Domain\SocialGraph\Follow;
 use App\Federation\Actors\Actor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Laravel\Passport\Passport;
 use Tests\Concerns\CreatesAccounts;
@@ -120,6 +121,24 @@ class HashtagPostTest extends TestCase
             $this->getJson('/rest/v1/hashtags/'.$tag.'/posts')->assertNotFound()
                 ->assertHeader('Content-Type', 'application/problem+json');
         }
+    }
+
+    public function test_rest_posts_keep_hashtag_content_warnings_without_loading_web_poll_data(): void
+    {
+        config(['openbook.moderation.forced_content_warning_hashtags' => ['fotografia']]);
+        $this->taggedPost($this->viewer);
+
+        DB::enableQueryLog();
+        try {
+            $response = $this->getJson('/rest/v1/hashtags/fotografia/posts')->assertOk();
+            $queries = array_column(DB::getQueryLog(), 'query');
+        } finally {
+            DB::disableQueryLog();
+        }
+
+        $response->assertJsonPath('0.postCW', true)
+            ->assertJsonPath('0.postCWText', __('openbook.posts.forced_content_warning'));
+        $this->assertStringNotContainsString('from "polls"', implode("\n", $queries));
     }
 
     public function test_conditional_get_checks_membership_and_authentication(): void

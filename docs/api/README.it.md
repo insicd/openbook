@@ -1,10 +1,10 @@
-# API REST sperimentale — primo sprint
+# API REST sperimentale
 
 > [English](README.md) · [OpenAPI JSON](openapi.json) · [Integrazione client](clients.it.md)
 
-Questo sprint apre OpenBook alle applicazioni indipendenti: app native,
-frontend specializzati e integrazioni di terzi. La UI nativa continua a
-gestire il prodotto e tutte le operazioni amministrative.
+Le API REST servono le applicazioni OpenBook indipendenti, tra cui app native,
+frontend specializzati e integrazioni di terzi. Le operazioni amministrative
+sono disponibili nell’interfaccia Web.
 
 **Il supporto è sperimentale per copertura e contratto, ed è utilizzabile anche
 in produzione.** REST/OAuth e gestione degli accessi non dipendono da APP_ENV.
@@ -325,13 +325,12 @@ Paw: OAuth 2, Authorization Code, client_id registrato, secret vuoto,
 scope api e PKCE S256. Il callback deve coincidere con quello registrato.
 Se il client non supporta PKCE, non completa il flusso automaticamente.
 
-## Sprint successivo
+## Estensioni previste
 
-La seconda PR è prevista per ampliare le entità Community, Event,
-Notification e Hashtag e le loro relazioni. Upload Media e post complessi
-richiedono contratti dedicati. Non sono già implementati da questo sprint.
-Cache basata sulle date, ricerca di altre risorse, sondaggi, messaggistica e
-ulteriori impostazioni restano da definire.
+Le estensioni previste comprendono le risorse Community, Event e Notification,
+catalogo, dettaglio e follow degli hashtag e ricerca di altre entità. Modifica
+degli allegati dei post, sondaggi, citazioni, messaggistica e ulteriori
+impostazioni richiedono contratti dedicati.
 
 ## Verifica email
 
