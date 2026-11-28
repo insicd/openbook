@@ -459,6 +459,9 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Video PeerTube federati**: i nuovi import riconoscono la copertina e
+  mostrano il player PeerTube al clic su Riproduci. Se il server di origine
+  disabilita il player incorporato, la copertina rimanda al video originale.
 - **Conferma dei follow federati**: i follow in attesa vengono ricontrollati con
   intervalli crescenti senza registrare l’attesa come errore del job.
 - **Prestazioni del feed personale con hashtag seguiti**: su MySQL, quando le

@@ -34,6 +34,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $conversation_id
  * @property string|null $uri
  * @property string|null $source_uri guid o permalink dell'articolo per i post importati da RSS/Atom
+ * @property array{embedUrl: ?string, posterUrl: ?string}|null $remote_video
  * @property array{relay?: string, community?: string, rss?: string}|null $received_via Local first-acquisition provenance
  * @property string|null $quoted_post_id
  * @property string|null $quoted_actor_id
@@ -109,6 +110,7 @@ class Post extends Model
         'conversation_id',
         'uri',
         'source_uri',
+        'remote_video',
         'received_via',
         'quoted_post_id',
         'quoted_actor_id',
@@ -133,6 +135,7 @@ class Post extends Model
     {
         return [
             'received_via' => 'array',
+            'remote_video' => 'array',
             'published_at' => 'datetime',
             'custom_emojis' => 'array',
             'edited_at' => 'datetime',

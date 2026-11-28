@@ -171,6 +171,7 @@ final class RemoteNoteUpserter
         $attributes = [
             'actor_id' => $actor->id,
             'title' => RemotePostObject::title($note),
+            'remote_video' => $actor->isLocal() ? null : PeerTubeVideo::fromDocument($note, $noteUri, $actor->uri),
             'content_warning' => $sensitive ? (is_string($note['summary'] ?? null) ? mb_substr($note['summary'], 0, 255) : null) : null,
             'body' => $body,
             'language' => RemotePostObject::language($note),

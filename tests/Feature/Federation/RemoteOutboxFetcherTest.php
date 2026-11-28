@@ -149,6 +149,79 @@ class RemoteOutboxFetcherTest extends TestCase
         $this->assertNotNull($remote->fresh()->posts_fetched_at);
     }
 
+    #[DataProvider('peerTubeEmbedAvailability')]
+    public function test_a_peertube_group_outbox_imports_the_video_preview_without_replacing_explicit_attachments(bool $allowsEmbedding): void
+    {
+        $viewer = $this->createFullAccount('peertubeviewer');
+        $channel = $this->createRemoteActor('space', 'peertube.example', ['type' => Actor::TYPE_GROUP]);
+        $author = $this->createRemoteActor('publisher', 'peertube.example');
+        $uri = 'https://peertube.example/videos/watch/a449baf6-9517-4fd6-a7e1-9405544d4f8a';
+        $watch = 'https://peertube.example/w/mhDpYyqQVfcVakDmfDQDph';
+        $embed = $allowsEmbedding ? 'https://peertube.example/videos/embed/mhDpYyqQVfcVakDmfDQDph' : null;
+        $poster = 'https://peertube.example/lazy-static/thumbnails/poster.png';
+        $attachment = 'https://peertube.example/attachments/apollo.jpg';
+        Follow::query()->create([
+            'follower_id' => $viewer->actor->id, 'following_id' => $channel->id,
+            'status' => Follow::STATUS_ACCEPTED, 'requested_at' => now(), 'accepted_at' => now(),
+        ]);
+        $this->fakeOutbox($channel, [[
+            'id' => $channel->uri.'/announces/1',
+            'type' => 'Announce',
+            'actor' => $channel->uri,
+            'object' => [
+                '@context' => ['https://www.w3.org/ns/activitystreams', ['pt' => 'https://joinpeertube.org/ns#']],
+                'id' => $uri,
+                'type' => 'Video',
+                'mediaType' => 'text/markdown',
+                'name' => 'Apollo Digest',
+                'content' => 'A short film about Apollo.',
+                'attributedTo' => [
+                    ['type' => 'Person', 'id' => $author->uri],
+                    ['type' => 'Group', 'id' => $channel->uri],
+                ],
+                'url' => [
+                    ['type' => 'Link', 'mediaType' => 'text/html', 'href' => $watch],
+                    ['type' => 'Link', 'mediaType' => 'video/mp4', 'href' => 'https://peertube.example/audio-only.mp4', 'height' => 0],
+                    ['type' => 'Link', 'mediaType' => 'application/x-mpegURL', 'href' => 'https://peertube.example/master.m3u8'],
+                ],
+                'embedUrl' => $embed,
+                'attachment' => [['type' => 'Document', 'mediaType' => 'image/jpeg', 'url' => $attachment]],
+                'icon' => [
+                    ['type' => 'Image', 'url' => 'https://peertube.example/small.png', 'width' => 280],
+                    ['type' => 'Image', 'url' => $poster, 'width' => 850],
+                ],
+                'published' => now()->subHour()->toAtomString(),
+                'to' => ['https://www.w3.org/ns/activitystreams#Public'],
+            ],
+        ]]);
+
+        $response = $this->actingAs($viewer)->get(route('actors.show', $channel))->assertOk()
+            ->assertSee('src="'.$poster.'"', false)
+            ->assertSee('href="'.$uri.'"', false)
+            ->assertDontSee('src="'.$watch.'"', false);
+
+        if ($allowsEmbedding) {
+            $response->assertSee('data-peertube-play', false)
+                ->assertSee('<template data-peertube-frame>', false)
+                ->assertSee('src="'.$embed.'?autoplay=1"', false)
+                ->assertSee('sandbox="allow-scripts allow-same-origin"', false);
+        } else {
+            $response->assertDontSee('<template data-peertube-frame>', false);
+        }
+
+        $post = Post::query()->where('uri', $uri)->sole();
+        $this->assertSame($author->id, $post->actor_id);
+        $this->assertSame(['embedUrl' => $embed, 'posterUrl' => $poster], $post->remote_video);
+        $this->assertSame([$attachment], $post->media->pluck('remote_url')->all());
+        $this->assertDatabaseHas('announces', ['actor_id' => $channel->id, 'post_id' => $post->id]);
+    }
+
+    public static function peerTubeEmbedAvailability(): iterable
+    {
+        yield 'embeddable' => [true];
+        yield 'origin restricts embedding' => [false];
+    }
+
     public function test_outbox_create_preserves_the_activity_language_default(): void
     {
         $viewer = $this->createFullAccount('languagereader');

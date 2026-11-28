@@ -33,7 +33,7 @@ final class RemoteAttachmentIngester
         $descriptors = array_slice(
             $content instanceof Event
                 ? RemotePostObject::imageAttachments($document)
-                : RemotePostObject::mediaAttachments($document),
+                : RemotePostObject::mediaAttachments($document, $content instanceof Post && $content->remote_video !== null),
             0,
             max(0, (int) config('openbook.media.max_attachments_per_post')),
         );

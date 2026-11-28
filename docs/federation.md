@@ -93,6 +93,10 @@ cron and the availability of participating instances. Remote servers may apply
 different rules for keeping copies. Content warnings and reading permissions
 also apply to imported posts.
 
+Imported PeerTube videos can show a cover and a Play control. Playback uses the
+original server. When that server disables embedding, the cover links to the
+original video page.
+
 Alongside ordinary posts, compatible articles, images, videos, polls and events
 are recognized. Remote text is displayed safely, preserving supported links
 and attachments. The author-declared language appears beside the date when

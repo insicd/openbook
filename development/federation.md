@@ -580,8 +580,12 @@ Besides `Note` and `Page`, the inbox/outbox accept `Article` (WordPress
 ActivityPub, WriteFreely), `Video` (PeerTube, including with `attributedTo`
 Person+Group), and `Image`. Remote image attachments stay as https URLs in
 `media.remote_url` (gallery and profile photo roll) without download onto the
-instance. If the outbox is a stub (typical of Pixelfed: only `totalItems`), the
-remote profile falls back to the Atom feed `{actor}.atom`. For Wafrn (empty
+instance. OpenBook stores the HTTPS player and cover URLs advertised by
+recognized PeerTube videos. The Web player loads when the reader clicks Play
+and uses PeerTube's own streams. When PeerTube explicitly disables embedding,
+the cover links to the original video. If the outbox is a stub (typical of
+Pixelfed: only `totalItems`), the remote profile falls back to the Atom feed
+`{actor}.atom`. For Wafrn (empty
 outbox) the public `/api/v2/blog` API is used. **Threads** (Meta) does not
 expose posts in the ActivityPub outbox: on the remote profile you can only see
 content already received in the inbox after a Follow (and only if the account

@@ -3225,6 +3225,36 @@ a.ob-post__menu-item {
   border: 0;
 }
 
+.ob-post__video-launch {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  text-decoration: none;
+}
+
+.ob-post__video-launch img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ob-post__video-launch span {
+  position: relative;
+  padding: 0.6rem 1rem;
+  border-radius: var(--ob-radius);
+  background: #0b0d12;
+  color: #fff;
+}
+
+.ob-post__video-launch:focus-visible span {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
 .ob-post__link-preview[hidden] {
   display: none;
 }

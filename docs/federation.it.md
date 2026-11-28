@@ -96,6 +96,10 @@ aggiornamento dipendono dal cron e dalla disponibilità delle istanze coinvolte.
 Un server remoto può applicare regole differenti sulla conservazione delle copie.
 Gli avvisi sui contenuti e i permessi di lettura valgono anche per i post importati.
 
+I video PeerTube importati possono mostrare la copertina e il pulsante Riproduci.
+La riproduzione usa il server originale. Se quel server disabilita il player
+incorporato, la copertina rimanda alla pagina del video.
+
 Oltre ai normali post sono riconosciuti articoli, immagini, video, sondaggi ed
 eventi compatibili. Il testo remoto viene reso in forma sicura, conservando link
 e allegati supportati. La lingua dichiarata dall’autore compare vicino alla

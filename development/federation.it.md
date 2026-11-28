@@ -583,8 +583,12 @@ Le community sono Actor ActivityPub di tipo `Group`:
 Oltre a `Note` e `Page`, l'inbox/outbox accettano `Article` (WordPress ActivityPub,
 WriteFreely), `Video` (PeerTube, anche con `attributedTo` Person+Group) e `Image`.
 Gli allegati immagine remoti restano URL https in `media.remote_url` (galleria e
-rullino profilo) senza download sull'istanza. Se l'outbox e' uno stub (tipico
-Pixelfed: solo `totalItems`), il profilo remoto ricade sul feed Atom `{actor}.atom`.
+rullino profilo) senza download sull'istanza. Per i video PeerTube riconosciuti,
+OpenBook conserva gli URL HTTPS del player e della copertina. Il player Web
+si carica al clic su Riproduci e riproduce lo streaming di PeerTube.
+Se PeerTube disabilita esplicitamente il player incorporato, la copertina
+rimanda al video originale. Se l'outbox e' uno stub (tipico di Pixelfed: solo
+`totalItems`), il profilo remoto ricade sul feed Atom `{actor}.atom`.
 Per Wafrn (outbox vuoto) si usa l'API pubblica `/api/v2/blog`. **Threads**
 (Meta) non espone i post nell'outbox ActivityPub: sul profilo remoto si
 possono vedere solo i contenuti gia' ricevuti in inbox dopo un Follow (e
