@@ -19,6 +19,10 @@ la [roadmap](docs/roadmap.md).
 ## [26.48] - Happy Nacho
 
 ### Added
+- **Post per hashtag via REST** tramite `/rest/v1/hashtags/{tag}/posts`, con
+  paginazione cronologica e i normali controlli di visibilità dei post.
+- **Ricerca profili REST** tramite `/rest/v1/search`, con persone, bot, feed e
+  community già noti all’istanza secondo le regole di ricerca del sito.
 - **Allegati nei post REST**: creazione multipart con immagini, audio e video,
   ordine e testi alternativi; risposta `201` con il post o `202` con la
   pubblicazione differita. Monitoraggio e annullamento riservati all’autore

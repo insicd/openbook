@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Rest\V1\FollowRequestController;
+use App\Http\Controllers\Rest\V1\HashtagPostController;
 use App\Http\Controllers\Rest\V1\InstanceController;
 use App\Http\Controllers\Rest\V1\MeController;
 use App\Http\Controllers\Rest\V1\MePostController;
@@ -11,11 +12,14 @@ use App\Http\Controllers\Rest\V1\PostAnnounceController;
 use App\Http\Controllers\Rest\V1\PostCommentController;
 use App\Http\Controllers\Rest\V1\PostController;
 use App\Http\Controllers\Rest\V1\PostPublicationController;
+use App\Http\Controllers\Rest\V1\SearchController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/instance', [InstanceController::class, 'show'])->name('rest.v1.instance.show');
+Route::get('/search', SearchController::class)->name('rest.v1.search');
 Route::get('/me', [MeController::class, 'show'])->name('rest.v1.me.show');
 Route::get('/me/posts', [MePostController::class, 'index'])->name('rest.v1.me.posts');
+Route::get('/hashtags/{tag}/posts', [HashtagPostController::class, 'index'])->name('rest.v1.hashtags.posts');
 Route::get('/posts', [PostController::class, 'index'])->name('rest.v1.posts.index');
 Route::post('/posts', [PostController::class, 'store'])->name('rest.v1.posts.store');
 Route::get('/posts/{postId}', [PostController::class, 'show'])->name('rest.v1.posts.show');

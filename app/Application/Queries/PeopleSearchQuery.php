@@ -5,6 +5,7 @@ namespace App\Application\Queries;
 use App\Domain\Accounts\User;
 use App\Federation\Actors\Actor;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
 
 /**
@@ -100,11 +101,16 @@ final class PeopleSearchQuery
             );
         }
 
-        return $query
+        $actors = $query
             ->orderBy('actors.preferred_username')
             ->orderBy('actors.domain')
             ->limit($limit)
             ->get();
+
+        $actors->filter(fn (Actor $actor): bool => $actor->isLocal() && $actor->isGroup())
+            ->loadMissing(['community' => fn (HasOne $relation): HasOne => $relation->chaperone('actor')]);
+
+        return $actors;
     }
 
     private function prefix(string $term): string

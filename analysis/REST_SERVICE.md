@@ -39,6 +39,8 @@ indiscriminata dei modelli, chiavi o campi privati.
 | Entità | Endpoint | Funzione |
 | --- | --- | --- |
 | Instance | `GET /rest/v1/instance` | Metadati statici dell’istanza |
+| Search | `GET /rest/v1/search` | Ricerca tra le entità supportate |
+| Hashtag | `GET /rest/v1/hashtags/{tag}/posts` | Post associati a un hashtag |
 | Me | `GET /rest/v1/me` | Identità autenticata |
 | Me | `GET /rest/v1/me/posts` | Propri post, senza rilanci altrui |
 | Person | `GET /rest/v1/persons/{personId}` | Dettaglio del profilo |
@@ -300,10 +302,11 @@ Rappresentazione incorporata degli allegati già leggibili. Non costituisce anco
 | Timeline | FeedQuery::forActor | after + afterAt, limit 20/100, postTimelineAt. Include rilanci pertinenti. |
 | Post del profilo | FeedQuery::forProfile, RemoteOutboxFetcher e FeedImporter | Propri post più rilanci, TTL del Web, pagina del Web senza parametro limit. after + afterAt. Nei Group la data di ordine è la pubblicazione. |
 | Me/posts | Actor::posts, scope Post, paginatePublishedQuery | Solo ownership, no rilanci altrui. after/postId, limit 20/100. |
+| Post di un hashtag | Hashtag::posts, scope Post, paginatePublishedQuery | Post pubblicati e visibili associati al tag. after/postId, limit 20/100, postPublishedAt. |
 | Richieste ricevute | Modello Follow pending verso il Bearer e PersonQuery::available | PersonReference dei richiedenti disponibili; after/personId, limit 20/100, asc/desc. Nessun fetch. |
 
 Link next standard completo, senza cursori server e senza page/cursor opachi.
-Per World e Me/posts un’ancora non più disponibile nella raccolta dà 422;
+Per World, Me/posts e i post di un hashtag un’ancora non più disponibile nella raccolta dà 422;
 per timeline/profilo la coppia data/ID resta un confine anche se il post sparisce.
 I limiti per ID sono deterministici, con spareggio per ID a parità di data;
 la navigazione non è uno snapshot. Il filtro ownership è applicato anche alle
@@ -494,9 +497,10 @@ di ambiente per il supporto autenticato.
 | Community | Catalogo/dettaglio, posts/followers, follow e /me/communities (ownership, non moderazione). |
 | Event | Catalogo/dettaglio, /me/events; follow «mi interessa» separato da participation «parteciperò», followers e participants. Definire Event e Location estesa. |
 | Notification | /me/notifications, stato lettura e riferimenti ai contenuti. |
-| Hashtag | Catalogo/dettaglio/posts e follow, normalizzazione del tag. |
+| Hashtag | Raccolta dei post sotto `/hashtags/{tag}/posts`. Catalogo, dettaglio e follow restano da aggiungere. |
 | Media e post complessi | Allegati multipart e monitoraggio/annullamento tramite PostPublication proposti in [Allegati REST](REST_POST_ATTACHMENTS.md); niente upload indipendente /media. Modifica allegati, sondaggi/citazioni e altri oggetti restano successivi. |
-| Ricerca/impostazioni | Contratti ancora da discutere; nessuna nuova API implicita in questo sprint. |
+| Ricerca | `GET /search` supporta la ricerca dei profili. Restano da aggiungere le altre entità ricercabili. |
+| Impostazioni | Contratti ancora da discutere. |
 
 Le liste generali future useranno relationship con valori multipli in OR e
 filtri diversi in AND; sort e direction separati. /me raccoglie ownership e
@@ -505,7 +509,60 @@ anche risorse proprie. Community/Event non diventano sottotipi di Post, e non
 si introducono alias /me/following o /me/followers. La gestione delle richieste
 di partecipazione dell’organizzatore dovrà essere delimitata rispetto allo staff.
 
-Per le evoluzioni successive: politica di versionamento e compatibilità e
-ulteriori test operativi.
-La seconda PR estenderà le entità mancanti sopra; questo sprint non le dichiara
-già supportate né promette parità funzionale completa con il Web.
+Restano da definire la politica di versionamento e compatibilità, oltre alle
+verifiche operative delle prossime estensioni.
+
+## 11. Ricerca REST per Mobile
+
+La ricerca ha un endpoint trasversale, `GET /rest/v1/search`, con `q`
+obbligatorio. Il parametro facoltativo `type` seleziona un tipo di entità.
+Quando è omesso, la ricerca copre tutti i tipi di entità supportati. La risposta
+contiene un array per ogni tipo di entità cercato, ordinato secondo le regole
+del Web e vuoto quando non ci sono corrispondenze.
+
+Il primo tipo supportato è `profile`. Il campo `profiles` contiene i risultati
+come `PersonReference`, già usato per aprire il profilo a partire dal suo UUID.
+
+La prima integrazione riusa `PeopleSearchQuery`, condivisa dalla ricerca per
+parole chiave e dai suggerimenti Web. Include persone, bot remoti, feed e
+community secondo gli stessi controlli di visibilità, pertinenza e stato.
+Sono ricercabili sia i profili locali sia quelli remoti già noti all'istanza,
+anche tramite handle. Si riusano soglia minima e limite della ricerca Web
+completa. I risultati sono limitati e senza paginazione in questa fase.
+La risoluzione federata e l'importazione da URL del flusso Web sono operazioni
+distinte dalla ricerca per parole chiave esposta qui.
+
+La rotta eredita autenticazione Bearer, scope `api` e limiti REST. Usa Problem
+Details per input invalidi ed ETag privato calcolato dopo aver rieseguito la
+ricerca, così una modifica di visibilità può invalidare i risultati salvati.
+
+Gli avatar delle community locali vengono caricati in blocco. Su MySQL locale
+la query e la serializzazione di sei community hanno richiesto 2 query, contro
+le 13 precedenti a parità di risposta. Su un campione di circa 8.000 actor la
+ricerca per handle ha usato `actors_preferred_username_domain_unique`, mentre
+la ricerca per sottostringa ha scandito gli actor per mantenere il match su
+username, nome e bio del Web.
+
+## 12. Post di un hashtag
+
+`GET /rest/v1/hashtags/{tag}/posts` espone la relazione tra hashtag e post già
+usata dalla pagina Web. L'identificatore pubblico è il nome canonico, minuscolo
+e senza `#`. Il lookup riusa normalizzazione e validazione di `Hashtag`.
+Un tag inesistente o invalido dà `404`. Un tag esistente senza post visibili
+restituisce un array vuoto. La lettura usa i contenuti già noti all'istanza.
+
+La query usa `Hashtag::posts`, esclude i messaggi privati e applica lo scope
+di visibilità del viewer ai post pubblicati. La risposta riusa `PostResource`.
+Il limite, il controllo dell'ancora `after`, l'ordinamento per data di
+pubblicazione e ID decrescenti, `Link` e l'ETag privato sono condivisi con
+`GET /rest/v1/me/posts`. L'ancora viene cercata nella stessa raccolta visibile;
+se non vi appartiene o non è più disponibile, la risposta è `422`.
+
+L'EXPLAIN delle query della prima e della seconda pagina è stato verificato
+su MySQL locale isolato con 20.000 post sintetici e due tag, uno con 160
+associazioni e uno con 5.000. MySQL usa `hashtags_name_unique` per il lookup,
+`post_hashtags_hashtag_id_index` per le pagine e le chiavi primarie dei post e
+della relazione per verificare l'ancora. L'ordinamento usa `filesort` nei
+piani osservati. Le due pagine dei due tag non hanno restituito duplicati.
+Le raccolte REST caricano le relazioni usate da `PostResource`, incluse quelle
+necessarie per gli avvisi sui contenuti e le anteprime degli allegati.

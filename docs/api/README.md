@@ -1,10 +1,10 @@
-# Experimental REST API — first sprint
+# Experimental REST API
 
 > [Italiano](README.it.md) · [OpenAPI JSON](openapi.json) · [Client integration](clients.md)
 
-This sprint opens OpenBook to independent applications: native clients,
-specialized frontends and third-party integrations. The native interface
-continues to manage the product and all administrative operations.
+The REST API serves independent OpenBook applications, including native
+clients, specialized frontends and third-party integrations. Administrative
+operations are available in the web interface.
 
 **Support is experimental in coverage and contract, and is available in
 production too.** REST/OAuth and connected accesses do not depend on APP_ENV.
@@ -22,6 +22,8 @@ upload or management endpoints.
 | Entity | Endpoint | Purpose |
 | --- | --- | --- |
 | Instance | `GET /rest/v1/instance` | Get instance metadata |
+| Search | `GET /rest/v1/search` | Search supported entities |
+| Hashtag | `GET /rest/v1/hashtags/{tag}/posts` | List posts associated with a hashtag |
 | Me | `GET /rest/v1/me` | Get the authenticated user |
 | Me | `GET /rest/v1/me/posts` | List posts published by the authenticated user |
 | Person | `GET /rest/v1/persons/{personId}` | Get a person |
@@ -100,7 +102,7 @@ not remaining account quota or a guarantee that a particular upload will succeed
 | Collection | Boundary and size | Order |
 | --- | --- | --- |
 | Followers, following and incoming requests | `after` = last personId; `limit` defaults to 20, maximum 100 | `sort=personId`; `direction=asc` default, or `desc` |
-| `/me/posts` and `/posts?engine=world` | `after` = last postId; `limit` 20/100 | `sort=postPublishedAt`; `direction=desc` |
+| `/me/posts`, `/posts?engine=world`, and `/hashtags/{tag}/posts` | `after` = last postId; `limit` 20/100 | `sort=postPublishedAt`; `direction=desc` |
 | `/posts?engine=timeline` | `after` + `afterAt`; `limit` 20/100 | `sort=postTimelineAt`; `direction=desc` |
 | `/persons/{personId}/posts` | `after` + `afterAt`; configured website page size; `limit` is not accepted | `sort=postTimelineAt`; `direction=desc` |
 
@@ -108,9 +110,15 @@ Follow the standard `Link: <URL>; rel="next"` header when present. No server-sid
 cursor state is stored. These lists do not support `cursor` or `page`.
 For timeline/profile lists, `afterAt` is the returned ISO postTimelineAt; the
 link supplies both parameters even if the reference post is later removed.
-Group profile order uses publication time. World and /me/posts require the
-reference to remain available in the collection; otherwise 422 means restart
-from the first page. Pagination is not an immutable snapshot.
+Group profile order uses publication time. World, `/me/posts`, and hashtag
+post lists require the reference to remain available in the collection.
+Otherwise `422` means restart from the first page. Pagination is not an
+immutable snapshot.
+
+Use the canonical lowercase name without `#` in hashtag paths, for example
+`/rest/v1/hashtags/photography/posts`. This returns a `Post` array with the
+visible published posts already known to the instance for that tag. A known
+tag with no visible posts returns `[]`. Invalid or unknown tags return `404`.
 
 World is the default engine and follows the website's World selection; timeline
 follows the personal home feed. Optional `postAnnounce` is the context selected
@@ -123,6 +131,20 @@ the person's post collection imports content when its TTL expires. Post detail
 uses the website's remote refresh behavior. Remote failures retain cached data
 when still accessible. Authorization is checked again after refresh. Person
 lists and incoming requests do not fetch remote documents.
+
+## Search
+
+`GET /rest/v1/search?q=alex` returns one array per entity type searched.
+The optional `type` parameter restricts the search to one entity type.
+The first supported type, `profile`, returns a `profiles` array of
+`PersonReference` entries. It covers searchable people, applications, feeds
+and groups already known to the instance, including remote profiles. You can
+search by name, username or handle. With no profile matches, the response is
+`{"profiles":[]}`.
+
+The query is required. The instance sets the minimum query length and result
+limit. The defaults are two characters and ten results. This operation returns
+a single set of results and supports private ETag revalidation.
 
 ## Writes and relationships
 
@@ -296,13 +318,12 @@ Paw: OAuth 2 / Authorization Code, registered client_id, empty secret,
 scope api and PKCE S256. Callback must match registration. A client without
 PKCE support cannot complete this flow automatically.
 
-## Next sprint
+## Planned extensions
 
-A second PR is planned to extend Community, Event, Notification and
-Hashtag resources and their relationships. Media upload and complex post writes
-need dedicated contracts; they are not implemented by this sprint.
-Date-based caching, search, polls, messaging and further settings remain to be
-defined.
+Planned extensions include Community, Event and Notification resources,
+hashtag catalogs, detail and follow, and search for additional entities.
+Changing post attachments, polls, quotes, messaging and further settings
+still need dedicated contracts.
 
 ## Email verification
 

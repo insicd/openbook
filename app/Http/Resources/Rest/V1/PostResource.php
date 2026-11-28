@@ -8,6 +8,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class PostResource extends JsonResource
 {
+    public const RELATIONS = ['actor.user.profile', 'actor.community.actor', 'hashtags', 'location', 'media.thumbnail'];
+
     public static $wrap = null;
 
     private bool $timelineContext = false;
