@@ -50,9 +50,10 @@ class OutgoingFollowConfirmerTest extends TestCase
             ], 200, ['Content-Type' => 'application/activity+json']),
         ]);
 
-        $confirmed = app(OutgoingFollowConfirmer::class)->confirm($follow->fresh(['follower', 'following.endpoints']));
+        $job = (new ConfirmOutgoingFollowJob($follow->id))->withFakeQueueInteractions();
+        $job->handle(app(OutgoingFollowConfirmer::class));
 
-        $this->assertTrue($confirmed);
+        $job->assertNotReleased()->assertNotFailed();
         $this->assertDatabaseHas('follows', [
             'id' => $follow->id,
             'status' => Follow::STATUS_ACCEPTED,
@@ -63,10 +64,11 @@ class OutgoingFollowConfirmerTest extends TestCase
         ]);
     }
 
-    public function test_it_leaves_the_follow_pending_when_not_listed_yet(): void
+    public function test_confirmation_job_releases_pending_follows_with_backoff_until_the_last_attempt(): void
     {
         $local = $this->createFullAccount('ancorafuori');
         $remote = $this->createRemoteActor('chiuso', 'tags.example');
+        $remote->update(['manually_approves_followers' => true]);
 
         $follow = Follow::query()->create([
             'follower_id' => $local->actor->id,
@@ -91,9 +93,19 @@ class OutgoingFollowConfirmerTest extends TestCase
             ], 200, ['Content-Type' => 'application/activity+json']),
         ]);
 
-        $confirmed = app(OutgoingFollowConfirmer::class)->confirm($follow->fresh(['follower', 'following.endpoints']));
+        $confirmer = app(OutgoingFollowConfirmer::class);
+        foreach ([20, 45, 90, 180] as $index => $delay) {
+            $job = (new ConfirmOutgoingFollowJob($follow->id))->withFakeQueueInteractions();
+            $job->job->attempts = $index + 1;
+            $job->handle($confirmer);
+            $job->assertReleased($delay)->assertNotFailed();
+        }
 
-        $this->assertFalse($confirmed);
+        $lastAttempt = (new ConfirmOutgoingFollowJob($follow->id))->withFakeQueueInteractions();
+        $lastAttempt->job->attempts = 5;
+        $lastAttempt->handle($confirmer);
+        $lastAttempt->assertNotReleased()->assertNotFailed();
+
         $this->assertDatabaseHas('follows', [
             'id' => $follow->id,
             'status' => Follow::STATUS_PENDING,

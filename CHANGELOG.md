@@ -459,6 +459,8 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Conferma dei follow federati**: i follow in attesa vengono ricontrollati con
+  intervalli crescenti senza registrare l’attesa come errore del job.
 - **Prestazioni del feed personale con hashtag seguiti**: su MySQL, quando le
   altre fonti riempiono già la pagina, la ricerca limita gli hashtag ai post
   pubblici abbastanza recenti da entrarvi. Se serve completare la pagina, la

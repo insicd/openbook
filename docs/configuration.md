@@ -261,6 +261,11 @@ maintenance. The command coordinates these tasks:
 Each invocation processes pending work and finishes on its own. For these
 tasks, configure the periodic cron; no permanent worker is needed.
 
+After delivering a federated follow, the confirmation job checks the remote
+`followers` collection at increasing intervals. Waiting for remote confirmation
+is a normal outcome of the check. Once the job reaches its attempt limit, the
+follow remains pending until an `Accept` or a later confirmation by cron.
+
 **With access to a real system cron:**
 
 ```cron
