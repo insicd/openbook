@@ -96,6 +96,9 @@ aggiornamento dipendono dal cron e dalla disponibilità delle istanze coinvolte.
 Un server remoto può applicare regole differenti sulla conservazione delle copie.
 Gli avvisi sui contenuti e i permessi di lettura valgono anche per i post importati.
 
+Quando una modifica arriva tramite un altro server, OpenBook può recuperare
+dall’origine la versione più recente di un post pubblico o non elencato già noto.
+
 I video PeerTube importati possono mostrare la copertina e il pulsante Riproduci.
 La riproduzione usa il server originale. Se quel server disabilita il player
 incorporato, la copertina rimanda alla pagina del video.

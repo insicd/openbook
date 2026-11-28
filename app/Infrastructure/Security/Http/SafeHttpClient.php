@@ -33,9 +33,9 @@ final class SafeHttpClient
      *
      * @throws SsrfViolationException
      */
-    public function get(string $url, array $headers = [], ?Actor $signingActor = null): SafeHttpResponse
+    public function get(string $url, array $headers = [], ?Actor $signingActor = null, bool $followRedirects = true): SafeHttpResponse
     {
-        return $this->send('GET', $url, null, $headers, $signingActor);
+        return $this->send('GET', $url, null, $headers, $signingActor, followRedirects: $followRedirects);
     }
 
     /** Fetch a small public document within one deadline, redirects included. */
@@ -71,6 +71,7 @@ final class SafeHttpClient
         ?Actor $signingActor,
         ?int $totalTimeoutSeconds = null,
         ?int $responseLimit = null,
+        bool $followRedirects = true,
     ): SafeHttpResponse {
         $maxRedirects = (int) config('openbook.federation.fetch.max_redirects', 3);
         $deadline = $totalTimeoutSeconds === null ? null : microtime(true) + $totalTimeoutSeconds;
@@ -119,7 +120,7 @@ final class SafeHttpClient
                 $response = $this->performRequest($method, $currentUrl, $body, $retryHeaders, $target);
             }
 
-            if (in_array($response->status(), [301, 302, 303, 307, 308], true)) {
+            if ($followRedirects && in_array($response->status(), [301, 302, 303, 307, 308], true)) {
                 $location = $response->header('Location');
 
                 if (blank($location)) {

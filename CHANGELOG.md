@@ -459,6 +459,9 @@ la [roadmap](docs/roadmap.md).
   entrambe le lingue.
 
 ### Fixed
+- **Modifiche federate inoltrate**: OpenBook può aggiornare un post remoto già
+  noto con la versione verificata all’origine quando l’ID dell’Update rimanda
+  direttamente al post.
 - **Video PeerTube federati**: i nuovi import riconoscono la copertina e
   mostrano il player PeerTube al clic su Riproduci. Se il server di origine
   disabilita il player incorporato, la copertina rimanda al video originale.

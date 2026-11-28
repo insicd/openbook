@@ -93,6 +93,9 @@ cron and the availability of participating instances. Remote servers may apply
 different rules for keeping copies. Content warnings and reading permissions
 also apply to imported posts.
 
+When an edit arrives through another server, OpenBook can retrieve the newer
+version of an already known public or unlisted post from the original server.
+
 Imported PeerTube videos can show a cover and a Play control. Playback uses the
 original server. When that server disables embedding, the cover links to the
 original video page.

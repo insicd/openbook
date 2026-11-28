@@ -32,8 +32,8 @@ use Tests\TestCase;
  * deduplicazione): l'elaborazione semantica delle attivita' (Fase 4) e'
  * accodata su un job separato, qui intercettato con Queue::fake() cosi' che
  * questi test restino concentrati sul solo livello di trasporto e non
- * effettuino consegne reali in uscita. Il caso sondaggio verifica anche il
- * passaggio dal trasporto autenticato al job di raccolta differita.
+ * effettuino consegne reali in uscita. I casi dei sondaggi e delle modifiche
+ * inoltrate verificano anche il passaggio al worker.
  */
 class InboxSignatureTest extends TestCase
 {
@@ -668,6 +668,128 @@ class InboxSignatureTest extends TestCase
             'activity_type' => 'Announce',
             'is_shared' => true,
         ]);
+    }
+
+    #[DataProvider('forwardedPostRevisions')]
+    public function test_a_forwarded_update_can_use_the_current_note_from_its_origin(string $scenario, int $httpStatus, ?string $processedStatus): void
+    {
+        $author = $this->createRemoteActor('alice', 'autore.example');
+        $postUri = $author->uri.'/statuses/42';
+        $published = now()->subHours(2)->startOfSecond();
+        $previousRevision = now()->subHour()->startOfSecond();
+        $edited = now()->subMinutes(5)->startOfSecond();
+        $originUnlisted = in_array($scenario, ['unlisted note', 'unlisted relay'], true);
+        $unlisted = $originUnlisted || $scenario === 'changed audience';
+        $post = Post::query()->create([
+            'actor_id' => $author->id,
+            'uri' => $postUri,
+            'body' => 'Prima versione',
+            'status' => Post::STATUS_PUBLISHED,
+            'visibility' => $unlisted ? Post::VISIBILITY_UNLISTED : Post::VISIBILITY_PUBLIC,
+            'published_at' => $published,
+            'remote_updated_at' => $previousRevision,
+        ]);
+
+        $activity = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $postUri.'#updates/'.$edited->timestamp,
+            'actor' => $author->uri,
+            'type' => 'Update',
+            'to' => [NoteSerializer::PUBLIC_STREAM],
+            'object' => ['id' => $postUri, 'type' => 'Note', 'content' => 'Testo del trasportatore'],
+        ];
+        $originNote = [
+            '@context' => 'https://www.w3.org/ns/activitystreams',
+            'id' => $scenario === 'wrong object' ? $postUri.'-different' : $postUri,
+            'type' => 'Note',
+            'attributedTo' => $scenario === 'wrong author' ? $author->uri.'-different' : $author->uri,
+            'content' => '<p>Testo aggiornato all’origine</p>',
+            'published' => $published->toAtomString(),
+            'updated' => ($scenario === 'stale origin' ? $previousRevision->copy()->subMinute() : $edited)->toAtomString(),
+            'to' => [$originUnlisted || $scenario === 'private origin' ? $author->uri.'/followers' : NoteSerializer::PUBLIC_STREAM],
+        ];
+        if ($originUnlisted) {
+            $originNote['cc'] = [NoteSerializer::PUBLIC_STREAM];
+        }
+        if ($scenario === 'unlisted relay') {
+            $inbox = 'https://remoto.example/inbox';
+            Relay::query()->create([
+                'protocol' => Relay::PROTOCOL_MASTODON,
+                'actor_uri' => self::REMOTE_ACTOR_URI,
+                'inbox_url' => $inbox,
+                'inbox_url_hash' => hash('sha256', $inbox),
+                'state' => Relay::STATE_ACCEPTED,
+                'receive_enabled' => true,
+            ]);
+        }
+        $redirect = 'https://elsewhere.example/status/42';
+        $originResponse = Http::response(json_encode($originNote, JSON_THROW_ON_ERROR), 200, ['Content-Type' => 'application/activity+json']);
+        Http::fake([
+            $postUri => $scenario === 'redirect'
+                ? Http::response('', 302, ['Location' => $redirect])
+                : $originResponse,
+            $redirect => $originResponse,
+        ]);
+
+        $parts = $this->signedActivityParts('/inbox', $activity, self::REMOTE_ACTOR_URI, $this->remoteKeyPair);
+        $this->postSigned($parts)->assertStatus($httpStatus);
+        Http::assertSent(fn ($request): bool => $request->url() === $postUri);
+        Http::assertNotSent(fn ($request): bool => $request->url() === $redirect);
+
+        if ($processedStatus === null) {
+            $this->assertDatabaseCount('inbox_items', 0);
+            $this->assertSame('Prima versione', $post->fresh()->body);
+
+            return;
+        }
+
+        if ($scenario === 'unlisted relay') {
+            $this->assertDatabaseCount('inbox_items', 0);
+            $viewer = $this->createFullAccount('updateviewer');
+            $path = '/users/'.$viewer->username.'/inbox';
+            $this->postSigned($this->signedActivityParts($path, $activity, self::REMOTE_ACTOR_URI, $this->remoteKeyPair))->assertStatus(202);
+        }
+
+        $item = InboxItem::query()->sole();
+        $this->assertNotSame($activity['id'], $item->remote_activity_uri);
+        $this->assertSame($originNote, json_decode($item->payload, true, flags: JSON_THROW_ON_ERROR)['object']);
+        $activity['id'] .= '-retry';
+        $this->postSigned($this->signedActivityParts('/inbox', $activity, self::REMOTE_ACTOR_URI, $this->remoteKeyPair))->assertStatus(202);
+        $this->assertDatabaseCount('inbox_items', 1);
+
+        if ($scenario === 'deleted while queued') {
+            $post->update(['status' => Post::STATUS_DELETED]);
+        }
+
+        (new ProcessInboxActivityJob($item->id))->handle(app(InboxActivityProcessor::class));
+        $this->assertSame($processedStatus, $item->fresh()->status);
+        $post->refresh();
+
+        if ($processedStatus === InboxItem::STATUS_PROCESSED) {
+            $this->assertSame('Testo aggiornato all’origine', $post->body);
+            $this->assertTrue($post->remote_updated_at->equalTo($edited));
+        } else {
+            $this->assertSame('Prima versione', $post->body);
+            $this->assertTrue($post->remote_updated_at->equalTo($previousRevision));
+        }
+        $this->assertTrue($post->published_at->equalTo($published));
+        $this->assertSame($unlisted ? Post::VISIBILITY_UNLISTED : Post::VISIBILITY_PUBLIC, $post->visibility);
+        $this->assertSame($scenario === 'deleted while queued' ? Post::STATUS_DELETED : Post::STATUS_PUBLISHED, $post->status);
+        $this->assertDatabaseCount('posts', 1);
+    }
+
+    public static function forwardedPostRevisions(): iterable
+    {
+        yield 'public note from its origin' => ['public note', 202, InboxItem::STATUS_PROCESSED];
+        yield 'unlisted note with the original audience' => ['unlisted note', 202, InboxItem::STATUS_PROCESSED];
+        yield 'an unlisted note can be refreshed after an ignored relay delivery' => ['unlisted relay', 202, InboxItem::STATUS_PROCESSED];
+        yield 'refetch would broaden visibility' => ['changed audience', 202, InboxItem::STATUS_IGNORED];
+        yield 'older revision' => ['stale origin', 202, InboxItem::STATUS_IGNORED];
+        yield 'post deleted before processing' => ['deleted while queued', 202, InboxItem::STATUS_IGNORED];
+        yield 'mismatched Note identifier' => ['wrong object', 401, null];
+        yield 'mismatched Note author' => ['wrong author', 401, null];
+        yield 'followers-only Note with a public envelope' => ['private origin', 401, null];
+        yield 'redirected fetch' => ['redirect', 401, null];
     }
 
     public function test_a_forwarded_create_is_accepted_after_same_origin_refetch(): void

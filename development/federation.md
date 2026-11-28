@@ -129,6 +129,14 @@ browsers:
   status `pending`: their **semantic processing** happens outside the HTTP
   cycle (see [Social federation](federation.md#social-federation-phase-4) below), so a
   delivering peer is never blocked waiting for heavy processing.
+- **Forwarded post updates**: if the activity ID is a fragment of the post
+  URL and the original Linked Data signature cannot be verified, OpenBook
+  can fetch the ActivityPub `Note` from the author’s origin without following
+  redirects. It applies a newer revision to a cached public or unlisted post
+  when the remote author, object identifier and visibility still match. The
+  forwarding payload supplies the reference. The fetched `Note` supplies the
+  content and audience. Deduplication uses the fetched revision independently
+  of the forwarded activity ID.
 - **Post acquisition provenance**: `posts.received_via` is nullable JSON with
   optional `relay`, `community` and `rss` URI fields. It is assigned only on
   the first successful insertion; updates, retries and subsequent deliveries
