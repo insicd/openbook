@@ -19,7 +19,7 @@ final class ExternalLinkPreviewService
 
     public function eligibleUrl(Post $post): ?string
     {
-        if ($post->status !== Post::STATUS_PUBLISHED || $post->visibility !== Post::VISIBILITY_PUBLIC) {
+        if ($post->status !== Post::STATUS_PUBLISHED || $post->visibility !== Post::VISIBILITY_PUBLIC || $post->remote_video !== null) {
             return null;
         }
 

@@ -412,7 +412,7 @@ final class RemotePostObject
      * @param  array<string, mixed>  $document
      * @return list<array{url: string, mime: string|null, alt: string|null}>
      */
-    public static function mediaAttachments(array $document): array
+    public static function mediaAttachments(array $document, bool $hasVideoPreview = false): array
     {
         $found = [];
         $hasImageAttachment = false;
@@ -452,7 +452,7 @@ final class RemotePostObject
             }
         }
 
-        if (self::hasType($document['type'] ?? null, 'Video')) {
+        if (! $hasVideoPreview && self::hasType($document['type'] ?? null, 'Video')) {
             $descriptor = self::videoDescriptorFromObject($document);
 
             if ($descriptor !== null) {
@@ -473,7 +473,7 @@ final class RemotePostObject
         // insieme agli attachment immagine originali: usiamole quindi solo
         // come fallback, non come ulteriori elementi della galleria. Restano
         // invece utili come poster o copertina di attachment video/audio.
-        if (! $hasImageAttachment) {
+        if (! $hasVideoPreview && ! $hasImageAttachment) {
             foreach (['image', 'icon'] as $field) {
                 $preview = $document[$field] ?? null;
 

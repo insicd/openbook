@@ -130,6 +130,14 @@ essere consumati da altri server e non da browser:
   **elaborazione semantica** avviene fuori dal ciclo HTTP (vedi
   [Federazione sociale](federation.it.md#federazione-sociale-fase-4) qui sotto), cosi' da non bloccare
   mai chi consegna un'attivita' in attesa di elaborazioni pesanti.
+- **Modifiche ai post inoltrate**: se l’ID dell’attività è un frammento
+  dell’URL del post e la firma Linked Data originale non è verificabile,
+  OpenBook può recuperare la `Note` ActivityPub dall’origine dell’autore
+  senza seguire redirect. Applica una revisione più recente a un post pubblico
+  o non elencato già in cache quando autore, identificatore e visibilità
+  coincidono. L’inoltro fornisce il riferimento. Contenuto e destinatari
+  provengono dalla `Note` recuperata. La deduplica usa la revisione ottenuta
+  dall’origine, indipendentemente dall’ID dell’attività inoltrata.
 - **Provenienza di acquisizione dei post**: `posts.received_via` è un JSON
   nullable con URI nelle chiavi opzionali `relay`, `community`, `rss`. Viene
   assegnato soltanto alla prima creazione riuscita; Update, retry e consegne
@@ -583,8 +591,12 @@ Le community sono Actor ActivityPub di tipo `Group`:
 Oltre a `Note` e `Page`, l'inbox/outbox accettano `Article` (WordPress ActivityPub,
 WriteFreely), `Video` (PeerTube, anche con `attributedTo` Person+Group) e `Image`.
 Gli allegati immagine remoti restano URL https in `media.remote_url` (galleria e
-rullino profilo) senza download sull'istanza. Se l'outbox e' uno stub (tipico
-Pixelfed: solo `totalItems`), il profilo remoto ricade sul feed Atom `{actor}.atom`.
+rullino profilo) senza download sull'istanza. Per i video PeerTube riconosciuti,
+OpenBook conserva gli URL HTTPS del player e della copertina. Il player Web
+si carica al clic su Riproduci e riproduce lo streaming di PeerTube.
+Se PeerTube disabilita esplicitamente il player incorporato, la copertina
+rimanda al video originale. Se l'outbox e' uno stub (tipico di Pixelfed: solo
+`totalItems`), il profilo remoto ricade sul feed Atom `{actor}.atom`.
 Per Wafrn (outbox vuoto) si usa l'API pubblica `/api/v2/blog`. **Threads**
 (Meta) non espone i post nell'outbox ActivityPub: sul profilo remoto si
 possono vedere solo i contenuti gia' ricevuti in inbox dopo un Follow (e

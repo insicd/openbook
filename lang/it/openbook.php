@@ -381,6 +381,8 @@ return [
         'fetch_updates' => 'Recupera aggiornamenti',
         'updates_fetched' => 'Aggiornamenti recuperati dal server di origine.',
         'video_embed' => 'Video incorporato (:provider)',
+        'play_remote_video' => 'Riproduci video',
+        'open_on_peertube' => 'Apri su PeerTube',
         'read_more' => 'Altro...',
         'published' => 'Il tuo post è stato pubblicato.',
         'updated' => 'Il post è stato aggiornato.',

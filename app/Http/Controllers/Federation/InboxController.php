@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Federation;
 
 use App\Application\Services\DomainBlockManager;
+use App\Domain\Posts\Post;
 use App\Federation\Actors\Actor;
 use App\Federation\Actors\LocalActorResolver;
 use App\Federation\Inbox\ForwardedActivityAuthenticator;
@@ -75,6 +76,7 @@ final class InboxController extends Controller
         if (! is_array($activity)
             || ! isset($activity['id'], $activity['type'], $activity['actor'])
             || ! is_string($activity['id'])
+            || strncasecmp($activity['id'], InboxItem::ORIGIN_POST_UPDATE_URI_PREFIX, strlen(InboxItem::ORIGIN_POST_UPDATE_URI_PREFIX)) === 0
             || ! is_string($activity['type'])) {
             return response()->json(['error' => "Attivita' non valida."], 400);
         }
@@ -140,6 +142,8 @@ final class InboxController extends Controller
         // Provenance also identifies a Group relay at a personal inbox;
         // relay authorization/relevance remains limited to the shared inbox.
         $relay = $targetActor === null ? $transportRelay : null;
+        $receivedVia = PostReceivedVia::transport($verification->actor, $transportRelay);
+        $originPostVisibility = null;
 
         if ($isForwarded) {
             $authenticated = $this->forwardedActivities->authenticate($activity, $actorUri);
@@ -154,14 +158,16 @@ final class InboxController extends Controller
                 return response()->json(['error' => 'Attore firmatario non corrispondente.'], 401);
             }
 
+            $activity = $authenticated['activity'];
+            $originPostVisibility = $authenticated['originPostVisibility'] ?? null;
             Log::channel('single')->info('federation.inbox.forwarded_accepted', [
                 'signed_by' => $verification->actor?->uri,
                 'claimed_actor' => $actorUri,
-                'activity_id' => $authenticated['id'] ?? $activity['id'],
+                'activity_id' => $activity['id'],
                 'relay_id' => $relay?->id,
+                'origin_post_update' => $originPostVisibility !== null,
             ]);
 
-            $activity = $authenticated;
             $actorUri = is_string($activity['actor'] ?? null)
                 ? $activity['actor']
                 : (is_array($activity['actor'] ?? null) ? ($activity['actor']['id'] ?? $actorUri) : $actorUri);
@@ -174,9 +180,21 @@ final class InboxController extends Controller
 
         if ($relay !== null) {
             $relay->forceFill(['last_success_at' => now()])->save();
+            if ($originPostVisibility === Post::VISIBILITY_UNLISTED) {
+                // Leave the revision eligible for a later non-relay delivery.
+                return response()->json(['status' => 'accepted'], 202);
+            }
         }
 
-        if (InboxItem::query()->where('remote_activity_uri', $activity['id'])->exists()) {
+        $activityUri = $activity['id'];
+        if ($originPostVisibility !== null) {
+            // A refresh hint can arrive before the real Update. Deduplicate the
+            // fetched revision independently of the unverified envelope ID.
+            $activityUri = InboxItem::ORIGIN_POST_UPDATE_URI_PREFIX.hash('sha256', $activity['object']['id']."\n".$activity['object']['updated']);
+            $receivedVia['origin_post_update'] = true;
+        }
+
+        if (InboxItem::query()->where('remote_activity_uri', $activityUri)->exists()) {
             // Idempotente: una ri-consegna della stessa attivita' non e' un errore.
             return response()->json(['status' => 'accepted'], 202);
         }
@@ -186,8 +204,8 @@ final class InboxController extends Controller
                 'target_actor_id' => $targetActor?->id,
                 'relay_id' => $relay?->id,
                 'is_shared' => $targetActor === null,
-                'received_via' => PostReceivedVia::transport($verification->actor, $transportRelay),
-                'remote_activity_uri' => $activity['id'],
+                'received_via' => $receivedVia,
+                'remote_activity_uri' => $activityUri,
                 'activity_type' => $activity['type'],
                 'actor_uri' => $actorUri,
                 'payload' => $body,

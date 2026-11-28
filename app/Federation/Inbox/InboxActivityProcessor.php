@@ -119,7 +119,9 @@ final class InboxActivityProcessor
             'Reject' => $this->handleReject($activity, $signer),
             'Undo' => $this->handleUndo($activity, $signer),
             'Create' => $this->handleCreateOrUpdate($activity, $signer, $inboxTarget, $fromRelay, $item),
-            'Update' => $this->handleUpdate($activity, $signer, $inboxTarget, $fromRelay, $item),
+            'Update' => ($item->received_via['origin_post_update'] ?? false) === true
+                ? $this->handleOriginPostUpdate($activity['object'], $signer, $fromRelay)
+                : $this->handleUpdate($activity, $signer, $inboxTarget, $fromRelay, $item),
             'Delete' => $this->handleDelete($activity, $signer),
             'Like' => $this->handleLike($activity, $signer),
             'Add', 'Remove' => $this->handleFeaturedChange($activity, $signer),
@@ -133,6 +135,27 @@ final class InboxActivityProcessor
         }
 
         return $status;
+    }
+
+    /** @param array<string, mixed> $note */
+    private function handleOriginPostUpdate(array $note, Actor $author, bool $fromRelay): string
+    {
+        if ($fromRelay && $this->noteUpserter->visibilityFromAudience($note) !== Post::VISIBILITY_PUBLIC) {
+            return InboxItem::STATUS_IGNORED;
+        }
+
+        $post = $this->noteUpserter->upsertPost(
+            $note,
+            $note['id'],
+            $author,
+            RemotePostObject::body($note),
+            now(),
+            notifyMentions: false,
+            trackDelivery: false,
+            requireNewerPublicRevision: true,
+        );
+
+        return $post !== null ? InboxItem::STATUS_PROCESSED : InboxItem::STATUS_IGNORED;
     }
 
     /** @param array<string, mixed> $activity */

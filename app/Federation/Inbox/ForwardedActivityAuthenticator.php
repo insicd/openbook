@@ -3,6 +3,7 @@
 namespace App\Federation\Inbox;
 
 use App\Application\Services\DomainBlockManager;
+use App\Domain\Posts\Post;
 use App\Federation\Fetch\FederationFetchSigner;
 use App\Federation\Support\ActivityPubUri;
 use App\Infrastructure\Security\Http\SafeHttpClient;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Log;
  * Ordine (allineato a Mastodon + Primer ActivityPub):
  * 1. Linked Data Signature {@code RsaSignature2017} sul payload
  * 2. altrimenti refetch same-origin dell'id attivita'
+ * 3. per un Update identificato da un frammento del post, usa la Note all'origine
  */
 final class ForwardedActivityAuthenticator
 {
@@ -25,11 +27,12 @@ final class ForwardedActivityAuthenticator
         private readonly FederationFetchSigner $fetchSigner,
         private readonly DomainBlockManager $domainBlocks,
         private readonly LinkedDataSignature $linkedDataSignatures,
+        private readonly RemoteNoteUpserter $noteUpserter,
     ) {}
 
     /**
      * @param  array<string, mixed>  $activity  Payload consegnato dal forwarder
-     * @return array<string, mixed>|null Documento autenticato
+     * @return array{activity: array<string, mixed>, originPostVisibility?: string}|null
      */
     public function authenticate(array $activity, string $claimedActorUri): ?array
     {
@@ -39,7 +42,7 @@ final class ForwardedActivityAuthenticator
                 'claimed_actor' => $claimedActorUri,
             ]);
 
-            return $activity;
+            return ['activity' => $activity];
         }
 
         return $this->authenticateFromOrigin($activity, $claimedActorUri);
@@ -47,9 +50,9 @@ final class ForwardedActivityAuthenticator
 
     /**
      * @param  array<string, mixed>  $activity  Payload consegnato dal forwarder
-     * @return array<string, mixed>|null Documento autenticato dall'origine
+     * @return array{activity: array<string, mixed>, originPostVisibility?: string}|null
      */
-    public function authenticateFromOrigin(array $activity, string $claimedActorUri): ?array
+    private function authenticateFromOrigin(array $activity, string $claimedActorUri): ?array
     {
         $activityId = is_string($activity['id'] ?? null) ? $activity['id'] : null;
 
@@ -75,7 +78,11 @@ final class ForwardedActivityAuthenticator
             return null;
         }
 
-        $fetch = $this->fetchActivityDocument($activityId);
+        $postUri = ActivityPubUri::withoutFragment($activityId);
+        $objectUri = $this->actorUri($activity['object'] ?? null);
+        $isFragmentUpdate = ($activity['type'] ?? null) === 'Update'
+            && $activityId !== $postUri && $objectUri === $postUri;
+        $fetch = $this->fetchActivityDocument($isFragmentUpdate ? $postUri : $activityId, $isFragmentUpdate);
         $document = $fetch['document'];
 
         if ($document === null) {
@@ -93,6 +100,18 @@ final class ForwardedActivityAuthenticator
         $fetchedId = is_string($document['id'] ?? null) ? $document['id'] : null;
         $fetchedActor = $this->actorUri($document['actor'] ?? null);
         $fetchedType = is_string($document['type'] ?? null) ? $document['type'] : null;
+
+        if ($isFragmentUpdate && $fetchedType === 'Note' && $fetchedId === $postUri
+            && RemotePostObject::authorMatches($document['attributedTo'] ?? null, $claimedActorUri)
+            && is_string($document['updated'] ?? null) && $document['updated'] !== '') {
+            $visibility = $this->noteUpserter->visibilityFromAudience($document);
+            if (in_array($visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED], true)) {
+                return [
+                    'activity' => ['id' => $activityId, 'type' => 'Update', 'actor' => $claimedActorUri, 'object' => $document],
+                    'originPostVisibility' => $visibility,
+                ];
+            }
+        }
 
         if ($fetchedId === null || $fetchedActor === null || $fetchedType === null || $fetchedType === '') {
             Log::channel('single')->info('federation.inbox.forward_rejected', [
@@ -124,18 +143,18 @@ final class ForwardedActivityAuthenticator
             return null;
         }
 
-        return $document;
+        return ['activity' => $document];
     }
 
     /**
      * @return array{document: ?array<string, mixed>, category: ?string, http_status: ?int}
      */
-    private function fetchActivityDocument(string $uri): array
+    private function fetchActivityDocument(string $uri, bool $isFragmentUpdate): array
     {
         try {
             $response = $this->httpClient->get($uri, [
                 'Accept' => 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"',
-            ], $this->fetchSigner->resolve());
+            ], $this->fetchSigner->resolve(), followRedirects: ! $isFragmentUpdate);
         } catch (SsrfViolationException) {
             return ['document' => null, 'category' => 'blocked', 'http_status' => null];
         } catch (\Throwable) {
@@ -144,6 +163,10 @@ final class ForwardedActivityAuthenticator
 
         if (! $response->successful()) {
             return ['document' => null, 'category' => 'http', 'http_status' => $response->status];
+        }
+
+        if ($isFragmentUpdate && ! preg_match('~^application/(?:activity\+json|ld\+json)(?:\s*;|$)~i', (string) $response->header('Content-Type'))) {
+            return ['document' => null, 'category' => 'not_activitypub', 'http_status' => $response->status];
         }
 
         try {

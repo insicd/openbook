@@ -157,8 +157,9 @@ Tutte le impostazioni specifiche di Openbook sono centralizzate in
 | `OPENBOOK_DELIVERY_MAX_ATTEMPTS` | Numero massimo di tentativi per la consegna di una singola attivita' in uscita, prima che finisca in `failed_jobs`. Gli intervalli di backoff tra un tentativo e l'altro (1, 5, 15, 60, 360, 1440 minuti) sono fissi. |
 
 L’estensione PHP `gd` è consigliata per generare miniature e rimuovere i
-metadati dalle immagini compatibili. Senza GD il caricamento resta disponibile,
-ma queste elaborazioni vengono saltate.
+metadati dalle immagini compatibili. Negli allegati JPEG, OpenBook applica
+l’orientamento EXIF alla foto e alla miniatura prima di rimuovere i metadati.
+Senza GD il caricamento resta disponibile e salta queste elaborazioni.
 
 ### Impostazioni personali
 
@@ -270,6 +271,11 @@ eseguire le manutenzioni periodiche. Il comando coordina questi task:
 
 Ogni chiamata elabora il lavoro in attesa e termina autonomamente. Per questi
 task basta configurare il cron periodico; non serve un worker permanente.
+
+Dopo la consegna di un follow federato, il job di conferma ripete il controllo
+della lista `followers` a intervalli crescenti. L’attesa di una conferma remota
+è un esito normale del controllo. Esauriti i tentativi del job, il follow resta
+in attesa di un `Accept` o di una conferma tramite il cron periodico.
 
 **Con accesso a un vero cron di sistema:**
 

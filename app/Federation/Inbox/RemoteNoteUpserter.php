@@ -72,6 +72,7 @@ final class RemoteNoteUpserter
         ?DeliverySource $delivery = null,
         bool $trackDelivery = true,
         ?array $receivedVia = null,
+        bool $requireNewerPublicRevision = false,
     ): ?Post {
         $post = DB::transaction(fn (): ?Post => $this->upsertPostWithinTransaction(
             $note,
@@ -84,6 +85,7 @@ final class RemoteNoteUpserter
             $directMessageThreadParent,
             $source,
             $receivedVia,
+            $requireNewerPublicRevision,
         ));
         if ($trackDelivery && $post !== null) {
             $this->deliveryStats->record($post, $delivery ?? new DeliverySource);
@@ -106,6 +108,7 @@ final class RemoteNoteUpserter
         ?Post $directMessageThreadParent,
         ?InboxItem $source,
         ?array $receivedVia,
+        bool $requireNewerPublicRevision,
     ): ?Post {
         /** @var Post $post */
         $post = Post::query()->where('uri', $noteUri)->lockForUpdate()->first() ?? new Post(['uri' => $noteUri]);
@@ -133,13 +136,28 @@ final class RemoteNoteUpserter
             }
         }
 
-        $remoteUpdatedAt = $this->remoteUpdatedAt($note);
+        $remoteUpdatedAt = $this->remoteUpdatedAt($note, requireExplicitUpdate: $requireNewerPublicRevision);
 
         if (! $wasNew
             && $post->remote_updated_at !== null
             && $remoteUpdatedAt !== null
             && $remoteUpdatedAt->lessThan($post->remote_updated_at)) {
-            return $pollDocument !== null ? null : $post;
+            return $pollDocument !== null || $requireNewerPublicRevision ? null : $post;
+        }
+
+        $visibility = null;
+        if ($requireNewerPublicRevision) {
+            $previousRevision = $post->remote_updated_at ?? $post->published_at;
+            $visibility = $this->visibilityFromAudience($note);
+            if ($wasNew || ! $post->isPublished() || $post->actor_id !== $actor->id
+                || ! in_array($post->visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_UNLISTED], true)
+                || $visibility !== $post->visibility
+                || $remoteUpdatedAt === null || $previousRevision === null
+                || $remoteUpdatedAt->lessThanOrEqualTo($previousRevision)) {
+                return null;
+            }
+
+            $publishedAt = $post->published_at ?? $publishedAt;
         }
 
         $quotedPost = null;
@@ -158,7 +176,7 @@ final class RemoteNoteUpserter
 
         $sensitive = (bool) ($note['sensitive'] ?? false);
 
-        $visibility = $this->visibilityFromAudience($note);
+        $visibility ??= $this->visibilityFromAudience($note);
 
         if ($directMessageThreadParent !== null && $directMessageThreadParent->visibility === Post::VISIBILITY_DIRECT) {
             $visibility = Post::VISIBILITY_DIRECT;
@@ -171,6 +189,7 @@ final class RemoteNoteUpserter
         $attributes = [
             'actor_id' => $actor->id,
             'title' => RemotePostObject::title($note),
+            'remote_video' => $actor->isLocal() ? null : PeerTubeVideo::fromDocument($note, $noteUri, $actor->uri),
             'content_warning' => $sensitive ? (is_string($note['summary'] ?? null) ? mb_substr($note['summary'], 0, 255) : null) : null,
             'body' => $body,
             'language' => RemotePostObject::language($note),
@@ -246,9 +265,9 @@ final class RemoteNoteUpserter
     }
 
     /** @param array<string, mixed> $note */
-    private function remoteUpdatedAt(array $note): ?Carbon
+    private function remoteUpdatedAt(array $note, bool $requireExplicitUpdate): ?Carbon
     {
-        foreach (['updated', 'published'] as $field) {
+        foreach ($requireExplicitUpdate ? ['updated'] : ['updated', 'published'] as $field) {
             $value = $note[$field] ?? null;
 
             if (! is_string($value) || $value === '') {

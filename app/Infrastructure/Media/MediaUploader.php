@@ -5,6 +5,7 @@ namespace App\Infrastructure\Media;
 use App\Federation\Actors\Actor;
 use App\Infrastructure\Media\Concerns\ManipulatesImagesWithGd;
 use App\Infrastructure\Media\Concerns\NormalizesPublicDiskPermissions;
+use GdImage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -131,7 +132,8 @@ final class MediaUploader
             throw new InvalidArgumentException('Il file supera la dimensione massima consentita.');
         }
 
-        $dimensions = @getimagesize($file->getRealPath());
+        $sourcePath = $file->getRealPath();
+        $dimensions = @getimagesize($sourcePath);
 
         if ($dimensions === false) {
             throw new InvalidArgumentException('Il file non e un\'immagine valida.');
@@ -144,7 +146,19 @@ final class MediaUploader
         $directory = 'media/'.date('Y/m');
         $path = $directory.'/'.$randomName;
 
-        $contents = $this->stripMetadataIfPossible($file->getRealPath(), $mimeType) ?? file_get_contents($file->getRealPath());
+        $image = $mimeType !== 'image/gif' && extension_loaded('gd') ? $this->loadImage($sourcePath, $mimeType) : null;
+        if ($image !== null && $mimeType === 'image/jpeg') {
+            $image = $this->orientJpeg($image, JpegExifOrientation::read($sourcePath));
+        }
+
+        $contents = $image === null ? null : $this->encodeImage($image, $mimeType);
+        if ($contents === null) {
+            $contents = file_get_contents($sourcePath);
+            $image = null;
+        } else {
+            $width = imagesx($image);
+            $height = imagesy($image);
+        }
 
         if ($contents === false) {
             throw new InvalidArgumentException('Impossibile leggere il file immagine.');
@@ -152,7 +166,7 @@ final class MediaUploader
         $disk = app(MediaStorage::class)->uploadDisk();
         $thumbnailPath = preg_replace('/(\.[a-z0-9]+)$/i', '_thumb$1', $path) ?? $path.'_thumb';
 
-        return $this->storeFiles($disk, [$path, $thumbnailPath], function () use ($file, $actor, $disk, $directory, $path, $contents, $mimeType, $width, $height, $altText): Media {
+        return $this->storeFiles($disk, [$path, $thumbnailPath], function () use ($file, $actor, $disk, $directory, $path, $thumbnailPath, $contents, $mimeType, $width, $height, $altText, $image): Media {
             if (! Storage::disk($disk)->put($path, $contents)) {
                 throw new \RuntimeException;
             }
@@ -172,7 +186,9 @@ final class MediaUploader
                 'height' => $height,
                 'alt_text' => $altText,
             ]);
-            $this->generateThumbnail($media, $file->getRealPath(), $mimeType, $width, $height);
+            if ($image !== null) {
+                $this->generateThumbnail($media, $image, $thumbnailPath);
+            }
 
             return $media;
         });
@@ -250,54 +266,48 @@ final class MediaUploader
         }
     }
 
-    /**
-     * Rimuove i metadati EXIF (inclusi eventuali dati di geolocalizzazione)
-     * ricodificando l'immagine con GD, quando l'estensione e' disponibile.
-     * Se GD non e' installato, il file viene salvato cosi' com'e': una
-     * limitazione nota su hosting privi di questa estensione.
-     */
-    private function stripMetadataIfPossible(string $realPath, string $mimeType): ?string
+    private function orientJpeg(GdImage $image, int $orientation): GdImage
     {
-        if ($mimeType === 'image/gif') {
-            return null;
+        $angle = match ($orientation) {
+            5, 6 => -90,
+            7, 8 => 90,
+            default => 0,
+        };
+        if ($angle !== 0) {
+            $rotated = imagerotate($image, $angle, 0);
+            if ($rotated === false) {
+                return $image;
+            }
+            $image = $rotated;
         }
 
-        if (! extension_loaded('gd')) {
-            return null;
+        $flip = match ($orientation) {
+            2, 5, 7 => IMG_FLIP_HORIZONTAL,
+            3 => IMG_FLIP_BOTH,
+            4 => IMG_FLIP_VERTICAL,
+            default => null,
+        };
+        if ($flip !== null) {
+            imageflip($image, $flip);
         }
 
-        $image = $this->loadImage($realPath, $mimeType);
+        return $image;
+    }
 
-        if ($image === null) {
-            return null;
-        }
-
-        // Le risorse GdImage vengono deallocate automaticamente dal garbage
-        // collector di PHP: imagedestroy() e' un no-op dalla 8.0 e deprecata
-        // dalla 8.5, quindi non viene chiamata volutamente.
+    /** Re-encoding strips EXIF, including any location metadata. */
+    private function encodeImage(GdImage $image, string $mimeType): ?string
+    {
         ob_start();
         $this->outputImage($image, $mimeType);
 
         return ob_get_clean() ?: null;
     }
 
-    private function generateThumbnail(Media $media, string $sourcePath, string $mimeType, int $width, int $height): void
+    private function generateThumbnail(Media $media, GdImage $image, string $thumbnailPath): void
     {
-        if ($mimeType === 'image/gif') {
-            return;
-        }
-
-        if (! extension_loaded('gd')) {
-            return;
-        }
-
+        $width = imagesx($image);
+        $height = imagesy($image);
         if ($width <= self::THUMBNAIL_MAX_DIMENSION && $height <= self::THUMBNAIL_MAX_DIMENSION) {
-            return;
-        }
-
-        $source = $this->loadImage($sourcePath, $mimeType);
-
-        if ($source === null) {
             return;
         }
 
@@ -305,17 +315,12 @@ final class MediaUploader
         $thumbWidth = max(1, (int) round($width * $ratio));
         $thumbHeight = max(1, (int) round($height * $ratio));
 
-        $thumbnail = $this->resizeImage($source, $width, $height, $thumbWidth, $thumbHeight, $mimeType);
+        $thumbnail = $this->resizeImage($image, $width, $height, $thumbWidth, $thumbHeight, $media->mime_type);
+        $contents = $this->encodeImage($thumbnail, $media->mime_type);
 
-        ob_start();
-        $this->outputImage($thumbnail, $mimeType);
-        $contents = ob_get_clean();
-
-        if ($contents === false || $contents === '') {
+        if ($contents === null) {
             return;
         }
-
-        $thumbnailPath = preg_replace('/(\.[a-z0-9]+)$/i', '_thumb$1', $media->path) ?? $media->path.'_thumb';
 
         if (! Storage::disk($media->disk)->put($thumbnailPath, $contents)) {
             throw new \RuntimeException;

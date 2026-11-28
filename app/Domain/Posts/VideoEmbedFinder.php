@@ -82,21 +82,9 @@ final class VideoEmbedFinder
     private static function fromPeertube(string $url): ?VideoEmbed
     {
         $host = strtolower((string) parse_url($url, PHP_URL_HOST));
-        $path = (string) parse_url($url, PHP_URL_PATH);
+        $videoId = self::peerTubeVideoId((string) parse_url($url, PHP_URL_PATH));
 
-        if ($host === '' || $path === '') {
-            return null;
-        }
-
-        // Forme tipiche PeerTube. L'id puo' essere uno short-id oppure un UUID.
-        if (preg_match('#^/(?:w|videos/watch|videos/embed)/([A-Za-z0-9_-]{8,})#', $path, $match) !== 1) {
-            return null;
-        }
-
-        $videoId = $match[1];
-
-        // Evita falsi positivi banali su siti generici con un path /w/corto.
-        if (strlen($videoId) < 8) {
+        if ($host === '' || $videoId === null) {
             return null;
         }
 
@@ -105,5 +93,10 @@ final class VideoEmbedFinder
             'https://'.$host.'/videos/embed/'.$videoId,
             $url,
         );
+    }
+
+    public static function peerTubeVideoId(string $path): ?string
+    {
+        return preg_match('#^/(?:w|videos/watch|videos/embed)/([A-Za-z0-9_-]{8,})#', $path, $match) === 1 ? $match[1] : null;
     }
 }

@@ -365,6 +365,8 @@ return [
         'fetch_updates' => 'Hae päivitykset',
         'updates_fetched' => 'Päivitykset haettiin alkuperäiseltä palvelimelta.',
         'video_embed' => 'Upotettu video (:provider)',
+        'play_remote_video' => 'Toista video',
+        'open_on_peertube' => 'Avaa PeerTubessa',
         'read_more' => 'Lisää…',
         'published' => 'Julkaisusi on julkaistu.',
         'updated' => 'Julkaisusi on päivitetty.',

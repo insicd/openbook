@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $id
  * @property string|null $target_actor_id
  * @property string|null $relay_id
- * @property array{relay?: string, community?: string}|null $received_via Verified transport context
+ * @property array{relay?: string, community?: string, origin_post_update?: bool}|null $received_via Verified acquisition context
  * @property bool $is_shared
  * @property string $remote_activity_uri
  * @property string $activity_type
@@ -39,6 +39,8 @@ class InboxItem extends Model
     public const STATUS_FAILED = 'failed';
 
     public const STATUS_IGNORED = 'ignored';
+
+    public const ORIGIN_POST_UPDATE_URI_PREFIX = 'urn:openbook:origin-post-update:';
 
     /**
      * @var list<string>

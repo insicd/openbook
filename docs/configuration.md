@@ -154,8 +154,9 @@ All Openbook-specific settings are centralized in
 | `OPENBOOK_DELIVERY_MAX_ATTEMPTS` | Maximum number of attempts to deliver a single outgoing activity before it ends up in `failed_jobs`. Backoff intervals between attempts (1, 5, 15, 60, 360, 1440 minutes) are fixed. |
 
 The PHP `gd` extension is recommended for thumbnails and metadata removal from
-supported images. Without GD, uploads remain available but these processing
-steps are skipped.
+supported images. For JPEG attachments, OpenBook applies the EXIF orientation
+to the image and its thumbnail before discarding the metadata. Without GD,
+uploads remain available and skip these processing steps.
 
 ### Personal settings
 
@@ -260,6 +261,11 @@ maintenance. The command coordinates these tasks:
 
 Each invocation processes pending work and finishes on its own. For these
 tasks, configure the periodic cron; no permanent worker is needed.
+
+After delivering a federated follow, the confirmation job checks the remote
+`followers` collection at increasing intervals. Waiting for remote confirmation
+is a normal outcome of the check. Once the job reaches its attempt limit, the
+follow remains pending until an `Accept` or a later confirmation by cron.
 
 **With access to a real system cron:**
 

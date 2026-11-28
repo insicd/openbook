@@ -381,6 +381,8 @@ return [
         'fetch_updates' => 'Fetch updates',
         'updates_fetched' => 'Updates fetched from the origin server.',
         'video_embed' => 'Embedded video (:provider)',
+        'play_remote_video' => 'Play video',
+        'open_on_peertube' => 'Open on PeerTube',
         'read_more' => 'More...',
         'published' => 'Your post has been published.',
         'updated' => 'Your post has been updated.',

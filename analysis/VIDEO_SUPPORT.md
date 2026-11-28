@@ -171,6 +171,18 @@ un successivo `Update`, oltre a mostrare localmente un contenuto parziale.
 - Conferma MP4/H.264/AAC come minimo comune denominatore, ma il modello
   multi-risoluzione/HLS e' fuori scala per il supporto basico previsto.
 
+### Video PeerTube ricevuti via ActivityPub
+
+Il documento Apollo di fedi.video dichiara `Video`, il namespace PeerTube,
+`embedUrl` e una lista di copertine in `icon`. Il suo `mediaType` descrive il
+testo, mentre il video riproducibile è in HLS. L'unico MP4 diretto è solo audio.
+Per questi documenti memorizziamo l'embed HTTPS sullo stesso origin del
+documento e dell'autore, oltre alla copertina remota. Web riusa l'iframe
+PeerTube al clic su Play. Se PeerTube dichiara `embedUrl: null`, la copertina
+rimanda al video originale. Gli allegati espliciti seguono il flusso esistente.
+I record già importati ricevono i metadati alla prossima importazione del
+documento, senza backfill.
+
 ### Sintesi provvisoria per Openbook
 
 Il minimo comune interoperabile emerso e': MP4 + H.264 + AAC (o nessun audio),

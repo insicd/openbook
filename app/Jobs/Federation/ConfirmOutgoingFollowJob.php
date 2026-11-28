@@ -42,11 +42,10 @@ final class ConfirmOutgoingFollowJob implements ShouldQueue
             return;
         }
 
-        // Non ancora in collection: ritenta con backoff finche' ci sono tentativi.
-        if ($this->attempts() < $this->tries) {
-            throw new \RuntimeException(
-                "Follow {$this->followId} non ancora presente nella collection followers remota."
-            );
+        // Un Follow può restare in attesa di approvazione remota.
+        $attempt = $this->attempts();
+        if ($attempt < $this->tries) {
+            $this->release($this->backoff[$attempt - 1]);
         }
     }
 }
