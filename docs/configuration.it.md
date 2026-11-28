@@ -157,8 +157,9 @@ Tutte le impostazioni specifiche di Openbook sono centralizzate in
 | `OPENBOOK_DELIVERY_MAX_ATTEMPTS` | Numero massimo di tentativi per la consegna di una singola attivita' in uscita, prima che finisca in `failed_jobs`. Gli intervalli di backoff tra un tentativo e l'altro (1, 5, 15, 60, 360, 1440 minuti) sono fissi. |
 
 L’estensione PHP `gd` è consigliata per generare miniature e rimuovere i
-metadati dalle immagini compatibili. Senza GD il caricamento resta disponibile,
-ma queste elaborazioni vengono saltate.
+metadati dalle immagini compatibili. Negli allegati JPEG, OpenBook applica
+l’orientamento EXIF alla foto e alla miniatura prima di rimuovere i metadati.
+Senza GD il caricamento resta disponibile e salta queste elaborazioni.
 
 ### Impostazioni personali
 

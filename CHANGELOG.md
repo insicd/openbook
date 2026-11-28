@@ -471,6 +471,8 @@ la [roadmap](docs/roadmap.md).
   eventi con hashtag.
 - **Emoji nei profili remoti**: le emoji personalizzate vengono mostrate anche
   nelle etichette e nei valori dei campi aggiuntivi della biografia.
+- **Orientamento delle foto JPEG**: gli allegati e le miniature rispettano
+  l’orientamento EXIF, anche quando i metadati vengono rimossi al caricamento.
 - **Integrità delle statistiche di consegna**: eliminare una sorgente statistica
   elimina in cascata i suoi contatori giornalieri; il database impedisce bucket
   orfani. La migration ripulisce prima i bucket privi di sorgente. La rimozione
